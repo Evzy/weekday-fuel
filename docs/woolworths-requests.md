@@ -41,7 +41,8 @@ Captured on desktop Chromium, 2026-10-15.
 | Field | Value |
 | --- | --- |
 | Body the site sends when adding shaved ham | Same request and body shape, `quantity` in kilograms: `0.1` for the minimum 100 g. |
-| Can it be set by the same request? | Yes (kg quantity). Kept as a manual item for now per the spec; could be automated later by sending kg. |
+| Product facts (`/apis/ui/product/detail/175734`, 2026-10-15) | `Unit` `KG`, `MinimumQuantity` 0.1, `IncrementalMinimumQuantity` 100 g, `SupplyLimit` 10, $28.00/kg |
+| Automated? | Yes, from v0.2.1: Build a shop rounds up to the next 100 g and sends the weight in kilograms. |
 
 ## Decision
 
