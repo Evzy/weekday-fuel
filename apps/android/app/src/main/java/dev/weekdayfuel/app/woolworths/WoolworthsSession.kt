@@ -170,7 +170,10 @@ class WoolworthsSession(private val context: Context, private val openExternal: 
             pageLoading = false
             // Not while polling: same-document navigations also fire this, and a real new document makes poll() see no state and restart.
             val shop = url?.let(Uri::parse)?.let { WoolworthsUrls.isShopPage(it.scheme, it.host) } == true
-            if (pending != null && !polling && shop) start()
+            if (pending != null && !polling && shop) {
+                if (loginNotified) armWatchdog()
+                start()
+            }
         }
 
         override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
