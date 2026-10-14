@@ -60,8 +60,8 @@ Constraints every spec must respect:
   - Never change the WebView page address (`https://appassets.androidplatform.net/assets/weekday_fuel/Weekday_Fuel.html`), the `applicationId` (`dev.weekdayfuel.app`), or the signing key.
   - Any change to the shape of data saved in `localStorage` must include code that reads the old shape and converts it.
 - **The HTML is the app.** The Kotlin host stays thin; native code is added only when the page genuinely cannot do something.
-- **Decisions in `docs/nutrition-spinoff/TRANSCRIPT_NOTES.md` stand** unless a spec explicitly overrides one (exact product links, no generic search buttons, product names that match the meal list).
-- **The first spec that changes the HTML also removes the CI step** "Shipped HTML matches frozen seed". The seed copy in `docs/nutrition-spinoff/` stays as the historical v0.
+- **Decisions in `docs/seed/TRANSCRIPT_NOTES.md` stand** unless a spec explicitly overrides one (exact product links, no generic search buttons, product names that match the meal list).
+- **The first spec that changes the HTML also removes the CI step** "Shipped HTML matches frozen seed". The seed copy in `docs/seed/` stays as the historical v0.
 
 Every spec must include, in addition to the skill's standard sections:
 
@@ -72,7 +72,7 @@ Every spec must include, in addition to the skill's standard sections:
 ## Initial `INDEX.md` rows (status `idea`)
 
 1. **Verify v0 on a phone:** install v0.1.0, check tabs, saved data, and store links; bump to 0.1.1 and confirm the cold-start update prompt installs over it.
-2. **Scoped publishing token:** replace `NUTRITION_RELEASES_TOKEN` (currently the owner's `gh` CLI token with full `repo` scope) with a fine-grained PAT limited to Contents: write on `nutrition-releases`.
+2. **Scoped publishing token:** replace `WEEKDAY_FUEL_RELEASES_TOKEN` (currently the owner's `gh` CLI token with full `repo` scope) with a fine-grained PAT limited to Contents: write on `weekday-fuel-releases`.
 3. **Automated tests for the HTML:** a way to test `Weekday_Fuel.html` behaviour in CI, so UI specs are not verified only by hand.
 
 ## Out of scope

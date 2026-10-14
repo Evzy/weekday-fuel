@@ -2,7 +2,7 @@
 
 Self-contained Android app for weekday meal budgeting, weigh-ins, meals, and shopping. No backend: all state lives on the phone (`localStorage` inside the WebView).
 
-v0 ships the frozen [`Weekday_Fuel.html`](docs/nutrition-spinoff/Weekday_Fuel.html) artifact unchanged inside a WebView, plus a GitHub Releases update check on cold start.
+v0 ships the frozen [`Weekday_Fuel.html`](docs/seed/Weekday_Fuel.html) artifact unchanged inside a WebView, plus a GitHub Releases update check on cold start.
 
 ## Layout
 
@@ -12,13 +12,13 @@ v0 ships the frozen [`Weekday_Fuel.html`](docs/nutrition-spinoff/Weekday_Fuel.ht
 | `apps/android/app/src/main/assets/weekday_fuel/Weekday_Fuel.html` | The shipped UI |
 | `apps/android/app/src/main/java/dev/weekdayfuel/app/MainActivity.kt` | WebView host: JS + DOM storage on, off-app links (Woolworths/Coles) open externally |
 | `apps/android/app/src/main/java/dev/weekdayfuel/app/update/` | GitHub Releases updater |
-| `.github/workflows/release-android.yml` | Tests, debug APK, publish to [`Evzy/nutrition-releases`](https://github.com/Evzy/nutrition-releases) |
+| `.github/workflows/release-android.yml` | Tests, debug APK, publish to [`Evzy/weekday-fuel-releases`](https://github.com/Evzy/weekday-fuel-releases) |
 | `docs/CI_CD.md` | Release pipeline, secrets, signing |
-| `docs/NUTRITION_SPINOFF_BRIEF.md`, `docs/nutrition-spinoff/` | Seed brief, transcript notes, frozen artifact (from Platra) |
+| `docs/seed/` | Seed brief, transcript notes, frozen artifact (from Platra) |
 
 ## Install
 
-Download the latest `WeekdayFuel-v*-debug.apk` from [nutrition-releases](https://github.com/Evzy/nutrition-releases/releases/latest) and open it on the phone. Later versions are offered automatically on launch.
+Download the latest `WeekdayFuel-v*-debug.apk` from [weekday-fuel-releases](https://github.com/Evzy/weekday-fuel-releases/releases/latest) and open it on the phone. Later versions are offered automatically on launch.
 
 ## Build locally
 

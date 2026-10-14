@@ -37,7 +37,7 @@ android {
 
     signingConfigs {
         getByName("debug") {
-            val envPath = System.getenv("NUTRITION_SHARED_DEBUG_KEYSTORE")
+            val envPath = System.getenv("WEEKDAY_FUEL_SHARED_DEBUG_KEYSTORE")
             val propPath = localProperties.getProperty("debug.storeFile")
             val keystoreFile =
                 when {
@@ -48,13 +48,13 @@ android {
             if (keystoreFile != null && keystoreFile.isFile) {
                 val storePass =
                     localProperties.getProperty("debug.storePassword")
-                        ?: System.getenv("NUTRITION_SHARED_DEBUG_STORE_PASSWORD")
+                        ?: System.getenv("WEEKDAY_FUEL_SHARED_DEBUG_STORE_PASSWORD")
                 val alias =
                     localProperties.getProperty("debug.keyAlias")
-                        ?: System.getenv("NUTRITION_SHARED_DEBUG_KEY_ALIAS")
+                        ?: System.getenv("WEEKDAY_FUEL_SHARED_DEBUG_KEY_ALIAS")
                 val keyPass =
                     localProperties.getProperty("debug.keyPassword")
-                        ?: System.getenv("NUTRITION_SHARED_DEBUG_KEY_PASSWORD")
+                        ?: System.getenv("WEEKDAY_FUEL_SHARED_DEBUG_KEY_PASSWORD")
                 if (!storePass.isNullOrBlank() && !alias.isNullOrBlank() && !keyPass.isNullOrBlank()) {
                     storeFile = keystoreFile
                     storePassword = storePass
@@ -77,7 +77,7 @@ android {
             localPropOrEnv("UPDATE_GITHUB_OWNER").ifEmpty { "Evzy" },
         )
         val updateRepo = escapeForBuildConfigString(
-            localPropOrEnv("UPDATE_GITHUB_REPO").ifEmpty { "nutrition-releases" },
+            localPropOrEnv("UPDATE_GITHUB_REPO").ifEmpty { "weekday-fuel-releases" },
         )
         val updateToken = escapeForBuildConfigString(localPropOrEnv("UPDATE_GITHUB_TOKEN"))
         buildConfigField("String", "UPDATE_GITHUB_OWNER", "\"$updateOwner\"")
