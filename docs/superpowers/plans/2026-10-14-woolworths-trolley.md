@@ -856,7 +856,7 @@ Then the "Watching CI after a push" commands. Expected: green, "JS unit tests" â
 **Interfaces:**
 - Consumes: confirmed request values in `docs/woolworths-requests.md` (Task 2).
 - Produces:
-  - In the Woolworths page: `window.__weekdayFuelTrolley = { start(lines: {stockcode, quantity}[]): true, state(): string /* JSON */, urls: { loginStatus, trolleyUpdate } }`. State JSON: `{ phase: "idle"|"checking"|"loggedOut"|"adding"|"done"|"error", total, completed, results: {stockcode, outcome: "added"|"failed", reason?}[], error: string|null }`.
+  - In the Woolworths page: `window.__weekdayFuelTrolley = { start(lines: {stockcode, quantity}[]): boolean /* false if a run is already in progress */, state(): string /* JSON */, urls: { loginStatus, trolleyUpdate } }`. State JSON: `{ phase: "idle"|"checking"|"loggedOut"|"adding"|"done"|"error", total, completed, results: {stockcode, outcome: "added"|"failed", reason?}[], error: string|null }`.
   - Kotlin: `data class TrolleyLine(val stockcode: Long, val quantity: Int)`, `data class TrolleyLineResult(val stockcode: Long, val added: Boolean, val reason: String?)`, `enum class TrolleyPhase { IDLE, CHECKING, LOGGED_OUT, ADDING, DONE, ERROR }`, `data class TrolleyScriptState(val phase: TrolleyPhase, val total: Int, val completed: Int, val results: List<TrolleyLineResult>, val error: String?)`, `object TrolleyJson { fun parseLines(lines: JSONArray): List<TrolleyLine>; fun linesToJson(lines: List<TrolleyLine>): String; fun parseScriptState(evaluateResult: String?): TrolleyScriptState? }`.
 
 - [ ] **Step 0: Check the captured requests**
@@ -1448,7 +1448,14 @@ class WoolworthsSession(private val context: Context, private val openExternal: 
         handler.removeCallbacks(loginRetry)
         polling = true
         armWatchdog()
-        webView.evaluateJavascript("$script\nwindow.__weekdayFuelTrolley.start(${TrolleyJson.linesToJson(lines)});", null)
+        webView.evaluateJavascript("$script\nwindow.__weekdayFuelTrolley.start(${TrolleyJson.linesToJson(lines)});") { started ->
+            // An earlier run (e.g. stuck on a hung request) still owns this page; a fresh page drops it and onPageFinished restarts.
+            if (started == "false" && pending != null) {
+                polling = false
+                handler.removeCallbacks(poller)
+                webView.reload()
+            }
+        }
         handler.postDelayed(poller, POLL_MS)
     }
 
