@@ -109,7 +109,7 @@ package dev.weekdayfuel.app.woolworths
 object WoolworthsUrls {
     const val HOME_URL = "https://www.woolworths.com.au/"
     const val LOGIN_URL = "https://www.woolworths.com.au/shop/securelogin"
-    const val TROLLEY_URL = "https://www.woolworths.com.au/shop/cart"
+    const val TROLLEY_URL = "https://www.woolworths.com.au/shop/checkout"
 
     fun isWoolworthsHost(host: String?): Boolean =
         host != null && (host == "woolworths.com.au" || host.endsWith(".woolworths.com.au"))
@@ -861,7 +861,7 @@ Then the "Watching CI after a push" commands. Expected: green, "JS unit tests" �
 
 - [ ] **Step 0: Check the captured requests**
 
-Open `docs/woolworths-requests.md`. If the login-status URL/JSON path or the set-quantity URL/body differ from `/api/ui/v2/bootstrap` → `ShopperDetailsRequest.IsLoggedIn` and `POST /apis/ui/Trolley/Update` with `{items:[{stockcode, quantity, diagnostics:"0", source:"ProductDetail", searchTerm:null, evaluateRewardPoints:false, offerId:null, profileId:null, priceLevel:null}]}`, use the recorded values in `LOGIN_STATUS_URL`, `isLoggedIn`, `TROLLEY_UPDATE_URL`, and `updateBody` in Step 3, and in the `LOGGED_IN`/`LOGGED_OUT` fixtures and the body assertion in Step 1.
+The code below already uses the values recorded in `docs/woolworths-requests.md` on 2026-10-15: login status is `GET /api/ui/v2/bootstrap` → `ShopperRequest.IsGuest === false`; set quantity is `POST /api/v3/ui/trolley/update` with `{items:[{stockcode, quantity, source:"ProductDetail", diagnostics:"0", searchTerm:null, evaluateRewardPoints:false, offerId:null, profileId:null, priceLevel:null}]}`. The update always answers HTTP 200 (even for an unknown stockcode, and even when logged out, where it fills a guest trolley), so a line counts as added only when the response's `UpdatedItems` contains its `Stockcode`. If the doc and this task disagree, the doc wins.
 
 - [ ] **Step 1: Write the failing JS tests**
 
@@ -873,12 +873,17 @@ const assert = require("node:assert/strict");
 const path = require("node:path");
 
 const SCRIPT = path.join(__dirname, "../../main/assets/woolworths/trolley.js");
-const LOGGED_IN = { ShopperDetailsRequest: { IsLoggedIn: true } };
-const LOGGED_OUT = { ShopperDetailsRequest: { IsLoggedIn: false } };
+const LOGGED_IN = { ShopperRequest: { IsGuest: false } };
+const LOGGED_OUT = { ShopperRequest: { IsGuest: true } };
 const LINES = [{ stockcode: 717518, quantity: 2 }, { stockcode: 72280, quantity: 5 }];
 
 function response(status, body) {
   return { ok: status >= 200 && status < 300, status, json: async () => body };
+}
+
+function accepted(init) {
+  const item = JSON.parse(init.body).items[0];
+  return response(200, { UpdatedItems: [{ Stockcode: item.stockcode, Quantity: item.quantity }] });
 }
 
 function load(handler) {
@@ -911,13 +916,13 @@ test("stops at loggedOut without touching the trolley", async () => {
 });
 
 test("sets each line's quantity in order", async () => {
-  const { api, calls } = load((url, init, urls) => response(200, url === urls.loginStatus ? LOGGED_IN : {}));
+  const { api, calls } = load((url, init, urls) => (url === urls.loginStatus ? response(200, LOGGED_IN) : accepted(init)));
   api.start(LINES);
   const s = await settle(api);
   assert.equal(s.phase, "done");
   assert.equal(s.completed, 2);
   const updates = calls.slice(1);
-  assert.deepEqual(updates.map((c) => [c.url, c.init.method]), [["/apis/ui/Trolley/Update", "POST"], ["/apis/ui/Trolley/Update", "POST"]]);
+  assert.deepEqual(updates.map((c) => [c.url, c.init.method]), [["/api/v3/ui/trolley/update", "POST"], ["/api/v3/ui/trolley/update", "POST"]]);
   assert.deepEqual(updates.map((c) => JSON.parse(c.init.body).items[0]).map((i) => [i.stockcode, i.quantity]), [[717518, 2], [72280, 5]]);
   assert.deepEqual(s.results, [{ stockcode: 717518, outcome: "added" }, { stockcode: 72280, outcome: "added" }]);
 });
@@ -925,12 +930,23 @@ test("sets each line's quantity in order", async () => {
 test("a rejected line is reported and the rest still go in", async () => {
   const { api } = load((url, init, urls) => {
     if (url === urls.loginStatus) return response(200, LOGGED_IN);
-    return response(JSON.parse(init.body).items[0].stockcode === 717518 ? 500 : 200, {});
+    return JSON.parse(init.body).items[0].stockcode === 717518 ? response(500, {}) : accepted(init);
   });
   api.start(LINES);
   const s = await settle(api);
   assert.equal(s.phase, "done");
   assert.deepEqual(s.results, [{ stockcode: 717518, outcome: "failed", reason: "HTTP 500" }, { stockcode: 72280, outcome: "added" }]);
+});
+
+test("a line Woolworths silently drops is reported as not available", async () => {
+  const { api } = load((url, init, urls) => {
+    if (url === urls.loginStatus) return response(200, LOGGED_IN);
+    return JSON.parse(init.body).items[0].stockcode === 717518 ? response(200, { UpdatedItems: [] }) : accepted(init);
+  });
+  api.start(LINES);
+  const s = await settle(api);
+  assert.equal(s.phase, "done");
+  assert.deepEqual(s.results, [{ stockcode: 717518, outcome: "failed", reason: "not available" }, { stockcode: 72280, outcome: "added" }]);
 });
 
 test("a network error on a line is reported as failed", async () => {
@@ -968,11 +984,16 @@ Expected: FAIL with `Cannot find module`.
   if (window.__weekdayFuelTrolley) return;
 
   var LOGIN_STATUS_URL = "/api/ui/v2/bootstrap";
-  var TROLLEY_UPDATE_URL = "/apis/ui/Trolley/Update";
+  var TROLLEY_UPDATE_URL = "/api/v3/ui/trolley/update";
   var state = { phase: "idle", total: 0, completed: 0, results: [], error: null };
 
   function isLoggedIn(json) {
-    return Boolean(json && json.ShopperDetailsRequest && json.ShopperDetailsRequest.IsLoggedIn);
+    return Boolean(json && json.ShopperRequest && json.ShopperRequest.IsGuest === false);
+  }
+
+  function wasUpdated(json, stockcode) {
+    var items = (json && json.UpdatedItems) || [];
+    return items.some(function (item) { return item.Stockcode === stockcode; });
   }
 
   function updateBody(line) {
@@ -980,8 +1001,8 @@ Expected: FAIL with `Cannot find module`.
       items: [{
         stockcode: line.stockcode,
         quantity: line.quantity,
-        diagnostics: "0",
         source: "ProductDetail",
+        diagnostics: "0",
         searchTerm: null,
         evaluateRewardPoints: false,
         offerId: null,
@@ -1005,8 +1026,9 @@ Expected: FAIL with `Cannot find module`.
         headers: { "Content-Type": "application/json", Accept: "application/json" },
         body: JSON.stringify(updateBody(line)),
       });
-      if (r.ok) return { stockcode: line.stockcode, outcome: "added" };
-      return { stockcode: line.stockcode, outcome: "failed", reason: "HTTP " + r.status };
+      if (!r.ok) return { stockcode: line.stockcode, outcome: "failed", reason: "HTTP " + r.status };
+      if (wasUpdated(await r.json(), line.stockcode)) return { stockcode: line.stockcode, outcome: "added" };
+      return { stockcode: line.stockcode, outcome: "failed", reason: "not available" };
     } catch (e) {
       return { stockcode: line.stockcode, outcome: "failed", reason: String((e && e.message) || e) };
     }
@@ -1042,7 +1064,7 @@ Expected: FAIL with `Cannot find module`.
 - [ ] **Step 4: Run to confirm pass**
 
 Run: `node --test apps/android/app/src/test/js/trolley.test.js`
-Expected: `# pass 5`, `# fail 0`.
+Expected: `# pass 6`, `# fail 0`.
 
 - [ ] **Step 5: Add org.json for JVM tests**
 
@@ -1212,7 +1234,7 @@ returns a per-line result (`added`, or `failed` with a reason such as the HTTP s
 - [ ] **Step 9: Run JS tests locally, commit, push, watch CI**
 
 Run: `node --test apps/android/app/src/test/js/cart.test.js apps/android/app/src/test/js/trolley.test.js`
-Expected: `# pass 12`, `# fail 0`.
+Expected: `# pass 13`, `# fail 0`.
 
 ```powershell
 git add apps/android .github/workflows/release-android.yml docs/superpowers/specs/2026-10-14-woolworths-trolley-design.md
