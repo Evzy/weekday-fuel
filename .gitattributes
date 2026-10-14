@@ -1,0 +1,7 @@
+* text=auto eol=lf
+*.bat text eol=crlf
+*.jar binary
+*.png binary
+
+# The frozen v0 UI must ship byte-for-byte.
+*.html -text

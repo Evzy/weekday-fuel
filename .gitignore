@@ -1,0 +1,25 @@
+# Android / Gradle
+apps/android/.gradle/
+apps/android/build/
+apps/android/app/build/
+apps/android/local.properties
+# Shared debug keystore (same cert as CI) for sideload updates — see docs/CI_CD.md
+apps/android/app/ci-shared-debug.keystore
+/ci-shared-debug.keystore
+*.keystore
+*.jks
+apps/android/*.iml
+apps/android/.idea/
+
+# Packaged apps: upload APK/AAB as GitHub Release assets only.
+*.apk
+*.aab
+*.dex
+*.class
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+*.log

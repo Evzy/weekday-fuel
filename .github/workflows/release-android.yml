@@ -1,0 +1,141 @@
+# Runs Android JVM unit tests, then builds the debug APK. Publishes to OWNER/nutrition-releases when:
+# - push to main: if release v{versionName} does not exist yet (from apps/android/app/build.gradle.kts); or
+# - push tag v*: always publish for that tag.
+# Secret: NUTRITION_RELEASES_TOKEN. See docs/CI_CD.md.
+name: Release Android APK
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-android-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  RELEASES_REPO: ${{ github.repository_owner }}/nutrition-releases
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+          cache-dependency-path: |
+            apps/android/*.gradle*
+            apps/android/**/*.gradle*
+            apps/android/gradle/libs.versions.toml
+
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools platforms;android-35 build-tools;35.0.0
+
+      - name: Grant execute permission for gradlew
+        working-directory: apps/android
+        run: chmod +x gradlew
+
+      - name: Shipped HTML matches frozen seed
+        run: cmp docs/nutrition-spinoff/Weekday_Fuel.html apps/android/app/src/main/assets/weekday_fuel/Weekday_Fuel.html
+
+      # Same debug signing cert as local dev (see docs/CI_CD.md) so GitHub APKs can upgrade installs.
+      - name: Decode shared debug keystore
+        env:
+          B64: ${{ secrets.NUTRITION_SHARED_DEBUG_KEYSTORE_B64 }}
+        run: |
+          if [ -z "$B64" ]; then
+            echo "::notice::NUTRITION_SHARED_DEBUG_KEYSTORE_B64 not set — APK uses the runner default debug key; in-app updates will not replace a device build signed with a different key."
+          else
+            echo "$B64" | base64 -d > "${{ github.workspace }}/apps/android/app/ci-shared-debug.keystore"
+          fi
+
+      - name: Unit tests + debug APK
+        working-directory: apps/android
+        env:
+          CI: "true"
+          NUTRITION_SHARED_DEBUG_KEYSTORE: ${{ github.workspace }}/apps/android/app/ci-shared-debug.keystore
+          NUTRITION_SHARED_DEBUG_STORE_PASSWORD: ${{ secrets.NUTRITION_SHARED_DEBUG_STORE_PASSWORD }}
+          NUTRITION_SHARED_DEBUG_KEY_ALIAS: ${{ secrets.NUTRITION_SHARED_DEBUG_KEY_ALIAS }}
+          NUTRITION_SHARED_DEBUG_KEY_PASSWORD: ${{ secrets.NUTRITION_SHARED_DEBUG_KEY_PASSWORD }}
+          # Baked into BuildConfig so sideloaded APKs check the same feed CI publishes to.
+          UPDATE_GITHUB_OWNER: ${{ github.repository_owner }}
+          UPDATE_GITHUB_REPO: nutrition-releases
+        run: ./gradlew :app:testDebugUnitTest :app:assembleDebug --no-daemon --stacktrace
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: weekday-fuel-debug-apk
+          path: apps/android/app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Resolve release tag and APK filename
+        id: meta
+        if: github.event_name == 'push'
+        run: |
+          set -e
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            V=$(grep -E 'versionName\s*=\s*"' apps/android/app/build.gradle.kts | head -1 | sed -E 's/.*versionName\s*=\s*"([^"]+)".*/\1/')
+            TAG="v${V}"
+            echo "mode=main" >> "$GITHUB_OUTPUT"
+          elif [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            TAG="${{ github.ref_name }}"
+            echo "mode=tag" >> "$GITHUB_OUTPUT"
+          fi
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          cp "apps/android/app/build/outputs/apk/debug/app-debug.apk" "WeekdayFuel-${TAG}-debug.apk"
+          echo "apk=WeekdayFuel-${TAG}-debug.apk" >> "$GITHUB_OUTPUT"
+
+      - name: Check if release already exists
+        id: check
+        if: github.event_name == 'push'
+        env:
+          TOKEN: ${{ secrets.NUTRITION_RELEASES_TOKEN }}
+          REPO: ${{ env.RELEASES_REPO }}
+          TAG: ${{ steps.meta.outputs.tag }}
+          MODE: ${{ steps.meta.outputs.mode }}
+        run: |
+          if [ -z "$TOKEN" ]; then
+            echo "exists=skip" >> "$GITHUB_OUTPUT"
+            echo "::notice::NUTRITION_RELEASES_TOKEN not set — skipping publish to nutrition-releases"
+            exit 0
+          fi
+          if [ "$MODE" = "tag" ]; then
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${REPO}/releases/tags/${TAG}")
+          if [ "$CODE" = "200" ]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::Release ${TAG} already exists on ${REPO} — skipping publish"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish release to nutrition-releases
+        if: github.event_name == 'push' && steps.check.outputs.exists == 'false'
+        uses: softprops/action-gh-release@v2
+        with:
+          repository: ${{ env.RELEASES_REPO }}
+          token: ${{ secrets.NUTRITION_RELEASES_TOKEN }}
+          tag_name: ${{ steps.meta.outputs.tag }}
+          target_commitish: main
+          name: Weekday Fuel ${{ steps.meta.outputs.tag }}
+          files: ${{ steps.meta.outputs.apk }}
+          generate_release_notes: true

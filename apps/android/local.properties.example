@@ -1,0 +1,21 @@
+# Copy to local.properties (gitignored) and set sdk.dir to your Android SDK.
+# Android Studio usually creates local.properties when you open this project.
+#
+# Windows example (replace YOUR_USER):
+# sdk.dir=C\:\\Users\\YOUR_USER\\AppData\\Local\\Android\\Sdk
+
+sdk.dir=C\:\\Users\\YOUR_USER\\AppData\\Local\\Android\\Sdk
+
+# Optional: cold-start update check. CI publishes APKs to Evzy/nutrition-releases (see docs/CI_CD.md).
+# If you omit these, the app defaults to that public repo. Values are compiled into BuildConfig.
+# Same keys work as environment variables (e.g. GitHub Actions).
+# UPDATE_GITHUB_OWNER=mygithubuser
+# UPDATE_GITHUB_REPO=nutrition-releases
+# UPDATE_GITHUB_TOKEN=ghp_...   # only if the releases repo is private
+#
+# Optional: same debug signing as CI so GitHub release APKs can install over your local debug build (see docs/CI_CD.md).
+# Copy the keystore file to app/ci-shared-debug.keystore (gitignored) and match the GitHub Action secrets.
+# debug.storeFile=ci-shared-debug.keystore
+# debug.storePassword=...
+# debug.keyAlias=weekdayfuel_shared_debug
+# debug.keyPassword=...

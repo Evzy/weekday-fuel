@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Bowl with a lightning bolt; keep within the 66dp adaptive-icon safe zone. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M30,52 L78,52 C78,66 67,76 54,76 C41,76 30,66 30,52 Z" />
+    <path
+        android:fillColor="#C9800F"
+        android:pathData="M57,30 L45,47 L53,47 L49,60 L63,42 L55,42 Z" />
+</vector>

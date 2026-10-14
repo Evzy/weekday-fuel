@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.WeekdayFuel" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/page_background</item>
+        <item name="android:colorAccent">#8AA2FF</item>
+    </style>
+</resources>

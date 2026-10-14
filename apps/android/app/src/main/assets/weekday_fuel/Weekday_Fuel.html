@@ -1,0 +1,987 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Weekday Fuel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Figtree:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+/* Layout: one narrow phone-first column, a sticky tab bar, a day "budget meter" up top; meals are rows with a 3-step portion dial */
+:root{
+  --bg:#EEF2EC; --surface:#FFFFFF; --sunk:#E3E9E1; --ink:#16201A; --muted:#5B6960; --line:#D6DED4;
+  --accent:#2C50D0; --accent-soft:#DCE3FB; --on-accent:#FFFFFF;
+  --yolk:#C9800F; --yolk-soft:#F7E6C6;
+  --good:#23794B; --good-soft:#D7EEDF; --warn:#A8650A; --bad:#B5362F; --bad-soft:#F6DCD9;
+  --f-display:"Bricolage Grotesque", "Avenir Next", system-ui, sans-serif;
+  --f-body:"Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-num:"IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --r:12px;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0F1411; --surface:#17201A; --sunk:#1E2822; --ink:#E6ECE7; --muted:#97A49B; --line:#2A352E;
+  --accent:#8AA2FF; --accent-soft:#232E55; --on-accent:#0F1411;
+  --yolk:#F0B451; --yolk-soft:#3A2D14;
+  --good:#5FC58D; --good-soft:#173527; --warn:#E8A949; --bad:#F07C72; --bad-soft:#3D1D1A; color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#0F1411; --surface:#17201A; --sunk:#1E2822; --ink:#E6ECE7; --muted:#97A49B; --line:#2A352E;
+  --accent:#8AA2FF; --accent-soft:#232E55; --on-accent:#0F1411;
+  --yolk:#F0B451; --yolk-soft:#3A2D14;
+  --good:#5FC58D; --good-soft:#173527; --warn:#E8A949; --bad:#F07C72; --bad-soft:#3D1D1A; color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.45}
+.wrap{max-width:680px;margin:0 auto;padding-inline:16px;padding-block:14px 96px}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0;letter-spacing:-.01em}
+h1{font-size:1.65rem;font-weight:800}
+h2{font-size:1.2rem;font-weight:700}
+h3{font-size:1rem;font-weight:700}
+.num{font-family:var(--f-num);font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}
+.small{font-size:.82rem}
+.eyebrow{font-size:.72rem;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);font-weight:600}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.stack{display:flex;flex-direction:column;gap:14px}
+.row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.between{justify-content:space-between}
+.grow{flex:1;min-width:0}
+
+/* header */
+.top{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.sync{font-size:.75rem;color:var(--muted);display:flex;align-items:center;gap:6px}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--muted)}
+.dot.on{background:var(--good)}
+
+/* tabs */
+.tabs{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--surface);border-top:1px solid var(--line);
+  padding:6px 8px calc(6px + env(safe-area-inset-bottom,0px));display:flex;justify-content:center}
+.tabs-in{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;width:100%;max-width:680px}
+.tab{background:none;border:0;border-radius:10px;padding:8px 4px;font-size:.8rem;font-weight:600;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:3px}
+.tab svg{width:20px;height:20px}
+.tab[aria-selected="true"]{color:var(--accent);background:var(--accent-soft)}
+
+/* panels */
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px}
+.flat{background:var(--sunk);border-radius:var(--r);padding:12px 14px}
+
+/* day nav */
+.daynav{display:flex;align-items:center;gap:8px}
+.iconbtn{background:var(--surface);border:1px solid var(--line);border-radius:10px;width:38px;height:38px;display:grid;place-items:center;flex:none}
+.iconbtn svg{width:18px;height:18px}
+
+/* meter */
+.meter{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media (max-width:420px){.meter{grid-template-columns:1fr}}
+.gauge .big{font-family:var(--f-num);font-size:1.7rem;font-weight:600;line-height:1.1}
+.gauge .of{font-family:var(--f-num);color:var(--muted);font-size:.9rem}
+.bar{height:10px;background:var(--sunk);border-radius:6px;overflow:hidden;margin-top:8px;position:relative}
+.bar i{display:block;height:100%;border-radius:6px;background:var(--accent);transition:width .3s}
+.bar.p i{background:var(--yolk)}
+.bar.over i{background:var(--bad)}
+.gauge .left{font-size:.82rem;margin-top:6px;color:var(--muted)}
+.gauge .left b{color:var(--ink)}
+.macros{display:flex;gap:14px;font-size:.8rem;color:var(--muted);margin-top:4px;flex-wrap:wrap}
+
+/* weekly strip */
+.week{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.wd{background:var(--sunk);border:1px solid transparent;border-radius:10px;padding:8px 4px 6px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0}
+.wd .l{font-size:.7rem;font-weight:700;color:var(--muted);letter-spacing:.05em}
+.wd .v{font-family:var(--f-num);font-size:.72rem}
+.wd .pip{width:100%;max-width:34px;height:4px;border-radius:2px;background:var(--line)}
+.wd.sel{border-color:var(--accent)}
+.wd.off{opacity:.55}
+.pip.good{background:var(--good)}.pip.warn{background:var(--warn)}.pip.bad{background:var(--bad)}
+
+/* fixtures */
+.fx{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media (max-width:420px){.fx{grid-template-columns:1fr}}
+.fxb{display:flex;align-items:center;gap:10px;text-align:left;background:var(--surface);border:1.5px dashed var(--line);border-radius:var(--r);padding:10px 12px}
+.fxb[aria-pressed="true"]{border-style:solid;border-color:var(--yolk);background:var(--yolk-soft)}
+.fxb .tick{width:22px;height:22px;border-radius:6px;border:1.5px solid var(--muted);display:grid;place-items:center;flex:none}
+.fxb[aria-pressed="true"] .tick{background:var(--yolk);border-color:var(--yolk);color:var(--surface)}
+.fxb .tick svg{width:14px;height:14px}
+.fxb b{display:block;font-size:.9rem}
+
+/* meal rows */
+.meal{display:grid;grid-template-columns:1fr auto;gap:8px 12px;align-items:center;padding:12px 0;border-top:1px solid var(--line)}
+.meal:first-child{border-top:0;padding-top:2px}
+.meal .slot{font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700}
+.meal .name{background:none;border:0;padding:0;text-align:left;font-weight:700;font-size:1rem;text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:3px}
+.meal .what{font-size:.8rem;color:var(--muted)}
+.meal .kp{font-family:var(--f-num);font-size:.82rem;text-align:right;white-space:nowrap}
+.meal .acts{grid-column:1/-1;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.dial{display:inline-grid;grid-template-columns:repeat(3,auto);background:var(--sunk);border-radius:9px;padding:3px;gap:2px}
+.dial button{border:0;background:none;border-radius:7px;padding:5px 10px;font-size:.78rem;font-weight:700;color:var(--muted)}
+.dial button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.ghost{background:none;border:1px solid var(--line);border-radius:9px;padding:5px 10px;font-size:.78rem;font-weight:600;color:var(--muted)}
+.ghost.warn{color:var(--bad);border-color:var(--bad)}
+.btn{border:0;border-radius:10px;padding:10px 14px;font-weight:700;background:var(--accent);color:var(--on-accent)}
+.btn.alt{background:var(--sunk);color:var(--ink)}
+.btn:disabled{opacity:.5;cursor:default}
+.empty{border:1.5px dashed var(--line);border-radius:var(--r);padding:18px;text-align:center;color:var(--muted)}
+.hint{display:flex;gap:10px;align-items:flex-start;font-size:.85rem;padding:10px 12px;border-radius:10px;background:var(--accent-soft)}
+.hint.good{background:var(--good-soft)}
+.hint.bad{background:var(--bad-soft)}
+
+/* add picker */
+.picker{display:flex;flex-direction:column;gap:6px;max-height:340px;overflow:auto;margin-top:10px}
+.pick{display:flex;justify-content:space-between;gap:10px;align-items:center;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:9px 12px}
+.pick .num{font-size:.78rem;color:var(--muted);white-space:nowrap}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:5px 11px;font-size:.8rem;font-weight:600;color:var(--muted)}
+.chip[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--bg)}
+.tag{display:inline-block;font-size:.7rem;font-weight:700;letter-spacing:.04em;padding:2px 7px;border-radius:6px;background:var(--sunk);color:var(--muted)}
+.tag.remake{background:var(--yolk-soft);color:var(--warn)}
+.mac{display:block;font-size:.74rem;color:var(--ink);background:var(--sunk);border-radius:7px;padding:5px 8px;margin-top:5px;line-height:1.45}
+.mac .src{color:var(--muted);font-family:var(--f-body)}
+.tag.ok{background:var(--good-soft);color:var(--good)}
+.tag.est{background:var(--sunk);color:var(--muted);border:1px dashed var(--line)}
+
+/* forms */
+label.f{display:flex;flex-direction:column;gap:4px;font-size:.8rem;font-weight:600;color:var(--muted)}
+input,select{font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:9px 10px;min-width:0;width:100%}
+input.num{font-family:var(--f-num)}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
+
+/* meals library */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+.tiers{width:100%;border-collapse:collapse;font-size:.82rem}
+.tiers th{font-size:.7rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);text-align:right;font-weight:700;padding:4px 6px}
+.tiers th:first-child,.tiers td:first-child{text-align:left}
+.tiers td{padding:6px;border-top:1px solid var(--line);text-align:right;font-family:var(--f-num);font-variant-numeric:tabular-nums;vertical-align:top}
+.tiers td:first-child{font-family:var(--f-body);font-weight:600}
+.tiers td small{display:block;font-family:var(--f-body);font-weight:400;color:var(--muted);font-size:.75rem}
+.tblwrap{overflow-x:auto}
+ol.steps{margin:0;padding-left:1.2em;display:flex;flex-direction:column;gap:5px;font-size:.88rem}
+ul.ing{margin:0;padding-left:1.1em;font-size:.88rem;columns:2;column-gap:20px}
+@media (max-width:460px){ul.ing{columns:1}}
+.vs{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.vs > div{background:var(--sunk);border-radius:10px;padding:8px 10px}
+.vs b{font-family:var(--f-num);font-size:1.05rem;display:block}
+
+/* weigh */
+.chart{width:100%;height:auto;display:block}
+.wlist{display:flex;flex-direction:column}
+.wli{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-top:1px solid var(--line);gap:10px}
+.wli:first-child{border-top:0}
+.wtable{width:100%;border-collapse:collapse;font-size:.85rem}
+.wtable th{text-align:left;font-size:.7rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);padding:4px 4px}
+.wtable td{padding:7px 4px;border-top:1px solid var(--line);font-family:var(--f-num);font-variant-numeric:tabular-nums}
+.verdict{display:flex;flex-direction:column;gap:6px}
+.verdict .head{font-family:var(--f-display);font-weight:700;font-size:1.1rem}
+
+/* shop */
+.shopsec{display:flex;flex-direction:column}
+.si{display:flex;gap:10px;align-items:flex-start;padding:9px 0;border-top:1px solid var(--line)}
+.si:first-of-type{border-top:0}
+.si input{width:18px;height:18px;margin-top:2px;flex:none;accent-color:var(--accent)}
+.si .p{font-family:var(--f-num);font-size:.85rem;white-space:nowrap;margin-left:auto;font-weight:500}
+.si.done .itembtn .grow{text-decoration:line-through;color:var(--muted)}
+.itembtn{display:flex;gap:10px;width:100%;background:none;border:0;padding:0;text-align:left;font-weight:600;align-items:flex-start}
+.picks{display:flex;flex-direction:column;gap:6px}
+.pickrow{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:var(--surface)}
+.pickrow.on{border-color:var(--accent);background:var(--accent-soft)}
+.pname{flex:1;min-width:0;background:none;border:0;padding:0;text-align:left;display:flex;flex-direction:column;gap:2px}
+.step{display:inline-flex;align-items:center;gap:2px;background:var(--sunk);border-radius:9px;padding:2px;flex:none}
+.step button{width:32px;height:32px;border:0;border-radius:7px;background:var(--surface);font-weight:700;font-size:1rem}
+.step button:disabled{opacity:.4;cursor:default}
+.step .num{min-width:24px;text-align:center;font-weight:600}
+.buy{display:block;margin-top:2px}
+.itemdetail{margin-top:8px;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--surface)}
+a.link{text-decoration:none;display:inline-block;color:var(--accent);border-color:var(--accent)}
+
+/* sheet */
+.scrim{position:fixed;inset:0;background:rgba(10,14,12,.45);z-index:40;display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:var(--bg);width:100%;max-width:680px;max-height:88vh;overflow:auto;border-radius:16px 16px 0 0;padding:18px 16px calc(24px + env(safe-area-inset-bottom,0px))}
+@media (min-width:700px){.scrim{align-items:center}.sheet{border-radius:16px}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap" id="app">
+  <div class="top">
+    <div>
+      <div class="eyebrow">Evan · weekday plan</div>
+      <h1>Weekday Fuel</h1>
+    </div>
+    <div class="sync"><span class="dot" id="syncdot"></span><span id="synctext">Loading…</span></div>
+  </div>
+  <div id="view" class="stack" style="margin-top:14px"></div>
+</div>
+
+<nav class="tabs" aria-label="Sections"><div class="tabs-in" role="tablist" id="tabs"></div></nav>
+<div id="sheetroot"></div>
+
+<script>
+(function(){
+"use strict";
+
+/* ---------- reference data ---------- */
+const ICON = {
+  today:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+  weigh:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M8 10a4 4 0 0 1 8 0"/><path d="M12 10l1.5-2"/></svg>',
+  meals:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11h16a8 8 0 0 1-16 0z"/><path d="M8 7c0-1.5 1-2 1-3M12 7c0-1.5 1-2 1-3M16 7c0-1.5 1-2 1-3"/></svg>',
+  shop:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h2l2.4 11h10.2L20 8H6.2"/><circle cx="9" cy="19" r="1.4"/><circle cx="17" cy="19" r="1.4"/></svg>',
+  targets:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></svg>',
+  left:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>',
+  right:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>',
+  check:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg>'
+};
+const TABS=[["today","Today"],["weigh","Weigh-in"],["meals","Meals"],["shop","Shop"],["targets","Targets"]];
+const TIERS=[["L","Light"],["S","Standard"],["X","Loaded"]];
+
+/* k=kcal p=protein c=carbs f=fat (g), cost=AUD per serve (estimate) */
+const MEALS=[
+ {id:"toasty",name:"Loaded ham & cheese toasty",slots:["breakfast"],cuisine:"Aussie",mins:6,
+  core:"100g shaved ham",
+  t:{L:{k:390,p:35,c:38,f:11,cost:3.2,what:"2 wholemeal slices, 1 light cheese slice"},
+     S:{k:490,p:41,c:38,f:19,cost:3.5,what:"2 cheese slices + thin butter outside"},
+     X:{k:580,p:41,c:60,f:18,cost:3.9,what:"Thick sourdough, 2 cheese slices, butter"}},
+  ing:["Abbott's Bakery Farmhouse Wholemeal (sourdough for Loaded)", "D'Orsogna 97% Fat Free Triple Smoked Ham, deli shaved, 100g", "Woolworths Light Tasty Shredded Cheese", "Woolworths Baby Leaf Spinach", "Woolworths Cherry Tomatoes punnet", "Butter or olive oil spray"],
+  steps:["Layer ham, cheese, spinach and tomato between the bread.","Spray or thinly butter the outsides.","Sandwich press or pan 3–4 min until golden."]},
+ {id:"eggmuffin",name:"Egg & ham breakfast muffins",slots:["breakfast"],cuisine:"Café",mins:7,
+  core:"3 eggs + 50g ham",
+  t:{L:{k:410,p:34,c:27,f:18,cost:2.7,what:"1 English muffin, no cheese"},
+     S:{k:600,p:45,c:52,f:23,cost:3.4,what:"2 muffins + 1 light cheese slice"},
+     X:{k:700,p:51,c:52,f:32,cost:3.9,what:"2 muffins, 2 cheese slices, butter"}},
+  ing:["3 Woolworths Extra Large Free Range Eggs", "D'Orsogna 97% Fat Free Ham, 50g", "Tip Top English Muffins Original", "Woolworths Light Tasty Shredded Cheese", "Woolworths Baby Leaf Spinach", "Hot sauce or tomato sauce"],
+  steps:["Fry the eggs in oil spray, 3 min (break the yolks if you want them firm).","Toast the muffins while the eggs cook.","Stack muffin, cheese, ham, spinach, egg. Sauce to taste."]},
+ {id:"yogbowl",name:"Greek yoghurt berry bowl",slots:["breakfast","snack"],cuisine:"No-cook",mins:2,
+  core:"250g high-protein plain Greek yoghurt",
+  t:{L:{k:210,p:26,c:25,f:0,cost:2.9,what:"Yoghurt, 100g frozen berries, 1 tsp honey"},
+     S:{k:370,p:30,c:49,f:5,cost:3.3,what:"+ 40g muesli"},
+     X:{k:545,p:36,c:63,f:16,cost:3.7,what:"+ 60g muesli + 1 tbsp peanut butter"}},
+  ing:["Chobani Greek Yogurt Natural Light (907g tub), 250g", "Woolworths Frozen Mixed Berries", "Woolworths Australian Pure Honey", "Uncle Tobys Natural Style Swiss Muesli", "Bega Smooth Peanut Butter (Loaded)"],
+  steps:["Microwave the berries 40 sec so they go jammy (or let them thaw overnight).","Spoon over the yoghurt, add honey and toppings."]},
+ {id:"brekwrap",name:"Scrambled egg breakfast wrap",slots:["breakfast"],cuisine:"Mexican",mins:6,
+  core:"3 eggs + 50g ham",
+  t:{L:{k:430,p:38,c:22,f:21,cost:2.8,what:"1 protein wrap, salsa, spinach"},
+     S:{k:490,p:44,c:22,f:25,cost:3.2,what:"+ 20g light grated cheese"},
+     X:{k:660,p:56,c:40,f:32,cost:4.0,what:"2 wraps, 30g cheese"}},
+  ing:["3 Woolworths Extra Large Free Range Eggs", "D'Orsogna 97% Fat Free Ham, 50g", "Mission Carb Balance Wraps", "Woolworths Light Tasty Shredded Cheese", "Old El Paso Thick 'N Chunky Salsa Mild", "Woolworths Baby Leaf Spinach"],
+  steps:["Whisk eggs with salt and pepper. Scramble in a pan on medium, 2 min, stirring.","Fold in ham and spinach for the last 30 sec.","Warm the wrap 15 sec, fill, top with cheese and salsa, roll."]},
+
+ {id:"tenderwrap",name:"Chicken tender wraps",slots:["main"],cuisine:"Your go-to",mins:5,
+  core:"150g cooked chicken breast (Sunday batch)",
+  t:{L:{k:455,p:53,c:25,f:14,cost:3.55,what:"1 protein wrap, 20g light cheese"},
+     S:{k:625,p:65,c:43,f:20,cost:4.55,what:"2 wraps, 30g light cheese"},
+     X:{k:735,p:71,c:45,f:30,cost:5.05,what:"2 wraps, 50g cheese, light mayo"}},
+  ing:["150g Sunday batch chicken breast (or Moira Mac's BBQ chicken from the deli)", "Mission Carb Balance Wraps", "Woolworths Light Tasty Shredded Cheese", "Old El Paso Thick 'N Chunky Salsa Mild", "Woolworths Baby Leaf Spinach", "Lebanese cucumber & cherry tomatoes"],
+  steps:["Slice the batch chicken and warm it 60–90 sec in the microwave (or a pan for crunch).","Load wraps with chicken, cheese, salad, salsa. Roll.","Optional: 2 min in the sandwich press."],
+  note:"Crumbed frozen tenders instead of plain chicken add roughly 150 kcal per serve. Deli BBQ chicken adds about $1.70 a serve."},
+ {id:"burritobowl",name:"Chicken burrito bowl",slots:["main"],cuisine:"Mexican",mins:5,
+  core:"150g cooked chicken breast (Sunday batch)",
+  t:{L:{k:560,p:50,c:69,f:8,cost:3.7,what:"½ rice pouch, no cheese"},
+     S:{k:755,p:61,c:91,f:15,cost:4.4,what:"¾ pouch + 30g light cheese"},
+     X:{k:975,p:64,c:114,f:27,cost:5.8,what:"Whole pouch, cheese, ½ avocado"}},
+  ing:["SunRice Microwave White Long Grain Rice Pouch 250g", "150g Sunday batch chicken breast", "Edgell Sweet Corn Kernels 420g can", "Green capsicum", "Old El Paso Thick 'N Chunky Salsa Mild", "Old El Paso Taco Spice Mix", "Chobani Greek Yogurt Natural Light (as sour cream)", "Woolworths Light Tasty Shredded Cheese"],
+  steps:["Toss the chicken in 1 tsp taco seasoning and a splash of water. Microwave 90 sec.","Microwave the rice pouch 90 sec and the corn 2 min.","Bowl it: rice, chicken, corn, capsicum, salsa, a dollop of yoghurt, cheese."]},
+ {id:"teriyaki",name:"Teriyaki chicken rice bowl",slots:["main"],cuisine:"Japanese",mins:12,
+  core:"200g chicken thigh fillet",
+  t:{L:{k:600,p:48,c:65,f:14,cost:5.1,what:"½ rice pouch, stir-fry veg"},
+     S:{k:735,p:51,c:87,f:17,cost:5.55,what:"¾ pouch + sesame seeds"},
+     X:{k:940,p:53,c:109,f:29,cost:6.3,what:"Whole pouch + Kewpie drizzle"}},
+  ing:["200g Woolworths RSPCA Approved Chicken Thigh Fillets", "Kikkoman Teriyaki Marinade", "SunRice Microwave White Long Grain Rice Pouch", "Birds Eye Stir Fry Oriental Style", "Sesame seeds", "Kewpie mayo (Loaded)"],
+  steps:["Slice the thigh into strips. Pan-fry in oil spray on high, 6–7 min until browned.","Add the frozen veg for 2 min, then 2–3 tbsp teriyaki. Bubble 1 min until sticky.","Serve over the microwaved rice with sesame seeds."]},
+
+ {id:"buffalomac",name:"Buffalo chicken mac & cheese",slots:["main"],cuisine:"American",mins:15,remake:"YES-style buffalo chicken mac",
+  core:"180g chicken breast",
+  t:{L:{k:565,p:64,c:51,f:10,cost:3.9,what:"50g dry macaroni, 25g light cheese"},
+     S:{k:700,p:71,c:69,f:14,cost:4.1,what:"75g macaroni, 40g light cheese"},
+     X:{k:870,p:74,c:87,f:21,cost:4.5,what:"100g macaroni, 50g full-fat tasty"}},
+  ing:["180g Coles RSPCA Approved Chicken Breast", "San Remo Macaroni No 38", "Carnation Light & Creamy Evaporated Milk", "Woolworths Light Tasty Shredded Cheese", "Frank's RedHot", "Woolworths Frozen Broccoli Florets", "Garlic powder, paprika"],
+  steps:["Boil the macaroni 9 min. Meanwhile pan-fry the diced chicken in oil spray with garlic powder and paprika, 6 min.","Take the pan off the heat and toss the chicken through 2–3 tbsp Frank's.","Drain the pasta, return to the pot on low. Add 80ml evaporated milk and the cheese and stir 1 min until it turns into a glossy sauce.","Microwave the broccoli 3 min. Fold the chicken and broccoli through, then add more hot sauce on top."],
+  note:"Evaporated milk is the trick. It makes a creamy sauce that won't split, and the can lives in the pantry. Cook 2 serves and box one for tomorrow."},
+ {id:"schnitzel",name:"Chicken schnitzel, mash & peas",slots:["main"],cuisine:"Pub classic",mins:18,remake:"YES-style chicken schnitzel",
+  core:"180g chicken breast, crumbed",
+  t:{L:{k:550,p:53,c:51,f:13,cost:3.4,what:"100g potato mash"},
+     S:{k:650,p:55,c:73,f:13,cost:3.7,what:"200g mash + gravy"},
+     X:{k:810,p:57,c:91,f:21,cost:4.1,what:"300g mash with butter + gravy"}},
+  ing:["180g Coles RSPCA Approved Chicken Breast", "1 Woolworths Extra Large Free Range Egg", "Crumbed & Co Panko Breadcrumbs", "Woolworths Washed Potatoes 2kg", "Woolworths Frozen Australian Peas", "Gravox Traditional Gravy Mix", "Paprika, salt, pepper"],
+  steps:["Slice the breast in half horizontally, or bash it to about 1cm thick.","Dip it in beaten egg, then panko seasoned with paprika and salt. Pan-fry in 1 tsp oil + spray, 3 min each side (air fryer: 200°C, 12 min).","Meanwhile prick the potato and microwave it 6–8 min, then mash with a fork and a splash of milk.","Microwave the peas & corn 3 min. Make up the gravy with boiling water."],
+  note:"Crumb 2–3 breasts at once and freeze them raw between baking paper. They go straight from freezer to pan."},
+ {id:"koreanbeef",name:"Korean beef mince bowl",slots:["main"],cuisine:"Korean",mins:10,
+  core:"200g lean beef mince",
+  t:{L:{k:595,p:52,c:57,f:16,cost:6.3,what:"½ rice pouch, less honey"},
+     S:{k:710,p:59,c:67,f:21,cost:6.85,what:"+ fried egg on top"},
+     X:{k:920,p:63,c:111,f:22,cost:8.3,what:"Whole pouch + fried egg"}},
+  ing:["200g Coles 5 Star Extra Lean Beef Mince", "Lee Kum Kee Premium Soy Sauce", "Woolworths Australian Pure Honey", "Yeo's Sesame Oil", "Woolworths Garlic Paste + Gourmet Garden Ginger Paste", "SunRice Microwave White Long Grain Rice Pouch", "Woolworths Frozen Broccoli Florets", "1 egg (Standard/Loaded)"],
+  steps:["Brown the mince on high, 5 min, breaking it up.","Add 1 tsp each garlic and ginger paste, 2 tbsp soy, 1 tbsp honey, 1 tsp sesame oil. Cook 2 min until glossy.","Microwave the rice and broccoli. Top with a fried egg if you're on Standard or Loaded."],
+  note:"4-star mince is cheaper and adds about 60 kcal."},
+ {id:"bolognese",name:"15-minute bolognese",slots:["main"],cuisine:"Italian",mins:15,
+  core:"200g lean beef mince",
+  t:{L:{k:615,p:57,c:64,f:13,cost:5.4,what:"60g spaghetti, 10g parmesan"},
+     S:{k:700,p:60,c:82,f:14,cost:5.45,what:"85g spaghetti"},
+     X:{k:870,p:67,c:100,f:22,cost:5.85,what:"110g spaghetti, 20g parmesan, olive oil"}},
+  ing:["200g Coles 5 Star Extra Lean Beef Mince", "San Remo Spaghetti No 5", "Passata", "Woolworths Frozen Carrots, Peas & Corn", "Woolworths Garlic Paste", "Dried Italian herbs", "Perfect Italiano Grated Parmesan"],
+  steps:["Put the pasta on to boil (10 min).","Brown the mince with 1 tsp garlic paste, 5 min. Add 100g frozen veg and 200g passata plus herbs. Simmer 5 min.","Toss through the drained pasta and finish with parmesan."],
+  note:"Double the sauce and freeze half flat in a zip bag. It takes up little freezer space."},
+ {id:"redcurry",name:"Thai red curry chicken",slots:["main"],cuisine:"Thai",mins:12,
+  core:"180g chicken breast",
+  t:{L:{k:605,p:50,c:59,f:17,cost:5.4,what:"½ rice pouch"},
+     S:{k:710,p:52,c:81,f:18,cost:6.1,what:"¾ rice pouch"},
+     X:{k:860,p:54,c:103,f:23,cost:6.85,what:"Whole pouch, extra coconut milk"}},
+  ing:["180g Coles RSPCA Approved Chicken Breast", "Maesri red curry paste (114g tin)", "Ayam Light Coconut Milk 270mL (use 70mL)", "Birds Eye Stir Fry Oriental Style", "Fish sauce (optional)", "SunRice Microwave White Long Grain Rice Pouch"],
+  steps:["Slice the chicken thin. Fry 1 tbsp curry paste in oil spray for 30 sec, add the chicken and cook 4 min.","Add the frozen veg, 70mL light coconut milk and 70mL water. Simmer 4 min.","Splash of fish sauce, then serve over the rice."],
+  note:"Ayam Light is still fairly rich (about 170 kcal per 100mL), so use 70mL and top up with water. Freeze the rest of the can in an ice-cube tray."},
+ {id:"friedrice",name:"No-chop chicken fried rice",slots:["main"],cuisine:"Chinese",mins:8,
+  core:"120g cooked chicken breast + 2 eggs",
+  t:{L:{k:640,p:52,c:64,f:16,cost:5.3,what:"½ rice pouch, spray oil"},
+     S:{k:785,p:54,c:86,f:21,cost:6.0,what:"¾ pouch + sesame oil"},
+     X:{k:940,p:56,c:108,f:27,cost:6.8,what:"Whole pouch, 2 tsp oil"}},
+  ing:["120g Sunday batch chicken breast", "2 Woolworths Extra Large Free Range Eggs", "SunRice Microwave White Long Grain Rice Pouch", "Woolworths Frozen Australian Peas + Edgell Corn Kernels", "Lee Kum Kee Premium Soy Sauce", "Lee Kum Kee Panda Oyster Sauce", "Yeo's Sesame Oil"],
+  steps:["Scramble the eggs in a hot pan, 1 min, and push them to the side.","Add the frozen veg 2 min, then the rice straight from the pouch and the chicken. Break it up.","2 tbsp soy and 1 tbsp oyster sauce. Toss on high for 2 min."]},
+
+ {id:"snackplate",name:"Egg & salad snack plate",slots:["snack"],cuisine:"No-cook",mins:1,
+  core:"2 hard-boiled eggs",
+  t:{L:{k:175,p:14,c:5,f:10,cost:1.6,what:"Eggs, cucumber, cherry tomatoes"},
+     S:{k:240,p:20,c:5,f:15,cost:1.9,what:"+ 1 light cheese slice"},
+     X:{k:315,p:27,c:5,f:20,cost:2.5,what:"3 eggs + cheese"}},
+  ing:["Woolworths Extra Large Free Range Eggs (boil 6 at once, they keep 5 days)", "Lebanese cucumber", "Woolworths Cherry Tomatoes punnet", "Woolworths Light Tasty Shredded Cheese", "Salt & pepper"],
+  steps:["Boil a batch: 9 min, then cold water. Peel as needed.","Slice the cucumber and halve the tomatoes. Season."]}
+];
+const MEAL = Object.fromEntries(MEALS.map(m=>[m.id,m]));
+
+/* [id, product, total $, status, where/detail]  status: "ok" = price checked online 7–12 Oct 2026, "est" = couldn't confirm */
+const SHOP=[
+ {sec:"Your daily fixtures",note:"Bulk-buy these when they're half price. They keep at room temperature until opened.",items:[
+  ["dare","Dare Protein No Sugar Added Iced Coffee Double Espresso 500mL × 5",27.5,"est","About $5.50 each. The shelf price wasn't visible online, so check it in store"],
+  ["grenade","Grenade Salted Caramel Protein Bar 60g × 5",20.75,"ok","Grenade 60g bars average $4.15. Half price is $2.50, so buy 10+ then"]]},
+ {sec:"Weekly top-up",note:"Sunday batch: put 1kg of chicken breast on a lined tray, season it, and bake at 200°C for 20–25 min (15 if butterflied). Slice it once it's cool. That gives about 750g cooked, which covers 5 meals. Freeze the rest of the raw chicken and the mince in single portions.",items:[
+  ["breast","Coles RSPCA Approved Chicken Breast Fillets Large Pack, approx. 1.4kg",16.8,"ok","Coles $12.00/kg. Trying only one or two chicken meals? The small pack (about 600g) is enough"],
+  ["mince","Coles No Added Hormone Beef 5 Star Extra Lean Mince 500g",9.8,"ok","Coles $9.80"],
+  ["thigh","Woolworths RSPCA Approved Chicken Thigh Fillets (teriyaki week only)",7.5,"est","Not confirmed"],
+  ["eggs","Woolworths 12 Pack Extra Large Free Range Eggs 700g",6.7,"ok","Woolworths $6.70"],
+  ["ham","D'Orsogna Ham Leg Triple Smoked 97% Fat Free, shaved at the deli, 250g",6.5,"ok","Woolworths deli $2.60/100g. Ask for 250g shaved"],
+  ["yog","Chobani Greek Yoghurt Natural Light Plain 907g",8.8,"ok","$8.80 (tracked for Chobani Natural 907g; Light is usually the same price)"],
+  ["cheese","Woolworths Light Tasty Shredded Cheese 500g",9,"est","Not confirmed. Keeps for weeks in the fridge"],
+  ["wraps","Mission Carb Balance Wrap 6 Pack 288g",5.2,"ok","Coles $5.20, Woolworths $6.60. Freeze half"],
+  ["bread","Abbott's Bakery Farmhouse Wholemeal Sandwich Loaf 750g (freeze half)",5,"est","Not confirmed"],
+  ["muffin","Tip Top English Muffins Original 6 pack",4,"est","Not confirmed"],
+  ["spinach","Woolworths Baby Leaf Spinach 120g",3.3,"ok","$3.30. The link may show the 280g bag, so grab the 120g one for less waste"],
+  ["toms","Woolworths Cherry Tomatoes Punnet 250g",4,"est","Not confirmed"],
+  ["cucumber","Lebanese Cucumbers × 2",2,"est","Not confirmed"],
+  ["capsicum","Capsicum Green × 1",1.74,"ok","About $1.74 each ($7.90/kg)"]]},
+ {sec:"Pantry & freezer (first shop, then occasional)",note:"Most of the flavour comes from these jars, and none of them need the fridge before opening.",items:[
+  ["rice","SunRice Microwave White Long Grain Rice Pouch 250g × 4",12,"ok","$3.00 at both, often $2.50 on special"],
+  ["pasta","San Remo Spaghetti No 5 500g + San Remo Macaroni No 38 500g",4.6,"est","Not confirmed. Home-brand pasta is $0.90 if you'd rather save"],
+  ["potato","Woolworths Washed Potatoes Bag 2kg",8.5,"ok","Woolworths $8.50 (Coles' 2kg bag is $6.00)"],
+  ["corn","Edgell Sweet Corn Kernels 420g can × 2",4,"est","Not confirmed. Lives in the pantry"],
+  ["fzpeas","Woolworths Frozen Australian Peas 1kg",3,"est","Not confirmed"],
+  ["fzmix","Woolworths Frozen Australian Carrots Peas & Corn 1kg",3.5,"est","Not confirmed"],
+  ["fzbroc","Woolworths Frozen Australian Broccoli Florets 500g",3,"est","Not confirmed"],
+  ["fzasian","Birds Eye Frozen Stir Fry Oriental Style",4,"est","Not confirmed"],
+  ["fzberry","Woolworths Frozen Mixed Berries 500g",5,"est","Not confirmed"],
+  ["evap","Carnation Light & Creamy Evaporated Milk can",2.8,"est","Not confirmed. In the baking aisle next to the condensed milk"],
+  ["coco","Ayam 100% Natural Light Coconut Milk 270mL",2.5,"est","Not confirmed. Use 70mL per curry and freeze the rest"],
+  ["curry","Maesri Red Curry Paste 114g tin",2.3,"ok","$2.30 at both (Maesri tins). In the Asian aisle"],
+  ["soy","Lee Kum Kee Premium Soy Sauce",4,"est","Not confirmed"],
+  ["parm","Perfect Italiano Grated Parmesan Finely Grated 100g",4,"est","Not confirmed"],
+  ["passata","Mutti Passata Tomato Puree 700g",3,"est","Not confirmed"],
+  ["panko","Crumbed & Co Original Style Panko Breadcrumbs 200g",3,"est","Not confirmed"],
+  ["sauces1","Kikkoman Teriyaki Marinade + Lee Kum Kee Panda Oyster Sauce",8,"est","Not confirmed"],
+  ["franks","Frank's RedHot Original Cayenne Pepper Hot Sauce 148mL",6,"est","Not confirmed"],
+  ["salsa","Old El Paso Thick 'N Chunky Salsa Mild 395g + Old El Paso Taco Spice Mix",6,"est","Not confirmed"],
+  ["paste","Woolworths Garlic Paste 140g + Gourmet Garden Ginger Paste 80g",7,"est","Not confirmed"],
+  ["sesame","Yeo's Sesame Oil",4,"est","Not confirmed. Sesame seeds for the teriyaki bowl are optional"],
+  ["gravy","Gravox Traditional Gravy Mix",3,"est","Not confirmed"],
+  ["honey","Woolworths Australian Pure Honey Squeeze",5,"est","Not confirmed"],
+  ["muesli","Uncle Tobys Natural Style Swiss Blend Muesli",5,"est","Not confirmed"],
+  ["pb","Bega Peanut Butter Smooth 470g",5,"est","Not confirmed"]]}
+];
+
+/* per-100g (or 100mL) macros for checking the pack in store: [kcal,protein,carbs,fat,basis,source,extra] */
+const MACROS={
+ dare:[59,6,5.1,1.6,"100mL","label","Per 500mL bottle: 296 kcal · 30g P · 25.5g C · 8g F"],
+ grenade:[407,34,3.5,16,"100g","label","Per 60g bar: 244 kcal · 20.5g P · 2.1g C · 9.5g F"],
+ breast:[110,23,0,1.6,"100g","typical","Raw. Cooked it's about 165 kcal and 31g P per 100g"],
+ mince:[125,21,0,4.5,"100g","typical","Raw. 5 Star means 5% fat or less"],
+ thigh:[135,20,0,6,"100g","typical","Raw, skinless"],
+ eggs:[140,12.6,0.4,9.9,"100g","typical","One extra-large egg (~58g) is about 80 kcal and 7g P"],
+ ham:[105,18,2.5,2.5,"100g","typical","Look for 97% fat free on the deli tag"],
+ yog:[56,9.3,4,0.2,"100g","label","Whole milk is about 95 kcal and 5g F, so make sure it says Light"],
+ cheese:[337,29.7,0.5,24.2,"100g","label","Regular tasty is about 400 kcal and 33g F"],
+ wraps:[250,11,22,8,"100g","typical","Per 48g wrap: about 120 kcal and 5g P"],
+ bread:[240,10,40,3,"100g","typical","One slice (~45g) is about 105 kcal"],
+ muffin:[235,9,44,2,"100g","typical","One muffin (~65g) is about 150 kcal"],
+ spinach:[23,2.5,1,0.4,"100g","typical",""],
+ toms:[18,0.9,3,0.2,"100g","typical",""],
+ cucumber:[12,0.6,2,0.1,"100g","typical",""],
+ capsicum:[24,1,4,0.2,"100g","typical",""],
+ rice:[167,3,35,1.5,"100g","label","Label: 874 kJ (209 kcal) per half pouch"],
+ pasta:[355,12.5,71,1.5,"100g","typical","Dry weight"],
+ potato:[70,2,14,0.1,"100g","typical",""],
+ corn:[75,2.5,13,1,"100g","typical","Drained"],
+ fzpeas:[75,5.5,9,0.5,"100g","typical",""],
+ fzmix:[55,3,8,0.4,"100g","typical",""],
+ fzbroc:[30,3,2.5,0.4,"100g","typical",""],
+ fzasian:[35,2,5,0.3,"100g","typical",""],
+ fzberry:[45,1,8,0.3,"100g","typical",""],
+ evap:[100,7.5,13.5,1.5,"100mL","typical","Light (about 2% fat)"],
+ coco:[172,1.9,3.1,16.7,"100mL","label","70mL per curry is about 120 kcal"],
+ curry:[120,2,10,7,"100g","typical","You use about 15g per meal"],
+ soy:[60,7,7,0,"100mL","typical",""],
+ parm:[400,36,0,28,"100g","typical",""],
+ passata:[30,1.5,5,0.2,"100g","typical",""],
+ panko:[370,11,75,2,"100g","typical",""],
+ sauces1:[150,1,30,0.5,"100mL","typical","Teriyaki. Oyster sauce is similar"],
+ franks:[10,0,1,0,"100mL","typical","Close to zero calories"],
+ salsa:[40,1.5,8,0.2,"100g","typical",""],
+ paste:[100,3,15,3,"100g","typical",""],
+ sesame:[884,0,0,100,"100mL","typical","Oil. 1 tsp is about 40 kcal"],
+ gravy:[20,0.5,4,0.3,"100mL","typical","Made up with water"],
+ honey:[300,0,82,0,"100g","typical",""],
+ muesli:[400,10,60,10,"100g","typical",""],
+ pb:[600,25,15,50,"100g","typical",""]
+};
+const DEFAULT_SETTINGS={
+  mode:"recomp",
+  kcal:{cut:2150,recomp:2500,bulk:2800},
+  protein:170,
+  adjust:0,
+  readyMealPrice:13,
+  shopMode:"build",
+  trial:{},
+  fixtureDays:5,
+  fixtures:{
+    dare:{name:"Dare Protein iced coffee",sub:"No added sugar · 500ml",k:296,p:30,c:26,f:8,cost:5.5},
+    grenade:{name:"Grenade bar",sub:"Salted caramel · 60g",k:244,p:20,c:2,f:10,cost:4.15}
+  }
+};
+const MODES={cut:{label:"Mini-cut",rate:-0.5,lo:-0.8,hi:-0.25},recomp:{label:"Recomp",rate:0,lo:-0.25,hi:0.25},bulk:{label:"Lean bulk",rate:0.25,lo:0.1,hi:0.5}};
+
+/* ---------- helpers ---------- */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const pad=n=>String(n).padStart(2,"0");
+const iso=d=>d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
+const parse=s=>{const [y,m,d]=s.split("-").map(Number);return new Date(y,m-1,d)};
+const addDays=(s,n)=>{const d=parse(s);d.setDate(d.getDate()+n);return iso(d)};
+const dow=s=>parse(s).getDay();
+const isWeekend=s=>{const g=dow(s);return g===0||g===6};
+const monday=s=>{const g=dow(s);return addDays(s,g===0?-6:1-g)};
+const fmtDay=s=>parse(s).toLocaleDateString("en-AU",{weekday:"long",day:"numeric",month:"short"});
+const fmtShort=s=>parse(s).toLocaleDateString("en-AU",{day:"numeric",month:"short"});
+const money=n=>"$"+n.toFixed(2);
+const r0=n=>Math.round(n);
+const clone=o=>JSON.parse(JSON.stringify(o));
+function deepMerge(base,over){const out=clone(base);if(!over)return out;for(const k in over){if(k==="trial"){out[k]=clone(over[k]);continue}if(over[k]&&typeof over[k]==="object"&&!Array.isArray(over[k])&&out[k]&&typeof out[k]==="object")out[k]=deepMerge(out[k],over[k]);else out[k]=over[k];}return out}
+
+/* ---------- state + storage ---------- */
+const state={tab:"today",date:iso(new Date()),settings:clone(DEFAULT_SETTINGS),days:{},weights:{},adding:null,mealFilter:"all",sheet:null,armed:null,openItem:null};
+let db=null;
+const LS="weekdayfuel.v1";
+function lsGet(){try{return JSON.parse(localStorage.getItem(LS)||"null")}catch(e){return null}}
+function lsSave(){try{localStorage.setItem(LS,JSON.stringify({settings:state.settings,days:state.days,weights:state.weights}))}catch(e){}}
+function lsTicks(){try{return JSON.parse(localStorage.getItem(LS+".shop")||"{}")}catch(e){return {}}}
+function lsSetTicks(t){try{localStorage.setItem(LS+".shop",JSON.stringify(t))}catch(e){}}
+
+const timers={};
+function queueWrite(path,body){
+  lsSave();
+  if(!db)return;
+  clearTimeout(timers[path]);
+  timers[path]=setTimeout(async()=>{
+    try{ body===null ? await db.doc(path).delete() : await db.doc(path).set(body); }
+    catch(e){ setSync(false,"Couldn't save — "+(e&&e.code||"error")); }
+  },450);
+}
+function setSync(on,text){$("#syncdot").className="dot"+(on?" on":"");$("#synctext").textContent=text}
+
+function saveDay(date){const d=state.days[date];queueWrite("days/"+date,d?clone(d):null)}
+function saveWeight(date){const w=state.weights[date];queueWrite("weights/"+date,w?clone(w):null)}
+function saveSettings(){queueWrite("config/settings",clone(state.settings))}
+
+async function initStore(){
+  const cached=lsGet();
+  if(cached){state.settings=deepMerge(DEFAULT_SETTINGS,cached.settings);state.days=cached.days||{};state.weights=cached.weights||{};}
+  setSync(false,"Saved on this device");
+  render();
+  try{ if(window.claude&&window.claude.use) db=await window.claude.use("db"); }catch(e){db=null}
+  if(!db){setSync(false,"Saved on this device only");return}
+  setSync(true,"Synced");
+  const onErr=e=>setSync(false,"Sync paused ("+(e&&e.code||"error")+")");
+  db.collection("days").onSnapshot(snap=>{const m={};snap.docs.forEach(d=>{m[d.id]=d.data()});state.days=clone(m);lsSave();render()},onErr);
+  db.collection("weights").onSnapshot(snap=>{const m={};snap.docs.forEach(d=>{m[d.id]=d.data()});state.weights=clone(m);lsSave();render()},onErr);
+  db.doc("config/settings").onSnapshot(s=>{if(s.exists){state.settings=deepMerge(DEFAULT_SETTINGS,s.data());lsSave();render()}},onErr);
+}
+
+/* ---------- domain logic ---------- */
+const S=()=>state.settings;
+const target=()=>({k:S().kcal[S().mode]+S().adjust,p:S().protein});
+function dayOf(date){
+  if(state.days[date])return state.days[date];
+  return {fx:{dare:!isWeekend(date),grenade:!isWeekend(date)},meals:[],extras:[],track:false};
+}
+function ensureDay(date){if(!state.days[date])state.days[date]=clone(dayOf(date));return state.days[date]}
+function totals(day){
+  const t={k:0,p:0,c:0,f:0,cost:0};
+  for(const key in S().fixtures){if(day.fx&&day.fx[key]){const x=S().fixtures[key];t.k+=x.k;t.p+=x.p;t.c+=x.c;t.f+=x.f;t.cost+=x.cost}}
+  (day.meals||[]).forEach(m=>{const meal=MEAL[m.id];if(!meal)return;const x=meal.t[m.t];t.k+=x.k;t.p+=x.p;t.c+=x.c;t.f+=x.f;t.cost+=x.cost});
+  (day.extras||[]).forEach(x=>{t.k+=+x.k||0;t.p+=+x.p||0});
+  return t;
+}
+function tracked(date){const d=state.days[date];return !isWeekend(date)||(d&&d.track)}
+/* choose L/S/X for each meal so the day lands closest to target, protein first */
+function fitTiers(day){
+  const ms=day.meals||[];if(!ms.length)return;
+  const base=totals({fx:day.fx,meals:[],extras:day.extras});
+  const tg=target();let best=null;
+  const keys=["L","S","X"];const n=ms.length;const combos=Math.pow(3,n);
+  for(let i=0;i<combos;i++){
+    let k=base.k,p=base.p,x=i;const pick=[];
+    for(let j=0;j<n;j++){const t=keys[x%3];x=Math.floor(x/3);pick.push(t);const v=MEAL[ms[j].id].t[t];k+=v.k;p+=v.p}
+    const score=Math.abs(k-tg.k)+Math.max(0,tg.p-p)*12;
+    if(!best||score<best.score)best={score,pick};
+  }
+  ms.forEach((m,j)=>m.t=best.pick[j]);
+}
+function recentIds(date,back){const s=new Set();for(let i=1;i<=back;i++){const d=state.days[addDays(date,-i)];if(d&&d.meals)d.meals.forEach(m=>s.add(m.id))}return s}
+function randomPick(list,avoid){const pool=list.filter(m=>!avoid.has(m.id));const src=pool.length?pool:list;return src[Math.floor(Math.random()*src.length)]}
+function suggestDay(date){
+  const day=ensureDay(date);
+  const avoid=recentIds(date,1);
+  const used=new Set(avoid);
+  const b=randomPick(MEALS.filter(m=>m.slots.includes("breakfast")&&m.id!=="yogbowl"),used);used.add(b.id);
+  const l=randomPick(MEALS.filter(m=>m.slots.includes("main")),used);used.add(l.id);
+  const d=randomPick(MEALS.filter(m=>m.slots.includes("main")),used);
+  day.meals=[{id:b.id,slot:"breakfast",t:"S"},{id:l.id,slot:"lunch",t:"S"},{id:d.id,slot:"dinner",t:"S"}];
+  fitTiers(day);saveDay(date);
+}
+function swapMeal(date,idx){
+  const day=ensureDay(date);const m=day.meals[idx];
+  const kind=m.slot==="breakfast"?"breakfast":m.slot==="snack"?"snack":"main";
+  const avoid=new Set(day.meals.map(x=>x.id));recentIds(date,1).forEach(x=>avoid.add(x));
+  const n=randomPick(MEALS.filter(x=>x.slots.includes(kind)),avoid);
+  day.meals[idx]={id:n.id,slot:m.slot,t:m.t};saveDay(date);
+}
+
+/* weight analytics */
+function weightSeries(){return Object.keys(state.weights).filter(k=>state.weights[k]&&isFinite(state.weights[k].kg)).sort().map(k=>({d:k,kg:+state.weights[k].kg}))}
+function avgWindow(endDate,days){const start=addDays(endDate,-(days-1));const v=weightSeries().filter(x=>x.d>=start&&x.d<=endDate);if(!v.length)return null;return {avg:v.reduce((a,b)=>a+b.kg,0)/v.length,n:v.length}}
+function verdict(){
+  const today=iso(new Date());
+  const cur=avgWindow(today,7),prev=avgWindow(addDays(today,-7),7);
+  const mode=MODES[S().mode];
+  if(!cur||cur.n<3)return {state:"wait",head:"Keep weighing in",body:"Log at least 3 weigh-ins this week and the trend will show here. Weigh first thing in the morning, after the toilet, before food or the Dare."};
+  if(!prev||prev.n<3)return {state:"wait",head:"7-day average: "+cur.avg.toFixed(1)+" kg",body:"You need one more week of weigh-ins to compare against. Keep logging."};
+  const delta=cur.avg-prev.avg;
+  let adj=0,head,st="good";
+  if(delta<mode.lo){adj=+150;st="bad";head="Dropping faster than planned"}
+  else if(delta>mode.hi){adj=-150;st="bad";head=S().mode==="bulk"?"Gaining faster than planned":"Trending up"}
+  else if(S().mode==="cut"&&delta>-0.25){adj=-150;st="bad";head="Cut has stalled"}
+  else if(S().mode==="bulk"&&delta<0.1){adj=+150;st="bad";head="Not gaining yet"}
+  else head="On track for "+mode.label.toLowerCase();
+  const body="This week averaged "+cur.avg.toFixed(1)+" kg vs "+prev.avg.toFixed(1)+" kg last week ("+(delta>=0?"+":"")+delta.toFixed(2)+" kg). Target pace for "+mode.label.toLowerCase()+" is "+(mode.rate>0?"+":"")+mode.rate.toFixed(2)+" kg/week."+(adj?" Suggest moving weekday calories "+(adj>0?"up":"down")+" "+Math.abs(adj)+" kcal.":" Keep weekdays where they are.");
+  return {state:st,head,body,adj,delta};
+}
+
+/* ---------- rendering ---------- */
+function renderTabs(){
+  $("#tabs").innerHTML=TABS.map(([id,l])=>`<button class="tab" role="tab" id="tab-${id}" aria-selected="${state.tab===id}" data-act="tab" data-v="${id}">${ICON[id]}<span>${l}</span></button>`).join("");
+}
+function gauge(label,val,tgt,unit,cls){
+  const pct=Math.min(100,tgt?val/tgt*100:0);const over=val>tgt*1.05&&cls!=="p";
+  const left=tgt-val;
+  const leftTxt=cls==="p"
+    ? (left>0?`<b>${r0(left)}g</b> protein still to go`:`Protein target hit`)
+    : (left>=0?`<b>${r0(left)}</b> kcal left to spend`:`<b>${r0(-left)}</b> kcal over`);
+  return `<div class="gauge"><div class="eyebrow">${label}</div><div class="row" style="gap:6px;align-items:baseline"><span class="big">${r0(val)}</span><span class="of">/ ${tgt}${unit}</span></div><div class="bar ${cls||""} ${over?"over":""}"><i style="width:${pct}%"></i></div><div class="left">${leftTxt}</div></div>`;
+}
+function weekStrip(){
+  const mon=monday(state.date);const tg=target();
+  const names=["MON","TUE","WED","THU","FRI","SAT","SUN"];
+  let cells="";let wk=0,wkT=0;
+  for(let i=0;i<7;i++){
+    const d=addDays(mon,i);const day=state.days[d];const on=tracked(d);
+    const hasMeals=day&&((day.meals&&day.meals.length)||(day.extras&&day.extras.length));
+    let pip="",v="–";
+    if(on&&hasMeals){const t=totals(day);v=r0(t.k);wk+=t.k;wkT+=tg.k;const off=Math.abs(t.k-tg.k);pip=off<=150?"good":off<=350?"warn":"bad";if(t.p<tg.p-15&&pip==="good")pip="warn"}
+    else if(on&&i<5){wkT+=0}
+    cells+=`<button class="wd ${d===state.date?"sel":""} ${on?"":"off"}" data-act="goto" data-v="${d}" aria-label="${fmtDay(d)}"><span class="l">${names[i]}</span><span class="v">${on?v:"off"}</span><span class="pip ${pip}"></span></button>`;
+  }
+  const diff=wk-wkT;
+  const summary=wkT?`Planned weekdays so far: <b class="num">${r0(wk)}</b> of <b class="num">${r0(wkT)}</b> kcal (${diff>=0?"+":""}${r0(diff)}).`:`Plan a weekday to start the week's tally.`;
+  return `<div class="stack" style="gap:8px"><div class="week">${cells}</div><div class="small muted">${summary} Weekends are off the books, and the weigh-in trend absorbs them.</div></div>`;
+}
+function renderToday(){
+  const date=state.date;const day=dayOf(date);const tg=target();const t=totals(day);const we=isWeekend(date);const on=tracked(date);
+  const isToday=date===iso(new Date());
+  let h=`<div class="row between"><div class="daynav"><button class="iconbtn" data-act="shift" data-v="-1" aria-label="Previous day">${ICON.left}</button><button class="iconbtn" data-act="shift" data-v="1" aria-label="Next day">${ICON.right}</button></div><div class="grow" style="text-align:right"><div class="eyebrow">${isToday?"Today":"Planning"}</div><h2>${fmtDay(date)}</h2></div></div>`;
+  h+=`<div class="panel">${weekStrip()}</div>`;
+  if(we&&!on){
+    h+=`<div class="panel stack"><h2>Weekend: off the books</h2><p class="muted" style="margin:0">Eat how you like. Keep weighing in each morning, and Monday's plan will adjust from the trend.</p><div><button class="btn alt" data-act="track">Plan this day anyway</button></div></div>`;
+    return h;
+  }
+  h+=`<div class="panel stack"><div class="meter">${gauge("Calories",t.k,tg.k,"","")}${gauge("Protein",t.p,tg.p,"g","p")}</div>
+    <div class="macros num"><span>Carbs ${r0(t.c)}g</span><span>Fat ${r0(t.f)}g</span><span>Est. cost ${money(t.cost)}</span><span>${MODES[S().mode].label}${S().adjust?` (${S().adjust>0?"+":""}${S().adjust})`:""}</span></div></div>`;
+  // fixtures
+  const fx=S().fixtures;
+  h+=`<div class="stack" style="gap:8px"><div class="eyebrow">Fixtures</div><div class="fx">${Object.keys(fx).map(k=>`<button class="fxb" aria-pressed="${!!(day.fx&&day.fx[k])}" data-act="fx" data-v="${k}"><span class="tick">${ICON.check}</span><span class="grow"><b>${esc(fx[k].name)}</b><span class="small muted num">${fx[k].p}g protein · ${fx[k].k} kcal</span></span></button>`).join("")}</div></div>`;
+  // meals
+  h+=`<div class="panel"><div class="row between" style="margin-bottom:8px"><h2>Meals</h2><div class="row" style="gap:6px">${day.meals&&day.meals.length?`<button class="ghost" data-act="fit">Fit portions to target</button>`:""}<button class="ghost" data-act="suggest">${day.meals&&day.meals.length?"New suggestion":"Suggest a day"}</button></div></div>`;
+  if(!day.meals||!day.meals.length){
+    h+=`<div class="empty stack" style="gap:10px"><div>No meals planned yet. Tap <b>Suggest a day</b> for a breakfast, lunch and dinner sized to fit around your fixtures, or add meals one at a time.</div><div><button class="btn" data-act="suggest">Suggest a day</button></div></div>`;
+  } else {
+    h+=`<div>`+day.meals.map((m,i)=>{const meal=MEAL[m.id];if(!meal)return"";const v=meal.t[m.t];
+      return `<div class="meal"><div class="grow"><div class="slot">${esc(m.slot)}${meal.remake?` · <span class="tag remake">Remake</span>`:""}</div><button class="name" data-act="recipe" data-v="${meal.id}">${esc(meal.name)}</button><div class="what">${esc(meal.core)} · ${esc(v.what)}</div></div>
+      <div class="kp">${v.k} kcal<br><span style="color:var(--yolk)">${v.p}g P</span></div>
+      <div class="acts"><div class="dial" role="group" aria-label="Portion">${TIERS.map(([k,l])=>`<button aria-pressed="${m.t===k}" data-act="tier" data-i="${i}" data-v="${k}">${l}</button>`).join("")}</div><button class="ghost" data-act="swap" data-i="${i}">Swap</button><button class="ghost ${state.armed==="rm"+i?"warn":""}" data-act="rm" data-i="${i}">${state.armed==="rm"+i?"Tap to remove":"Remove"}</button></div></div>`}).join("")+`</div>`;
+  }
+  // add
+  h+=`<div class="row" style="margin-top:12px;gap:6px">${["breakfast","lunch","dinner","snack"].map(s=>`<button class="chip" aria-pressed="${state.adding===s}" data-act="adding" data-v="${s}">+ ${s}</button>`).join("")}</div>`;
+  if(state.adding){
+    const kind=state.adding==="breakfast"?"breakfast":state.adding==="snack"?"snack":"main";
+    const list=MEALS.filter(m=>m.slots.includes(kind)||(kind==="snack"&&m.slots.includes("breakfast")&&m.id==="yogbowl"));
+    h+=`<div class="picker">${list.map(m=>`<button class="pick" data-act="add" data-v="${m.id}"><span><b>${esc(m.name)}</b><br><span class="small muted">${esc(m.cuisine)} · ${m.mins} min</span></span><span class="num">${m.t.L.k}–${m.t.X.k} kcal<br>${m.t.L.p}–${m.t.X.p}g P</span></button>`).join("")}</div>`;
+  }
+  h+=`</div>`;
+  // fit hint
+  if(day.meals&&day.meals.length){
+    const gap=tg.k-t.k;
+    if(Math.abs(gap)>150){
+      h+=`<div class="hint ${gap<0?"bad":""}"><span>${gap>0?`You've got ${r0(gap)} kcal of room. Bump a meal up to Standard or Loaded, or tap "Fit portions to target".`:`You're ${r0(-gap)} kcal over. Drop a meal to Light, or tap "Fit portions to target". Protein stays put, only carbs and fat shrink.`}</span></div>`;
+    } else if(t.p>=tg.p-10){
+      h+=`<div class="hint good"><span>This day lands on target. Protein ${r0(t.p)}g, calories within ${r0(Math.abs(gap))} of goal.</span></div>`;
+    }
+  }
+  // extras
+  h+=`<div class="panel stack"><div><h3>Something else</h3><div class="small muted">Work lunch, a Subway, a second bar. Ballpark numbers are fine. Then tap "Fit portions" and the other meals shrink to make room.</div></div>`;
+  if(day.extras&&day.extras.length){
+    h+=`<div class="wlist">`+day.extras.map((x,i)=>`<div class="wli"><span class="grow">${esc(x.n||"Extra")}</span><span class="num small">${r0(x.k)} kcal · ${r0(x.p)}g P</span><button class="ghost" data-act="rmx" data-i="${i}">Remove</button></div>`).join("")+`</div>`;
+  }
+  h+=`<form class="grid2" id="xform"><label class="f">What<input id="xn" placeholder="e.g. Subway footlong"></label><label class="f">kcal<input id="xk" class="num" type="number" inputmode="numeric" min="0" placeholder="900"></label><label class="f">Protein g<input id="xp" class="num" type="number" inputmode="numeric" min="0" placeholder="50"></label><div style="display:flex;align-items:flex-end"><button class="btn alt" style="width:100%" type="submit">Add</button></div></form></div>`;
+  if(we)h+=`<div><button class="ghost" data-act="untrack">Stop tracking this weekend day</button></div>`;
+  return h;
+}
+
+function chartSVG(){
+  const series=weightSeries();const today=iso(new Date());
+  const start=addDays(today,-34);
+  const pts=series.filter(x=>x.d>=start);
+  if(pts.length<2)return "";
+  const W=640,H=220,L=44,R=12,T=14,B=28;
+  const days=35;const xOf=d=>L+(Math.round((parse(d)-parse(start))/864e5))/(days-1)*(W-L-R);
+  const kgs=pts.map(p=>p.kg);let lo=Math.min(...kgs),hi=Math.max(...kgs);if(hi-lo<1.5){const m=(hi+lo)/2;lo=m-0.75;hi=m+0.75}
+  lo=Math.floor(lo*2)/2-0.25;hi=Math.ceil(hi*2)/2+0.25;
+  const yOf=v=>T+(hi-v)/(hi-lo)*(H-T-B);
+  let grid="";const step=(hi-lo)>4?1:0.5;
+  for(let v=Math.ceil(lo/step)*step;v<=hi;v+=step){grid+=`<line x1="${L}" x2="${W-R}" y1="${yOf(v)}" y2="${yOf(v)}" stroke="var(--line)" stroke-width="1"/><text x="${L-8}" y="${yOf(v)+4}" text-anchor="end" font-size="11" fill="var(--muted)" font-family="IBM Plex Mono, monospace">${v.toFixed(step<1?1:0)}</text>`}
+  // rolling 7-day average per day with data
+  const avgPts=[];for(let i=0;i<days;i++){const d=addDays(start,i);const a=avgWindow(d,7);if(a&&state.weights[d])avgPts.push([xOf(d),yOf(a.avg)])}
+  const path=avgPts.map((p,i)=>(i?"L":"M")+p[0].toFixed(1)+" "+p[1].toFixed(1)).join(" ");
+  const area=avgPts.length>1?path+` L${avgPts[avgPts.length-1][0].toFixed(1)} ${H-B} L${avgPts[0][0].toFixed(1)} ${H-B} Z`:"";
+  const dots=pts.map(p=>`<circle cx="${xOf(p.d).toFixed(1)}" cy="${yOf(p.kg).toFixed(1)}" r="3" fill="var(--muted)" opacity=".55"/>`).join("");
+  const last=avgPts[avgPts.length-1];
+  let xl="";for(let i=0;i<days;i+=7){const d=addDays(start,i);xl+=`<text x="${xOf(d)}" y="${H-8}" font-size="11" fill="var(--muted)" text-anchor="middle" font-family="Figtree, sans-serif">${fmtShort(d)}</text>`}
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Weight over the last 5 weeks with 7-day average">${grid}${xl}${area?`<path d="${area}" fill="var(--accent)" opacity=".10"/>`:""}<path d="${path}" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>${dots}${last?`<circle cx="${last[0]}" cy="${last[1]}" r="5" fill="var(--accent)" stroke="var(--surface)" stroke-width="2"/>`:""}</svg>`;
+}
+function weekTable(){
+  const series=weightSeries();if(!series.length)return "";
+  const weeks={};series.forEach(x=>{const m=monday(x.d);(weeks[m]=weeks[m]||[]).push(x.kg)});
+  const keys=Object.keys(weeks).sort().slice(-8);
+  let prev=null;const rows=keys.map(k=>{const a=weeks[k].reduce((s,v)=>s+v,0)/weeks[k].length;const ch=prev==null?"":((a-prev>=0?"+":"")+(a-prev).toFixed(2));prev=a;return `<tr><td>${fmtShort(k)}</td><td>${a.toFixed(2)}</td><td>${ch}</td><td>${weeks[k].length}</td></tr>`}).reverse().join("");
+  return `<div class="tblwrap"><table class="wtable"><thead><tr><th>Week of</th><th>Avg kg</th><th>Change</th><th>Weigh-ins</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+function renderWeigh(){
+  const today=iso(new Date());const w=state.weights[today];const v=verdict();
+  let h=`<div><div class="eyebrow">Daily weigh-in</div><h2>Morning, before the Dare</h2></div>`;
+  h+=`<form class="panel row" id="wform" style="align-items:flex-end"><label class="f grow">Weight (kg)<input id="wkg" class="num" type="number" step="0.1" min="30" max="250" inputmode="decimal" placeholder="83.5" value="${w?w.kg:""}"></label><label class="f" style="width:160px">Date<input id="wdate" type="date" value="${today}" max="${today}"></label><button class="btn" type="submit">${w?"Update":"Save"}</button></form>`;
+  h+=`<div class="panel verdict"><div class="eyebrow">7-day trend</div><div class="head">${esc(v.head)}</div><div class="small">${esc(v.body)}</div>${v.adj?`<div class="row" style="margin-top:6px"><button class="btn" data-act="applyadj" data-v="${v.adj}">Apply ${v.adj>0?"+":""}${v.adj} kcal to weekdays</button><span class="small muted">Current adjustment: ${S().adjust>0?"+":""}${S().adjust}</span></div>`:""}</div>`;
+  const chart=chartSVG();
+  h+=`<div class="panel stack"><div class="row between"><h3>Last 5 weeks</h3><span class="small muted">Dots are daily readings, the line is the 7-day average</span></div>${chart||`<div class="empty">Your chart appears after two weigh-ins. Daily readings bounce 0.5–1 kg with water, salt and carbs, so the 7-day line is the one to watch.</div>`}</div>`;
+  const tbl=weekTable();
+  if(tbl)h+=`<div class="panel stack"><h3>Weekly averages</h3>${tbl}</div>`;
+  const recent=weightSeries().slice(-10).reverse();
+  if(recent.length)h+=`<div class="panel"><h3 style="margin-bottom:6px">Recent entries</h3><div class="wlist">${recent.map(x=>`<div class="wli"><span>${fmtDay(x.d)}</span><span class="num">${x.kg.toFixed(1)} kg</span><button class="ghost ${state.armed==="w"+x.d?"warn":""}" data-act="rmw" data-v="${x.d}">${state.armed==="w"+x.d?"Tap to delete":"Delete"}</button></div>`).join("")}</div></div>`;
+  return h;
+}
+function tierTable(m){
+  return `<div class="tblwrap"><table class="tiers"><thead><tr><th>Portion</th><th>kcal</th><th>P</th><th>C</th><th>F</th><th>Cost</th></tr></thead><tbody>${TIERS.map(([k,l])=>{const v=m.t[k];return `<tr><td>${l}<small>${esc(v.what)}</small></td><td>${v.k}</td><td>${v.p}</td><td>${v.c}</td><td>${v.f}</td><td>${money(v.cost)}</td></tr>`}).join("")}</tbody></table></div>`;
+}
+function mealCard(m,full){
+  const rm=m.remake?`<div class="vs"><div><span class="small muted">Ready-made at the shop</span><b>${money(S().readyMealPrice)}</b></div><div><span class="small muted">This, Standard</span><b style="color:var(--good)">${money(m.t.S.cost)}</b></div></div>`:"";
+  return `<div class="card"><div class="row between" style="align-items:flex-start"><div class="grow"><div class="row" style="gap:6px;margin-bottom:4px"><span class="tag">${esc(m.cuisine)}</span><span class="tag">${m.mins} min</span>${m.remake?`<span class="tag remake">Remake</span>`:""}</div><h3>${esc(m.name)}</h3><div class="small muted">Fixed protein core: ${esc(m.core)}</div></div>${full?"":`<button class="ghost" data-act="recipe" data-v="${m.id}">Recipe</button>`}</div>${rm}${tierTable(m)}${full?`<div class="stack" style="gap:8px"><div class="eyebrow">Shopping</div><ul class="ing">${m.ing.map(i=>`<li>${esc(i)}</li>`).join("")}</ul><div class="eyebrow">Method</div><ol class="steps">${m.steps.map(s=>`<li>${esc(s)}</li>`).join("")}</ol>${m.note?`<div class="hint"><span>${esc(m.note)}</span></div>`:""}</div>`:""}<div class="row" style="gap:6px">${(m.slots.includes("breakfast")?["breakfast"]:m.slots.includes("snack")?["snack"]:["lunch","dinner"]).map(s=>`<button class="ghost" data-act="addto" data-v="${m.id}" data-s="${s}">Add to ${state.date===iso(new Date())?"today":fmtShort(state.date)} as ${s}</button>`).join("")}</div></div>`;
+}
+function renderMeals(){
+  const f=state.mealFilter;
+  const filt=m=>f==="all"||(f==="breakfast"&&m.slots.includes("breakfast"))||(f==="main"&&m.slots.includes("main"))||(f==="snack"&&m.slots.includes("snack"))||(f==="remake"&&m.remake);
+  let h=`<div><div class="eyebrow">${MEALS.length} meals · each one under 20 min</div><h2>Meal library</h2><p class="small muted" style="margin:4px 0 0">Every meal has a fixed protein core. Light, Standard and Loaded only change the carbs and fat (rice, pasta, cheese, oil), so you change the size of a meal without changing what you cook.</p></div>`;
+  h+=`<div class="chips">${[["all","All"],["breakfast","Breakfast"],["main","Lunch & dinner"],["snack","Snacks"],["remake","Ready-meal remakes"]].map(([k,l])=>`<button class="chip" aria-pressed="${f===k}" data-act="mf" data-v="${k}">${l}</button>`).join("")}</div>`;
+  h+=MEALS.filter(filt).map(m=>mealCard(m,false)).join("");
+  h+=`<div class="flat small muted">Costs use Coles/Woolworths prices checked online in October 2026; macros come from typical labels. Your brands will differ a little, and the weekly weigh-in average corrects for that.</div>`;
+  return h;
+}
+/* which shop items each meal needs (fixtures are always included) */
+const USES={
+ toasty:["bread","ham","cheese","spinach","toms"],
+ eggmuffin:["eggs","ham","muffin","cheese","spinach"],
+ yogbowl:["yog","fzberry","honey","muesli","pb"],
+ brekwrap:["eggs","ham","wraps","cheese","salsa","spinach"],
+ tenderwrap:["breast","wraps","cheese","salsa","spinach","cucumber","toms"],
+ burritobowl:["rice","breast","corn","capsicum","salsa","yog","cheese"],
+ teriyaki:["thigh","sauces1","rice","fzasian","sesame"],
+ buffalomac:["breast","pasta","evap","cheese","franks","fzbroc"],
+ schnitzel:["breast","eggs","panko","potato","fzpeas","gravy"],
+ koreanbeef:["mince","soy","honey","sesame","paste","rice","fzbroc","eggs"],
+ bolognese:["mince","pasta","passata","fzmix","paste","parm"],
+ redcurry:["breast","curry","coco","fzasian","rice"],
+ friedrice:["breast","eggs","rice","fzpeas","corn","soy","sauces1","sesame"],
+ snackplate:["eggs","cucumber","toms","cheese"]
+};
+const USED_IN={};Object.keys(USES).forEach(m=>USES[m].forEach(i=>{(USED_IN[i]=USED_IN[i]||[]).push(m)}));
+/* exact product pages where found; otherwise a store search */
+const LINKS={
+ dare:[["Woolworths","https://www.woolworths.com.au/shop/productdetails/72280"],["Coles","https://www.coles.com.au/product/dare-protein-no-sugar-added-iced-coffee-double-espresso-500ml-8991361"]],
+ grenade:[["Woolworths","https://www.woolworths.com.au/shop/productdetails/6027807/grenade-salted-caramel-protein-bar"]],
+ breast:[["Coles","https://www.coles.com.au/product/coles-rspca-approved-chicken-breast-fillets-large-pack-approx.-1.4kg-2263179"]],
+ mince:[["Coles","https://www.coles.com.au/product/coles-no-added-hormone-beef-5-star-extra-lean-mince-500g-8112799"]],
+ thigh:[["Woolworths","https://www.woolworths.com.au/shop/productdetails/6078660/woolworths-rspca-approved-chicken-thigh-fillets"]],
+ eggs:[["Woolworths","https://www.woolworths.com.au/shop/productdetails/582362/woolworths-12-pack-extra-large-free-range-eggs"]],
+ ham:[["Woolworths","https://www.woolworths.com.au/shop/productdetails/175734/d-orsogna-ham-leg-triple-smoked-97-fat-free-shaved"]],
+ yog:[["Woolworths","https://www.woolworths.com.au/shop/productdetails/717518/chobani-greek-yoghurt-natural-light-plain"]],
+ cheese:[["Woolworths","https://www.woolworths.com.au/shop/productdetails/729008/woolworths-light-tasty-shredded-cheese"]],
+ wraps:[["Coles","https://www.coles.com.au/product/mission-carb-balance-wrap-6-pack-288g-8566038"]],
+ bread:[["Woolworths","https://www.woolworths.com.au/shop/productdetails/331591/abbott-s-bakery-farmhouse-wholemeal-bread-sandwich-slice-loaf"]],
+ muffin:[["Woolworths","https://www.woolworths.com.au/shop/productdetails/6083082"]],
+ spinach:[["Woolworths","https://www.woolworths.com.au/shop/productdetails/524336/woolworths-baby-leaf-spinach-spinach"]],
+ toms:[["Woolworths","https://www.woolworths.com.au/shop/productdetails/149620/woolworths-cherry-tomatoes-punnet"]],
+ cucumber:[["Woolworths","https://www.woolworths.com.au/shop/productdetails/137130/lebanese-cucumbers"]],
+ capsicum:[["Woolworths","https://www.woolworths.com.au/shop/productdetails/135156/capsicum-green"]],
+ rice:[["Woolworths","https://www.woolworths.com.au/shop/productdetails/244755/sunrice-microwave-white-long-grain-rice-pouch"]],
+ pasta:[["Spaghetti","https://www.woolworths.com.au/shop/productdetails/43974/san-remo-spaghetti-pasta-no-5"],["Macaroni","https://www.woolworths.com.au/shop/productdetails/44025"]],
+ potato:[["Woolworths","https://www.woolworths.com.au/shop/productdetails/262783/woolworths-washed-potatoes-bag"]],
+ corn:[["Woolworths","https://www.woolworths.com.au/shop/productdetails/34437/edgell-corn-kernels"]],
+ fzpeas:[["Woolworths","https://www.woolworths.com.au/shop/productdetails/754169/woolworths-frozen-australian-peas"]],
+ fzmix:[["Woolworths","https://www.woolworths.com.au/shop/productdetails/768569"]],
+ fzbroc:[["Woolworths","https://www.woolworths.com.au/shop/productdetails/768559/woolworths-frozen-australian-broccoli-florets"]],
+ fzasian:[["Woolworths","https://www.woolworths.com.au/shop/productdetails/768622/birds-eye-frozen-stir-fry-oriental-style"]],
+ fzberry:[["Woolworths","https://www.woolworths.com.au/shop/productdetails/260010"]],
+ coco:[["Woolworths","https://www.woolworths.com.au/shop/productdetails/180429/ayam-100-natural-light-coconut-milk"]],
+ soy:[["Woolworths","https://www.woolworths.com.au/shop/productdetails/198763/lee-kum-kee-soy-sauce-premium"]],
+ parm:[["Woolworths","https://www.woolworths.com.au/shop/productdetails/6002004/perfect-italiano-grated-parmesan-cheese-finely-grated"]],
+ passata:[["Woolworths","https://www.woolworths.com.au/shop/productdetails/795297/mutti-passata-tomato-puree"]],
+ panko:[["Woolworths","https://www.woolworths.com.au/shop/productdetails/260884/crumbed-co-original-style-panko-breadcrumbs"]],
+ sauces1:[["Teriyaki","https://www.woolworths.com.au/shop/productdetails/33948/kikkoman-marinade-teriyaki"],["Oyster sauce","https://www.woolworths.com.au/shop/productdetails/364439/lee-kum-kee-panda-sauce-oyster"]],
+ franks:[["Woolworths","https://www.woolworths.com.au/shop/productdetails/759137/frank-s-redhot-original-cayenne-pepper-hot-sauce"]],
+ salsa:[["Salsa","https://www.woolworths.com.au/shop/productdetails/6059611"],["Taco mix","https://www.woolworths.com.au/shop/productdetails/93444/old-el-paso-taco-spice-mix-taco-spice-mix"]],
+ paste:[["Garlic","https://www.woolworths.com.au/shop/productdetails/669456/woolworths-garlic-paste"],["Ginger","https://www.woolworths.com.au/shop/productdetails/948511/gourmet-garden-paste-ginger"]],
+ sesame:[["Woolworths","https://www.woolworths.com.au/shop/productdetails/39319/yeo-s-ingredients-sesame-oil"]],
+ gravy:[["Woolworths","https://www.woolworths.com.au/shop/productdetails/38723/gravox-traditional-gravy-mix-traditional"]],
+ honey:[["Woolworths","https://www.woolworths.com.au/shop/productdetails/6065552/woolworths-australian-pure-honey-squeeze"]],
+ muesli:[["Woolworths","https://www.woolworths.com.au/shop/productdetails/36370/uncle-tobys-natural-style-swiss-blend-muesli-breakfast-cereal"]],
+ pb:[["Woolworths","https://www.woolworths.com.au/shop/productdetails/38920/bega-peanut-butter-smooth"]]
+};
+
+function storeLinks(id){
+  const L=LINKS[id];
+  if(!L)return `<div class="small muted" style="margin-top:8px">I couldn't find an exact store page online for this one. Look for the product name above on the shelf.</div>`;
+  return `<div class="row" style="gap:6px;margin-top:8px">${L.map(([lab,u])=>`<a class="ghost link" href="${u}" target="_blank" rel="noopener">${esc(lab==="Woolworths"||lab==="Coles"?lab+" product page":lab+" · product page")} ↗</a>`).join("")}</div>`;
+}
+function macroLine(id){const m=MACROS[id];if(!m)return "";return `<span class="mac num">Per ${m[4]}: ${m[0]} kcal · ${m[1]}g P · ${m[2]}g C · ${m[3]}g F <span class="src">${m[5]==="label"?"from the label":"typical, check the pack"}</span>${m[6]?`<br>${esc(m[6])}`:""}</span>`}
+/* how much of each shop item one Standard serve uses */
+const AMT={
+ toasty:{bread:2,ham:100,cheese:30,spinach:20,toms:50},
+ eggmuffin:{eggs:3,ham:50,muffin:2,cheese:20,spinach:20},
+ yogbowl:{yog:250,fzberry:100,muesli:40},
+ brekwrap:{eggs:3,ham:50,wraps:1,cheese:20,spinach:20},
+ tenderwrap:{breast:200,wraps:2,cheese:30,spinach:20,cucumber:0.5,toms:50},
+ burritobowl:{rice:0.75,breast:200,corn:80,capsicum:0.5,yog:50,cheese:30},
+ teriyaki:{thigh:200,rice:0.75,fzasian:150},
+ buffalomac:{breast:180,pasta:75,evap:80,cheese:40,fzbroc:100},
+ schnitzel:{breast:180,eggs:1,potato:200,fzpeas:120},
+ koreanbeef:{mince:200,rice:0.5,eggs:1,fzbroc:150},
+ bolognese:{mince:200,pasta:85,passata:200,fzmix:100,parm:10},
+ redcurry:{breast:180,rice:0.75,coco:70,fzasian:150},
+ friedrice:{breast:160,eggs:2,rice:0.75,fzpeas:60,corn:60},
+ snackplate:{eggs:2,cucumber:0.5,toms:50,cheese:20}
+};
+/* pack each item comes in: size, unit, price, what to call it */
+const PACK={
+ mince:{size:500,u:"g",price:9.8,name:"500g pack"},
+ thigh:{size:500,u:"g",price:7.5,name:"~500g pack"},
+ eggs:{size:12,u:"",price:6.7,name:"12 pack"},
+ yog:{size:907,u:"g",price:8.8,name:"907g tub"},
+ cheese:{size:500,u:"g",price:9,name:"500g bag"},
+ wraps:{size:6,u:" wraps",price:5.2,name:"6 pack"},
+ bread:{size:16,u:" slices",price:5,name:"loaf"},
+ muffin:{size:6,u:"",price:4,name:"6 pack"},
+ spinach:{size:120,u:"g",price:3.3,name:"120g bag"},
+ toms:{size:250,u:"g",price:4,name:"250g punnet"},
+ cucumber:{size:1,u:"",price:1,name:"cucumber"},
+ capsicum:{size:1,u:"",price:1.74,name:"capsicum"},
+ rice:{size:1,u:" pouches",price:3,name:"pouch"},
+ pasta:{size:500,u:"g",price:2.3,name:"500g packet"},
+ potato:{size:2000,u:"g",price:8.5,name:"2kg bag"},
+ corn:{size:420,u:"g",price:2,name:"420g can"},
+ fzpeas:{size:1000,u:"g",price:3,name:"1kg bag"},
+ fzmix:{size:1000,u:"g",price:3.5,name:"1kg bag"},
+ fzbroc:{size:500,u:"g",price:3,name:"500g bag"},
+ fzasian:{size:500,u:"g",price:4,name:"bag"},
+ fzberry:{size:500,u:"g",price:5,name:"500g bag"},
+ evap:{size:340,u:"mL",price:2.8,name:"can"},
+ coco:{size:270,u:"mL",price:2.5,name:"270mL can"},
+ passata:{size:700,u:"g",price:3,name:"700g bottle"},
+ parm:{size:100,u:"g",price:4,name:"100g bag"},
+ muesli:{size:750,u:"g",price:5,name:"box"}
+};
+const STARTER={toasty:2,tenderwrap:2,burritobowl:2,buffalomac:2};
+function picks(){const t=S().trial;if(Array.isArray(t)){const o={};t.forEach(m=>o[m]=2);return o}return t||{}}
+function fmtAmt(v,u){if(u==="g"&&v>=1000)return (v/1000).toFixed(v%1000?1:0)+"kg";if(u==="mL"&&v>=1000)return (v/1000).toFixed(1)+"L";return (Math.round(v*10)/10)+(u||"")}
+/* work out what to buy for the picked meals */
+function buildList(){
+  const pk=picks();const need={};const usedBy={};
+  Object.keys(pk).forEach(m=>{const n=pk[m];if(!n||!USES[m])return;
+    USES[m].forEach(id=>{usedBy[id]=usedBy[id]||[];usedBy[id].push(m);const a=(AMT[m]||{})[id];if(a)need[id]=(need[id]||0)+a*n;else if(!(id in need))need[id]=0;});
+  });
+  const days=S().fixtureDays==null?5:S().fixtureDays;
+  const rows=[];
+  if(days>0){rows.push({id:"dare",qty:days+" bottles",buy:days+" × Dare",cost:days*S().fixtures.dare.cost,sec:0});rows.push({id:"grenade",qty:days+" bars",buy:days+" × Grenade",cost:days*S().fixtures.grenade.cost,sec:0});}
+  const secOf=id=>SHOP[1].items.some(i=>i[0]===id)?1:2;
+  Object.keys(need).forEach(id=>{
+    const amt=need[id];let qty="",buy="",cost=0;
+    if(id==="breast"){const big=amt>650;const packs=big?Math.ceil(amt/1400):1;qty=fmtAmt(amt,"g")+" raw";buy=big?(packs>1?packs+" × ":"")+"Large pack (~1.4kg)":"Small pack (~600g)";cost=big?packs*16.8:7.2;}
+    else if(id==="ham"){const g=Math.max(100,Math.ceil(amt/50)*50);qty=fmtAmt(amt,"g");buy="Ask the deli for "+g+"g shaved";cost=g/100*2.6;}
+    else if(id==="pasta"&&amt){const ms=usedBy[id]||[];const both=ms.includes("buffalomac")&&ms.includes("bolognese");qty=fmtAmt(amt,"g");buy=both?"1 × macaroni + 1 × spaghetti":"1 × 500g packet";cost=both?4.6:2.3;}
+    else if(PACK[id]&&amt){const P=PACK[id];const n=Math.ceil(amt/P.size-1e-9);qty=fmtAmt(amt,P.u);buy=(n>1?n+" × ":"1 × ")+P.name;cost=n*P.price;}
+    else{const it=SHOP.flatMap(s=>s.items).find(i=>i[0]===id);qty="a little";buy="1 × pack/jar (lasts many meals)";cost=it?it[2]:0;}
+    rows.push({id,qty,buy,cost,sec:secOf(id),used:usedBy[id]});
+  });
+  return rows;
+}
+function itemRow(id,label,price,st,det,extra){
+  const ticks=lsTicks();const open=state.openItem===id;const used=USED_IN[id]||[];
+  return `<div class="si ${ticks[id]?"done":""}"><input type="checkbox" id="tick-${id}" aria-label="Got ${esc(label)}" data-act="tick" data-v="${id}" ${ticks[id]?"checked":""}><div class="grow"><button class="itembtn" data-act="openitem" data-v="${id}" aria-expanded="${open}"><span class="grow">${esc(label)}</span><span class="p">${money(price)}</span></button>${extra||""}<span class="small muted" style="display:block">${st==="ok"?`<span class="tag ok">Checked</span>`:`<span class="tag est">Estimate</span>`} ${open?"tap to close":"tap for details"}</span>${open?`<div class="itemdetail"><div class="small">${esc(det||"")}</div>${macroLine(id)}${used.length?`<div class="eyebrow" style="margin-top:8px">Used in</div><div class="chips" style="margin-top:4px">${used.map(m=>`<button class="chip" data-act="recipe" data-v="${m}">${esc(MEAL[m].name)}</button>`).join("")}</div>`:""}${storeLinks(id)}</div>`:""}</div></div>`;
+}
+function buildName(id,label,used){
+  if(id==="pasta"){const mac=(used||[]).includes("buffalomac"),sp=(used||[]).includes("bolognese");return mac&&sp?"San Remo Macaroni No 38 + Spaghetti No 5 (500g each)":mac?"San Remo Macaroni No 38 500g":"San Remo Spaghetti No 5 500g";}
+  if(id==="breast")return "Coles RSPCA Approved Chicken Breast Fillets";
+  if(id==="ham")return "D'Orsogna Ham Leg Triple Smoked 97% Fat Free (deli)";
+  if(id==="cucumber")return "Lebanese Cucumber";
+  return label.replace(/\s×\s\d+$/,"").replace(/\s\((freeze half|teriyaki week only)\)/,"").replace(/\s+can$/,"");
+}
+function renderShop(){
+  const ticks=lsTicks();const build=S().shopMode!=="all";
+  const ITEM=Object.fromEntries(SHOP.flatMap(s=>s.items).map(i=>[i[0],i]));
+  let h=`<div><div class="eyebrow">Coles or Woolworths</div><h2>${build?"Build a shop":"Full shopping list"}</h2></div>`;
+  h+=`<div class="dial" role="group" aria-label="List type" style="align-self:flex-start"><button aria-pressed="${build}" data-act="shopmode" data-v="build">Build a shop</button><button aria-pressed="${!build}" data-act="shopmode" data-v="all">Full list</button></div>`;
+  if(build){
+    const pk=picks();const nMeals=Object.values(pk).reduce((a,b)=>a+(b||0),0);
+    h+=`<div class="panel stack"><div class="row between"><h3>1. Pick meals and serves</h3>${nMeals?`<button class="ghost" data-act="clearpicks">Clear</button>`:""}</div>`;
+    if(!nMeals)h+=`<div class="hint"><span>Not sure where to start? The <b>starter shop</b> picks 4 meals that share most of their ingredients (toasty, chicken wraps, burrito bowl, buffalo mac), 2 serves each, so you buy fewer things.</span></div><div><button class="btn" data-act="starter">Use the starter shop</button></div>`;
+    const groups=[["Breakfast",m=>m.slots.includes("breakfast")],["Lunch & dinner",m=>m.slots.includes("main")],["Snack",m=>m.slots.includes("snack")&&!m.slots.includes("breakfast")]];
+    groups.forEach(([g,f])=>{
+      h+=`<div class="eyebrow" style="margin-top:4px">${g}</div><div class="picks">${MEALS.filter(f).map(m=>{const n=pk[m.id]||0;return `<div class="pickrow ${n?"on":""}"><button class="pname" data-act="recipe" data-v="${m.id}"><b>${esc(m.name)}</b><span class="small muted num">${m.t.S.k} kcal · ${m.t.S.p}g P · ${money(m.t.S.cost)}</span></button><div class="step" role="group" aria-label="Serves of ${esc(m.name)}"><button data-act="serve" data-v="${m.id}" data-i="-1" aria-label="Fewer" ${n?"":"disabled"}>−</button><span class="num">${n}</span><button data-act="serve" data-v="${m.id}" data-i="1" aria-label="More">+</button></div></div>`}).join("")}</div>`;
+    });
+    const days=S().fixtureDays==null?5:S().fixtureDays;
+    h+=`<div class="row between" style="margin-top:4px"><span class="small"><b>Dare + Grenade</b> for how many days?</span><div class="step"><button data-act="fxdays" data-i="-1" ${days?"":"disabled"} aria-label="Fewer days">−</button><span class="num">${days}</span><button data-act="fxdays" data-i="1" aria-label="More days">+</button></div></div></div>`;
+    const rows=buildList();
+    if(!nMeals&&!rows.length){h+=`<div class="empty">Pick at least one meal and your list appears here.</div>`;return h;}
+    const left=rows.filter(r=>!ticks[r.id]).reduce((a,r)=>a+r.cost,0);const total=rows.reduce((a,r)=>a+r.cost,0);
+    h+=`<div class="panel vs" style="grid-template-columns:repeat(auto-fit,minmax(130px,1fr))"><div><span class="small muted">${nMeals} serve${nMeals===1?"":"s"} · ${rows.length} items</span><b>${money(total)}</b></div><div><span class="small muted">Left to buy</span><b style="color:var(--good)">${money(left)}</b></div></div>`;
+    h+=`<div class="small muted">Tick things off as they go in the trolley, or tick pantry items you already have at home. Prices are estimates and use whole packs, so the first shop costs more than the per-serve cost.</div>`;
+    [["Fixtures",0],["Fresh",1],["Pantry & freezer (check what you already have)",2]].forEach(([t,sec])=>{
+      const rs=rows.filter(r=>r.sec===sec);if(!rs.length)return;
+      h+=`<div class="panel shopsec"><h3 style="margin-bottom:4px">${t}</h3>${rs.map(r=>{const it=ITEM[r.id];return itemRow(r.id,buildName(r.id,it[1],r.used),r.cost,it[3],it[4],`<span class="buy small"><b>Buy:</b> ${esc(r.buy)} <span class="muted">· need ${esc(r.qty)}</span></span>`)}).join("")}</div>`;
+    });
+    h+=`<div class="row"><button class="ghost" data-act="untickall">Clear ticks for next shop</button></div>`;
+    return h;
+  }
+  const all=SHOP.flatMap(s=>s.items);const okN=all.filter(i=>i[3]==="ok").length;
+  const weekly=SHOP.slice(0,2).reduce((a,s)=>a+s.items.reduce((b,i)=>b+i[2],0),0);const pantry=SHOP[2].items.reduce((b,i)=>b+i[2],0);
+  h+=`<p class="small muted" style="margin:0">Everything for every meal. ${okN} of ${all.length} prices checked online. Tap an item for macros, meals and its product page.</p>`;
+  h+=`<div class="panel vs" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr))"><div><span class="small muted">Weekly top-up + fixtures</span><b>${money(weekly)}</b></div><div><span class="small muted">Pantry, first shop only</span><b>${money(pantry)}</b></div></div>`;
+  SHOP.forEach(s=>{h+=`<div class="panel shopsec"><div class="row between" style="margin-bottom:4px"><h3>${esc(s.sec)}</h3><span class="num small muted">${money(s.items.reduce((b,i)=>b+i[2],0))}</span></div><div class="small muted" style="margin-bottom:6px">${esc(s.note)}</div>${s.items.map(([id,l,p,st,det])=>itemRow(id,l,p,st,det,"")).join("")}</div>`});
+  h+=`<div class="row"><button class="ghost" data-act="untickall">Clear ticks for next shop</button></div>`;
+  return h;
+}
+function renderTargets(){
+  const s=S();const fx=s.fixtures;
+  let h=`<div><div class="eyebrow">Your numbers</div><h2>Targets</h2></div>`;
+  h+=`<div class="panel stack"><div class="eyebrow">Phase</div><div class="chips">${Object.keys(MODES).map(k=>`<button class="chip" aria-pressed="${s.mode===k}" data-act="mode" data-v="${k}">${MODES[k].label}</button>`).join("")}</div>
+  <div class="grid2"><label class="f">Mini-cut kcal<input class="num" type="number" id="k-cut" data-set="kcal.cut" value="${s.kcal.cut}"></label><label class="f">Recomp kcal<input class="num" type="number" id="k-recomp" data-set="kcal.recomp" value="${s.kcal.recomp}"></label><label class="f">Lean bulk kcal<input class="num" type="number" id="k-bulk" data-set="kcal.bulk" value="${s.kcal.bulk}"></label><label class="f">Protein g (every day)<input class="num" type="number" id="prot" data-set="protein" value="${s.protein}"></label><label class="f">Weekday adjustment<input class="num" type="number" step="50" id="adj" data-set="adjust" value="${s.adjust}"></label></div>
+  <div class="small muted">Weekday target right now: <b class="num">${target().k} kcal</b>, <b class="num">${s.protein}g</b> protein. The weigh-in tab suggests ±150 kcal changes to the adjustment when the 7-day trend drifts from your phase.</div></div>`;
+  h+=`<div class="panel stack"><div class="eyebrow">Fixtures. Check your labels and correct these.</div>${Object.keys(fx).map(k=>`<div class="stack" style="gap:6px"><b>${esc(fx[k].name)}</b><div class="grid2">${[["k","kcal"],["p","Protein g"],["c","Carbs g"],["f","Fat g"],["cost","Price $"]].map(([f,l])=>`<label class="f">${l}<input class="num" type="number" step="${f==="cost"?"0.05":"1"}" id="fx-${k}-${f}" data-set="fixtures.${k}.${f}" value="${fx[k][f]}"></label>`).join("")}</div></div>`).join("")}</div>`;
+  h+=`<div class="panel stack"><div class="eyebrow">Price comparison</div><label class="f" style="max-width:240px">Ready-made protein meal shelf price $<input class="num" type="number" step="0.5" id="rmp" data-set="readyMealPrice" value="${s.readyMealPrice}"></label><div class="small muted">Used to compare the buffalo mac and schnitzel remakes against the ones in the fridge aisle.</div></div>`;
+  return h;
+}
+function renderSheet(){
+  const root=$("#sheetroot");
+  if(!state.sheet){root.innerHTML="";return}
+  const m=MEAL[state.sheet];
+  root.innerHTML=`<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(m.name)}"><div class="row between" style="margin-bottom:10px"><span class="eyebrow">Recipe</span><button class="ghost" data-act="close">Close</button></div>${mealCard(m,true)}</div></div>`;
+}
+function render(){
+  renderTabs();
+  const v=$("#view");
+  const map={today:renderToday,weigh:renderWeigh,meals:renderMeals,shop:renderShop,targets:renderTargets};
+  v.innerHTML=map[state.tab]();
+  renderSheet();
+}
+
+/* ---------- events ---------- */
+document.addEventListener("click",e=>{
+  const el=e.target.closest("[data-act]");if(!el)return;
+  const act=el.dataset.act,v=el.dataset.v,i=+el.dataset.i;
+  if(act==="close"&&el.classList.contains("scrim")&&e.target!==el)return;
+  if(act!=="rm"&&act!=="rmw")state.armed=null;
+  const date=state.date;
+  switch(act){
+    case "tab":state.tab=v;state.adding=null;window.scrollTo(0,0);break;
+    case "shift":state.date=addDays(date,+v);state.adding=null;break;
+    case "goto":state.date=v;state.adding=null;break;
+    case "track":{const d=ensureDay(date);d.track=true;d.fx={dare:true,grenade:true};saveDay(date);break}
+    case "untrack":{const d=ensureDay(date);d.track=false;saveDay(date);break}
+    case "fx":{const d=ensureDay(date);d.fx=d.fx||{};d.fx[v]=!d.fx[v];saveDay(date);break}
+    case "suggest":suggestDay(date);state.adding=null;break;
+    case "fit":{const d=ensureDay(date);fitTiers(d);saveDay(date);break}
+    case "tier":{const d=ensureDay(date);d.meals[i].t=v;saveDay(date);break}
+    case "swap":swapMeal(date,i);break;
+    case "rm":{if(state.armed==="rm"+i){const d=ensureDay(date);d.meals.splice(i,1);saveDay(date);state.armed=null}else state.armed="rm"+i;break}
+    case "adding":state.adding=state.adding===v?null:v;break;
+    case "add":{const d=ensureDay(date);d.meals=d.meals||[];d.meals.push({id:v,slot:state.adding,t:"S"});state.adding=null;saveDay(date);break}
+    case "addto":{const d=ensureDay(date);d.meals=d.meals||[];d.meals.push({id:v,slot:el.dataset.s,t:"S"});saveDay(date);state.sheet=null;state.tab="today";break}
+    case "rmx":{const d=ensureDay(date);d.extras.splice(i,1);saveDay(date);break}
+    case "recipe":state.sheet=v;break;
+    case "close":state.sheet=null;break;
+    case "mf":state.mealFilter=v;break;
+    case "mode":state.settings.mode=v;saveSettings();break;
+    case "applyadj":state.settings.adjust=(state.settings.adjust||0)+(+v);saveSettings();break;
+    case "rmw":{if(state.armed==="w"+v){delete state.weights[v];saveWeight(v);state.armed=null}else state.armed="w"+v;break}
+    case "tick":{const t=lsTicks();t[v]=el.checked;lsSetTicks(t);break}
+    case "untickall":lsSetTicks({});break;
+    case "openitem":state.openItem=state.openItem===v?null:v;break;
+    case "shopmode":state.settings.shopMode=v;saveSettings();break;
+    case "serve":{const pk=picks();const n=Math.max(0,Math.min(10,(pk[v]||0)+i));if(n)pk[v]=n;else delete pk[v];state.settings.trial=pk;saveSettings();break}
+    case "starter":state.settings.trial=clone(STARTER);saveSettings();break;
+    case "clearpicks":state.settings.trial={};saveSettings();break;
+    case "fxdays":{const d=S().fixtureDays==null?5:S().fixtureDays;state.settings.fixtureDays=Math.max(0,Math.min(7,d+i));saveSettings();break}
+    default:return;
+  }
+  render();
+});
+document.addEventListener("submit",e=>{
+  e.preventDefault();
+  if(e.target.id==="wform"){
+    const kg=parseFloat($("#wkg").value);const d=$("#wdate").value||iso(new Date());
+    if(!isFinite(kg)||kg<30||kg>250){$("#wkg").focus();return}
+    state.weights[d]={kg:Math.round(kg*10)/10,at:new Date().toISOString()};saveWeight(d);render();
+  }
+  if(e.target.id==="xform"){
+    const n=$("#xn").value.trim(),k=parseFloat($("#xk").value),p=parseFloat($("#xp").value)||0;
+    if(!isFinite(k)){$("#xk").focus();return}
+    const d=ensureDay(state.date);d.extras=d.extras||[];d.extras.push({n:n||"Extra",k,p});saveDay(state.date);render();
+  }
+});
+document.addEventListener("change",e=>{
+  const el=e.target;if(!el.dataset||!el.dataset.set)return;
+  const val=parseFloat(el.value);if(!isFinite(val))return;
+  const path=el.dataset.set.split(".");let o=state.settings;
+  for(let j=0;j<path.length-1;j++)o=o[path[j]];
+  o[path[path.length-1]]=val;saveSettings();render();
+});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&state.sheet){state.sheet=null;render()}});
+
+initStore();
+})();
+</script>
+
+</body></html>

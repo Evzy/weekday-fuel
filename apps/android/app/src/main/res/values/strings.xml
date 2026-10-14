@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Weekday Fuel</string>
+    <string name="update_available_title">Update available</string>
+    <string name="update_available_message">Weekday Fuel %1$s is available (you have %2$s). Your data stays on this phone.</string>
+    <string name="update_install">Update</string>
+    <string name="update_later">Later</string>
+    <string name="update_downloading">Downloading update…</string>
+    <string name="update_allow_installs">Allow installs from Weekday Fuel, then come back to finish the update.</string>
+    <string name="update_failed">Update failed: %1$s</string>
+    <string name="no_app_for_link">No app can open this link.</string>
+</resources>
