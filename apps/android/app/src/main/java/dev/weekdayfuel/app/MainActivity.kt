@@ -23,19 +23,31 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updatePadding
 import androidx.lifecycle.lifecycleScope
+import androidx.webkit.JavaScriptReplyProxy
 import androidx.webkit.WebViewAssetLoader
+import androidx.webkit.WebViewCompat
+import androidx.webkit.WebViewFeature
 import dev.weekdayfuel.app.update.GithubApkReleaseInfo
 import dev.weekdayfuel.app.update.GithubApkReleaseUpdater
 import dev.weekdayfuel.app.update.ReleaseVersionCompare
+import dev.weekdayfuel.app.woolworths.HostMessages
+import dev.weekdayfuel.app.woolworths.TrolleyJson
+import dev.weekdayfuel.app.woolworths.TrolleyScriptState
 import dev.weekdayfuel.app.woolworths.WoolworthsScreen
 import dev.weekdayfuel.app.woolworths.WoolworthsSession
 import dev.weekdayfuel.app.woolworths.WoolworthsUrls
 import kotlinx.coroutines.launch
+import org.json.JSONArray
+import org.json.JSONObject
 
 class MainActivity : ComponentActivity() {
     private lateinit var webView: WebView
     private lateinit var woolworths: WoolworthsSession
     private lateinit var woolworthsScreen: WoolworthsScreen
+    private var hostReply: JavaScriptReplyProxy? = null
+
+    /** True while the Woolworths screen is up only because a send needs the owner to log in. */
+    private var loginShownForSend = false
 
     /** Set when the user tapped Update but first had to grant "install unknown apps". */
     private var pendingUpdate: GithubApkReleaseInfo? = null
@@ -64,6 +76,7 @@ class MainActivity : ComponentActivity() {
                 webViewClient = HostWebViewClient(assetLoader)
             }
         woolworths = WoolworthsSession(this, ::openExternally)
+        woolworths.listener = TrolleyListener()
         woolworthsScreen = WoolworthsScreen(this, woolworths.webView, webView, onClose = ::hideWoolworths)
         root.addView(woolworthsScreen.view, FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
         root.addView(webView, FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
@@ -103,6 +116,16 @@ class MainActivity : ComponentActivity() {
             },
         )
 
+        // Must be registered before the page loads; only Weekday Fuel's own origin can reach the host.
+        if (WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) {
+            WebViewCompat.addWebMessageListener(webView, HOST_OBJECT, setOf(APP_ORIGIN)) { _, message, _, isMainFrame, replyProxy ->
+                if (isMainFrame) {
+                    hostReply = replyProxy
+                    message.data?.let(::onHostMessage)
+                }
+            }
+        }
+
         if (savedInstanceState == null || webView.restoreState(savedInstanceState) == null) {
             webView.loadUrl(APP_URL)
         }
@@ -131,9 +154,29 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        woolworths.cancel()
         woolworths.webView.destroy()
         webView.destroy()
         super.onDestroy()
+    }
+
+    private fun onHostMessage(data: String) {
+        val msg = runCatching { JSONObject(data) }.getOrNull() ?: return
+        when (msg.optString("type")) {
+            "sendTrolley" -> {
+                val lines = runCatching { TrolleyJson.parseLines(msg.optJSONArray("lines") ?: JSONArray()) }.getOrNull() ?: return
+                woolworths.send(lines)
+            }
+            "openWoolworths" -> {
+                val url = msg.optString("url")
+                showWoolworths(if (WoolworthsUrls.isWoolworthsHost(Uri.parse(url).host)) url else WoolworthsUrls.HOME_URL)
+            }
+            "checkout" -> showWoolworths(WoolworthsUrls.TROLLEY_URL)
+        }
+    }
+
+    private fun replyToPage(json: String) {
+        hostReply?.postMessage(json)
     }
 
     private fun showWoolworths(url: String) {
@@ -143,6 +186,42 @@ class MainActivity : ComponentActivity() {
 
     private fun hideWoolworths() {
         woolworthsScreen.hide()
+        if (loginShownForSend) {
+            loginShownForSend = false
+            if (woolworths.hasPending) {
+                woolworths.cancel()
+                replyToPage(HostMessages.failure(getString(R.string.woolworths_login_cancelled)))
+            }
+        }
+    }
+
+    private fun closeLoginIfShownForSend() {
+        if (loginShownForSend) {
+            loginShownForSend = false
+            woolworthsScreen.hide()
+        }
+    }
+
+    private inner class TrolleyListener : WoolworthsSession.Listener {
+        override fun onNeedsLogin() {
+            if (!woolworthsScreen.isShowing) {
+                woolworths.load(WoolworthsUrls.LOGIN_URL)
+                woolworthsScreen.show()
+            }
+            loginShownForSend = true
+            woolworthsScreen.setStatus(getString(R.string.woolworths_login_status))
+            replyToPage(HostMessages.login())
+        }
+
+        override fun onProgress(completed: Int, total: Int) {
+            closeLoginIfShownForSend()
+            replyToPage(HostMessages.progress(completed, total))
+        }
+
+        override fun onFinished(state: TrolleyScriptState) {
+            closeLoginIfShownForSend()
+            replyToPage(HostMessages.finished(state))
+        }
     }
 
     private fun checkForUpdateOnColdStart() {
@@ -229,6 +308,8 @@ class MainActivity : ComponentActivity() {
 
     private companion object {
         const val TAG = "WeekdayFuel"
-        val APP_URL = "https://${WebViewAssetLoader.DEFAULT_DOMAIN}/assets/weekday_fuel/Weekday_Fuel.html"
+        const val HOST_OBJECT = "WeekdayFuelHost"
+        val APP_ORIGIN = "https://${WebViewAssetLoader.DEFAULT_DOMAIN}"
+        val APP_URL = "$APP_ORIGIN/assets/weekday_fuel/Weekday_Fuel.html"
     }
 }

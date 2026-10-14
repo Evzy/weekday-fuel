@@ -10,4 +10,8 @@
     <string name="update_failed">Update failed: %1$s</string>
     <string name="no_app_for_link">No app can open this link.</string>
     <string name="woolworths_back">← Weekday Fuel</string>
+    <string name="woolworths_login_status">Log in to send your shop</string>
+    <string name="woolworths_login_cancelled">Log in to Woolworths, then tap Send again.</string>
+    <string name="woolworths_timeout">Woolworths took too long to respond. Try again.</string>
+    <string name="woolworths_offline">Couldn\'t reach Woolworths. Check your connection and try again.</string>
 </resources>
