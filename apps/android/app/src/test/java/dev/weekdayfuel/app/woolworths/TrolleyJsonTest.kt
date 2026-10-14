@@ -3,7 +3,9 @@ package dev.weekdayfuel.app.woolworths
 import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class TrolleyJsonTest {
@@ -39,13 +41,30 @@ class TrolleyJsonTest {
 
     @Test
     fun parseLinesKeepsPositiveQuantities() {
-        val lines = TrolleyJson.parseLines(JSONArray("""[{"stockcode":717518,"quantity":2,"name":"Chobani"},{"stockcode":72280,"quantity":0}]"""))
-        assertEquals(listOf(TrolleyLine(717518L, 2)), lines)
+        val lines =
+            TrolleyJson.parseLines(
+                JSONArray("""[{"stockcode":717518,"quantity":2,"name":"Chobani"},{"stockcode":72280,"quantity":0},{"stockcode":1,"quantity":-1}]"""),
+            )
+        assertEquals(listOf(TrolleyLine(717518L, 2.0)), lines)
+    }
+
+    @Test
+    fun parseLinesKeepsDecimalWeights() {
+        val lines = TrolleyJson.parseLines(JSONArray("""[{"stockcode":175734,"quantity":0.3}]"""))
+        assertEquals(listOf(TrolleyLine(175734L, 0.3)), lines)
     }
 
     @Test
     fun linesToJsonRoundTrips() {
-        val lines = listOf(TrolleyLine(717518L, 2), TrolleyLine(72280L, 5))
+        val lines = listOf(TrolleyLine(717518L, 2.0), TrolleyLine(72280L, 5.0), TrolleyLine(175734L, 0.3))
         assertEquals(lines, TrolleyJson.parseLines(JSONArray(TrolleyJson.linesToJson(lines))))
+    }
+
+    @Test
+    fun linesToJsonWritesWholeQuantitiesWithoutDecimals() {
+        val json = TrolleyJson.linesToJson(listOf(TrolleyLine(717518L, 2.0), TrolleyLine(175734L, 0.3)))
+        assertTrue(json, Regex(""""quantity":2[,}]""").containsMatchIn(json))
+        assertTrue(json, json.contains(""""quantity":0.3"""))
+        assertFalse(json, json.contains("2.0"))
     }
 }

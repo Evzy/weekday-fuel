@@ -109,3 +109,12 @@ test("ignores start() while a run is in progress", async () => {
   assert.equal(s.results.length, 2);
   assert.equal(calls.length, 3);
 });
+
+test("a weighed line is sent with its kilogram quantity unchanged", async () => {
+  const { api, calls } = load((url, init, urls) => (url === urls.loginStatus ? response(200, LOGGED_IN) : accepted(init)));
+  api.start([{ stockcode: 175734, quantity: 0.3 }]);
+  const s = await settle(api);
+  assert.equal(s.phase, "done");
+  assert.equal(JSON.parse(calls[1].init.body).items[0].quantity, 0.3);
+  assert.deepEqual(s.results, [{ stockcode: 175734, outcome: "added" }]);
+});

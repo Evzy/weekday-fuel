@@ -4,7 +4,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import org.json.JSONTokener
 
-data class TrolleyLine(val stockcode: Long, val quantity: Int)
+data class TrolleyLine(val stockcode: Long, val quantity: Double)
 
 data class TrolleyLineResult(val stockcode: Long, val added: Boolean, val reason: String?)
 
@@ -21,12 +21,15 @@ data class TrolleyScriptState(
 object TrolleyJson {
     fun parseLines(lines: JSONArray): List<TrolleyLine> =
         (0 until lines.length())
-            .map { i -> lines.getJSONObject(i).let { TrolleyLine(it.getLong("stockcode"), it.getInt("quantity")) } }
+            .map { i -> lines.getJSONObject(i).let { TrolleyLine(it.getLong("stockcode"), it.getDouble("quantity")) } }
             .filter { it.quantity > 0 }
 
     fun linesToJson(lines: List<TrolleyLine>): String =
         JSONArray().apply {
-            lines.forEach { put(JSONObject().put("stockcode", it.stockcode).put("quantity", it.quantity)) }
+            lines.forEach {
+                val quantity: Number = if (it.quantity % 1.0 == 0.0) it.quantity.toLong() else it.quantity
+                put(JSONObject().put("stockcode", it.stockcode).put("quantity", quantity))
+            }
         }.toString()
 
     /** [evaluateResult] is what `evaluateJavascript` returns for `__weekdayFuelTrolley.state()`: a JSON-encoded string, or "null". */
