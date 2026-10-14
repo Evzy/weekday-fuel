@@ -2,7 +2,7 @@
 
 Self-contained Android app for weekday meal budgeting, weigh-ins, meals, and shopping. No backend: all state lives on the phone (`localStorage` inside the WebView).
 
-v0 ships the frozen [`Weekday_Fuel.html`](docs/seed/Weekday_Fuel.html) artifact unchanged inside a WebView, plus a GitHub Releases update check on cold start.
+The page started from the frozen v0 [`Weekday_Fuel.html`](docs/seed/Weekday_Fuel.html) in `docs/seed/` and now evolves through specs inside a WebView—including sending your Build-a-shop list to the Woolworths trolley—plus a GitHub Releases update check on cold start.
 
 ## Layout
 
