@@ -20,7 +20,6 @@ import androidx.activity.OnBackPressedCallback
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.WindowInsetsControllerCompat
 import androidx.core.view.updatePadding
 import androidx.lifecycle.lifecycleScope
 import androidx.webkit.WebViewAssetLoader
@@ -43,10 +42,6 @@ class MainActivity : ComponentActivity() {
         val isNight =
             (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
         val root = FrameLayout(this).apply { setBackgroundColor(getColor(R.color.page_background)) }
-        WindowInsetsControllerCompat(window, root).apply {
-            isAppearanceLightStatusBars = !isNight
-            isAppearanceLightNavigationBars = !isNight
-        }
 
         val assetLoader =
             WebViewAssetLoader.Builder()
@@ -64,6 +59,11 @@ class MainActivity : ComponentActivity() {
             }
         root.addView(webView, FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
         setContentView(root)
+        // Needs the decor view, which only exists after setContentView (NPE on Android 15 otherwise).
+        WindowCompat.getInsetsController(window, window.decorView).apply {
+            isAppearanceLightStatusBars = !isNight
+            isAppearanceLightNavigationBars = !isNight
+        }
 
         ViewCompat.setOnApplyWindowInsetsListener(root) { v, insets ->
             val bars =
