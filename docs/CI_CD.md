@@ -8,7 +8,7 @@ Adapted from Platra's `docs/CI_CD.md` (Android plumbing only — no API, Azure, 
 |----------|------|--------------|---------|
 | **Release Android APK** | [`.github/workflows/release-android.yml`](../.github/workflows/release-android.yml) | PR to `main`, push to `main`, push tag `v*`, `workflow_dispatch` | Unit tests + **debug APK** (always uploaded as the `weekday-fuel-debug-apk` artifact). On push, publishes to **`OWNER/weekday-fuel-releases`** when release **`v{versionName}`** does not exist yet (main) or for an explicit **`v*`** tag. |
 
-The workflow also fails if `apps/android/app/src/main/assets/weekday_fuel/Weekday_Fuel.html` drifts from the frozen seed in `docs/seed/`. Drop that step once v0 has shipped and the HTML starts evolving.
+The workflow also runs the JS unit tests (`node --test apps/android/app/src/test/js/*.test.js`) and an Android 15 emulator launch smoke test; nothing is published unless all pass. `docs/seed/Weekday_Fuel.html` is the historical v0; the shipped page now evolves through specs.
 
 ## Releases repo + token
 
