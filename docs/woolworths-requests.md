@@ -6,12 +6,12 @@ Evidence for the go/no-go checks in the Woolworths trolley spec. Values here are
 
 | Check | Result | Notes |
 | --- | --- | --- |
-| Woolworths product link opens in the in-app Woolworths screen | | |
-| Log in works inside the in-app screen | | |
-| Still logged in after closing and reopening the app | | |
-| Trolley → checkout → pick a time reaches the payment step with the saved card | | |
-| Login page URL | | |
-| Trolley/cart page URL | | |
+| Woolworths product link opens in the in-app Woolworths screen | Pass | v0.1.2, 2026-10-15 |
+| Log in works inside the in-app screen | Pass | No user-agent change needed |
+| Still logged in after closing and reopening the app | Pass | |
+| Trolley → checkout → pick a time reaches the payment step with the saved card | Pass | Backed out before paying |
+| Login page URL | Not recorded | Confirm from desktop in Task 2 |
+| Trolley/cart page URL | Not recorded | Confirm from desktop in Task 2 |
 
 ## Login status request
 
@@ -42,4 +42,4 @@ Evidence for the go/no-go checks in the Woolworths trolley spec. Values here are
 
 ## Decision
 
-Go / no-go:
+Go / no-go: in-app checks (part A) **go**, 2026-10-15. Request capture (part B) pending.
