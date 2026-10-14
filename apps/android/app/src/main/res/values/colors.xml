@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Mirrors --bg in Weekday_Fuel.html so system-bar areas blend with the page. -->
+    <!-- Mirrors the page background (bg CSS variable) in Weekday_Fuel.html so system-bar areas blend in. -->
     <color name="page_background">#EEF2EC</color>
     <color name="ic_launcher_background">#2C50D0</color>
 </resources>
