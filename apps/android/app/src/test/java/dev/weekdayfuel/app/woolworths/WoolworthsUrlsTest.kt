@@ -18,4 +18,18 @@ class WoolworthsUrlsTest {
         assertFalse(WoolworthsUrls.isWoolworthsHost("woolworths.com.au.evil.example"))
         assertFalse(WoolworthsUrls.isWoolworthsHost(null))
     }
+
+    @Test
+    fun isWoolworthsPage_acceptsHttpsWoolworthsHost() {
+        assertTrue(WoolworthsUrls.isWoolworthsPage("https", "www.woolworths.com.au"))
+    }
+
+    @Test
+    fun isWoolworthsPage_rejectsNonHttpsOrWrongHost() {
+        assertFalse(WoolworthsUrls.isWoolworthsPage("http", "www.woolworths.com.au"))
+        assertFalse(WoolworthsUrls.isWoolworthsPage("javascript", "www.woolworths.com.au"))
+        assertFalse(WoolworthsUrls.isWoolworthsPage(null, "www.woolworths.com.au"))
+        assertFalse(WoolworthsUrls.isWoolworthsPage("https", "www.coles.com.au"))
+        assertFalse(WoolworthsUrls.isWoolworthsPage("https", null))
+    }
 }

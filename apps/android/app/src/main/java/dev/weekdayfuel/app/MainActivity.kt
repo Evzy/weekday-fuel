@@ -164,12 +164,17 @@ class MainActivity : ComponentActivity() {
         val msg = runCatching { JSONObject(data) }.getOrNull() ?: return
         when (msg.optString("type")) {
             "sendTrolley" -> {
-                val lines = runCatching { TrolleyJson.parseLines(msg.optJSONArray("lines") ?: JSONArray()) }.getOrNull() ?: return
+                val lines = runCatching { TrolleyJson.parseLines(msg.optJSONArray("lines") ?: JSONArray()) }.getOrNull()
+                    ?: run {
+                        replyToPage(HostMessages.failure(getString(R.string.woolworths_bad_request)))
+                        return
+                    }
                 woolworths.send(lines)
             }
             "openWoolworths" -> {
                 val url = msg.optString("url")
-                showWoolworths(if (WoolworthsUrls.isWoolworthsHost(Uri.parse(url).host)) url else WoolworthsUrls.HOME_URL)
+                val uri = Uri.parse(url)
+                showWoolworths(if (WoolworthsUrls.isWoolworthsPage(uri.scheme, uri.host)) url else WoolworthsUrls.HOME_URL)
             }
             "checkout" -> showWoolworths(WoolworthsUrls.TROLLEY_URL)
         }
@@ -297,7 +302,7 @@ class MainActivity : ComponentActivity() {
 
         override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
             if (request.url.host == WebViewAssetLoader.DEFAULT_DOMAIN) return false
-            if (WoolworthsUrls.isWoolworthsHost(request.url.host)) {
+            if (WoolworthsUrls.isWoolworthsPage(request.url.scheme, request.url.host)) {
                 showWoolworths(request.url.toString())
                 return true
             }

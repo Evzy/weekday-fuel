@@ -7,4 +7,7 @@ object WoolworthsUrls {
 
     fun isWoolworthsHost(host: String?): Boolean =
         host != null && (host == "woolworths.com.au" || host.endsWith(".woolworths.com.au"))
+
+    fun isWoolworthsPage(scheme: String?, host: String?): Boolean =
+        scheme == "https" && isWoolworthsHost(host)
 }
