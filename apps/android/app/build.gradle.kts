@@ -112,4 +112,5 @@ dependencies {
     implementation(libs.lifecycle.runtime.ktx)
     implementation(libs.webkit)
     testImplementation(libs.junit)
+    testImplementation(libs.org.json)
 }

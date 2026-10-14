@@ -6,6 +6,7 @@ activity = "1.9.3"
 lifecycle = "2.8.7"
 webkit = "1.12.1"
 junit = "4.13.2"
+orgJson = "20240303"
 
 [libraries]
 core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -13,6 +14,7 @@ activity-ktx = { group = "androidx.activity", name = "activity-ktx", version.ref
 lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "lifecycle" }
 webkit = { group = "androidx.webkit", name = "webkit", version.ref = "webkit" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
+org-json = { group = "org.json", name = "json", version.ref = "orgJson" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
