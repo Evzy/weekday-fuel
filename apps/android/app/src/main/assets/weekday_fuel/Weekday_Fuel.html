@@ -879,7 +879,8 @@ function renderTrolley(rows,ticks,ITEM){
   }else{
     const byCode=Object.fromEntries(t.lines.map(l=>[l.stockcode,l]));
     const added=t.results.filter(r=>r.added),failed=t.results.filter(r=>!r.added);
-    if(!added.length&&failed.length)h+=`<div class="hint"><span>Nothing could be added. Woolworths may have changed their website, so the automatic send is out of date. Open each product below to add it yourself.</span></div>`;
+    const siteChanged=failed.every(r=>r.reason==="not available"||String(r.reason||"").startsWith("HTTP 4"));
+    if(!added.length&&failed.length)h+=siteChanged?`<div class="hint"><span>Nothing could be added. Woolworths may have changed their website, so the automatic send is out of date. Open each product below to add it yourself.</span></div>`:`<div class="hint"><span>Nothing could be added. Check your connection, then tap Done and send again.</span></div>`;
     h+=`<div class="small"><b>Added ${added.length}</b> of ${t.results.length}.</div>`;
     if(failed.length)h+=`<div class="eyebrow">Couldn't add</div>${failed.map(r=>{const l=byCode[r.stockcode]||{name:String(r.stockcode)};return `<div class="row between"><span class="small">${esc(l.name)}${r.reason?` <span class="muted">(${esc(r.reason)})</span>`:""}</span>${l.url?`<button class="ghost" data-act="openwoolies" data-v="${esc(l.url)}">Open ↗</button>`:""}</div>`}).join("")}`;
     if(t.manual.length)h+=`<div class="eyebrow">Add these yourself</div>${t.manual.map(m=>`<div class="small">${esc(m.name)} <span class="muted">(${MANUAL_WHY[m.reason]||"add it yourself"})</span></div>`).join("")}`;

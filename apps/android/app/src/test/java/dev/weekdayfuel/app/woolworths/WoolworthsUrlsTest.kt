@@ -32,4 +32,18 @@ class WoolworthsUrlsTest {
         assertFalse(WoolworthsUrls.isWoolworthsPage("https", "www.coles.com.au"))
         assertFalse(WoolworthsUrls.isWoolworthsPage("https", null))
     }
+
+    @Test
+    fun isShopPage_acceptsOnlyHttpsShopHost() {
+        assertTrue(WoolworthsUrls.isShopPage("https", "www.woolworths.com.au"))
+    }
+
+    @Test
+    fun isShopPage_rejectsLoginHostOtherHostsAndNonHttps() {
+        assertFalse(WoolworthsUrls.isShopPage("https", "auth.woolworths.com.au"))
+        assertFalse(WoolworthsUrls.isShopPage("https", "woolworths.com.au"))
+        assertFalse(WoolworthsUrls.isShopPage("http", "www.woolworths.com.au"))
+        assertFalse(WoolworthsUrls.isShopPage(null, "www.woolworths.com.au"))
+        assertFalse(WoolworthsUrls.isShopPage("https", null))
+    }
 }
