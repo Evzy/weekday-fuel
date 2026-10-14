@@ -52,6 +52,9 @@ jobs:
       - name: Shipped HTML matches frozen seed
         run: cmp docs/seed/Weekday_Fuel.html apps/android/app/src/main/assets/weekday_fuel/Weekday_Fuel.html
 
+      - name: JS unit tests
+        run: node --test apps/android/app/src/test/js/cart.test.js
+
       # Same debug signing cert as local dev (see docs/CI_CD.md) so GitHub APKs can upgrade installs.
       - name: Decode shared debug keystore
         env:

@@ -97,7 +97,7 @@ None. Cart lines are computed on each send and not stored; the shape of saved `l
 
 Automated (CI):
 
-- `cart.js` unit tests with Node's built-in test runner (`node --test`), using real cases: the starter shop, a ticked item excluded, Dare/Grenade days, pasta with one or both pasta meals, two-link items, Coles-only and unlinked items routed to "Add these yourself".
+- `cart.js` unit tests with Node's built-in test runner (`node --test`), using rows shaped like `buildList()` output and a verbatim subset of `LINKS`: a packed item, a ticked item excluded, Dare days, pasta with one or both pasta meals, two-link items, deli/Coles-only/unlinked items routed to "Add these yourself". The full starter shop is checked on the phone.
 - JVM tests for parsing the trolley script's per-line results in Kotlin.
 - The existing Android 15 launch smoke test still passes.
 - Nothing in CI talks to the real Woolworths site.
