@@ -1,6 +1,6 @@
 # Send the shop to the Woolworths trolley — design
 
-**Status:** approved 2026-10-14
+**Status:** done (v0.2.0)
 **Scope:** fill the Woolworths trolley from Build a shop, then check out in an in-app Woolworths screen
 
 ## Goal
