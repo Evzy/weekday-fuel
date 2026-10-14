@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="page_background">#0F1411</color>
+    <color name="ink">#E6ECE7</color>
 </resources>

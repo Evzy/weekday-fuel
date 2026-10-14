@@ -8,6 +8,7 @@ import android.content.res.Configuration
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
+import android.webkit.CookieManager
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
@@ -26,10 +27,15 @@ import androidx.webkit.WebViewAssetLoader
 import dev.weekdayfuel.app.update.GithubApkReleaseInfo
 import dev.weekdayfuel.app.update.GithubApkReleaseUpdater
 import dev.weekdayfuel.app.update.ReleaseVersionCompare
+import dev.weekdayfuel.app.woolworths.WoolworthsScreen
+import dev.weekdayfuel.app.woolworths.WoolworthsSession
+import dev.weekdayfuel.app.woolworths.WoolworthsUrls
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     private lateinit var webView: WebView
+    private lateinit var woolworths: WoolworthsSession
+    private lateinit var woolworthsScreen: WoolworthsScreen
 
     /** Set when the user tapped Update but first had to grant "install unknown apps". */
     private var pendingUpdate: GithubApkReleaseInfo? = null
@@ -57,6 +63,9 @@ class MainActivity : ComponentActivity() {
                 settings.allowContentAccess = false
                 webViewClient = HostWebViewClient(assetLoader)
             }
+        woolworths = WoolworthsSession(this, ::openExternally)
+        woolworthsScreen = WoolworthsScreen(this, woolworths.webView, webView, onClose = ::hideWoolworths)
+        root.addView(woolworthsScreen.view, FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
         root.addView(webView, FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
         setContentView(root)
         // Needs the decor view, which only exists after setContentView (NPE on Android 15 otherwise).
@@ -80,12 +89,15 @@ class MainActivity : ComponentActivity() {
             this,
             object : OnBackPressedCallback(true) {
                 override fun handleOnBackPressed() {
-                    if (webView.canGoBack()) {
-                        webView.goBack()
-                    } else {
-                        isEnabled = false
-                        onBackPressedDispatcher.onBackPressed()
-                        isEnabled = true
+                    when {
+                        woolworthsScreen.isShowing && woolworths.webView.canGoBack() -> woolworths.webView.goBack()
+                        woolworthsScreen.isShowing -> hideWoolworths()
+                        webView.canGoBack() -> webView.goBack()
+                        else -> {
+                            isEnabled = false
+                            onBackPressedDispatcher.onBackPressed()
+                            isEnabled = true
+                        }
                     }
                 }
             },
@@ -108,14 +120,29 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onPause() {
+        super.onPause()
+        CookieManager.getInstance().flush()
+    }
+
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         webView.saveState(outState)
     }
 
     override fun onDestroy() {
+        woolworths.webView.destroy()
         webView.destroy()
         super.onDestroy()
+    }
+
+    private fun showWoolworths(url: String) {
+        woolworths.load(url)
+        woolworthsScreen.show()
+    }
+
+    private fun hideWoolworths() {
+        woolworthsScreen.hide()
     }
 
     private fun checkForUpdateOnColdStart() {
@@ -191,6 +218,10 @@ class MainActivity : ComponentActivity() {
 
         override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
             if (request.url.host == WebViewAssetLoader.DEFAULT_DOMAIN) return false
+            if (WoolworthsUrls.isWoolworthsHost(request.url.host)) {
+                showWoolworths(request.url.toString())
+                return true
+            }
             openExternally(request.url)
             return true
         }
