@@ -96,3 +96,16 @@ test("a failing login check ends in error", async () => {
   assert.equal(s.phase, "error");
   assert.equal(s.error, "login check HTTP 403");
 });
+
+test("ignores start() while a run is in progress", async () => {
+  const { api, calls } = load((url, init, urls) =>
+    url === urls.loginStatus ? response(200, LOGGED_IN) : accepted(init),
+  );
+  assert.equal(api.start(LINES), true);
+  assert.equal(api.start(LINES), false);
+  const s = await settle(api);
+  assert.equal(s.phase, "done");
+  assert.equal(s.completed, 2);
+  assert.equal(s.results.length, 2);
+  assert.equal(calls.length, 3);
+});

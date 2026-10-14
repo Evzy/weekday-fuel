@@ -74,7 +74,11 @@
   }
 
   window.__weekdayFuelTrolley = {
-    start: function (lines) { run(lines); return true; },
+    start: function (lines) {
+      if (state.phase === "checking" || state.phase === "adding") return false;
+      run(lines);
+      return true;
+    },
     state: function () { return JSON.stringify(state); },
     urls: { loginStatus: LOGIN_STATUS_URL, trolleyUpdate: TROLLEY_UPDATE_URL },
   };
