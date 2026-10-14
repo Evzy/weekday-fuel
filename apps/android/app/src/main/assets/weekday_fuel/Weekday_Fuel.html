@@ -351,7 +351,7 @@ const SHOP=[
   ["mince","Coles No Added Hormone Beef 5 Star Extra Lean Mince 500g",9.8,"ok","Coles $9.80"],
   ["thigh","Woolworths RSPCA Approved Chicken Thigh Fillets (teriyaki week only)",7.5,"est","Not confirmed"],
   ["eggs","Woolworths 12 Pack Extra Large Free Range Eggs 700g",6.7,"ok","Woolworths $6.70"],
-  ["ham","D'Orsogna Ham Leg Triple Smoked 97% Fat Free, shaved at the deli, 250g",6.5,"ok","Woolworths deli $2.60/100g. Ask for 250g shaved"],
+  ["ham","D'Orsogna Ham Leg Triple Smoked 97% Fat Free, shaved at the deli, 300g",8.4,"ok","Woolworths deli $2.80/100g, sold in 100g steps. In store, ask for 300g shaved"],
   ["yog","Chobani Greek Yoghurt Natural Light Plain 907g",8.8,"ok","$8.80 (tracked for Chobani Natural 907g; Light is usually the same price)"],
   ["cheese","Woolworths Light Tasty Shredded Cheese 500g",9,"est","Not confirmed. Keeps for weeks in the fridge"],
   ["wraps","Mission Carb Balance Wrap 6 Pack 288g",5.2,"ok","Coles $5.20, Woolworths $6.60. Freeze half"],
@@ -840,7 +840,7 @@ function buildList(){
   Object.keys(need).forEach(id=>{
     const amt=need[id];let qty="",buy="",cost=0,n=1;
     if(id==="breast"){const big=amt>650;const packs=big?Math.ceil(amt/1400):1;qty=fmtAmt(amt,"g")+" raw";buy=big?(packs>1?packs+" × ":"")+"Large pack (~1.4kg)":"Small pack (~600g)";cost=big?packs*16.8:7.2;n=packs;}
-    else if(id==="ham"){const g=Math.max(100,Math.ceil(amt/50)*50);qty=fmtAmt(amt,"g");buy="Ask the deli for "+g+"g shaved";cost=g/100*2.6;}
+    else if(id==="ham"){const g=WeekdayFuelCart.deliGrams(amt);qty=fmtAmt(amt,"g");buy=g+"g shaved from the deli";cost=g/100*2.8;n=g/1000;}
     else if(id==="pasta"&&amt){const ms=usedBy[id]||[];const both=ms.includes("buffalomac")&&ms.includes("bolognese");qty=fmtAmt(amt,"g");buy=both?"1 × macaroni + 1 × spaghetti":"1 × 500g packet";cost=both?4.6:2.3;}
     else if(PACK[id]&&amt){const P=PACK[id];n=Math.ceil(amt/P.size-1e-9);qty=fmtAmt(amt,P.u);buy=(n>1?n+" × ":"1 × ")+P.name;cost=n*P.price;}
     else{const it=SHOP.flatMap(s=>s.items).find(i=>i[0]===id);qty="a little";buy="1 × pack/jar (lasts many meals)";cost=it?it[2]:0;}
@@ -861,7 +861,7 @@ function buildName(id,label,used){
 }
 function itemIndex(){return Object.fromEntries(SHOP.flatMap(s=>s.items).map(i=>[i[0],i]))}
 function trolleyCart(rows,ticks,ITEM){return WeekdayFuelCart.cartLines(rows.map(r=>({id:r.id,n:r.n,used:r.used||[],name:buildName(r.id,ITEM[r.id][1],r.used)})),ticks,LINKS)}
-const MANUAL_WHY={deli:"deli counter, sold by weight",coles:"Coles only",nostore:"no online store page"};
+const MANUAL_WHY={coles:"Coles only",nostore:"no online store page"};
 function renderTrolley(rows,ticks,ITEM){
   if(!window.WeekdayFuelHost)return "";
   const t=state.trolley;

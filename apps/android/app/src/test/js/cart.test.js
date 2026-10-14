@@ -1,6 +1,6 @@
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
-const { cartLines, stockcodeOf } = require("../../main/assets/weekday_fuel/cart.js");
+const { cartLines, stockcodeOf, deliGrams } = require("../../main/assets/weekday_fuel/cart.js");
 
 // Verbatim subset of LINKS in Weekday_Fuel.html.
 const LINKS = {
@@ -55,16 +55,36 @@ test("an item with two Woolworths links sends each product, named by its label",
   );
 });
 
-test("deli ham, Coles-only and unlinked items go to the do-it-yourself list", () => {
-  const { lines, manual } = cartLines(
-    [row("ham", 1, "Shaved ham"), row("breast", 1, "Chicken breast"), row("evap", 1, "Evaporated milk")],
-    {},
-    LINKS,
-  );
+test("Coles-only and unlinked items go to the do-it-yourself list", () => {
+  const { lines, manual } = cartLines([row("breast", 1, "Chicken breast"), row("evap", 1, "Evaporated milk")], {}, LINKS);
   assert.deepEqual(lines, []);
   assert.deepEqual(manual, [
-    { itemId: "ham", name: "Shaved ham", reason: "deli" },
     { itemId: "breast", name: "Chicken breast", reason: "coles" },
     { itemId: "evap", name: "Evaporated milk", reason: "nostore" },
   ]);
+});
+
+test("deliGrams rounds up to the next 100 g, at least 100 g", () => {
+  assert.equal(deliGrams(250), 300);
+  assert.equal(deliGrams(60), 100);
+  assert.equal(deliGrams(300), 300);
+  assert.equal(deliGrams(0), 100);
+});
+
+test("deli ham is sent by weight in kilograms", () => {
+  const { lines, manual } = cartLines([row("ham", 0.3, "D'Orsogna Ham Leg Triple Smoked 97% Fat Free (deli)")], {}, LINKS);
+  assert.deepEqual(lines, [{ itemId: "ham", stockcode: 175734, quantity: 0.3, name: "D'Orsogna Ham (deli, 300g)", url: LINKS.ham[0][1] }]);
+  assert.deepEqual(manual, []);
+});
+
+test("ham weight has floating-point noise removed", () => {
+  const { lines } = cartLines([row("ham", 0.30000000000000004, "Ham")], {}, LINKS);
+  assert.equal(lines[0].quantity, 0.3);
+  assert.equal(lines[0].name, "D'Orsogna Ham (deli, 300g)");
+});
+
+test("ticked ham is left out", () => {
+  const { lines, manual } = cartLines([row("ham", 0.3, "Ham")], { ham: true }, LINKS);
+  assert.deepEqual(lines, []);
+  assert.deepEqual(manual, []);
 });

@@ -3,10 +3,21 @@
   "use strict";
   var PRODUCT = /^https:\/\/www\.woolworths\.com\.au\/shop\/productdetails\/(\d+)/;
   var PASTA_LABEL_FOR_MEAL = { bolognese: "Spaghetti", buffalomac: "Macaroni" };
+  var DELI_NAME = { ham: "D'Orsogna Ham" };
 
   function stockcodeOf(url) {
     var m = PRODUCT.exec(url || "");
     return m ? Number(m[1]) : null;
+  }
+
+  /* Woolworths deli sells by 100 g, minimum 100 g. Round up so the owner never runs short. */
+  function deliGrams(needGrams) {
+    return Math.max(100, Math.ceil(needGrams / 100) * 100);
+  }
+
+  function lineName(row, label, several, quantity) {
+    if (DELI_NAME[row.id]) return DELI_NAME[row.id] + " (deli, " + Math.round(quantity * 1000) + "g)";
+    return several ? row.name + " (" + label + ")" : row.name;
   }
 
   function cartLines(rows, ticks, links) {
@@ -14,10 +25,6 @@
     var manual = [];
     rows.forEach(function (row) {
       if (ticks[row.id]) return;
-      if (row.id === "ham") {
-        manual.push({ itemId: row.id, name: row.name, reason: "deli" });
-        return;
-      }
       var all = links[row.id] || [];
       var woolies = all.filter(function (l) { return stockcodeOf(l[1]) !== null; });
       if (row.id === "pasta") {
@@ -29,12 +36,13 @@
         return;
       }
       var several = woolies.length > 1;
+      var quantity = Math.round(row.n * 1000) / 1000;
       woolies.forEach(function (l) {
         lines.push({
           itemId: row.id,
           stockcode: stockcodeOf(l[1]),
-          quantity: row.n,
-          name: several ? row.name + " (" + l[0] + ")" : row.name,
+          quantity: quantity,
+          name: lineName(row, l[0], several, quantity),
           url: l[1],
         });
       });
@@ -42,7 +50,7 @@
     return { lines: lines, manual: manual };
   }
 
-  var api = { cartLines: cartLines, stockcodeOf: stockcodeOf };
+  var api = { cartLines: cartLines, stockcodeOf: stockcodeOf, deliGrams: deliGrams };
   if (typeof module === "object" && module.exports) module.exports = api;
   else root.WeekdayFuelCart = api;
 })(this);
