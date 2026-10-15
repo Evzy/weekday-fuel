@@ -62,6 +62,9 @@ class WoolworthsSession(private val context: Context, private val openExternal: 
         context.assets.open(CHECKOUT_ASSET).bufferedReader().use { it.readText() }
     }
     private var pendingCheckout: String? = null
+    private var checkoutIsBook = false
+    private var checkoutStarted = false
+    private var checkoutRun = 0
     private var checkoutPolling = false
     private val checkoutPoller = Runnable { pollCheckout() }
     private val checkoutWatchdog =
@@ -136,7 +139,12 @@ class WoolworthsSession(private val context: Context, private val openExternal: 
 
     /** Runs one checkout script request (load or book) in the background page; [requestJson] comes from [CheckoutJson]. */
     fun checkout(requestJson: String) {
+        // A run already started in the page refuses start() until it ends; a fresh page drops it.
+        if (pendingCheckout != null && checkoutStarted) needsFreshPage = true
+        checkoutRun++
         pendingCheckout = requestJson
+        checkoutIsBook = runCatching { JSONObject(requestJson).optString("action") == "book" }.getOrDefault(false)
+        checkoutStarted = false
         checkoutPolling = false
         handler.removeCallbacks(checkoutPoller)
         handler.removeCallbacks(checkoutWatchdog)
@@ -149,6 +157,8 @@ class WoolworthsSession(private val context: Context, private val openExternal: 
 
     fun cancelCheckout() {
         pendingCheckout = null
+        checkoutRun++
+        checkoutStarted = false
         checkoutPolling = false
         handler.removeCallbacks(checkoutPoller)
         handler.removeCallbacks(checkoutWatchdog)
@@ -267,20 +277,33 @@ class WoolworthsSession(private val context: Context, private val openExternal: 
         if (pageLoading || !onShopPage()) return
         handler.removeCallbacks(checkoutPoller)
         checkoutPolling = true
-        webView.evaluateJavascript("$checkoutScript\nwindow.__weekdayFuelCheckout.start($request);", null)
+        checkoutStarted = true
+        val run = checkoutRun
+        webView.evaluateJavascript("$checkoutScript\nwindow.__weekdayFuelCheckout.start($request);") { started ->
+            if (run != checkoutRun || started == "true") return@evaluateJavascript
+            // The page still runs an earlier request; never poll its result for this one.
+            needsFreshPage = true
+            failCheckout(context.getString(R.string.woolworths_checkout_busy))
+        }
         handler.postDelayed(checkoutPoller, POLL_MS)
     }
 
     private fun pollCheckout() {
         if (!checkoutPolling) return
+        val run = checkoutRun
         webView.evaluateJavascript(CHECKOUT_STATE_EXPRESSION) { result ->
-            if (!checkoutPolling) return@evaluateJavascript
+            if (!checkoutPolling || run != checkoutRun) return@evaluateJavascript
             val state = runCatching { CheckoutJson.parseScriptState(result) }.getOrNull()
             when (state?.phase) {
                 null -> {
-                    // A new document dropped the script; onPageFinished or this restarts it.
                     checkoutPolling = false
-                    if (!pageLoading) startCheckout()
+                    if (checkoutIsBook) {
+                        // The booking may already have gone through; sending it again could double-book or report a false failure.
+                        failCheckout(context.getString(R.string.woolworths_checkout_book_unsure))
+                    } else if (!pageLoading) {
+                        // A new document dropped the script; onPageFinished or this restarts it.
+                        startCheckout()
+                    }
                 }
                 CheckoutPhase.IDLE, CheckoutPhase.RUNNING -> handler.postDelayed(checkoutPoller, POLL_MS)
                 CheckoutPhase.DONE, CheckoutPhase.ERROR -> {
@@ -323,7 +346,7 @@ class WoolworthsSession(private val context: Context, private val openExternal: 
                 start()
             }
             if (pendingPrices != null && !pricesPolling && shop) startPrices()
-            if (pendingCheckout != null && !checkoutPolling && shop) startCheckout()
+            if (pendingCheckout != null && !checkoutPolling && shop && !(checkoutIsBook && checkoutStarted)) startCheckout()
         }
 
         override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {

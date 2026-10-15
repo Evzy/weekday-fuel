@@ -25,14 +25,15 @@ object CheckoutJson {
     fun parseScriptState(evaluateResult: String?): CheckoutScriptState? {
         if (evaluateResult == null || evaluateResult == "null") return null
         val raw = JSONTokener(evaluateResult).nextValue() as? String ?: return null
-        val o = JSONObject(raw)
+        val o = runCatching { JSONObject(raw) }.getOrNull()
+            ?: return CheckoutScriptState(CheckoutPhase.ERROR, null, "Couldn't read the checkout script's state.")
         return CheckoutScriptState(
             phase =
                 when (o.optString("phase")) {
+                    "idle" -> CheckoutPhase.IDLE
                     "running" -> CheckoutPhase.RUNNING
                     "done" -> CheckoutPhase.DONE
-                    "error" -> CheckoutPhase.ERROR
-                    else -> CheckoutPhase.IDLE
+                    else -> CheckoutPhase.ERROR
                 },
             result = o.optJSONObject("result"),
             error = if (o.isNull("error")) null else o.optString("error"),

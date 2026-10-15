@@ -2,6 +2,7 @@ package dev.weekdayfuel.app.woolworths
 
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Test
 
@@ -19,6 +20,17 @@ class CheckoutJsonTest {
         assertEquals(CheckoutPhase.DONE, state.phase)
         assertEquals("load", state.result!!.getString("action"))
         assertNull(state.error)
+    }
+
+    @Test
+    fun parseScriptStateMalformedOrUnknownPhase() {
+        val garbage = CheckoutJson.parseScriptState(JSONObject.quote("garbage"))!!
+        assertEquals(CheckoutPhase.ERROR, garbage.phase)
+        assertNotNull(garbage.error)
+        val weird = CheckoutJson.parseScriptState(JSONObject.quote("""{"phase":"weird","result":null,"error":null}"""))!!
+        assertEquals(CheckoutPhase.ERROR, weird.phase)
+        val idle = CheckoutJson.parseScriptState(JSONObject.quote("""{"phase":"idle","result":null,"error":null}"""))!!
+        assertEquals(CheckoutPhase.IDLE, idle.phase)
     }
 
     @Test

@@ -6,11 +6,12 @@
   var MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
   function money(n) {
-    return "$" + Number(n).toFixed(2);
+    return typeof n === "number" && isFinite(n) ? "$" + n.toFixed(2) : "–";
   }
 
   function dollars(n) {
-    return "$" + (Number(n) % 1 ? Number(n).toFixed(2) : String(Number(n)));
+    if (typeof n !== "number" || !isFinite(n)) return "–";
+    return "$" + (n % 1 ? n.toFixed(2) : String(n));
   }
 
   /* Woolworths times are store-local; only the written date and clock are used, never the device time zone. */
@@ -27,7 +28,7 @@
 
   function bookedLabel(b) {
     return {
-      when: dayLabel(b.start) + ", " + b.label,
+      when: dayLabel(b.start) + ", " + (b.label || timeLabel(b.start) + " - " + timeLabel(b.end)),
       cutOff: b.cutOff ? "Change by " + dayLabel(b.cutOff) + " " + timeLabel(b.cutOff) : null,
     };
   }
@@ -65,7 +66,7 @@
   function dayTabs(windows) {
     return ((windows && windows.days) || []).map(function (d) {
       var open = d.available
-        ? d.slots.filter(function (s) { return s.available && typeof s.price === "number"; })
+        ? (d.slots || []).filter(function (s) { return s.available && Number.isFinite(s.price); })
         : [];
       var prices = open.map(function (s) { return s.price; });
       var min = prices.length ? Math.min.apply(null, prices) : null;
@@ -77,12 +78,13 @@
         priceRange: min == null ? null : min === max ? dollars(min) : dollars(min) + " - " + dollars(max),
         cheapestId: cheapest ? cheapest.id : null,
         closedText: d.closedText || "",
-        slots: d.slots,
+        slots: d.slots || [],
       };
     });
   }
 
   function summaryLines(s) {
+    if (!s || s.error) return [];
     var lines = [
       { label: "Subtotal", value: money(s.subtotal), note: s.savings > 0 ? "you've saved " + money(s.savings) : null, strong: false },
       { label: "Delivery fee", value: money(s.deliveryFee), note: s.deliveryFeeBefore > s.deliveryFee ? "was " + money(s.deliveryFeeBefore) : null, strong: false },

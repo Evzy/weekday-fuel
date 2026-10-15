@@ -1,6 +1,26 @@
+process.env.TZ = "America/Los_Angeles";
+
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const V = require("../../main/assets/weekday_fuel/checkoutview.js");
+
+test("money, dollars, summaryLines and dayTabs handle missing amounts", () => {
+  assert.equal(V.money(undefined), "–");
+  assert.equal(V.money(null), "–");
+  assert.equal(V.money(NaN), "–");
+  assert.equal(V.dollars(undefined), "–");
+  assert.equal(V.dollars(0), "$0");
+  assert.deepEqual(V.summaryLines(undefined), []);
+  assert.deepEqual(V.summaryLines({ error: "x" }), []);
+  assert.deepEqual(
+    V.summaryLines({ subtotal: 10, total: 12 }).map((l) => [l.label, l.value]),
+    [["Subtotal", "$10.00"], ["Delivery fee", "–"], ["Total", "$12.00"]],
+  );
+  assert.deepEqual(
+    V.dayTabs({ days: [{ date: "2026-10-21", available: true, closedText: "", slots: undefined }] }),
+    [{ date: "2026-10-21", open: false, priceRange: null, cheapestId: null, closedText: "", slots: [] }],
+  );
+});
 
 test("boostSummary counts, marks trolley offers and lists them first", () => {
   const b = V.boostSummary(
