@@ -194,6 +194,7 @@ a.link{text-decoration:none;display:inline-block;color:var(--accent);border-colo
 .pl.woolies,.sp.woolies,a.link.woolies{color:var(--woolies)}
 .prices{display:flex;gap:10px;flex-wrap:wrap;font-family:var(--f-num);font-size:.85rem;font-weight:500}
 .sp.none{opacity:.7;font-weight:400}
+.was{font-size:.75rem;font-weight:600;color:var(--warn);margin-left:6px;white-space:nowrap}
 
 /* sheet */
 .scrim{position:fixed;inset:0;background:rgba(10,14,12,.45);z-index:40;display:flex;align-items:flex-end;justify-content:center}
@@ -348,8 +349,11 @@ const MEALS=[
 ];
 const MEAL = Object.fromEntries(MEALS.map(m=>[m.id,m]));
 
-/* Shop data and maths live in catalogue.js */
-const CAT=WeekdayFuelCatalogue;
+/* Shop data and maths live in catalogue.js; cached live Woolworths prices replace its Woolworths prices */
+const PRICES_KEY="weekdayfuel.v1.prices",LIVE_MAX_AGE=12*3600e3;
+function livePrices(){try{const c=JSON.parse(localStorage.getItem(PRICES_KEY)||"null");return c&&typeof c.at==="string"&&c.prices&&typeof c.prices==="object"?c:null}catch(e){return null}}
+function buildCat(){const W=WeekdayFuelCatalogue,lp=livePrices();return W.create(lp?W.applyLivePrices(W.ITEMS,lp.prices):W.ITEMS,W.AMOUNTS)}
+let CAT=buildCat();
 const STORES=["coles","woolies"];
 const STORE_NAME={coles:"Coles",woolies:"Woolworths"};
 const store=()=>S().store==="coles"?"coles":"woolies";
@@ -444,13 +448,30 @@ const clone=o=>JSON.parse(JSON.stringify(o));
 function deepMerge(base,over){const out=clone(base);if(!over)return out;for(const k in over){if(k==="trial"){out[k]=clone(over[k]);continue}if(over[k]&&typeof over[k]==="object"&&!Array.isArray(over[k])&&out[k]&&typeof out[k]==="object")out[k]=deepMerge(out[k],over[k]);else out[k]=over[k];}return out}
 
 /* ---------- state + storage ---------- */
-const state={tab:"today",date:iso(new Date()),settings:clone(DEFAULT_SETTINGS),days:{},weights:{},adding:null,mealFilter:"all",sheet:null,armed:null,openItem:null,trolley:null};
+const state={tab:"today",date:iso(new Date()),settings:clone(DEFAULT_SETTINGS),days:{},weights:{},adding:null,mealFilter:"all",sheet:null,armed:null,openItem:null,trolley:null,prices:null,pricesTried:0};
 let db=null;
 const LS="weekdayfuel.v1";
 function lsGet(){try{return JSON.parse(localStorage.getItem(LS)||"null")}catch(e){return null}}
 function lsSave(){try{localStorage.setItem(LS,JSON.stringify({settings:state.settings,days:state.days,weights:state.weights}))}catch(e){}}
 function lsTicks(){try{return JSON.parse(localStorage.getItem(LS+".shop")||"{}")}catch(e){return {}}}
 function lsSetTicks(t){try{localStorage.setItem(LS+".shop",JSON.stringify(t))}catch(e){}}
+/* state.prices: null, "busy" or "error" */
+function refreshPrices(){
+  if(!window.WeekdayFuelHost||state.prices==="busy")return;
+  state.prices="busy";state.pricesTried=Date.now();
+  WeekdayFuelHost.postMessage(JSON.stringify({type:"refreshPrices",stockcodes:WeekdayFuelCatalogue.ITEMS.filter(i=>i.woolies).map(i=>i.woolies.stockcode)}));
+}
+function maybeRefreshPrices(){
+  const lp=livePrices();const fresh=lp&&Date.now()-Date.parse(lp.at)<=LIVE_MAX_AGE;
+  if(!fresh&&!(state.pricesTried&&Date.now()-state.pricesTried<LIVE_MAX_AGE))refreshPrices();
+}
+function onPrices(m){
+  if(m.type==="pricesDone"&&typeof m.at==="string"&&m.prices&&typeof m.prices==="object"){
+    const old=livePrices();
+    try{localStorage.setItem(PRICES_KEY,JSON.stringify({at:m.at,prices:Object.assign({},old&&old.prices,m.prices)}))}catch(e){}
+    CAT=buildCat();state.prices=null;
+  }else state.prices="error";
+}
 
 const timers={};
 function queueWrite(path,body){
@@ -702,19 +723,30 @@ function fmtAmt(v,u){if(u==="g"&&v>=1000)return (v/1000).toFixed(v%1000?1:0)+"kg
 const needLabel=r=>/^(g|mL)$/.test(r.unit)?fmtAmt(r.need,r.unit):(Math.round(r.need*10)/10)+" "+r.unit;
 function macroLine(id){const m=MACROS[id];if(!m)return "";return `<span class="mac num">Per ${m[4]}: ${m[0]} kcal · ${m[1]}g P · ${m[2]}g C · ${m[3]}g F <span class="src">${m[5]==="label"?"from the label":"typical, check the pack"}</span>${m[6]?`<br>${esc(m[6])}`:""}</span>`}
 function storePrice(s,price){return price!=null?`<span class="sp ${s}">${STORE_NAME[s]} ${money(price)}</span>`:`<span class="sp ${s} none">Not at ${STORE_NAME[s]}</span>`}
+const wasNote=p=>p&&p.was?`<span class="was">Special, was ${money(p.was)}${p.perKg?"/kg":""}</span>`:"";
+const noProduct=(it,s)=>s==="woolies"&&it.wooliesUnavailable?esc(it.wooliesUnavailable.name)+" · unavailable online now":"Not at "+STORE_NAME[s];
 /* prices: {coles, woolies} dollars to show per store, or null where that store has none */
 function productsBlock(it,prices,pr){
-  if(it.same&&pr.coles&&pr.woolies)return `<span>${esc(pr.woolies.name)}</span><span class="prices">${STORES.map(s=>storePrice(s,prices[s])).join("")}</span>`;
-  return STORES.map(s=>`<span class="pl ${s}"><span class="grow">${pr[s]?esc(pr[s].name):"Not at "+STORE_NAME[s]}</span>${prices[s]!=null?`<span class="p">${money(prices[s])}</span>`:""}</span>`).join("");
+  if(it.same&&pr.coles&&pr.woolies)return `<span>${esc(pr.woolies.name)}</span><span class="prices">${STORES.map(s=>storePrice(s,prices[s])+(s==="woolies"?wasNote(pr.woolies):"")).join("")}</span>`;
+  return STORES.map(s=>`<span class="pl ${s}"><span class="grow">${pr[s]?esc(pr[s].name):noProduct(it,s)}${s==="woolies"?wasNote(pr[s]):""}</span>${prices[s]!=null?`<span class="p">${money(prices[s])}</span>`:""}</span>`).join("");
 }
 function productLinks(it,pr){
-  return `<div class="stack" style="gap:6px;margin-top:8px">${STORES.map(s=>pr[s]?`<a class="ghost link ${s}" href="${esc(pr[s].url)}" target="_blank" rel="noopener">${STORE_NAME[s]} product page ↗</a>`:`<span class="small muted">Not at ${STORE_NAME[s]}</span>`).join("")}</div>`;
+  return `<div class="stack" style="gap:6px;margin-top:8px">${STORES.map(s=>{const p=pr[s]||(s==="woolies"&&it.wooliesUnavailable);return p?`<a class="ghost link ${s}" href="${esc(p.url)}" target="_blank" rel="noopener">${STORE_NAME[s]} product page ↗</a>`:`<span class="small muted">Not at ${STORE_NAME[s]}</span>`}).join("")}</div>`;
+}
+function priceLabel(){
+  const lp=livePrices(),t=lp&&new Date(lp.at);
+  const time=d=>d.toLocaleTimeString("en-AU",{hour:"numeric",minute:"2-digit"});
+  const w=t&&!isNaN(t)?"from "+(iso(t)===iso(new Date())?time(t)+" today":fmtShort(iso(t))+" "+time(t)):"checked "+fmtShort(CAT.checked("woolies"));
+  let h=`Coles prices checked ${fmtShort(CAT.checked("coles"))} · Woolworths prices ${w}.`;
+  if(window.WeekdayFuelHost)h+=state.prices==="busy"?` Updating Woolworths prices…`:` <button class="ghost" data-act="refreshprices">Refresh prices</button>`;
+  if(state.prices==="error")h+=`<span style="display:block;color:var(--bad)">Couldn't update Woolworths prices</span>`;
+  return h;
 }
 function itemRow(it,prices,extra,products){
   const pr=products||{coles:it.coles,woolies:it.woolies};const id=it.id;const ticks=lsTicks();const open=state.openItem===id;const used=CAT.usedIn(id);
   return `<div class="si ${ticks[id]?"done":""}"><input type="checkbox" id="tick-${id}" aria-label="Got ${esc(it.name)}" data-act="tick" data-v="${id}" ${ticks[id]?"checked":""}><div class="grow"><button class="itembtn" data-act="openitem" data-v="${id}" aria-expanded="${open}"><span class="grow stack" style="gap:2px">${productsBlock(it,prices,pr)}</span></button>${extra||""}<span class="small muted" style="display:block">${open?"tap to close":"tap for details"}</span>${open?`<div class="itemdetail">${it.note?`<div class="small">${esc(it.note)}</div>`:""}${macroLine(id)}${used.length?`<div class="eyebrow" style="margin-top:8px">Used in</div><div class="chips" style="margin-top:4px">${used.map(m=>`<button class="chip" data-act="recipe" data-v="${m}">${esc(MEAL[m].name)}</button>`).join("")}</div>`:""}${productLinks(it,pr)}</div>`:""}</div></div>`;
 }
-const MANUAL_WHY={coles:"Coles only",nostore:"no online store page"};
+const MANUAL_WHY={coles:"Coles only",nostore:"no online store page",unavailable:"unavailable online now"};
 function renderTrolley(rows,ticks){
   if(!window.WeekdayFuelHost)return "";
   const t=state.trolley;
@@ -760,13 +792,13 @@ function renderShop(){
     const tot={coles:CAT.storeTotals(rows,"coles",ticks),woolies:CAT.storeTotals(rows,"woolies",ticks)};
     h+=`<div class="panel vs">${STORES.map(s=>`<div><span class="small" style="display:block;color:var(--${s});font-weight:700">${STORE_NAME[s]}${tot[s].missed.length?` · ${tot[s].missed.length} missed`:""}</span><b>${money(tot[s].total)}</b></div>`).join("")}</div>`;
     h+=`<div class="row between"><div class="dial" role="group" aria-label="Store" style="grid-template-columns:repeat(2,auto)">${STORES.map(s=>`<button aria-pressed="${st===s}" data-act="store" data-v="${s}">${STORE_NAME[s]}</button>`).join("")}</div><span class="small">Left to buy <b class="num" style="color:var(--good)">${money(tot[st].left)}</b></span></div>`;
-    h+=`<div class="small muted">${nMeals} serve${nMeals===1?"":"s"} · ${rows.length} items. Tick things off as they go in the trolley, or tick pantry items you already have at home. Prices use whole packs, so the first shop costs more than the per-serve cost. Coles prices checked ${fmtShort(CAT.colesChecked())}.</div>`;
+    h+=`<div class="small muted">${nMeals} serve${nMeals===1?"":"s"} · ${rows.length} items. Tick things off as they go in the trolley, or tick pantry items you already have at home. Prices use whole packs, so the first shop costs more than the per-serve cost. ${priceLabel()}</div>`;
     [["Fixtures",0],["Fresh",1],["Pantry & freezer (check what you already have)",2]].forEach(([t,sec])=>{
       const rs=rows.filter(r=>r.sec===sec&&r[st]);if(!rs.length)return;
       h+=`<div class="panel shopsec"><h3 style="margin-bottom:4px">${t}</h3>${rs.map(r=>itemRow(CAT.item(r.id),{coles:r.coles&&r.coles.cost,woolies:r.woolies&&r.woolies.cost},`<span class="buy small"><b>Buy:</b> ${esc(r[st].buy)} <span class="muted">· need ${esc(needLabel(r))}</span></span>`,{coles:r.coles&&r.coles.product,woolies:r.woolies&&r.woolies.product})).join("")}</div>`;
     });
     const miss=rows.filter(r=>!r[st]);
-    if(miss.length)h+=`<div class="panel stack"><h3>Missed at ${STORE_NAME[st]}</h3><div class="small muted">${STORE_NAME[st]} doesn't sell these. Get them at ${STORE_NAME[ot]}.</div>${miss.map(r=>{const o=r[ot];return `<div class="row between"><span class="small">${esc(o?o.product.name:r.name)}${o?` <span class="muted">· ${esc(o.buy)}</span>`:""}</span>${o?`<span class="num small" style="color:var(--${ot})">${money(o.cost)}</span>`:""}</div>`}).join("")}</div>`;
+    if(miss.length)h+=`<div class="panel stack"><h3>Missed at ${STORE_NAME[st]}</h3><div class="small muted">${STORE_NAME[st]} doesn't sell these. Get them at ${STORE_NAME[ot]}.</div>${miss.map(r=>{const o=r[ot];return `<div class="row between"><span class="small">${esc(o?o.product.name:r.name)}${st==="woolies"&&r.wooliesUnavailable?` <span class="muted">· Woolworths' ${esc(r.wooliesUnavailable.name)} is unavailable online now</span>`:""}${o?` <span class="muted">· ${esc(o.buy)}</span>`:""}</span>${o?`<span class="num small" style="color:var(--${ot})">${money(o.cost)}</span>`:""}</div>`}).join("")}</div>`;
     if(st==="woolies")h+=renderTrolley(rows,ticks);
     h+=`<div class="row"><button class="ghost" data-act="untickall">Clear ticks for next shop</button></div>`;
     return h;
@@ -777,7 +809,7 @@ function renderShop(){
   const secTotal=(sec,s)=>items.filter(i=>i.sec===sec&&i[s]).reduce((a,i)=>a+listPrice(i[s]),0);
   const secMissed=(secs,s)=>items.filter(i=>secs.includes(i.sec)&&!i[s]).length;
   const missNote=n=>n?` · ${n} missed`:"";
-  h+=`<p class="small muted" style="margin:0">Everything for every meal, one pack each. Pack sizes differ between stores, so use <b>Build a shop</b> to compare what a week actually costs. Tap an item for macros, meals and both stores' product pages. Coles prices checked ${fmtShort(CAT.colesChecked())}.</p>`;
+  h+=`<p class="small muted" style="margin:0">Everything for every meal, one pack each. Pack sizes differ between stores, so use <b>Build a shop</b> to compare what a week actually costs. Tap an item for macros, meals and both stores' product pages. ${priceLabel()}</p>`;
   h+=`<div class="panel vs">${STORES.map(s=>`<div><span class="small" style="display:block;color:var(--${s});font-weight:700">${STORE_NAME[s]}${missNote(secMissed([0,1,2],s))}</span><span class="small muted" style="display:block">Weekly top-up + fixtures</span><b>${money(secTotal(0,s)+secTotal(1,s))}</b><span class="small muted" style="display:block">Pantry, first shop only ${money(secTotal(2,s))}</span></div>`).join("")}</div>`;
   SECTIONS.forEach(([title,note],sec)=>{h+=`<div class="panel shopsec"><div class="row between" style="margin-bottom:4px"><h3>${esc(title)}</h3><span class="num small">${STORES.map(s=>`<span style="color:var(--${s})">${money(secTotal(sec,s))}${missNote(secMissed([sec],s))}</span>`).join(" · ")}</span></div><div class="small muted" style="margin-bottom:6px">${esc(note)}</div>${items.filter(i=>i.sec===sec).map(i=>{const extra=(i.coles&&i.coles.perKg)||(i.woolies&&i.woolies.perKg)?`<span class="buy small muted">Deli price for ${DELI_LIST_G}g</span>`:"";return itemRow(i,{coles:i.coles&&listPrice(i.coles),woolies:i.woolies&&listPrice(i.woolies)},extra);}).join("")}</div>`});
   h+=`<div class="row"><button class="ghost" data-act="untickall">Clear ticks for next shop</button></div>`;
@@ -815,7 +847,7 @@ document.addEventListener("click",e=>{
   if(act!=="rm"&&act!=="rmw")state.armed=null;
   const date=state.date;
   switch(act){
-    case "tab":state.tab=v;state.adding=null;window.scrollTo(0,0);break;
+    case "tab":state.tab=v;state.adding=null;window.scrollTo(0,0);if(v==="shop")maybeRefreshPrices();break;
     case "shift":state.date=addDays(date,+v);state.adding=null;break;
     case "goto":state.date=v;state.adding=null;break;
     case "track":{const d=ensureDay(date);d.track=true;d.fx={dare:true,grenade:true};saveDay(date);break}
@@ -841,6 +873,7 @@ document.addEventListener("click",e=>{
     case "openitem":state.openItem=state.openItem===v?null:v;break;
     case "shopmode":state.settings.shopMode=v;saveSettings();break;
     case "store":state.settings.store=v;saveSettings();break;
+    case "refreshprices":refreshPrices();break;
     case "serve":{const pk=picks();const n=Math.max(0,Math.min(10,(pk[v]||0)+i));if(n)pk[v]=n;else delete pk[v];state.settings.trial=pk;saveSettings();break}
     case "starter":state.settings.trial=clone(STARTER);saveSettings();break;
     case "clearpicks":state.settings.trial={};saveSettings();break;
@@ -878,6 +911,7 @@ document.addEventListener("keydown",e=>{if(e.key==="Escape"&&state.sheet){state.
 if(window.WeekdayFuelHost){
   WeekdayFuelHost.addEventListener("message",e=>{
     let m;try{m=JSON.parse(e.data)}catch(_){return}
+    if(m.type==="pricesDone"||m.type==="pricesError"){onPrices(m);if(state.tab==="shop")render();return}
     const t=state.trolley;if(!t)return;
     if(m.type==="trolleyLogin")t.phase="login";
     else if(m.type==="trolleyProgress"){if(t.phase!=="adding"&&t.phase!=="login")return;t.phase="adding";t.completed=m.completed;t.total=m.total}
