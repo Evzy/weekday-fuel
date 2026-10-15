@@ -12,6 +12,7 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import dev.weekdayfuel.app.R
+import org.json.JSONObject
 
 /** Owns the woolworths.com.au WebView, whether or not it is on screen, and runs trolley sends in it. */
 @SuppressLint("SetJavaScriptEnabled")
@@ -23,6 +24,8 @@ class WoolworthsSession(private val context: Context, private val openExternal: 
 
         /** Phase is [TrolleyPhase.DONE] or [TrolleyPhase.ERROR]. */
         fun onFinished(state: TrolleyScriptState)
+
+        fun onPrices(state: PricesScriptState)
     }
 
     var listener: Listener? = null
@@ -40,6 +43,18 @@ class WoolworthsSession(private val context: Context, private val openExternal: 
     private val poller = Runnable { poll() }
     private val loginRetry = Runnable { retryLogin() }
     private val watchdog = Runnable { fail(context.getString(R.string.woolworths_timeout)) }
+    private val pricesScript: String by lazy {
+        context.assets.open(PRICES_ASSET).bufferedReader().use { it.readText() }
+    }
+    private var pendingPrices: List<Long>? = null
+    private var pricesPolling = false
+    private val pricesPoller = Runnable { pollPrices() }
+    private val pricesWatchdog =
+        Runnable {
+            // A hung request leaves the script "fetching", which refuses start(); reload the page before the next refresh.
+            needsFreshPage = true
+            failPrices(context.getString(R.string.woolworths_timeout))
+        }
 
     val webView: WebView =
         WebView(context).apply {
@@ -78,6 +93,26 @@ class WoolworthsSession(private val context: Context, private val openExternal: 
         handler.removeCallbacks(poller)
         handler.removeCallbacks(loginRetry)
         handler.removeCallbacks(watchdog)
+    }
+
+    /** Reads current prices in the background page. A running send keeps control of navigation; prices start once its shop page is up. */
+    fun refreshPrices(stockcodes: List<Long>) {
+        pendingPrices = stockcodes
+        pricesPolling = false
+        handler.removeCallbacks(pricesPoller)
+        handler.removeCallbacks(pricesWatchdog)
+        handler.postDelayed(pricesWatchdog, PRICES_TIMEOUT_MS)
+        when {
+            pending == null && (needsFreshPage || !onShopPage()) -> webView.loadUrl(WoolworthsUrls.HOME_URL)
+            !pageLoading -> startPrices()
+        }
+    }
+
+    fun cancelPrices() {
+        pendingPrices = null
+        pricesPolling = false
+        handler.removeCallbacks(pricesPoller)
+        handler.removeCallbacks(pricesWatchdog)
     }
 
     private fun start() {
@@ -153,6 +188,41 @@ class WoolworthsSession(private val context: Context, private val openExternal: 
         listener?.onFinished(TrolleyScriptState(TrolleyPhase.ERROR, 0, 0, emptyList(), message))
     }
 
+    private fun startPrices() {
+        val codes = pendingPrices ?: return
+        if (pageLoading || !onShopPage()) return
+        handler.removeCallbacks(pricesPoller)
+        pricesPolling = true
+        webView.evaluateJavascript("$pricesScript\nwindow.__weekdayFuelPrices.start(${PricesJson.stockcodesToJson(codes)});", null)
+        handler.postDelayed(pricesPoller, POLL_MS)
+    }
+
+    private fun pollPrices() {
+        if (!pricesPolling) return
+        webView.evaluateJavascript(PRICES_STATE_EXPRESSION) { result ->
+            if (!pricesPolling) return@evaluateJavascript
+            val state = runCatching { PricesJson.parseScriptState(result) }.getOrNull()
+            when (state?.phase) {
+                null -> {
+                    // A new document dropped the script; onPageFinished or this restarts it.
+                    pricesPolling = false
+                    if (!pageLoading) startPrices()
+                }
+                PricesPhase.IDLE, PricesPhase.FETCHING -> handler.postDelayed(pricesPoller, POLL_MS)
+                PricesPhase.DONE, PricesPhase.ERROR -> {
+                    cancelPrices()
+                    listener?.onPrices(state)
+                }
+            }
+        }
+    }
+
+    private fun failPrices(message: String) {
+        if (pendingPrices == null) return
+        cancelPrices()
+        listener?.onPrices(PricesScriptState(PricesPhase.ERROR, null, JSONObject(), message))
+    }
+
     private inner class SessionClient : WebViewClient() {
         override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
             val scheme = request.url.scheme
@@ -174,12 +244,14 @@ class WoolworthsSession(private val context: Context, private val openExternal: 
                 if (loginNotified) armWatchdog()
                 start()
             }
+            if (pendingPrices != null && !pricesPolling && shop) startPrices()
         }
 
         override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
             if (request.isForMainFrame) {
                 needsFreshPage = true
                 fail(context.getString(R.string.woolworths_offline))
+                failPrices(context.getString(R.string.woolworths_offline))
             }
         }
     }
@@ -187,6 +259,9 @@ class WoolworthsSession(private val context: Context, private val openExternal: 
     private companion object {
         const val SCRIPT_ASSET = "woolworths/trolley.js"
         const val STATE_EXPRESSION = "window.__weekdayFuelTrolley ? window.__weekdayFuelTrolley.state() : null"
+        const val PRICES_ASSET = "woolworths/prices.js"
+        const val PRICES_STATE_EXPRESSION = "window.__weekdayFuelPrices ? window.__weekdayFuelPrices.state() : null"
+        const val PRICES_TIMEOUT_MS = 30_000L
         const val POLL_MS = 300L
         const val LOGIN_RETRY_MS = 2_000L
         const val TIMEOUT_MS = 60_000L

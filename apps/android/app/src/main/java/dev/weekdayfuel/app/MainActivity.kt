@@ -31,6 +31,8 @@ import dev.weekdayfuel.app.update.GithubApkReleaseInfo
 import dev.weekdayfuel.app.update.GithubApkReleaseUpdater
 import dev.weekdayfuel.app.update.ReleaseVersionCompare
 import dev.weekdayfuel.app.woolworths.HostMessages
+import dev.weekdayfuel.app.woolworths.PricesJson
+import dev.weekdayfuel.app.woolworths.PricesScriptState
 import dev.weekdayfuel.app.woolworths.TrolleyJson
 import dev.weekdayfuel.app.woolworths.TrolleyScriptState
 import dev.weekdayfuel.app.woolworths.WoolworthsScreen
@@ -155,6 +157,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         woolworths.cancel()
+        woolworths.cancelPrices()
         woolworths.webView.destroy()
         webView.destroy()
         super.onDestroy()
@@ -177,6 +180,14 @@ class MainActivity : ComponentActivity() {
                 showWoolworths(if (WoolworthsUrls.isWoolworthsPage(uri.scheme, uri.host)) url else WoolworthsUrls.HOME_URL)
             }
             "checkout" -> showWoolworths(WoolworthsUrls.TROLLEY_URL)
+            "refreshPrices" -> {
+                val codes = runCatching { PricesJson.parseStockcodes(msg.optJSONArray("stockcodes") ?: JSONArray()) }.getOrNull()
+                if (codes.isNullOrEmpty()) {
+                    replyToPage(HostMessages.pricesFailure(getString(R.string.woolworths_bad_request)))
+                    return
+                }
+                woolworths.refreshPrices(codes)
+            }
         }
     }
 
@@ -226,6 +237,10 @@ class MainActivity : ComponentActivity() {
         override fun onFinished(state: TrolleyScriptState) {
             closeLoginIfShownForSend()
             replyToPage(HostMessages.finished(state))
+        }
+
+        override fun onPrices(state: PricesScriptState) {
+            replyToPage(HostMessages.prices(state))
         }
     }
 

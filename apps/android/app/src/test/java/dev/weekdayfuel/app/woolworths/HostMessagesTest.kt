@@ -44,4 +44,22 @@ class HostMessagesTest {
     fun loginMessage() {
         assertEquals("trolleyLogin", JSONObject(HostMessages.login()).getString("type"))
     }
+
+    @Test
+    fun pricesDoneCarriesTimeAndPrices() {
+        val prices = JSONObject("""{"919345":{"price":5.6,"was":6.6,"special":true,"available":true}}""")
+        val json = JSONObject(HostMessages.prices(PricesScriptState(PricesPhase.DONE, "2026-10-15T02:40:00.000Z", prices, null)))
+        assertEquals("pricesDone", json.getString("type"))
+        assertEquals("2026-10-15T02:40:00.000Z", json.getString("at"))
+        assertEquals(6.6, json.getJSONObject("prices").getJSONObject("919345").getDouble("was"), 0.0)
+    }
+
+    @Test
+    fun pricesErrorCarriesMessage() {
+        val json = JSONObject(HostMessages.prices(PricesScriptState(PricesPhase.ERROR, null, JSONObject(), "prices HTTP 503")))
+        assertEquals("pricesError", json.getString("type"))
+        assertEquals("prices HTTP 503", json.getString("message"))
+        val fallback = JSONObject(HostMessages.prices(PricesScriptState(PricesPhase.ERROR, null, JSONObject(), null)))
+        assertEquals("Couldn't update Woolworths prices.", fallback.getString("message"))
+    }
 }

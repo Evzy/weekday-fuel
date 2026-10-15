@@ -6,6 +6,7 @@ import org.json.JSONObject
 /** Messages the host posts to the Weekday Fuel page over `WeekdayFuelHost`. */
 object HostMessages {
     private const val GENERIC_FAILURE = "Something went wrong sending to Woolworths. Try again."
+    private const val PRICES_FAILURE = "Couldn't update Woolworths prices."
 
     fun login(): String = JSONObject().put("type", "trolleyLogin").toString()
 
@@ -29,4 +30,11 @@ object HostMessages {
     }
 
     fun failure(message: String): String = JSONObject().put("type", "trolleyError").put("message", message).toString()
+
+    fun prices(state: PricesScriptState): String {
+        if (state.phase != PricesPhase.DONE) return pricesFailure(state.error ?: PRICES_FAILURE)
+        return JSONObject().put("type", "pricesDone").put("at", state.at ?: JSONObject.NULL).put("prices", state.prices).toString()
+    }
+
+    fun pricesFailure(message: String): String = JSONObject().put("type", "pricesError").put("message", message).toString()
 }
