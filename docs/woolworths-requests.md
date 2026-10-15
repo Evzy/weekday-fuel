@@ -47,3 +47,10 @@ Captured on desktop Chromium, 2026-10-15.
 ## Decision
 
 Go / no-go: **Go**, 2026-10-15. In-app checks pass; the script request is accepted from page JavaScript and sets (not adds) the quantity.
+
+## Product prices request (2026-10-15, logged out)
+
+- `GET /apis/ui/products/<stockcode>,<stockcode>,...` from a woolworths.com.au page returns HTTP 200 and a JSON array, one product per known stockcode. All 45 catalogue stockcodes in one request returned 45 products; an unknown stockcode is silently left out. `prices.js` asks for 40 at a time.
+- Fields used: `Stockcode`, `Price` (per kg when `Unit` is `"KG"`, e.g. ham 175734 at 28), `WasPrice` (equals `Price` when not reduced), `IsOnSpecial`, `IsAvailable`, `IsInStock`, `IsPurchasable`.
+- Reduced products can have `WasPrice > Price` with `IsOnSpecial: false` (mince 577860: 9.8 was 10; wraps 919345: 5.6 was 6.6), so the app treats `WasPrice > Price` or `IsOnSpecial` as a special.
+- No login needed.
