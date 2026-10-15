@@ -377,10 +377,11 @@ function onCheckout(m){
   const c=state.checkout;if(!c||(c.phase!=="loading"&&c.phase!=="booking"))return;
   if(m.type==="checkoutError"){if(c.phase==="booking"){c.phase="ready";c.bookError=m.message||"try again"}else{c.phase="error";c.message=m.message||""}return}
   const r=m.result||{};
+  if(r.action!==(c.phase==="booking"?"book":"load"))return;
   if(r.loggedOut){c.phase="loggedout";return}
-  if(r.action==="book"&&c.result){Object.assign(c.result,{method:r.method,booked:r.booked,minimumSpend:r.minimumSpend,trolley:r.trolley,summary:r.summary});c.bookError=r.bookError||null;c.phase="ready";return}
+  if(r.action==="book"){const keep=r.summary&&r.summary.error&&c.result.summary&&!c.result.summary.error;Object.assign(c.result,{method:r.method,booked:r.booked,minimumSpend:r.minimumSpend,trolley:r.trolley,summary:keep?c.result.summary:r.summary});c.bookError=r.bookError||null;c.phase="ready";return}
   c.result=r;c.bookError=null;c.phase="ready";
-  const bd=r.booked?String(r.booked.start).slice(0,10):null,tabs=WeekdayFuelCheckoutView.dayTabs(r.windows);
+  const bd=r.booked&&r.booked.start?String(r.booked.start).slice(0,10):null,tabs=WeekdayFuelCheckoutView.dayTabs(r.windows);
   c.day=tabs.some(t=>t.date===bd)?bd:((tabs.find(t=>t.open)||tabs[0]||{}).date||null);
 }
 const coView=`<button class="ghost" data-act="openwoolies" data-v="${CO_URL}">View on Woolworths</button>`;
@@ -401,14 +402,14 @@ function renderCheckout(){
     h+=`<div class="row">${coView}</div>`}
   h+=`</div><div class="panel stack" id="co-time"><h3>Delivery time</h3>`;
   const courier=r.method==="Courier",tabsOk=courier&&r.windows&&!r.windows.error;
-  if(r.booked){const bk=V.bookedLabel(r.booked);h+=`<div class="row between"><span class="small"><b>${esc(bk.when)}</b>${bk.cutOff?`<span class="muted" style="display:block">${esc(bk.cutOff)}</span>`:""}</span>${tabsOk?`<button class="ghost" data-act="cochange">Change</button>`:""}</div>`}
+  if(r.booked&&r.booked.start){const bk=V.bookedLabel(r.booked);h+=`<div class="row between"><span class="small"><b>${esc(bk.when)}</b>${bk.cutOff?`<span class="muted" style="display:block">${esc(bk.cutOff)}</span>`:""}</span>${tabsOk?`<button class="ghost" data-act="cochange">Change</button>`:""}</div>`}
   else h+=`<div class="small">No time booked.</div>`;
   if(c.bookError)h+=`<div class="hint"><span>Couldn't book that time: ${esc(c.bookError)}</span></div>`;
   if(!courier)h+=`<div class="small muted">Change pick-up times on Woolworths.</div><div class="row">${coView}</div>`;
   else if(!tabsOk)h+=coFail("delivery times",r.windows&&r.windows.error);
   else{const tabs=V.dayTabs(r.windows),day=tabs.find(t=>t.date===c.day)||tabs[0];
-    h+=`<div class="chips" role="group" aria-label="Delivery day">${tabs.map(t=>`<button class="chip" aria-pressed="${!!day&&t.date===day.date}" data-act="coday" data-v="${t.date}">${esc(V.dayLabel(t.date))} <span class="muted">${t.priceRange?esc(t.priceRange):"full"}</span></button>`).join("")}</div>`;
-    if(day)h+=day.open?day.slots.map(s=>{const bk=!!r.booked&&r.booked.id===s.id;return `<div class="row between"><span class="small grow"><b>${esc(s.label)}</b> <span class="num">${esc(V.dollars(s.price))}</span>${s.id===day.cheapestId?` <span style="color:var(--good)">· Cheapest</span>`:""}${s.eco?` <span class="muted">· Eco</span>`:""}</span>${bk?`<span class="small"><b>Booked</b></span>`:s.available?`<button class="ghost" data-act="coslot" data-v="${s.id}" data-d="${day.date}" ${c.phase==="booking"?"disabled":""}>Book</button>`:`<span class="small muted">Full</span>`}</div>`}).join(""):`<div class="small muted">${esc(day.closedText||"No times left this day.")}</div>`;
+    h+=`<div class="chips" role="group" aria-label="Delivery day">${tabs.map(t=>`<button class="chip" aria-pressed="${!!day&&t.date===day.date}" data-act="coday" data-v="${esc(t.date)}">${esc(V.dayLabel(t.date))} <span class="muted">${t.priceRange?esc(t.priceRange):"full"}</span></button>`).join("")}</div>`;
+    if(day)h+=day.open?day.slots.map(s=>{const bk=!!r.booked&&r.booked.id===s.id;return `<div class="row between"><span class="small grow"><b>${esc(s.label)}</b> <span class="num">${esc(V.dollars(s.price))}</span>${s.id===day.cheapestId?` <span style="color:var(--good)">· Cheapest</span>`:""}${s.eco?` <span class="muted">· Eco</span>`:""}</span>${bk?`<span class="small"><b>Booked</b></span>`:s.available?`<button class="ghost" data-act="coslot" data-v="${esc(s.id)}" data-d="${esc(day.date)}" ${c.phase==="booking"?"disabled":""}>Book</button>`:`<span class="small muted">Full</span>`}</div>`}).join(""):`<div class="small muted">${esc(day.closedText||"No times left this day.")}</div>`;
     if(c.phase==="booking")h+=`<div class="small">Booking…</div>`;
     h+=`<div class="row">${coView}</div>`}
   h+=`</div><div class="panel stack"><h3>Order summary</h3>`;
@@ -422,7 +423,7 @@ function renderCheckout(){
     h+=`<div class="row">${coView}</div>`}
   h+=`</div>`;
   if(!r.booked)h+=`<div class="hint"><span>Book a delivery time first, or pick one on Woolworths.</span></div>`;
-  h+=`<div class="row"><button class="btn" data-act="copay">Pay on Woolworths</button><button class="ghost" data-act="codone">Done</button></div>`;
+  h+=`<div class="row"><button class="btn" data-act="copay" ${coBusy()?"disabled":""}>Pay on Woolworths</button><button class="ghost" data-act="codone">Done</button></div>`;
   if(c.paid)h+=`<div class="row between"><span class="small">Finished this shop?</span>${nextShopBtn()}</div>`;
   return h;
 }
@@ -956,7 +957,7 @@ document.addEventListener("click",e=>{
   if(act!=="rm"&&act!=="rmw"&&act!=="nextshop")state.armed=null;
   const date=state.date;
   switch(act){
-    case "tab":state.tab=v;state.adding=null;window.scrollTo(0,0);if(v==="shop")maybeRefreshPrices();break;
+    case "tab":state.tab=v;state.adding=null;window.scrollTo(0,0);if(v==="shop"&&!coBusy())maybeRefreshPrices();break;
     case "shift":state.date=addDays(date,+v);state.adding=null;break;
     case "goto":state.date=v;state.adding=null;break;
     case "track":{const d=ensureDay(date);d.track=true;d.fx={dare:true,grenade:true};saveDay(date);break}
@@ -1000,9 +1001,9 @@ document.addEventListener("click",e=>{
     case "coday":if(state.checkout)state.checkout.day=v;break;
     case "cochange":{const c=state.checkout;if(c&&c.result&&c.result.booked)c.day=String(c.result.booked.start).slice(0,10);render();const t=document.getElementById("co-time");if(t)t.scrollIntoView({block:"start"});return}
     case "coslot":{const c=state.checkout;if(!c||c.phase!=="ready")break;c.phase="booking";c.bookError=null;WeekdayFuelHost.postMessage(JSON.stringify({type:"checkoutBook",timeslotId:+v,windowDate:el.dataset.d}));break}
-    case "copay":if(state.checkout)state.checkout.paid=true;if(state.trolley)state.trolley.checkedOut=true;WeekdayFuelHost.postMessage(JSON.stringify({type:"openWoolworths",url:CO_URL}));break;
+    case "copay":if(coBusy())break;if(state.checkout)state.checkout.paid=true;if(state.trolley)state.trolley.checkedOut=true;WeekdayFuelHost.postMessage(JSON.stringify({type:"openWoolworths",url:CO_URL}));break;
     case "codone":state.checkout=null;break;
-    case "openwoolies":WeekdayFuelHost.postMessage(JSON.stringify({type:"openWoolworths",url:v}));return;
+    case "openwoolies":if(coBusy())return;WeekdayFuelHost.postMessage(JSON.stringify({type:"openWoolworths",url:v}));return;
     case "fxdays":{const d=S().fixtureDays==null?5:S().fixtureDays;state.settings.fixtureDays=Math.max(0,Math.min(7,d+i));saveSettings();break}
     default:return;
   }
