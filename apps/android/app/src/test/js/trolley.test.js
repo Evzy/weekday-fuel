@@ -118,3 +118,19 @@ test("a weighed line is sent with its kilogram quantity unchanged", async () => 
   assert.equal(JSON.parse(calls[1].init.body).items[0].quantity, 0.3);
   assert.deepEqual(s.results, [{ stockcode: 175734, outcome: "added" }]);
 });
+
+test("a quantity 0 line that Woolworths accepts counts as removed", async () => {
+  const { api, calls } = load((url, init, urls) => (url === urls.loginStatus ? response(200, LOGGED_IN) : response(200, { UpdatedItems: [] })));
+  api.start([{ stockcode: 198763, quantity: 0 }, { stockcode: 717518, quantity: 2 }]);
+  const s = await settle(api);
+  assert.equal(s.phase, "done");
+  assert.equal(JSON.parse(calls[1].init.body).items[0].quantity, 0);
+  assert.deepEqual(s.results, [{ stockcode: 198763, outcome: "removed" }, { stockcode: 717518, outcome: "failed", reason: "not available" }]);
+});
+
+test("a removal Woolworths rejects is reported as failed", async () => {
+  const { api } = load((url, init, urls) => (url === urls.loginStatus ? response(200, LOGGED_IN) : response(500, {})));
+  api.start([{ stockcode: 198763, quantity: 0 }]);
+  const s = await settle(api);
+  assert.deepEqual(s.results, [{ stockcode: 198763, outcome: "failed", reason: "HTTP 500" }]);
+});

@@ -40,12 +40,19 @@ class TrolleyJsonTest {
     }
 
     @Test
-    fun parseLinesKeepsPositiveQuantities() {
+    fun parseLinesKeepsZeroForRemovalsAndDropsNegatives() {
         val lines =
             TrolleyJson.parseLines(
-                JSONArray("""[{"stockcode":717518,"quantity":2,"name":"Chobani"},{"stockcode":72280,"quantity":0},{"stockcode":1,"quantity":-1}]"""),
+                JSONArray("""[{"stockcode":717518,"quantity":2,"name":"Chobani"},{"stockcode":198763,"quantity":0},{"stockcode":1,"quantity":-1}]"""),
             )
-        assertEquals(listOf(TrolleyLine(717518L, 2.0)), lines)
+        assertEquals(listOf(TrolleyLine(717518L, 2.0), TrolleyLine(198763L, 0.0)), lines)
+    }
+
+    @Test
+    fun removedLineCountsAsDone() {
+        val raw = """{"phase":"done","total":1,"completed":1,"results":[{"stockcode":198763,"outcome":"removed"}],"error":null}"""
+        val state = TrolleyJson.parseScriptState(JSONObject.quote(raw))!!
+        assertEquals(listOf(TrolleyLineResult(198763L, true, null)), state.results)
     }
 
     @Test
@@ -56,7 +63,7 @@ class TrolleyJsonTest {
 
     @Test
     fun linesToJsonRoundTrips() {
-        val lines = listOf(TrolleyLine(717518L, 2.0), TrolleyLine(72280L, 5.0), TrolleyLine(175734L, 0.3))
+        val lines = listOf(TrolleyLine(717518L, 2.0), TrolleyLine(72280L, 5.0), TrolleyLine(175734L, 0.3), TrolleyLine(198763L, 0.0))
         assertEquals(lines, TrolleyJson.parseLines(JSONArray(TrolleyJson.linesToJson(lines))))
     }
 

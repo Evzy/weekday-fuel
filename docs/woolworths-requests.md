@@ -31,7 +31,8 @@ Captured on desktop Chromium, 2026-10-15.
 | Method | `POST`, `credentials: "include"`, `Content-Type: application/json` |
 | Body for "Chobani 717518 quantity 2" | `{"items":[{"stockcode":717518,"quantity":2,"source":"ProductDetail","diagnostics":"0","searchTerm":null,"evaluateRewardPoints":false,"offerId":null,"profileId":null,"priceLevel":null}]}` (same shape the site's own Add to cart button sends) |
 | Sending the same body twice leaves quantity 2 (set, not add)? | Yes. Trolley showed 2 after each of two sends. |
-| Quantity 0 removes the product? | Yes |
+| Quantity 0 removes the product? | Yes. Checked again 2026-10-15 logged in with soy sauce 198763 (not in the trolley): set to 1, then 0; `TrolleyRequest` in `/api/ui/v2/bootstrap` listed it after the 1 and not after the 0. The owner's trolley was left as before. |
+| Response for a removal (quantity 0) | `200` with `UpdatedItems: []`, the same as an unknown stockcode. Sending 0 again for a product no longer in the trolley gives the same answer. `trolley.js` counts a quantity-0 line answered with 2xx as `removed`. |
 | Response status when it works | `200`, JSON with `UpdatedItems: [{ Stockcode, Quantity, QuantityInTrolley, IsAvailable, ... }]` |
 | Response for an unknown stockcode | `200` with `UpdatedItems: []`. A line only counts as added when `UpdatedItems` contains its `Stockcode`. |
 | Response when logged out | `200`, and the item goes into a separate guest trolley (the owner's trolley is untouched). Login must be checked first via the bootstrap request. |

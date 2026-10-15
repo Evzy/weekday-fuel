@@ -22,7 +22,7 @@ object TrolleyJson {
     fun parseLines(lines: JSONArray): List<TrolleyLine> =
         (0 until lines.length())
             .map { i -> lines.getJSONObject(i).let { TrolleyLine(it.getLong("stockcode"), it.getDouble("quantity")) } }
-            .filter { it.quantity > 0 }
+            .filter { it.quantity >= 0 }
 
     fun linesToJson(lines: List<TrolleyLine>): String =
         JSONArray().apply {
@@ -53,7 +53,7 @@ object TrolleyJson {
             results =
                 (0 until results.length()).map { i ->
                     val r = results.getJSONObject(i)
-                    TrolleyLineResult(r.getLong("stockcode"), r.optString("outcome") == "added", r.stringOrNull("reason"))
+                    TrolleyLineResult(r.getLong("stockcode"), r.optString("outcome").let { it == "added" || it == "removed" }, r.stringOrNull("reason"))
                 },
             error = o.stringOrNull("error"),
         )

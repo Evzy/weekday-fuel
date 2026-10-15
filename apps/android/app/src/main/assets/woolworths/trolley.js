@@ -47,6 +47,8 @@
         body: JSON.stringify(updateBody(line)),
       });
       if (!r.ok) return { stockcode: line.stockcode, outcome: "failed", reason: "HTTP " + r.status };
+      /* Woolworths answers a removal with an empty UpdatedItems, exactly like an unknown stockcode. */
+      if (line.quantity === 0) return { stockcode: line.stockcode, outcome: "removed" };
       if (wasUpdated(await r.json(), line.stockcode)) return { stockcode: line.stockcode, outcome: "added" };
       return { stockcode: line.stockcode, outcome: "failed", reason: "not available" };
     } catch (e) {
