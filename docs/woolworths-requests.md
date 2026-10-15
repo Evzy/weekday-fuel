@@ -55,3 +55,18 @@ Go / no-go: **Go**, 2026-10-15. In-app checks pass; the script request is accept
 - Fields used: `Stockcode`, `Price` (per kg when `Unit` is `"KG"`, e.g. ham 175734 at 28), `WasPrice` (equals `Price` when not reduced), `IsOnSpecial`, `IsAvailable`, `IsInStock`, `IsPurchasable`.
 - Reduced products can have `WasPrice > Price` with `IsOnSpecial: false` (mince 577860: 9.8 was 10; wraps 919345: 5.6 was 6.6), so the app treats `WasPrice > Price` or `IsOnSpecial` as a special.
 - No login needed.
+
+## Checkout requests (2026-10-15, logged in)
+
+Used by `assets/woolworths/checkout.js` (v0.5.0). All from a `www.woolworths.com.au` page with `credentials: "include"` unless noted.
+
+| What | Request | Notes |
+| --- | --- | --- |
+| Login, address, booked time, minimum spend | `GET /api/ui/v2/bootstrap` | `GetDeliveryInfoRequest.DeliveryMethod` (`"Courier"` for delivery), `.Address.{AddressId, AreaId, SuburbId}`, `.ReservedTime` (`null` or `{Id, StartDateTime, EndDateTime, TimeWindow, CutOffDateTime}`), `.MinimumSpend` |
+| Hashed rewards card | `GET /api/v3/ui/shopper/rewards/crn/hash` | A 64-character JSON string |
+| Active Everyday Rewards offers | `GET https://prod.api-wr.com/wx-rtl-offer-v2/offers?filter[status]=ACTIVE` | No cookies. Headers `customer-identity: <hash>`, `client_id: IRfFJjr4Px9UY1XxKtSOAUYGTpelx0S0Q` (the site's public id), `customer-timezone: Australia/Sydney`, `channel: WOW_WEB`. `data[].attributes.boostState` is `BOOSTED` or `NOT_BOOSTED`; the coupon id is `data[].attributes.coupons[0].id`; `redemption.minimumSpend` is in cents. |
+| Boost one offer | `POST /api/v3/ui/rewards/offers/boost/<couponId>`, body `{}` | `200`, body `true`. Checked with the 60-point tomatoes offer: `NOT_BOOSTED` before, `BOOSTED` after. There is no boost-all request on the shop site. |
+| Delivery times | `GET /api/v3/ui/fulfilment/windows?areaId=&fulfilmentMethod=Courier&addressId=&suburbId=` | 7 `Days`, each with a flat `Times` list of slots: `Id`, `Available`, `TimeWindow` ("5am - 10am"), `Price`, `SalePrice`, `IsEcoWindow`, `CutOffDateTime` |
+| Book a time | `POST /apis/ui/Fulfilment`, body `{"addressId":<AddressId>,"fulfilmentMethod":"Courier","timeslotId":<slot Id>,"tradingAccount":null,"windowDate":"YYYY-MM-DD"}` | `200` `{"IsSuccessful":true,...}`; `bootstrap` then shows the slot in `ReservedTime`. Captured from the site's own Continue button. |
+| Order summary | `GET /apis/ui/Checkout` | `Model.Order` totals: `Subtotal` (after savings), `Savings`, `DeliveryFee`, `DeliveryFeeBeforeDiscount`, `PackagingFee` + `PackagingFeeLabel`, `TotalIncludingGst`, `BalanceToPay`, `TotalRewardsPointsEarned`; `UnavailableProducts`, `RestrictedProducts`; `Model.CheckoutSubtotalErrors` |
+| Checkout page | `https://www.woolworths.com.au/checkout` | One page: address, date and time, driver notes, items, promo codes, totals, payment, Place order. The site's own clicks also send Akamai sensor requests. |
