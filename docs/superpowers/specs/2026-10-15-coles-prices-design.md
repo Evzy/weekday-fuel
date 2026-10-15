@@ -1,6 +1,6 @@
 # Live Coles prices — design
 
-**Status:** approved 2026-10-15
+**Status:** approved 2026-10-15; v0.7.0 released 2026-10-16, owner phone checks pending
 **Scope:** Coles prices, specials and availability stay current in the background, like Woolworths prices since v0.3.1 (`2026-10-15-both-stores-design.md`). No Coles trolley or checkout.
 **Release:** v0.7.0
 
