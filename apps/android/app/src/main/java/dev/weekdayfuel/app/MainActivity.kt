@@ -8,6 +8,7 @@ import android.content.res.Configuration
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
+import android.view.View
 import android.webkit.CookieManager
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
@@ -27,6 +28,9 @@ import androidx.webkit.JavaScriptReplyProxy
 import androidx.webkit.WebViewAssetLoader
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
+import dev.weekdayfuel.app.coles.ColesPricesJson
+import dev.weekdayfuel.app.coles.ColesPricesState
+import dev.weekdayfuel.app.coles.ColesSession
 import dev.weekdayfuel.app.update.GithubApkReleaseInfo
 import dev.weekdayfuel.app.update.GithubApkReleaseUpdater
 import dev.weekdayfuel.app.update.ReleaseVersionCompare
@@ -47,6 +51,7 @@ import org.json.JSONObject
 class MainActivity : ComponentActivity() {
     private lateinit var webView: WebView
     private lateinit var woolworths: WoolworthsSession
+    private lateinit var coles: ColesSession
     private lateinit var woolworthsScreen: WoolworthsScreen
     private var hostReply: JavaScriptReplyProxy? = null
 
@@ -81,6 +86,11 @@ class MainActivity : ComponentActivity() {
             }
         woolworths = WoolworthsSession(this, ::openExternally)
         woolworths.listener = TrolleyListener()
+        coles = ColesSession(this, ::openExternally)
+        coles.listener = ColesListener()
+        // Kept full size underneath everything (like the Woolworths page behind the app) so the page runs normally; never shown.
+        coles.webView.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
+        root.addView(coles.webView, FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
         woolworthsScreen = WoolworthsScreen(this, woolworths.webView, webView, onClose = ::hideWoolworths)
         root.addView(woolworthsScreen.view, FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
         root.addView(webView, FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
@@ -161,6 +171,7 @@ class MainActivity : ComponentActivity() {
         woolworths.cancel()
         woolworths.cancelPrices()
         woolworths.cancelCheckout()
+        coles.destroy()
         woolworths.webView.destroy()
         webView.destroy()
         super.onDestroy()
@@ -189,8 +200,13 @@ class MainActivity : ComponentActivity() {
             "checkoutAddress" -> runCheckout(CheckoutJson.addressRequest(msg), R.string.woolworths_checkout_bad_change)
             "refreshPrices" -> {
                 val codes = runCatching { PricesJson.parseStockcodes(msg.optJSONArray("stockcodes") ?: JSONArray()) }.getOrNull()
+                val colesArray = msg.optJSONArray("colesIds")
+                val colesIds = colesArray?.let { runCatching { ColesPricesJson.parseIds(it) }.getOrNull() }
+                // The page waits for a Coles reply whenever it sent colesIds, so an unusable list still gets one.
+                if (colesArray != null && colesIds.isNullOrEmpty()) replyToPage(HostMessages.colesPricesFailure(getString(R.string.coles_bad_request)))
+                if (!colesIds.isNullOrEmpty()) coles.refreshPrices(colesIds)
                 if (codes.isNullOrEmpty()) {
-                    replyToPage(HostMessages.pricesFailure(getString(R.string.woolworths_bad_request)))
+                    if (colesArray == null) replyToPage(HostMessages.pricesFailure(getString(R.string.woolworths_bad_request)))
                     return
                 }
                 woolworths.refreshPrices(codes)
@@ -256,6 +272,12 @@ class MainActivity : ComponentActivity() {
 
         override fun onCheckout(state: CheckoutScriptState) {
             replyToPage(HostMessages.checkout(state))
+        }
+    }
+
+    private inner class ColesListener : ColesSession.Listener {
+        override fun onColesPrices(state: ColesPricesState) {
+            replyToPage(HostMessages.colesPrices(state))
         }
     }
 

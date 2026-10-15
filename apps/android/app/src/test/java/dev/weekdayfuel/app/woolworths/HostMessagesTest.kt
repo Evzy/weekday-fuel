@@ -1,5 +1,7 @@
 package dev.weekdayfuel.app.woolworths
 
+import dev.weekdayfuel.app.coles.ColesPricesPhase
+import dev.weekdayfuel.app.coles.ColesPricesState
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -79,5 +81,25 @@ class HostMessagesTest {
         val fallback = JSONObject(HostMessages.checkout(CheckoutScriptState(CheckoutPhase.ERROR, null, null)))
         assertEquals("Couldn't reach Woolworths.", fallback.getString("message"))
         assertEquals("checkoutError", JSONObject(HostMessages.checkoutFailure("x")).getString("type"))
+    }
+
+    @Test
+    fun colesPricesDoneCarriesTimeStoreAndPrices() {
+        val prices = JSONObject().put("8991361", JSONObject().put("price", 3.3))
+        val store = JSONObject().put("id", "0668").put("name", "Coles Local St Kilda")
+        val json = JSONObject(HostMessages.colesPrices(ColesPricesState(ColesPricesPhase.DONE, "2026-10-15T09:40:00.000Z", store, prices, null)))
+        assertEquals("colesPricesDone", json.getString("type"))
+        assertEquals("2026-10-15T09:40:00.000Z", json.getString("at"))
+        assertEquals("Coles Local St Kilda", json.getJSONObject("store").getString("name"))
+        assertEquals(3.3, json.getJSONObject("prices").getJSONObject("8991361").getDouble("price"), 0.0)
+    }
+
+    @Test
+    fun colesPricesErrorCarriesMessageOrDefault() {
+        val json = JSONObject(HostMessages.colesPrices(ColesPricesState(ColesPricesPhase.ERROR, null, null, JSONObject(), "coles prices HTTP 401")))
+        assertEquals("colesPricesError", json.getString("type"))
+        assertEquals("coles prices HTTP 401", json.getString("message"))
+        val fallback = JSONObject(HostMessages.colesPrices(ColesPricesState(ColesPricesPhase.ERROR, null, null, JSONObject(), null)))
+        assertEquals("Couldn't update Coles prices.", fallback.getString("message"))
     }
 }

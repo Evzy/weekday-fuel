@@ -1,5 +1,7 @@
 package dev.weekdayfuel.app.woolworths
 
+import dev.weekdayfuel.app.coles.ColesPricesPhase
+import dev.weekdayfuel.app.coles.ColesPricesState
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -7,6 +9,7 @@ import org.json.JSONObject
 object HostMessages {
     private const val GENERIC_FAILURE = "Something went wrong sending to Woolworths. Try again."
     private const val PRICES_FAILURE = "Couldn't update Woolworths prices."
+    private const val COLES_PRICES_FAILURE = "Couldn't update Coles prices."
     private const val CHECKOUT_FAILURE = "Couldn't reach Woolworths."
 
     fun login(): String = JSONObject().put("type", "trolleyLogin").toString()
@@ -38,6 +41,18 @@ object HostMessages {
     }
 
     fun pricesFailure(message: String): String = JSONObject().put("type", "pricesError").put("message", message).toString()
+
+    fun colesPrices(state: ColesPricesState): String {
+        if (state.phase != ColesPricesPhase.DONE) return colesPricesFailure(state.error ?: COLES_PRICES_FAILURE)
+        return JSONObject()
+            .put("type", "colesPricesDone")
+            .put("at", state.at ?: JSONObject.NULL)
+            .put("store", state.store ?: JSONObject.NULL)
+            .put("prices", state.prices)
+            .toString()
+    }
+
+    fun colesPricesFailure(message: String): String = JSONObject().put("type", "colesPricesError").put("message", message).toString()
 
     fun checkout(state: CheckoutScriptState): String {
         if (state.phase != CheckoutPhase.DONE || state.result == null) return checkoutFailure(state.error ?: CHECKOUT_FAILURE)

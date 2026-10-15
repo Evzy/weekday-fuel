@@ -19,4 +19,7 @@
     <string name="woolworths_checkout_busy">Woolworths was still busy with the last request. Try again.</string>
     <string name="woolworths_checkout_unconfirmed">Couldn\'t confirm the change with Woolworths. Tap Refresh to check.</string>
     <string name="woolworths_checkout_bad_change">Couldn\'t read that change. Try again.</string>
+    <string name="coles_timeout">Coles took too long to respond. Try again.</string>
+    <string name="coles_offline">Couldn\'t reach Coles. Check your connection and try again.</string>
+    <string name="coles_bad_request">Couldn\'t read the Coles products to price. Try again.</string>
 </resources>
