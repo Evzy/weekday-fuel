@@ -105,7 +105,8 @@
 
   function isEmpty(rows, sentLines) {
     var s = sentLines || {};
-    return !(Array.isArray(rows) && rows.length) && !Object.keys(s).some(function (k) { return isQty(s[k]); });
+    var real = Array.isArray(rows) && rows.some(function (r) { return !!r && r.sec !== 0; });
+    return !real && !Object.keys(s).some(function (k) { return isQty(s[k]); });
   }
 
   function validItem(i) {

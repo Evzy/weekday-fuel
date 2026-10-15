@@ -372,13 +372,13 @@ const dayShort=d=>parse(d).toLocaleDateString("en-AU",{weekday:"short",day:"nume
 function forLabel(r){if(!r||!r.used||!r.used.length)return "";return "For "+(r.days&&r.days.length?r.days.map(dayShort).join(", ")+" · ":"")+r.used.map(m=>MEAL[m]?MEAL[m].name:m).join(", ")}
 const forLine=r=>{const t=forLabel(r);return t?`<span class="small muted" style="display:block">${esc(t)}</span>`:""};
 const trolleyBusy=()=>!!state.trolley&&(state.trolley.phase==="adding"||state.trolley.phase==="login");
-const orderHint=()=>state.orderError?`<div class="hint"><span>${esc(state.orderError)}</span></div>`:"";
-function nextShopBtn(){
+const orderHint=w=>state.orderError&&state.orderError.where===w?`<div class="hint"><span>${esc(state.orderError.msg)}</span></div>`:"";
+function nextShopBtn(w){
   if(trolleyBusy())return "";
   let save=true;try{save=!WeekdayFuelOrders.isEmpty(shopRows(),(lsSent()||{}).lines)}catch(e){}
   const armed=state.armed==="nextshop";
   const label=armed?(save?"Tap again to save this order and clear days, meals and ticks":"Tap again to clear days, meals and ticks"):(save?"Save order and start next shop":"Start next shop");
-  return `<button class="ghost ${armed?"warn":""}" data-act="nextshop">${label}</button>`;
+  return `<button class="ghost ${armed?"warn":""}" data-act="nextshop" data-w="${w}">${label}</button>`;
 }
 const CO_URL="https://www.woolworths.com.au/checkout",WOOLIES_LOGIN_URL="https://www.woolworths.com.au/shop/securelogin";
 const coBusy=()=>!!state.checkout&&(state.checkout.phase==="loading"||state.checkout.phase==="saving");
@@ -467,7 +467,7 @@ function renderCheckout(){
   h+=`</div>`;
   if(!r.booked)h+=`<div class="hint"><span>Book a delivery time first, or pick one on Woolworths.</span></div>`;
   h+=`<div class="row"><button class="btn" data-act="copay" ${coBusy()?"disabled":""}>Pay on Woolworths</button><button class="ghost" data-act="cotry" ${coBusy()?"disabled":""}>Refresh</button><button class="ghost" data-act="codone">Done</button></div>`;
-  if(c.paid)h+=`<div class="row between"><span class="small">Finished this shop?</span>${nextShopBtn()}</div>${orderHint()}`;
+  if(c.paid)h+=`<div class="row between"><span class="small">Finished this shop?</span>${nextShopBtn("co")}</div>${orderHint("co")}`;
   return h;
 }
 const SECTIONS=[
@@ -921,7 +921,7 @@ function renderTrolley(rows,ticks){
     if(stuck.length)h+=`<div class="eyebrow">Couldn't take out, remove these yourself</div>${stuck.map(r=>lineRow(r,r.reason||"")).join("")}`;
     if(t.manual.length)h+=`<div class="eyebrow">Add these yourself</div>${t.manual.map(m=>`<div class="small">${esc(m.name)} <span class="muted">(${MANUAL_WHY[m.reason]||"add it yourself"})</span>${forLine(byId[m.itemId])}</div>`).join("")}`;
     h+=`<div class="row"><button class="btn" data-act="checkout">Checkout</button><button class="ghost" data-act="trolleyreset">Done</button></div>`;
-    if(t.checkedOut)h+=`<div class="row between"><span class="small">Finished this shop?</span>${nextShopBtn()}</div>${orderHint()}`;
+    if(t.checkedOut)h+=`<div class="row between"><span class="small">Finished this shop?</span>${nextShopBtn("trolley")}</div>${orderHint("trolley")}`;
   }
   return h+`</div>`;
 }
@@ -943,9 +943,8 @@ function trySaveOrder(){
 }
 function renderPastOrders(){
   const O=WeekdayFuelOrders,list=lsOrders();
-  if(!list.length&&!state.orderError)return "";
+  if(!list.length)return "";
   let h=`<div class="panel stack"><h3>Past orders</h3>`;
-  h+=orderHint();
   list.forEach(o=>{
     const open=state.openOrder===o.id;
     h+=`<button class="pname" data-act="openorder" data-v="${esc(o.id)}" aria-expanded="${open}"><b>${esc(O.summaryLine(o))}</b></button>`;
@@ -960,7 +959,7 @@ function renderPastOrders(){
       h+=items.map(i=>`<div class="small">${k==="buy"&&i.store?`<span style="color:var(--${i.store})">${esc(STORE_NAME[i.store])}</span> · `:""}<b>${esc(i.name)}</b>${i.buy?` · ${esc(i.buy)}`:""}${i.cost!==null?` · ${money(i.cost)}`:""}${i.note?` <span class="muted">· ${esc(i.note)}</span>`:""}${i.for?`<span class="muted" style="display:block">${esc(i.for)}</span>`:""}</div>`).join("");
     });
     const armed=state.armed==="order"+o.id;
-    h+=`<div class="row"><button class="ghost ${armed?"warn":""}" data-act="delorder" data-v="${esc(o.id)}">${armed?"Tap again to delete this order":"Delete"}</button></div></div>`;
+    h+=`<div class="row"><button class="ghost ${armed?"warn":""}" data-act="delorder" data-v="${esc(o.id)}">${armed?"Tap again to delete this order":"Delete"}</button></div>${orderHint("del"+o.id)}</div>`;
   });
   return h+`</div>`;
 }
@@ -995,7 +994,7 @@ function renderShop(){
     const miss=rows.filter(r=>!r[st]);
     if(miss.length)h+=`<div class="panel stack"><h3>Missed at ${STORE_NAME[st]}</h3><div class="small muted">${STORE_NAME[st]} doesn't ${miss.some(r=>r.wooliesUnavailable)&&st==="woolies"?"have these online right now":"sell these"}. Get them at ${STORE_NAME[ot]}.</div>${miss.map(r=>{const o=r[ot];return `<div class="row between"><span class="small">${esc(o?o.product.name:r.name)}${st==="woolies"&&r.wooliesUnavailable?` <span class="muted">· instead of ${esc(r.wooliesUnavailable.name)}, unavailable online now</span>`:""}${o?` <span class="muted">· ${esc(o.buy)}</span>`:""}${forLine(r)}</span>${o?`<span class="num small" style="color:var(--${ot})">${money(o.cost)}</span>`:""}</div>`}).join("")}</div>`;
     if(st==="woolies")h+=renderTrolley(rows,ticks);
-    h+=`<div class="row"><button class="ghost" data-act="untickall">Clear ticks</button>${nextShopBtn()}</div>`;
+    h+=`<div class="row"><button class="ghost" data-act="untickall">Clear ticks</button>${nextShopBtn("list")}</div>${orderHint("list")}`;
     return h+renderPastOrders();
   }
   const items=CAT.ITEMS;
@@ -1057,9 +1056,9 @@ document.addEventListener("click",e=>{
     case "mealshop":{const d=ensureDay(date);const m=d.meals[i];if(m.shop===false)delete m.shop;else m.shop=false;saveDay(date);break}
     case "unshopday":{const sd=state.settings.shopDays=Object.assign({},S().shopDays);delete sd[v];saveSettings();break}
     case "openday":state.tab="today";state.date=v;state.adding=null;window.scrollTo(0,0);break;
-    case "nextshop":if(trolleyBusy())break;if(state.armed!=="nextshop"){state.armed="nextshop";break}state.armed=null;if(!saveOrder()){state.orderError="Couldn't save the order. Nothing was cleared.";break}state.settings.shopDays={};state.settings.trial={};saveSettings();lsSetTicks({});lsSetSent(null);state.trolley=null;state.checkout=null;state.coLast=null;break;
+    case "nextshop":if(trolleyBusy())break;if(state.armed!=="nextshop"){state.armed="nextshop";break}state.armed=null;if(!saveOrder()){state.orderError={where:el.dataset.w,msg:"Couldn't save the order. Nothing was cleared."};break}state.settings.shopDays={};state.settings.trial={};saveSettings();lsSetTicks({});lsSetSent(null);state.trolley=null;state.checkout=null;state.coLast=null;break;
     case "openorder":state.openOrder=state.openOrder===v?null:v;break;
-    case "delorder":{if(state.armed!=="order"+v){state.armed="order"+v;break}state.armed=null;if(!lsSetOrders(WeekdayFuelOrders.removeOrder(lsOrders(),v))){state.orderError="Couldn't delete the order.";break}if(state.openOrder===v)state.openOrder=null;break}
+    case "delorder":{if(state.armed!=="order"+v){state.armed="order"+v;break}state.armed=null;if(!lsSetOrders(WeekdayFuelOrders.removeOrder(lsOrders(),v))){state.orderError={where:"del"+v,msg:"Couldn't delete the order."};break}if(state.openOrder===v)state.openOrder=null;break}
     case "rm":{if(state.armed==="rm"+i){const d=ensureDay(date);d.meals.splice(i,1);saveDay(date);state.armed=null}else state.armed="rm"+i;break}
     case "adding":state.adding=state.adding===v?null:v;break;
     case "add":{const d=ensureDay(date);d.meals=d.meals||[];d.meals.push({id:v,slot:state.adding,t:"S"});state.adding=null;saveDay(date);break}

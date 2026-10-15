@@ -72,12 +72,16 @@ test("a Coles shop buys everything at Coles unless it was sent, and odd options 
   assert.deepEqual(o.groups.pantry, [item("Rice 1kg", "1 bag", 2.5, "woolies", null, "")]);
 });
 
-test("isEmpty is true only with no rows and nothing sent", () => {
+test("isEmpty is true only with no rows besides the daily items and nothing sent", () => {
+  const daily = { ...bread, id: "dare", sec: 0 };
   assert.equal(O.isEmpty([], {}), true);
   assert.equal(O.isEmpty(undefined, undefined), true);
   assert.equal(O.isEmpty([], { 100: 0 }), true);
   assert.equal(O.isEmpty([], { 100: 1 }), false);
   assert.equal(O.isEmpty([bread], {}), false);
+  assert.equal(O.isEmpty([daily], {}), true);
+  assert.equal(O.isEmpty([daily], { 100: 1 }), false);
+  assert.equal(O.isEmpty([daily, bread], {}), false);
 });
 
 test("parseOrders keeps only well-formed orders; addOrder and removeOrder manage the list", () => {
