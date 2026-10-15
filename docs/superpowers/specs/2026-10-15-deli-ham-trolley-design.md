@@ -1,6 +1,6 @@
 # Send deli ham to the Woolworths trolley — design
 
-**Status:** approved 2026-10-15
+**Status:** done (v0.2.1)
 **Scope:** deli ham goes into the Woolworths trolley by weight instead of "Add these yourself"
 
 ## Goal
