@@ -41,12 +41,12 @@ A product in the sent record that no shop row uses (the shop changed after the l
 ## Components
 
 1. **`assets/weekday_fuel/orders.js` (new, pure, no DOM or storage).**
-   - `snapshot(rows, ticks, sentLines, opts)` returns an order `{v: 1, id, at, store, days, meals, delivery, wooliesTotal, groups: {ordered, had, pantry, buy}}`. `opts` gives `at` (ISO time), `store` ("woolies" or "coles"), `days` (ISO dates), `meals` (`[{name, serves}]`), `delivery` (text or null), `wooliesTotal` (number or null), `forText(row)` (the "For Tue · Toasty" label) and `product(stockcode)` (`{name, price, perKg}` or null). Each group item is `{name, buy, cost, store, note, for}`; `store` is "woolies", "coles" or null. Amounts for ordered items use the row's own `buy` text and cost when the sent quantity equals the row's quantity; otherwise "<g>g" (by weight) or "<n> × <pack>" at the product price.
+   - `snapshot(rows, ticks, sentLines, opts)` returns an order `{v: 1, id, at, store, days, meals, delivery, wooliesTotal, groups: {ordered, had, pantry, buy}}`. `opts` gives `at` (ISO time), `store` ("woolies" or "coles"), `days` (ISO dates), `meals` (`[{name, serves}]`), `delivery` (text or null), `wooliesTotal` (number or null), `forText(row)` (the "For Tue · Toasty" label) and `product(stockcode)` (`{name, price, perKg}` or null). Each group item is `{name, buy, cost, store, note, for}`; `store` is "woolies", "coles" or null. Amounts for ordered items use the row's own `buy` text and cost when the sent quantity equals the row's quantity; otherwise "<g>g" (by weight) or "<n> pack(s)" at the product price.
    - `isEmpty(rows, sentLines)`: true when there are no rows and nothing in the sent record, so there is nothing to save.
    - `parseOrders(json)` reads the stored list defensively (bad JSON, non-arrays and malformed orders are dropped) and `addOrder(list, order)` puts the new order first and keeps 30.
    - `summaryLine(order)`: "Thu 15 Oct · 23 ordered · $145.43" (`wooliesTotal` when known, else the ordered items' cost with "about").
 2. **Storage.** A new key `weekdayfuel.v1.orders` (JSON array, newest first). Existing keys keep their shape. If writing fails (storage full), the shop is not cleared and Shop shows "Couldn't save the order. Nothing was cleared."
-3. **Shop (`Weekday_Fuel.html`).** The button text and the save on the second tap; the **Past orders** panel; `delivery` and `wooliesTotal` come from the Checkout panel's last result in this session (booked time label and summary total) when there is one, else null.
+3. **Shop (`Weekday_Fuel.html`).** The button text and the save on the second tap; the **Past orders** panel; `delivery` and `wooliesTotal` come from the Checkout panel's last result in this session (booked time label and summary total; kept when the panel is closed with Done) when there is one, else null.
 
 ## Flows
 
