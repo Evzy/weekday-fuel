@@ -809,7 +809,7 @@ function renderTrolley(rows,ticks){
     const added=adds.filter(r=>r.added),failed=adds.filter(r=>!r.added),removed=rms.filter(r=>r.added),stuck=rms.filter(r=>!r.added);
     const siteChanged=failed.every(r=>r.reason==="not available"||String(r.reason||"").startsWith("HTTP 4"));
     if(!added.length&&failed.length)h+=siteChanged?`<div class="hint"><span>Nothing could be added. Woolworths may have changed their website, so the automatic send is out of date. Open each product below to add it yourself.</span></div>`:`<div class="hint"><span>Nothing could be added. Check your connection, then tap Done and send again.</span></div>`;
-    h+=`<div class="small">${adds.length?`<b>Added ${added.length}</b> of ${adds.length}`:""}${adds.length&&rms.length?" · ":""}${rms.length?`<b>Removed ${removed.length}</b> of ${rms.length}`:""}.</div>`;
+    h+=`<div class="small">${adds.length?`<b>Added ${added.length}</b> of ${adds.length}`:""}${adds.length&&rms.length?" · ":""}${rms.length?`<b>Removed ${removed.length}</b> of ${rms.length}`:""}${adds.length||rms.length?"":"Nothing was sent"}.</div>`;
     const lineRow=(r,note)=>{const l=byCode[r.stockcode]||{name:String(r.stockcode)};const f=l.itemId?forLabel(byId[l.itemId]):"";return `<div class="row between"><span class="small grow">${esc(l.name)}${note?` <span class="muted">· ${esc(note)}</span>`:""}${f?`<span class="muted" style="display:block">${esc(f)}</span>`:""}</span>${!r.added&&l.url?`<button class="ghost" data-act="openwoolies" data-v="${esc(l.url)}">Open ↗</button>`:""}</div>`};
     if(added.length)h+=`<div class="eyebrow">In your trolley</div>${added.map(r=>lineRow(r,"")).join("")}`;
     if(removed.length)h+=`<div class="eyebrow">Taken out</div>${removed.map(r=>lineRow(r,"Removed (no longer needed)")).join("")}`;
@@ -839,7 +839,7 @@ function renderShop(){
     const days=S().fixtureDays==null?5:S().fixtureDays;
     h+=`<div class="row between" style="margin-top:4px"><span class="small"><b>Dare + Grenade</b> for how many days?</span><div class="step"><button data-act="fxdays" data-i="-1" ${days?"":"disabled"} aria-label="Fewer days">−</button><span class="num">${days}</span><button data-act="fxdays" data-i="1" aria-label="More days">+</button></div></div></div>`;
     const st=store(),ot=other(st);const rows=CAT.shopList(pk,days,dm);
-    if(!nMeals&&!dm.length&&!rows.length&&!sdays.length&&!lsSent()){h+=`<div class="empty">Pick at least one meal and your list appears here.</div>`;return h;}
+    if(!nMeals&&!dm.length&&!rows.length&&!sdays.length&&!Object.keys((lsSent()||{lines:{}}).lines).length){h+=`<div class="empty">Pick at least one meal and your list appears here.</div>`;return h;}
     const tot={coles:CAT.storeTotals(rows,"coles",ticks),woolies:CAT.storeTotals(rows,"woolies",ticks)};
     h+=`<div class="panel vs">${STORES.map(s=>`<div><span class="small" style="display:block;color:var(--${s});font-weight:700">${STORE_NAME[s]}${tot[s].missed.length?` · ${tot[s].missed.length} missed`:""}</span><b>${money(tot[s].total)}</b></div>`).join("")}</div>`;
     h+=`<div class="row between"><div class="dial" role="group" aria-label="Store" style="grid-template-columns:repeat(2,auto)">${STORES.map(s=>`<button aria-pressed="${st===s}" data-act="store" data-v="${s}">${STORE_NAME[s]}</button>`).join("")}</div><span class="small">Left to buy <b class="num" style="color:var(--good)">${money(tot[st].left)}</b></span></div>`;
