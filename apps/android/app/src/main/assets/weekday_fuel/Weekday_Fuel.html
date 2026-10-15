@@ -356,7 +356,8 @@ const MEAL = Object.fromEntries(MEALS.map(m=>[m.id,m]));
 
 /* Shop data and maths live in catalogue.js; cached live Woolworths prices replace its Woolworths prices */
 const PRICES_KEY="weekdayfuel.v1.prices",COLES_PRICES_KEY="weekdayfuel.v1.colesPrices",LIVE_MAX_AGE=12*3600e3;
-function readPrices(key){try{const c=JSON.parse(localStorage.getItem(key)||"null");return c&&typeof c.at==="string"&&c.prices&&typeof c.prices==="object"?c:null}catch(e){return null}}
+const goodAt=s=>typeof s==="string"&&!isNaN(Date.parse(s));
+function readPrices(key){try{const c=JSON.parse(localStorage.getItem(key)||"null");return c&&goodAt(c.at)&&c.prices&&typeof c.prices==="object"?c:null}catch(e){return null}}
 const livePrices=()=>readPrices(PRICES_KEY),colesPrices=()=>readPrices(COLES_PRICES_KEY);
 function buildCat(){const W=WeekdayFuelCatalogue,lp=livePrices(),cp=colesPrices();let items=W.ITEMS;if(lp)items=W.applyLivePrices(items,lp.prices);if(cp)items=W.applyColesPrices(items,cp.prices);return W.create(items,W.AMOUNTS)}
 let CAT=buildCat();
@@ -583,22 +584,22 @@ function refreshPrices(){
   WeekdayFuelHost.postMessage(JSON.stringify({type:"refreshPrices",stockcodes:WeekdayFuelCatalogue.ITEMS.filter(i=>i.woolies).map(i=>i.woolies.stockcode),colesIds:colesIds()}));
 }
 function maybeRefreshPrices(){
-  const fresh=c=>c&&Date.now()-Date.parse(c.at)<=LIVE_MAX_AGE;
+  const fresh=c=>{if(!c)return false;const a=Date.now()-Date.parse(c.at);return a>=-3600e3&&a<=LIVE_MAX_AGE};
   if(!(fresh(livePrices())&&fresh(colesPrices()))&&!(state.pricesTried&&Date.now()-state.pricesTried<LIVE_MAX_AGE))refreshPrices();
 }
 function onPrices(m){
-  if(m.type==="pricesDone"&&typeof m.at==="string"&&m.prices&&typeof m.prices==="object"){
+  if(m.type==="pricesDone"&&goodAt(m.at)&&m.prices&&typeof m.prices==="object"){
     const old=livePrices();
-    try{localStorage.setItem(PRICES_KEY,JSON.stringify({at:m.at,prices:Object.assign({},old&&old.prices,m.prices)}))}catch(e){}
-    CAT=buildCat();state.prices=null;
+    try{localStorage.setItem(PRICES_KEY,JSON.stringify({at:m.at,prices:Object.assign({},old&&old.prices,m.prices)}));state.prices=null}catch(e){state.prices="error"}
+    CAT=buildCat();
   }else state.prices="error";
 }
 function onColesPrices(m){
-  if(m.type==="colesPricesDone"&&typeof m.at==="string"&&m.prices&&typeof m.prices==="object"){
+  if(m.type==="colesPricesDone"&&goodAt(m.at)&&m.prices&&typeof m.prices==="object"){
     const old=colesPrices(),s=m.store&&typeof m.store==="object"?m.store:{};
     const store={id:typeof s.id==="string"?s.id:null,name:typeof s.name==="string"&&s.name?s.name:null};
-    try{localStorage.setItem(COLES_PRICES_KEY,JSON.stringify({at:m.at,store,prices:Object.assign({},old&&old.prices,m.prices)}))}catch(e){}
-    CAT=buildCat();state.colesPrices=null;
+    try{localStorage.setItem(COLES_PRICES_KEY,JSON.stringify({at:m.at,store,prices:Object.assign({},old&&old.prices,m.prices)}));state.colesPrices=null}catch(e){state.colesPrices="error"}
+    CAT=buildCat();
   }else state.colesPrices="error";
 }
 
