@@ -139,7 +139,9 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 
 /* forms */
 label.f{display:flex;flex-direction:column;gap:4px;font-size:.8rem;font-weight:600;color:var(--muted)}
-input,select{font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:9px 10px;min-width:0;width:100%}
+input,select,textarea{font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:9px 10px;min-width:0;width:100%}
+input[type=radio],input[type=checkbox]{width:auto;padding:0;margin:0 8px 0 0}
+textarea{resize:vertical}
 input.num{font-family:var(--f-num)}
 .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
 
@@ -371,19 +373,50 @@ const forLine=r=>{const t=forLabel(r);return t?`<span class="small muted" style=
 const trolleyBusy=()=>!!state.trolley&&(state.trolley.phase==="adding"||state.trolley.phase==="login");
 const nextShopBtn=()=>trolleyBusy()?"":`<button class="ghost ${state.armed==="nextshop"?"warn":""}" data-act="nextshop">${state.armed==="nextshop"?"Tap again to clear days, meals and ticks":"Start next shop"}</button>`;
 const CO_URL="https://www.woolworths.com.au/checkout",WOOLIES_LOGIN_URL="https://www.woolworths.com.au/shop/securelogin";
-const coBusy=()=>!!state.checkout&&(state.checkout.phase==="loading"||state.checkout.phase==="booking");
-function openCheckout(){state.checkout={phase:"loading",result:null,day:null,bookError:null,message:null,paid:false};WeekdayFuelHost.postMessage(JSON.stringify({type:"checkoutLoad"}))}
+const coBusy=()=>!!state.checkout&&(state.checkout.phase==="loading"||state.checkout.phase==="saving");
+const CO_MSG={book:"checkoutBook",subs:"checkoutSubs",options:"checkoutOptions",address:"checkoutAddress"};
+function openCheckout(){state.checkout={phase:"loading",saving:null,result:null,day:null,errors:{},subsDraft:{},optDraft:null,optSaved:false,message:null,paid:false};WeekdayFuelHost.postMessage(JSON.stringify({type:"checkoutLoad"}))}
+function coSave(kind,fields){const c=state.checkout;if(!c||c.phase!=="ready")return;c.phase="saving";c.saving=kind;c.errors[kind]=null;if(kind==="options")c.optSaved=false;WeekdayFuelHost.postMessage(JSON.stringify(Object.assign({type:CO_MSG[kind]},fields)))}
+function coDefaultDay(r){const bd=r.booked&&r.booked.start?String(r.booked.start).slice(0,10):null,tabs=WeekdayFuelCheckoutView.dayTabs(r.windows);return tabs.some(t=>t.date===bd)?bd:((tabs.find(t=>t.open)||tabs[0]||{}).date||null)}
 function onCheckout(m){
-  const c=state.checkout;if(!c||(c.phase!=="loading"&&c.phase!=="booking"))return;
-  if(m.type==="checkoutError"){if(c.phase==="booking"){c.phase="ready";c.bookError=m.message||"try again"}else{c.phase="error";c.message=m.message||""}return}
+  const c=state.checkout;if(!c||(c.phase!=="loading"&&c.phase!=="saving"))return;
+  if(m.type==="checkoutError"){if(c.phase==="saving"){c.errors[c.saving]=m.message||"try again";c.phase="ready";c.saving=null}else{c.phase="error";c.message=m.message||""}return}
   const r=m.result||{};
-  if(r.action!==(c.phase==="booking"?"book":"load"))return;
-  if(r.loggedOut){c.phase="loggedout";return}
-  if(r.action==="book"){const keep=r.summary&&r.summary.error&&c.result.summary&&!c.result.summary.error;Object.assign(c.result,{method:r.method,booked:r.booked,minimumSpend:r.minimumSpend,trolley:r.trolley,summary:keep?c.result.summary:r.summary});c.bookError=r.bookError||null;c.phase="ready";return}
-  c.result=r;c.bookError=null;c.phase="ready";
-  const bd=r.booked&&r.booked.start?String(r.booked.start).slice(0,10):null,tabs=WeekdayFuelCheckoutView.dayTabs(r.windows);
-  c.day=tabs.some(t=>t.date===bd)?bd:((tabs.find(t=>t.open)||tabs[0]||{}).date||null);
+  if(r.action!==(c.phase==="saving"?c.saving:"load"))return;
+  if(r.loggedOut){c.phase="loggedout";c.saving=null;return}
+  if(c.phase==="saving"){const kind=c.saving,keep=r.summary&&r.summary.error&&c.result.summary&&!c.result.summary.error,err=kind==="book"?r.bookError:r.saveError;
+    ["method","booked","minimumSpend","trolley","windows","options","addresses"].forEach(k=>{if(k in r)c.result[k]=r[k]});
+    if("summary" in r&&!keep)c.result.summary=r.summary;
+    c.errors[kind]=err||null;
+    if(!err){if(kind==="subs")c.subsDraft={};if(kind==="options"){c.optDraft=null;c.optSaved=true}if(kind==="address")c.day=coDefaultDay(c.result)}
+    c.phase="ready";c.saving=null;return}
+  c.result=r;c.errors={};c.phase="ready";c.day=coDefaultDay(r);
 }
+const coErr=(lead,e)=>/^Couldn't/.test(e)?esc(e):`${lead}: ${esc(e)}`;
+function coAddress(c,r){const a=r.addresses;if(!a)return "";if(a.error)return coFail("your addresses",a.error);
+  const rows=WeekdayFuelCheckoutView.addressRows(a),busy=coBusy();if(!rows.length)return "";
+  let h=`<div class="stack"><div class="eyebrow">Deliver to</div>`;
+  if(rows.length===1)h+=`<div class="small">${esc(rows[0].text)}</div>`;
+  else h+=rows.map(x=>`<label class="row small"><input type="radio" name="coaddr" data-act="coaddr" data-v="${esc(x.id)}" ${x.current?"checked":""} ${busy?"disabled":""}>${esc(x.text)}</label>`).join("")+`<div class="small muted">Switching may clear your delivery time.</div>`;
+  if(c.saving==="address")h+=`<div class="small">Switching address…</div>`;
+  if(c.errors.address)h+=`<div class="hint"><span>${coErr("Couldn't switch address",c.errors.address)}</span></div>`;
+  return h+`</div>`}
+function coOptions(c,r){const o=r.options;let h=`<div class="panel stack"><h3>Delivery options</h3>`;
+  if(!o||o.error)return h+coFail("delivery options",o&&o.error)+`</div>`;
+  const d=c.optDraft||o,busy=coBusy();
+  h+=`<label class="f">Note for the driver<textarea id="co-note" rows="3" maxlength="500" ${busy?"disabled":""}>${esc(d.instructions||"")}</textarea></label>`;
+  if(o.offerUnattended)h+=`<label class="row small"><input type="checkbox" id="co-unatt" ${d.leaveUnattended?"checked":""} ${busy?"disabled":""}>Leave unattended</label>`;
+  h+=`<div class="row"><button class="ghost" data-act="cooptsave" ${busy||!c.optDraft?"disabled":""}>Save</button>${c.saving==="options"?`<span class="small">Saving…</span>`:c.optSaved?`<span class="small" style="color:var(--good)">Saved</span>`:""}</div>`;
+  if(c.errors.options)h+=`<div class="hint"><span>${coErr("Couldn't save",c.errors.options)}</span></div>`;
+  return h+`</div>`}
+function coSubs(c,r){const s=r.summary;if(!s||s.error||!Array.isArray(s.items)||!s.items.length)return "";
+  const v=WeekdayFuelCheckoutView.subsView(s.items,c.subsDraft),busy=coBusy(),n=v.changes.length;
+  let h=`<div class="panel stack"><div class="row between"><h3>Substitutions</h3><span class="small muted">${v.allowed} of ${v.choosable} can be substituted</span></div>`;
+  h+=`<div class="row"><button class="ghost" data-act="cosuball" data-v="1" ${busy?"disabled":""}>Allow all</button><button class="ghost" data-act="cosuball" data-v="0" ${busy?"disabled":""}>None</button></div>`;
+  h+=v.rows.map(x=>`<div class="row between"><span class="small grow">${esc(x.name)}</span>${x.fixed?`<span class="small muted">No substitutes</span>`:`<button class="chip" aria-pressed="${x.allow}" data-act="cosub" data-v="${esc(x.stockcode)}" ${busy?"disabled":""}>${x.allow?"Substitute OK":"No substitute"}</button>`}</div>`).join("");
+  h+=`<div class="row"><button class="btn" data-act="cosubsave" ${busy||!n?"disabled":""}>Save${n?` ${n} change${n===1?"":"s"}`:""}</button>${c.saving==="subs"?`<span class="small">Saving…</span>`:""}</div>`;
+  if(c.errors.subs)h+=`<div class="hint"><span>${coErr("Couldn't save substitutions",c.errors.subs)}</span></div>`;
+  return h+`</div>`}
 const coView=()=>`<button class="ghost" data-act="openwoolies" data-v="${CO_URL}" ${coBusy()?"disabled":""}>View on Woolworths</button>`;
 const coFail=(what,err)=>`<div class="small">Couldn't load ${what}.${/^HTTP 4/.test(String(err))?" Woolworths may have changed their website.":""}</div><div class="row">${coView()}</div>`;
 function renderCheckout(){
@@ -401,18 +434,19 @@ function renderCheckout(){
     if(b.failed.length)h+=`<div class="eyebrow">Couldn't boost</div>${b.failed.map(o=>`<div class="small">${esc(o.heading)} <span class="muted">· ${esc(o.description)}${o.reason?` · ${esc(o.reason)}`:""}</span></div>`).join("")}`;
     h+=`<div class="row">${coView()}</div>`}
   h+=`</div><div class="panel stack" id="co-time"><h3>Delivery time</h3>`;
-  const courier=r.method==="Courier",tabsOk=courier&&r.windows&&!r.windows.error;
+  const courier=r.method==="Courier",tabsOk=courier&&r.windows&&!r.windows.error;if(courier)h+=coAddress(c,r);
   if(r.booked&&r.booked.start){const bk=V.bookedLabel(r.booked);h+=`<div class="row between"><span class="small"><b>${esc(bk.when)}</b>${bk.cutOff?`<span class="muted" style="display:block">${esc(bk.cutOff)}</span>`:""}</span>${tabsOk?`<button class="ghost" data-act="cochange">Change</button>`:""}</div>`}
   else h+=`<div class="small">No time booked.</div>`;
-  if(c.bookError)h+=`<div class="hint"><span>${/^Couldn't/.test(c.bookError)?esc(c.bookError):`Couldn't book that time: ${esc(c.bookError)}`}</span></div>`;
+  if(c.errors.book)h+=`<div class="hint"><span>${coErr("Couldn't book that time",c.errors.book)}</span></div>`;
   if(!courier)h+=`<div class="small muted">Change pick-up times on Woolworths.</div><div class="row">${coView()}</div>`;
   else if(!tabsOk)h+=coFail("delivery times",r.windows&&r.windows.error);
   else{const tabs=V.dayTabs(r.windows),day=tabs.find(t=>t.date===c.day)||tabs[0];
     h+=`<div class="chips" role="group" aria-label="Delivery day">${tabs.map(t=>`<button class="chip" aria-pressed="${!!day&&t.date===day.date}" data-act="coday" data-v="${esc(t.date)}">${esc(V.dayLabel(t.date))} <span class="muted">${t.priceRange?esc(t.priceRange):"full"}</span></button>`).join("")}</div>`;
-    if(day)h+=day.open?day.slots.map(s=>{const bk=!!r.booked&&r.booked.id===s.id;return `<div class="row between"><span class="small grow"><b>${esc(s.label)}</b> <span class="num">${esc(V.dollars(s.price))}</span>${s.id===day.cheapestId?` <span style="color:var(--good)">· Cheapest</span>`:""}${s.eco?` <span class="muted">· Eco</span>`:""}</span>${bk?`<span class="small"><b>Booked</b></span>`:s.available?`<button class="ghost" data-act="coslot" data-v="${esc(s.id)}" data-d="${esc(day.date)}" ${c.phase==="booking"?"disabled":""}>Book</button>`:`<span class="small muted">Full</span>`}</div>`}).join(""):`<div class="small muted">${esc(day.closedText||"No times left this day.")}</div>`;
-    if(c.phase==="booking")h+=`<div class="small">Booking…</div>`;
+    if(day)h+=day.open?day.slots.map(s=>{const bk=!!r.booked&&r.booked.id===s.id;return `<div class="row between"><span class="small grow"><b>${esc(s.label)}</b> <span class="num">${esc(V.dollars(s.price))}</span>${s.id===day.cheapestId?` <span style="color:var(--good)">· Cheapest</span>`:""}${s.eco?` <span class="muted">· Eco</span>`:""}</span>${bk?`<span class="small"><b>Booked</b></span>`:s.available?`<button class="ghost" data-act="coslot" data-v="${esc(s.id)}" data-d="${esc(day.date)}" ${coBusy()?"disabled":""}>Book</button>`:`<span class="small muted">Full</span>`}</div>`}).join(""):`<div class="small muted">${esc(day.closedText||"No times left this day.")}</div>`;
+    if(c.saving==="book")h+=`<div class="small">Booking…</div>`;
     h+=`<div class="row">${coView()}</div>`}
-  h+=`</div><div class="panel stack"><h3>Order summary</h3>`;
+  h+=`</div>`;if(courier)h+=coOptions(c,r)+coSubs(c,r);
+  h+=`<div class="panel stack"><h3>Order summary</h3>`;
   if(!r.summary||r.summary.error)h+=coFail("the order summary",r.summary&&r.summary.error);
   else{const s=r.summary;
     h+=V.summaryLines(s).map(l=>`<div class="row between"><span class="small">${l.strong?`<b>${esc(l.label)}</b>`:esc(l.label)}${l.note?` <span class="muted">· ${esc(l.note)}</span>`:""}</span><span class="num small">${l.strong?`<b>${esc(l.value)}</b>`:esc(l.value)}</span></div>`).join("");
@@ -1000,7 +1034,12 @@ document.addEventListener("click",e=>{
     case "cotry":if(!coBusy())openCheckout();break;
     case "coday":if(state.checkout)state.checkout.day=v;break;
     case "cochange":{const c=state.checkout;if(c&&c.result&&c.result.booked)c.day=String(c.result.booked.start).slice(0,10);render();const t=document.getElementById("co-time");if(t)t.scrollIntoView({block:"start"});return}
-    case "coslot":{const c=state.checkout;if(!c||c.phase!=="ready")break;c.phase="booking";c.bookError=null;WeekdayFuelHost.postMessage(JSON.stringify({type:"checkoutBook",timeslotId:+v,windowDate:el.dataset.d}));break}
+    case "coslot":coSave("book",{timeslotId:+v,windowDate:el.dataset.d});break;
+    case "coaddr":{const c=state.checkout;if(!c||c.phase!=="ready"||!c.result.addresses||+v===c.result.addresses.current)break;coSave("address",{addressId:+v});break}
+    case "cosub":{const c=state.checkout;if(!c||c.phase!=="ready")break;const it=((c.result.summary&&c.result.summary.items)||[]).find(i=>String(i.stockcode)===v);if(!it||it.fixed)break;const shown=v in c.subsDraft?c.subsDraft[v]:it.allow;if(!shown===it.allow)delete c.subsDraft[v];else c.subsDraft[v]=!shown;break}
+    case "cosuball":{const c=state.checkout;if(!c||c.phase!=="ready")break;c.subsDraft=WeekdayFuelCheckoutView.allDraft((c.result.summary&&c.result.summary.items)||[],v==="1");break}
+    case "cosubsave":{const c=state.checkout;if(!c||c.phase!=="ready")break;const ch=WeekdayFuelCheckoutView.subsView((c.result.summary&&c.result.summary.items)||[],c.subsDraft).changes;if(ch.length)coSave("subs",{items:ch});break}
+    case "cooptsave":{const c=state.checkout;if(!c||c.phase!=="ready"||!c.optDraft)break;coSave("options",{instructions:c.optDraft.instructions,leaveUnattended:!!c.optDraft.leaveUnattended});break}
     case "copay":if(coBusy())break;if(state.checkout)state.checkout.paid=true;if(state.trolley)state.trolley.checkedOut=true;WeekdayFuelHost.postMessage(JSON.stringify({type:"openWoolworths",url:CO_URL}));break;
     case "codone":state.checkout=null;break;
     case "openwoolies":if(coBusy())return;WeekdayFuelHost.postMessage(JSON.stringify({type:"openWoolworths",url:v}));return;
@@ -1028,6 +1067,12 @@ document.addEventListener("change",e=>{
   const path=el.dataset.set.split(".");let o=state.settings;
   for(let j=0;j<path.length-1;j++)o=o[path[j]];
   o[path[path.length-1]]=val;saveSettings();render();
+});
+document.addEventListener("input",e=>{
+  const c=state.checkout,el=e.target;if(!c||!c.result||(el.id!=="co-note"&&el.id!=="co-unatt"))return;
+  const o=c.result.options||{},d=c.optDraft||(c.optDraft={instructions:o.instructions||"",leaveUnattended:!!o.leaveUnattended});
+  if(el.id==="co-note")d.instructions=el.value;else d.leaveUnattended=el.checked;
+  c.optSaved=false;const b=document.querySelector('[data-act="cooptsave"]');if(b&&!coBusy())b.disabled=false;
 });
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&state.sheet){state.sheet=null;render()}});
 
