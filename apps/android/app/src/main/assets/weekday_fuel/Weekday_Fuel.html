@@ -114,6 +114,7 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .dial button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.12)}
 .ghost{background:none;border:1px solid var(--line);border-radius:9px;padding:5px 10px;font-size:.78rem;font-weight:600;color:var(--muted)}
 .ghost.warn{color:var(--bad);border-color:var(--bad)}
+.ghost[aria-pressed="true"]{color:var(--good);border-color:var(--good)}
 .btn{border:0;border-radius:10px;padding:10px 14px;font-weight:700;background:var(--accent);color:var(--on-accent)}
 .btn.alt{background:var(--sunk);color:var(--ink)}
 .btn:disabled{opacity:.5;cursor:default}
@@ -359,6 +360,14 @@ const STORE_NAME={coles:"Coles",woolies:"Woolworths"};
 const store=()=>S().store==="coles"?"coles":"woolies";
 const other=s=>s==="coles"?"woolies":"coles";
 const fxDays=()=>S().fixtureDays==null?5:S().fixtureDays;
+/* Planned days in the shop: settings.shopDays {date:true}; a day's meal with shop:false is left out */
+const shopDays=()=>{const sd=S().shopDays||{};return Object.keys(sd).filter(d=>sd[d]).sort()};
+function dayMeals(){return shopDays().flatMap(d=>((state.days[d]&&state.days[d].meals)||[]).filter(m=>m.shop!==false).map(m=>({day:d,meal:m.id})))}
+function shopRows(){return CAT.shopList(picks(),fxDays(),dayMeals())}
+const dayShort=d=>parse(d).toLocaleDateString("en-AU",{weekday:"short",day:"numeric"});
+function forLabel(r){if(!r||!r.used||!r.used.length)return "";return "For "+(r.days&&r.days.length?r.days.map(dayShort).join(", ")+" · ":"")+r.used.map(m=>MEAL[m]?MEAL[m].name:m).join(", ")}
+const forLine=r=>{const t=forLabel(r);return t?`<span class="small muted" style="display:block">${esc(t)}</span>`:""};
+const nextShopBtn=()=>`<button class="ghost ${state.armed==="nextshop"?"warn":""}" data-act="nextshop">${state.armed==="nextshop"?"Tap again to clear days, meals and ticks":"Start next shop"}</button>`;
 const SECTIONS=[
  ["Your daily fixtures","Bulk-buy these when they're half price. They keep at room temperature until opened."],
  ["Weekly top-up","Sunday batch: put 1kg of chicken breast on a lined tray, season it, and bake at 200°C for 20–25 min (15 if butterflied). Slice it once it's cool. That gives about 750g cooked, which covers 5 meals. Freeze the rest of the raw chicken and the mince in single portions."],
@@ -422,6 +431,7 @@ const DEFAULT_SETTINGS={
   shopMode:"build",
   store:"woolies",
   trial:{},
+  shopDays:{},
   fixtureDays:5,
   fixtures:{
     dare:{name:"Dare Protein iced coffee",sub:"No added sugar · 500ml",k:296,p:30,c:26,f:8,cost:5.5},
@@ -455,6 +465,10 @@ function lsGet(){try{return JSON.parse(localStorage.getItem(LS)||"null")}catch(e
 function lsSave(){try{localStorage.setItem(LS,JSON.stringify({settings:state.settings,days:state.days,weights:state.weights}))}catch(e){}}
 function lsTicks(){try{return JSON.parse(localStorage.getItem(LS+".shop")||"{}")}catch(e){return {}}}
 function lsSetTicks(t){try{localStorage.setItem(LS+".shop",JSON.stringify(t))}catch(e){}}
+/* Last trolley send: {at, fingerprint, lines: {stockcode: quantity now in the trolley}} */
+const SENT=LS+".sent";
+function lsSent(){try{const s=JSON.parse(localStorage.getItem(SENT)||"null");return s&&typeof s.fingerprint==="string"&&s.lines&&typeof s.lines==="object"?s:null}catch(e){return null}}
+function lsSetSent(s){try{s?localStorage.setItem(SENT,JSON.stringify(s)):localStorage.removeItem(SENT)}catch(e){}}
 /* state.prices: null, "busy" or "error" */
 function refreshPrices(){
   if(!window.WeekdayFuelHost||state.prices==="busy")return;
@@ -550,7 +564,7 @@ function swapMeal(date,idx){
   const kind=m.slot==="breakfast"?"breakfast":m.slot==="snack"?"snack":"main";
   const avoid=new Set(day.meals.map(x=>x.id));recentIds(date,1).forEach(x=>avoid.add(x));
   const n=randomPick(MEALS.filter(x=>x.slots.includes(kind)),avoid);
-  day.meals[idx]={id:n.id,slot:m.slot,t:m.t};saveDay(date);
+  day.meals[idx]=Object.assign({},m,{id:n.id});saveDay(date);
 }
 
 /* weight analytics */
@@ -617,13 +631,15 @@ function renderToday(){
   h+=`<div class="stack" style="gap:8px"><div class="eyebrow">Fixtures</div><div class="fx">${Object.keys(fx).map(k=>`<button class="fxb" aria-pressed="${!!(day.fx&&day.fx[k])}" data-act="fx" data-v="${k}"><span class="tick">${ICON.check}</span><span class="grow"><b>${esc(fx[k].name)}</b><span class="small muted num">${fx[k].p}g protein · ${fx[k].k} kcal</span></span></button>`).join("")}</div></div>`;
   // meals
   h+=`<div class="panel"><div class="row between" style="margin-bottom:8px"><h2>Meals</h2><div class="row" style="gap:6px">${day.meals&&day.meals.length?`<button class="ghost" data-act="fit">Fit portions to target</button>`:""}<button class="ghost" data-act="suggest">${day.meals&&day.meals.length?"New suggestion":"Suggest a day"}</button></div></div>`;
+  const inShop=!!(S().shopDays&&S().shopDays[date]);
+  if((day.meals&&day.meals.length)||inShop)h+=`<div class="row between" style="margin-bottom:8px">${inShop?`<span class="small"><b>In this shop.</b> Tap a meal's In shop to leave it out.</span><button class="ghost" data-act="shopday">Remove from shop</button>`:`<span class="small muted">Buy this day's meals with your next shop.</span><button class="btn alt" data-act="shopday">Add day to shop</button>`}</div>`;
   if(!day.meals||!day.meals.length){
     h+=`<div class="empty stack" style="gap:10px"><div>No meals planned yet. Tap <b>Suggest a day</b> for a breakfast, lunch and dinner sized to fit around your fixtures, or add meals one at a time.</div><div><button class="btn" data-act="suggest">Suggest a day</button></div></div>`;
   } else {
     h+=`<div>`+day.meals.map((m,i)=>{const meal=MEAL[m.id];if(!meal)return"";const v=meal.t[m.t];
       return `<div class="meal"><div class="grow"><div class="slot">${esc(m.slot)}${meal.remake?` · <span class="tag remake">Remake</span>`:""}</div><button class="name" data-act="recipe" data-v="${meal.id}">${esc(meal.name)}</button><div class="what">${esc(meal.core)} · ${esc(v.what)}</div></div>
       <div class="kp">${v.k} kcal<br><span style="color:var(--yolk)">${v.p}g P</span></div>
-      <div class="acts"><div class="dial" role="group" aria-label="Portion">${TIERS.map(([k,l])=>`<button aria-pressed="${m.t===k}" data-act="tier" data-i="${i}" data-v="${k}">${l}</button>`).join("")}</div><button class="ghost" data-act="swap" data-i="${i}">Swap</button><button class="ghost ${state.armed==="rm"+i?"warn":""}" data-act="rm" data-i="${i}">${state.armed==="rm"+i?"Tap to remove":"Remove"}</button></div></div>`}).join("")+`</div>`;
+      <div class="acts"><div class="dial" role="group" aria-label="Portion">${TIERS.map(([k,l])=>`<button aria-pressed="${m.t===k}" data-act="tier" data-i="${i}" data-v="${k}">${l}</button>`).join("")}</div><button class="ghost" data-act="swap" data-i="${i}">Swap</button>${inShop?`<button class="ghost" aria-pressed="${m.shop!==false}" data-act="mealshop" data-i="${i}">${m.shop!==false?"In shop":"Not in shop"}</button>`:""}<button class="ghost ${state.armed==="rm"+i?"warn":""}" data-act="rm" data-i="${i}">${state.armed==="rm"+i?"Tap to remove":"Remove"}</button></div></div>`}).join("")+`</div>`;
   }
   // add
   h+=`<div class="row" style="margin-top:12px;gap:6px">${["breakfast","lunch","dinner","snack"].map(s=>`<button class="chip" aria-pressed="${state.adding===s}" data-act="adding" data-v="${s}">+ ${s}</button>`).join("")}</div>`;
@@ -779,28 +795,31 @@ function renderShop(){
   h+=`<div class="dial" role="group" aria-label="List type" style="align-self:flex-start"><button aria-pressed="${build}" data-act="shopmode" data-v="build">Build a shop</button><button aria-pressed="${!build}" data-act="shopmode" data-v="all">Full list</button></div>`;
   if(build){
     const pk=picks();const nMeals=Object.values(pk).reduce((a,b)=>a+(b||0),0);
+    const sdays=shopDays(),dm=dayMeals();
+    if(sdays.length)h+=`<div class="panel stack"><h3>Days in this shop</h3>${sdays.map(d=>{const ms=((state.days[d]&&state.days[d].meals)||[]).filter(m=>m.shop!==false&&MEAL[m.id]);return `<div class="row between"><button class="pname" data-act="openday" data-v="${d}"><b>${fmtDay(d)}</b><span class="small muted">${ms.length?ms.map(m=>esc(MEAL[m.id].name)).join(", "):"no meals planned"}</span></button><button class="ghost" data-act="unshopday" data-v="${d}">Remove</button></div>`}).join("")}</div>`;
+    else h+=`<div class="small muted">Planning days on Today? Tap <b>Add day to shop</b> there and that day's meals join this list.</div>`;
     h+=`<div class="panel stack"><div class="row between"><h3>1. Pick meals and serves</h3>${nMeals?`<button class="ghost" data-act="clearpicks">Clear</button>`:""}</div>`;
-    if(!nMeals)h+=`<div class="hint"><span>Not sure where to start? The <b>starter shop</b> picks 4 meals that share most of their ingredients (toasty, chicken wraps, burrito bowl, buffalo mac), 2 serves each, so you buy fewer things.</span></div><div><button class="btn" data-act="starter">Use the starter shop</button></div>`;
+    if(!nMeals&&!dm.length)h+=`<div class="hint"><span>Not sure where to start? The <b>starter shop</b> picks 4 meals that share most of their ingredients (toasty, chicken wraps, burrito bowl, buffalo mac), 2 serves each, so you buy fewer things.</span></div><div><button class="btn" data-act="starter">Use the starter shop</button></div>`;
     const groups=[["Breakfast",m=>m.slots.includes("breakfast")],["Lunch & dinner",m=>m.slots.includes("main")],["Snack",m=>m.slots.includes("snack")&&!m.slots.includes("breakfast")]];
     groups.forEach(([g,f])=>{
       h+=`<div class="eyebrow" style="margin-top:4px">${g}</div><div class="picks">${MEALS.filter(f).map(m=>{const n=pk[m.id]||0;return `<div class="pickrow ${n?"on":""}"><button class="pname" data-act="recipe" data-v="${m.id}"><b>${esc(m.name)}</b><span class="small muted num">${m.t.S.k} kcal · ${m.t.S.p}g P · ${money(mealCosts(m).S)}</span></button><div class="step" role="group" aria-label="Serves of ${esc(m.name)}"><button data-act="serve" data-v="${m.id}" data-i="-1" aria-label="Fewer" ${n?"":"disabled"}>−</button><span class="num">${n}</span><button data-act="serve" data-v="${m.id}" data-i="1" aria-label="More">+</button></div></div>`}).join("")}</div>`;
     });
     const days=S().fixtureDays==null?5:S().fixtureDays;
     h+=`<div class="row between" style="margin-top:4px"><span class="small"><b>Dare + Grenade</b> for how many days?</span><div class="step"><button data-act="fxdays" data-i="-1" ${days?"":"disabled"} aria-label="Fewer days">−</button><span class="num">${days}</span><button data-act="fxdays" data-i="1" aria-label="More days">+</button></div></div></div>`;
-    const st=store(),ot=other(st);const rows=CAT.shopList(pk,days);
-    if(!nMeals&&!rows.length){h+=`<div class="empty">Pick at least one meal and your list appears here.</div>`;return h;}
+    const st=store(),ot=other(st);const rows=CAT.shopList(pk,days,dm);
+    if(!nMeals&&!dm.length&&!rows.length){h+=`<div class="empty">Pick at least one meal and your list appears here.</div>`;return h;}
     const tot={coles:CAT.storeTotals(rows,"coles",ticks),woolies:CAT.storeTotals(rows,"woolies",ticks)};
     h+=`<div class="panel vs">${STORES.map(s=>`<div><span class="small" style="display:block;color:var(--${s});font-weight:700">${STORE_NAME[s]}${tot[s].missed.length?` · ${tot[s].missed.length} missed`:""}</span><b>${money(tot[s].total)}</b></div>`).join("")}</div>`;
     h+=`<div class="row between"><div class="dial" role="group" aria-label="Store" style="grid-template-columns:repeat(2,auto)">${STORES.map(s=>`<button aria-pressed="${st===s}" data-act="store" data-v="${s}">${STORE_NAME[s]}</button>`).join("")}</div><span class="small">Left to buy <b class="num" style="color:var(--good)">${money(tot[st].left)}</b></span></div>`;
-    h+=`<div class="small muted">${nMeals} serve${nMeals===1?"":"s"} · ${rows.length} items. Tick things off as they go in the trolley, or tick pantry items you already have at home. Prices use whole packs, so the first shop costs more than the per-serve cost. ${priceLabel()}</div>`;
+    h+=`<div class="small muted">${nMeals+dm.length} serve${nMeals+dm.length===1?"":"s"} · ${rows.length} items. Tick things off as they go in the trolley, or tick pantry items you already have at home. Prices use whole packs, so the first shop costs more than the per-serve cost. ${priceLabel()}</div>`;
     [["Fixtures",0],["Fresh",1],["Pantry & freezer (check what you already have)",2]].forEach(([t,sec])=>{
       const rs=rows.filter(r=>r.sec===sec&&r[st]);if(!rs.length)return;
-      h+=`<div class="panel shopsec"><h3 style="margin-bottom:4px">${t}</h3>${rs.map(r=>itemRow(CAT.item(r.id),{coles:r.coles&&r.coles.cost,woolies:r.woolies&&r.woolies.cost},`<span class="buy small"><b>Buy:</b> ${esc(r[st].buy)} <span class="muted">· need ${esc(needLabel(r))}</span></span>`,{coles:r.coles&&r.coles.product,woolies:r.woolies&&r.woolies.product})).join("")}</div>`;
+      h+=`<div class="panel shopsec"><h3 style="margin-bottom:4px">${t}</h3>${rs.map(r=>itemRow(CAT.item(r.id),{coles:r.coles&&r.coles.cost,woolies:r.woolies&&r.woolies.cost},`<span class="buy small"><b>Buy:</b> ${esc(r[st].buy)} <span class="muted">· need ${esc(needLabel(r))}</span></span>${forLine(r)}`,{coles:r.coles&&r.coles.product,woolies:r.woolies&&r.woolies.product})).join("")}</div>`;
     });
     const miss=rows.filter(r=>!r[st]);
-    if(miss.length)h+=`<div class="panel stack"><h3>Missed at ${STORE_NAME[st]}</h3><div class="small muted">${STORE_NAME[st]} doesn't ${miss.some(r=>r.wooliesUnavailable)&&st==="woolies"?"have these online right now":"sell these"}. Get them at ${STORE_NAME[ot]}.</div>${miss.map(r=>{const o=r[ot];return `<div class="row between"><span class="small">${esc(o?o.product.name:r.name)}${st==="woolies"&&r.wooliesUnavailable?` <span class="muted">· instead of ${esc(r.wooliesUnavailable.name)}, unavailable online now</span>`:""}${o?` <span class="muted">· ${esc(o.buy)}</span>`:""}</span>${o?`<span class="num small" style="color:var(--${ot})">${money(o.cost)}</span>`:""}</div>`}).join("")}</div>`;
+    if(miss.length)h+=`<div class="panel stack"><h3>Missed at ${STORE_NAME[st]}</h3><div class="small muted">${STORE_NAME[st]} doesn't ${miss.some(r=>r.wooliesUnavailable)&&st==="woolies"?"have these online right now":"sell these"}. Get them at ${STORE_NAME[ot]}.</div>${miss.map(r=>{const o=r[ot];return `<div class="row between"><span class="small">${esc(o?o.product.name:r.name)}${st==="woolies"&&r.wooliesUnavailable?` <span class="muted">· instead of ${esc(r.wooliesUnavailable.name)}, unavailable online now</span>`:""}${o?` <span class="muted">· ${esc(o.buy)}</span>`:""}${forLine(r)}</span>${o?`<span class="num small" style="color:var(--${ot})">${money(o.cost)}</span>`:""}</div>`}).join("")}</div>`;
     if(st==="woolies")h+=renderTrolley(rows,ticks);
-    h+=`<div class="row"><button class="ghost" data-act="untickall">Clear ticks for next shop</button></div>`;
+    h+=`<div class="row"><button class="ghost" data-act="untickall">Clear ticks</button>${nextShopBtn()}</div>`;
     return h;
   }
   const items=CAT.ITEMS;
@@ -844,7 +863,7 @@ document.addEventListener("click",e=>{
   const el=e.target.closest("[data-act]");if(!el)return;
   const act=el.dataset.act,v=el.dataset.v,i=+el.dataset.i;
   if(act==="close"&&el.classList.contains("scrim")&&e.target!==el)return;
-  if(act!=="rm"&&act!=="rmw")state.armed=null;
+  if(act!=="rm"&&act!=="rmw"&&act!=="nextshop")state.armed=null;
   const date=state.date;
   switch(act){
     case "tab":state.tab=v;state.adding=null;window.scrollTo(0,0);if(v==="shop")maybeRefreshPrices();break;
@@ -857,6 +876,11 @@ document.addEventListener("click",e=>{
     case "fit":{const d=ensureDay(date);fitTiers(d);saveDay(date);break}
     case "tier":{const d=ensureDay(date);d.meals[i].t=v;saveDay(date);break}
     case "swap":swapMeal(date,i);break;
+    case "shopday":{const sd=state.settings.shopDays=Object.assign({},S().shopDays);if(sd[date])delete sd[date];else{sd[date]=true;const d=ensureDay(date);(d.meals||[]).forEach(m=>delete m.shop);saveDay(date)}saveSettings();break}
+    case "mealshop":{const d=ensureDay(date);const m=d.meals[i];if(m.shop===false)delete m.shop;else m.shop=false;saveDay(date);break}
+    case "unshopday":{const sd=state.settings.shopDays=Object.assign({},S().shopDays);delete sd[v];saveSettings();break}
+    case "openday":state.tab="today";state.date=v;state.adding=null;window.scrollTo(0,0);break;
+    case "nextshop":if(state.armed!=="nextshop"){state.armed="nextshop";break}state.armed=null;state.settings.shopDays={};state.settings.trial={};saveSettings();lsSetTicks({});lsSetSent(null);state.trolley=null;break;
     case "rm":{if(state.armed==="rm"+i){const d=ensureDay(date);d.meals.splice(i,1);saveDay(date);state.armed=null}else state.armed="rm"+i;break}
     case "adding":state.adding=state.adding===v?null:v;break;
     case "add":{const d=ensureDay(date);d.meals=d.meals||[];d.meals.push({id:v,slot:state.adding,t:"S"});state.adding=null;saveDay(date);break}
@@ -877,7 +901,7 @@ document.addEventListener("click",e=>{
     case "serve":{const pk=picks();const n=Math.max(0,Math.min(10,(pk[v]||0)+i));if(n)pk[v]=n;else delete pk[v];state.settings.trial=pk;saveSettings();break}
     case "starter":state.settings.trial=clone(STARTER);saveSettings();break;
     case "clearpicks":state.settings.trial={};saveSettings();break;
-    case "sendtrolley":{const c=WeekdayFuelCart.cartLines(CAT.shopList(picks(),fxDays()),lsTicks());if(!c.lines.length)break;state.trolley={phase:"adding",completed:0,total:c.lines.length,lines:c.lines,manual:c.manual};WeekdayFuelHost.postMessage(JSON.stringify({type:"sendTrolley",lines:c.lines}));break}
+    case "sendtrolley":{const c=WeekdayFuelCart.cartLines(shopRows(),lsTicks());if(!c.lines.length)break;state.trolley={phase:"adding",completed:0,total:c.lines.length,lines:c.lines,manual:c.manual};WeekdayFuelHost.postMessage(JSON.stringify({type:"sendTrolley",lines:c.lines}));break}
     case "trolleyreset":state.trolley=null;break;
     case "checkout":WeekdayFuelHost.postMessage(JSON.stringify({type:"checkout"}));return;
     case "openwoolies":WeekdayFuelHost.postMessage(JSON.stringify({type:"openWoolworths",url:v}));return;
