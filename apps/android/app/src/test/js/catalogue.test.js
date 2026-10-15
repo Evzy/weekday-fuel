@@ -67,6 +67,11 @@ test("the small chicken pack is used while the need fits it (plus 50 g)", () => 
   assert.deepEqual([small.product.name, small.quantity, small.cost, small.buy], ["Coles Chicken Breast Small", 1, 7.2, "1 × 600g"]);
   const large = byId(cat.shopList({ tenderwrap: 4 }, 0)).breast.coles;
   assert.deepEqual([large.product.name, large.quantity, large.cost], ["Coles Chicken Breast Large", 1, 16.8]);
+  const slackCat = create(ITEMS, { m650: { breast: 650 }, m651: { breast: 651 } });
+  const at650 = byId(slackCat.shopList({ m650: 1 }, 0)).breast.coles;
+  assert.deepEqual([at650.product.name, at650.quantity, at650.cost, at650.buy], ["Coles Chicken Breast Small", 1, 7.2, "1 × 600g"]);
+  const at651 = byId(slackCat.shopList({ m651: 1 }, 0)).breast.coles;
+  assert.deepEqual([at651.product.name, at651.quantity, at651.cost], ["Coles Chicken Breast Large", 1, 16.8]);
 });
 
 test("deli ham is bought by weight, rounded up to 100 g", () => {

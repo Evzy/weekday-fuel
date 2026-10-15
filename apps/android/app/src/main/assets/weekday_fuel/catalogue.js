@@ -26,8 +26,9 @@
       var grams = deliGrams(need);
       return { product: product, quantity: grams / 1000, cost: round2((grams / 1000) * product.price), buy: grams + "g from the deli" };
     }
-    var chosen = product.small && need <= product.small.size + SMALL_PACK_SLACK ? product.small : product;
-    var packs = Math.max(1, Math.ceil(need / chosen.size - 1e-9));
+    var useSmall = product.small && need <= product.small.size + SMALL_PACK_SLACK;
+    var chosen = useSmall ? product.small : product;
+    var packs = useSmall ? 1 : Math.max(1, Math.ceil(need / chosen.size - 1e-9));
     return {
       product: chosen,
       quantity: packs,
