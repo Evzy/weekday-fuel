@@ -132,3 +132,11 @@ test("summaryLine gives the date, how many were ordered and the total", () => {
   assert.equal(O.summaryLine({ ...o, wooliesTotal: null }), "Thu 15 Oct · 2 ordered · about $9.60");
   assert.equal(O.summaryLine(O.snapshot([rice], {}, {}, OPTS)), "Thu 15 Oct · nothing ordered");
 });
+
+test("in a Coles shop an item unavailable online at Coles is noted", () => {
+  const gone = ROW("milk", 1, LINE(P(200, "Milk 2L", 3.1), 1, 3.1, "1 bottle"), null, { colesUnavailable: { name: "Coles milk", price: 3 } });
+  const o = O.snapshot([gone], {}, {}, { at: OPTS.at, store: "coles" });
+  assert.deepEqual(o.groups.buy, [item("Milk 2L", "1 bottle", 3.1, "woolies", "unavailable online at Coles", "")]);
+  const w = O.snapshot([gone], {}, {}, { at: OPTS.at, store: "woolies" });
+  assert.deepEqual(w.groups.buy, [item("Milk 2L", "1 bottle", 3.1, "woolies", null, "")]);
+});

@@ -1,25 +1,25 @@
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
-const { create, deliGrams, applyLivePrices } = require("../../main/assets/weekday_fuel/catalogue.js");
+const { create, deliGrams, applyLivePrices, applyColesPrices, colesId } = require("../../main/assets/weekday_fuel/catalogue.js");
 
 const W = "https://www.woolworths.com.au/shop/productdetails/";
 const C = "https://www.coles.com.au/product/";
 const ITEMS = [
   { id: "dare", sec: 0, name: "Dare iced coffee", unit: "bottles", note: "", same: true,
-    coles: { name: "Dare Double Espresso 500mL", url: C + "dare-1", size: 1, price: 5.5, checked: "2026-10-15" },
+    coles: { name: "Dare Double Espresso 500mL", url: C + "dare-8991361", size: 1, price: 5.5, checked: "2026-10-15" },
     woolies: { name: "Dare Double Espresso 500mL", url: W + "72280", stockcode: 72280, size: 1, price: 5, checked: "2026-10-15" } },
   { id: "breast", sec: 1, name: "Chicken breast", unit: "g", note: "", same: false,
-    coles: { name: "Coles Chicken Breast Large", url: C + "breast-large-2", size: 1400, price: 16.8, checked: "2026-10-12",
-      small: { name: "Coles Chicken Breast Small", url: C + "breast-small-3", size: 600, price: 7.2, checked: "2026-10-12" } },
+    coles: { name: "Coles Chicken Breast Large", url: C + "breast-large-2263179", size: 1400, price: 16.8, checked: "2026-10-12",
+      small: { name: "Coles Chicken Breast Small", url: C + "breast-small-2263168", size: 600, price: 7.2, checked: "2026-10-12" } },
     woolies: { name: "Woolworths Chicken Breast 1kg", url: W + "123456", stockcode: 123456, size: 1000, price: 13, checked: "2026-10-15" } },
   { id: "ham", sec: 1, name: "Shaved ham", unit: "g", note: "", same: false,
     coles: null,
     woolies: { name: "D'Orsogna Ham Shaved From The Deli", url: W + "175734", stockcode: 175734, perKg: true, size: 1, price: 28, checked: "2026-10-15" } },
   { id: "cheese", sec: 1, name: "Light tasty cheese", unit: "g", note: "", same: false,
-    coles: { name: "Coles Light Tasty 500g", url: C + "cheese-4", size: 500, price: 7.5, checked: "2026-10-14" },
+    coles: { name: "Coles Light Tasty 500g", url: C + "cheese-8145346", size: 500, price: 7.5, checked: "2026-10-14" },
     woolies: { name: "Woolworths Light Tasty 500g", url: W + "729008", stockcode: 729008, size: 500, price: 9, checked: "2026-10-15" } },
   { id: "evap", sec: 2, name: "Evaporated milk", unit: "mL", note: "", same: false,
-    coles: { name: "Carnation Light Evaporated Milk 375mL", url: C + "evap-5", size: 375, price: 2.5, checked: "2026-10-14" },
+    coles: { name: "Carnation Light Evaporated Milk 375mL", url: C + "evap-1234567", size: 375, price: 2.5, checked: "2026-10-14" },
     woolies: null },
 ];
 const AMOUNTS = {
@@ -181,4 +181,72 @@ test("no planned days leaves the list as it was, with empty days", () => {
 
 test("an unknown meal in a planned day adds nothing", () => {
   assert.deepEqual(cat.shopList({}, 0, [{ day: "2026-10-19", meal: "nope" }]), []);
+});
+
+test("colesId is the 4 to 7 digit number at the end of a Coles product URL", () => {
+  assert.equal(colesId({ url: C + "dare-8991361" }), "8991361");
+  assert.equal(colesId({ url: C + "abbott's-bakery-farmhouse-wholemeal-bread-750g-7226034" }), "7226034");
+  assert.equal(colesId({ url: C + "dare" }), null);
+  assert.equal(colesId({ url: C + "x-12" }), null);
+  assert.equal(colesId({}), null);
+  assert.equal(colesId(null), null);
+});
+
+test("live Coles prices replace catalogue prices, with was-prices for specials", () => {
+  const live = applyColesPrices(ITEMS, {
+    8145346: { price: 6, was: 7.5, special: true, available: true },
+    8991361: { price: 5.5, was: 5.5, special: false, available: true },
+  });
+  const cheese = live.find((i) => i.id === "cheese");
+  assert.deepEqual([cheese.coles.price, cheese.coles.was, cheese.coles.live, cheese.coles.name], [6, 7.5, true, "Coles Light Tasty 500g"]);
+  assert.equal(cheese.woolies, ITEMS[3].woolies);
+  assert.equal(ITEMS[3].coles.price, 7.5);
+  assert.equal(live.find((i) => i.id === "dare").coles.was, null);
+  assert.equal(live.find((i) => i.id === "evap"), ITEMS[4]);
+  assert.equal(live.find((i) => i.id === "ham"), ITEMS[2]);
+  assert.equal(byId(create(live, AMOUNTS).shopList({ toasty: 1 }, 0)).cheese.coles.cost, 6);
+});
+
+test("no Coles prices, a product left out, or no price keeps the catalogue item", () => {
+  assert.deepEqual(applyColesPrices(ITEMS, null), ITEMS);
+  const live = applyColesPrices(ITEMS, { 8145346: { price: null, was: null, special: false, available: true } });
+  assert.equal(live.find((i) => i.id === "cheese"), ITEMS[3]);
+  assert.equal(live.find((i) => i.id === "breast"), ITEMS[1]);
+});
+
+test("a Coles product unavailable online counts as missed at Coles", () => {
+  const live = applyColesPrices(ITEMS, { 8145346: { price: 7.5, was: null, special: false, available: false } });
+  const cheese = live.find((i) => i.id === "cheese");
+  assert.equal(cheese.coles, null);
+  assert.equal(cheese.colesUnavailable.name, "Coles Light Tasty 500g");
+  const c = create(live, AMOUNTS);
+  const rows = c.shopList({ toasty: 1 }, 0);
+  assert.equal(byId(rows).cheese.coles, null);
+  assert.equal(byId(rows).cheese.colesUnavailable.name, "Coles Light Tasty 500g");
+  assert.equal(byId(rows).ham.colesUnavailable, null);
+  assert.deepEqual(c.storeTotals(rows, "coles", {}).missed, ["ham", "cheese"]);
+});
+
+test("an unavailable large Coles pack falls back to the small pack, and an unavailable small pack is dropped", () => {
+  const large = applyColesPrices(ITEMS, { 2263179: { price: 16.8, was: null, special: false, available: false } });
+  const b1 = large.find((i) => i.id === "breast");
+  assert.equal(b1.coles.name, "Coles Chicken Breast Small");
+  assert.equal(b1.coles.small, undefined);
+  assert.equal(b1.colesUnavailable, undefined);
+  const row1 = byId(create(large, AMOUNTS).shopList({ tenderwrap: 4 }, 0)).breast;
+  assert.deepEqual([row1.coles.product.name, row1.coles.quantity], ["Coles Chicken Breast Small", 2]);
+
+  const small = applyColesPrices(ITEMS, { 2263168: { price: 7.2, was: null, special: false, available: false } });
+  const b2 = small.find((i) => i.id === "breast");
+  assert.equal(b2.coles.name, "Coles Chicken Breast Large");
+  assert.equal(b2.coles.small, undefined);
+  assert.equal(ITEMS[1].coles.small.name, "Coles Chicken Breast Small");
+  assert.equal(byId(create(small, AMOUNTS).shopList({ tenderwrap: 1 }, 0)).breast.coles.product.name, "Coles Chicken Breast Large");
+
+  const both = applyColesPrices(ITEMS, {
+    2263179: { price: 15, was: null, special: false, available: true },
+    2263168: { price: 7, was: 8, special: true, available: true },
+  });
+  const b3 = both.find((i) => i.id === "breast");
+  assert.deepEqual([b3.coles.price, b3.coles.live, b3.coles.small.price, b3.coles.small.was, b3.coles.small.live], [15, true, 7, 8, true]);
 });

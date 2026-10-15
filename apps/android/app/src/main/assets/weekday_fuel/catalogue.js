@@ -302,6 +302,41 @@
     });
   }
 
+  function colesId(product) {
+    var m = product && typeof product.url === "string" && /-(\d{4,7})$/.exec(product.url);
+    return m ? m[1] : null;
+  }
+
+  function liveColes(p, live) {
+    if (!(typeof live.price === "number" && live.price > 0)) return p;
+    var was = typeof live.was === "number" && live.was > live.price ? live.was : null;
+    return Object.assign({}, p, { price: live.price, was: was, live: true });
+  }
+
+  /* prices: { [Coles product id]: { price, was, special, available } } read live from Coles. */
+  function applyColesPrices(items, prices) {
+    if (!prices) return items;
+    return items.map(function (it) {
+      var p = it.coles;
+      if (!p) return it;
+      var live = prices[colesId(p)];
+      var small = p.small || null;
+      var liveSmall = small && prices[colesId(small)];
+      if (small && liveSmall) small = liveSmall.available === false ? null : liveColes(small, liveSmall);
+      if (live && live.available === false) {
+        if (small) return Object.assign({}, it, { coles: small });
+        return Object.assign({}, it, { coles: null, colesUnavailable: p });
+      }
+      var main = live ? liveColes(p, live) : p;
+      if (small !== (p.small || null)) {
+        main = Object.assign({}, main);
+        if (small) main.small = small;
+        else delete main.small;
+      }
+      return main === p ? it : Object.assign({}, it, { coles: main });
+    });
+  }
+
   function create(items, amounts) {
     var byId = {};
     items.forEach(function (it) {
@@ -350,6 +385,7 @@
             coles: it.coles ? storeLine(it, it.coles, n) : null,
             woolies: it.woolies ? storeLine(it, it.woolies, n) : null,
             wooliesUnavailable: it.wooliesUnavailable || null,
+            colesUnavailable: it.colesUnavailable || null,
           };
         });
     }
@@ -422,6 +458,8 @@
   var api = create(ITEMS, AMOUNTS);
   api.create = create;
   api.applyLivePrices = applyLivePrices;
+  api.applyColesPrices = applyColesPrices;
+  api.colesId = colesId;
   if (typeof module === "object" && module.exports) module.exports = api;
   else root.WeekdayFuelCatalogue = api;
 })(this);

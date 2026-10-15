@@ -79,6 +79,7 @@
       else {
         if (!where) it.note = "no online store";
         else if (gone && store === "woolies") it.note = "unavailable online at Woolworths";
+        else if (row.colesUnavailable && store === "coles") it.note = "unavailable online at Coles";
         groups.buy.push(it);
       }
     });

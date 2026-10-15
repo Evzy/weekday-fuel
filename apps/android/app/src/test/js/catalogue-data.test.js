@@ -14,6 +14,7 @@ function checkProduct(where, p, store) {
   assert.match(p.checked, DATE, where + " checked");
   assert.ok(p.perKg ? p.size === 1 : p.size > 0, where + " size");
   if (store === "woolies") assert.equal(p.stockcode, Number(WOOLIES.exec(p.url)[1]), where + " stockcode matches url");
+  if (store === "coles") assert.ok(cat.colesId(p), where + " has a Coles product id at the end of its url");
 }
 
 test("every item is well formed", () => {
