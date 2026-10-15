@@ -183,14 +183,10 @@ class MainActivity : ComponentActivity() {
                 showWoolworths(if (WoolworthsUrls.isWoolworthsPage(uri.scheme, uri.host)) url else WoolworthsUrls.HOME_URL)
             }
             "checkoutLoad" -> woolworths.checkout(CheckoutJson.loadRequest())
-            "checkoutBook" -> {
-                val request =
-                    CheckoutJson.bookRequest(msg) ?: run {
-                        replyToPage(HostMessages.checkoutFailure(getString(R.string.woolworths_checkout_bad_request)))
-                        return
-                    }
-                woolworths.checkout(request)
-            }
+            "checkoutBook" -> runCheckout(CheckoutJson.bookRequest(msg), R.string.woolworths_checkout_bad_request)
+            "checkoutSubs" -> runCheckout(CheckoutJson.subsRequest(msg), R.string.woolworths_checkout_bad_change)
+            "checkoutOptions" -> runCheckout(CheckoutJson.optionsRequest(msg), R.string.woolworths_checkout_bad_change)
+            "checkoutAddress" -> runCheckout(CheckoutJson.addressRequest(msg), R.string.woolworths_checkout_bad_change)
             "refreshPrices" -> {
                 val codes = runCatching { PricesJson.parseStockcodes(msg.optJSONArray("stockcodes") ?: JSONArray()) }.getOrNull()
                 if (codes.isNullOrEmpty()) {
@@ -204,6 +200,10 @@ class MainActivity : ComponentActivity() {
 
     private fun replyToPage(json: String) {
         hostReply?.postMessage(json)
+    }
+
+    private fun runCheckout(request: String?, badRequest: Int) {
+        if (request == null) replyToPage(HostMessages.checkoutFailure(getString(badRequest))) else woolworths.checkout(request)
     }
 
     private fun showWoolworths(url: String) {

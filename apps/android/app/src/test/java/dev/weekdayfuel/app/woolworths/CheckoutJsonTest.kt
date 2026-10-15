@@ -65,4 +65,60 @@ class CheckoutJsonTest {
         assertNull(CheckoutJson.bookRequest(JSONObject("""{"timeslotId":948223,"windowDate":"21/10/2026"}""")))
         assertNull(CheckoutJson.bookRequest(JSONObject("""{"timeslotId":948223,"windowDate":"2026-10-21\");alert(1)//"}""")))
     }
+
+    @Test
+    fun subsRequestKeepsItems() {
+        val msg = JSONObject("""{"type":"checkoutSubs","items":[{"stockcode":34437,"allow":false},{"stockcode":717518,"allow":true}]}""")
+        val json = JSONObject(CheckoutJson.subsRequest(msg)!!)
+        assertEquals("subs", json.getString("action"))
+        val items = json.getJSONArray("items")
+        assertEquals(2, items.length())
+        assertEquals(34437L, items.getJSONObject(0).getLong("stockcode"))
+        assertEquals(false, items.getJSONObject(0).getBoolean("allow"))
+        assertEquals(true, items.getJSONObject(1).getBoolean("allow"))
+    }
+
+    @Test
+    fun subsRequestRejectsBadItems() {
+        assertNull(CheckoutJson.subsRequest(JSONObject("""{}""")))
+        assertNull(CheckoutJson.subsRequest(JSONObject("""{"items":[]}""")))
+        assertNull(CheckoutJson.subsRequest(JSONObject("""{"items":[null]}""")))
+        assertNull(CheckoutJson.subsRequest(JSONObject("""{"items":[{"stockcode":"34437","allow":true}]}""")))
+        assertNull(CheckoutJson.subsRequest(JSONObject("""{"items":[{"stockcode":34437.5,"allow":true}]}""")))
+        assertNull(CheckoutJson.subsRequest(JSONObject("""{"items":[{"stockcode":-1,"allow":true}]}""")))
+        assertNull(CheckoutJson.subsRequest(JSONObject("""{"items":[{"stockcode":34437,"allow":"yes"}]}""")))
+        val many = (1..201).joinToString(",") { """{"stockcode":$it,"allow":true}""" }
+        assertNull(CheckoutJson.subsRequest(JSONObject("""{"items":[$many]}""")))
+    }
+
+    @Test
+    fun optionsRequestKeepsNoteAndSwitch() {
+        val json = JSONObject(CheckoutJson.optionsRequest(JSONObject("""{"instructions":"Ring the bell \"twice\"","leaveUnattended":false}"""))!!)
+        assertEquals("options", json.getString("action"))
+        assertEquals("Ring the bell \"twice\"", json.getString("instructions"))
+        assertEquals(false, json.getBoolean("leaveUnattended"))
+    }
+
+    @Test
+    fun optionsRequestRejectsBadValues() {
+        assertNull(CheckoutJson.optionsRequest(JSONObject("""{"leaveUnattended":true}""")))
+        assertNull(CheckoutJson.optionsRequest(JSONObject("""{"instructions":"x","leaveUnattended":"true"}""")))
+        assertNull(CheckoutJson.optionsRequest(JSONObject("""{"instructions":42,"leaveUnattended":true}""")))
+        assertNull(CheckoutJson.optionsRequest(JSONObject().put("instructions", "x".repeat(501)).put("leaveUnattended", true)))
+    }
+
+    @Test
+    fun addressRequestKeepsId() {
+        val json = JSONObject(CheckoutJson.addressRequest(JSONObject("""{"addressId":23480611}"""))!!)
+        assertEquals("address", json.getString("action"))
+        assertEquals(23480611L, json.getLong("addressId"))
+    }
+
+    @Test
+    fun addressRequestRejectsBadIds() {
+        assertNull(CheckoutJson.addressRequest(JSONObject("""{}""")))
+        assertNull(CheckoutJson.addressRequest(JSONObject("""{"addressId":0}""")))
+        assertNull(CheckoutJson.addressRequest(JSONObject("""{"addressId":"23480611"}""")))
+        assertNull(CheckoutJson.addressRequest(JSONObject("""{"addressId":1.5}""")))
+    }
 }

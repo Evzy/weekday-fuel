@@ -62,7 +62,7 @@ class WoolworthsSession(private val context: Context, private val openExternal: 
         context.assets.open(CHECKOUT_ASSET).bufferedReader().use { it.readText() }
     }
     private var pendingCheckout: String? = null
-    private var checkoutIsBook = false
+    private var checkoutIsWrite = false
     private var checkoutStarted = false
     private var checkoutRun = 0
     private var checkoutPolling = false
@@ -71,7 +71,7 @@ class WoolworthsSession(private val context: Context, private val openExternal: 
         Runnable {
             // A hung request leaves the script "running", which refuses start(); reload the page before the next run.
             needsFreshPage = true
-            failCheckout(context.getString(if (checkoutIsBook) R.string.woolworths_checkout_book_unsure else R.string.woolworths_timeout))
+            failCheckout(context.getString(if (checkoutIsWrite) R.string.woolworths_checkout_unconfirmed else R.string.woolworths_timeout))
         }
 
     val webView: WebView =
@@ -143,13 +143,13 @@ class WoolworthsSession(private val context: Context, private val openExternal: 
         if (pendingCheckout != null && checkoutStarted) needsFreshPage = true
         checkoutRun++
         pendingCheckout = requestJson
-        checkoutIsBook = runCatching { JSONObject(requestJson).optString("action") == "book" }.getOrDefault(false)
+        checkoutIsWrite = runCatching { JSONObject(requestJson).optString("action") != "load" }.getOrDefault(true)
         checkoutStarted = false
         checkoutPolling = false
         handler.removeCallbacks(checkoutPoller)
         handler.removeCallbacks(checkoutWatchdog)
-        // A load boosts offers one request at a time, so it gets longer than a booking.
-        handler.postDelayed(checkoutWatchdog, if (checkoutIsBook) TIMEOUT_MS else CHECKOUT_LOAD_TIMEOUT_MS)
+        // A load boosts offers one request at a time, so it gets longer than a write.
+        handler.postDelayed(checkoutWatchdog, if (checkoutIsWrite) TIMEOUT_MS else CHECKOUT_LOAD_TIMEOUT_MS)
         when {
             pending == null && (needsFreshPage || !onShopPage()) -> webView.loadUrl(WoolworthsUrls.HOME_URL)
             !pageLoading -> startCheckout()
@@ -299,9 +299,9 @@ class WoolworthsSession(private val context: Context, private val openExternal: 
             when (state?.phase) {
                 null -> {
                     checkoutPolling = false
-                    if (checkoutIsBook) {
-                        // The booking may already have gone through; sending it again could double-book or report a false failure.
-                        failCheckout(context.getString(R.string.woolworths_checkout_book_unsure))
+                    if (checkoutIsWrite) {
+                        // A write may already have gone through; sending it again could repeat it or report a false failure.
+                        failCheckout(context.getString(R.string.woolworths_checkout_unconfirmed))
                     } else if (!pageLoading) {
                         // A new document dropped the script; onPageFinished or this restarts it.
                         startCheckout()
@@ -348,7 +348,7 @@ class WoolworthsSession(private val context: Context, private val openExternal: 
                 start()
             }
             if (pendingPrices != null && !pricesPolling && shop) startPrices()
-            if (pendingCheckout != null && !checkoutPolling && shop && !(checkoutIsBook && checkoutStarted)) startCheckout()
+            if (pendingCheckout != null && !checkoutPolling && shop && !(checkoutIsWrite && checkoutStarted)) startCheckout()
         }
 
         override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
@@ -356,7 +356,7 @@ class WoolworthsSession(private val context: Context, private val openExternal: 
                 needsFreshPage = true
                 fail(context.getString(R.string.woolworths_offline))
                 failPrices(context.getString(R.string.woolworths_offline))
-                failCheckout(context.getString(if (checkoutIsBook) R.string.woolworths_checkout_book_unsure else R.string.woolworths_offline))
+                failCheckout(context.getString(if (checkoutIsWrite) R.string.woolworths_checkout_unconfirmed else R.string.woolworths_offline))
             }
         }
     }
