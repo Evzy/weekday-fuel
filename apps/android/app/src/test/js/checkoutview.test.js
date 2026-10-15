@@ -106,3 +106,13 @@ test("labels for days, times, money and the booked slot", () => {
   assert.equal(V.dollars(12.5), "$12.50");
   assert.equal(V.money(12), "$12.00");
 });
+
+test("a day with only unpriced open slots is still open, and odd dates give empty labels", () => {
+  const [tab] = V.dayTabs({ days: [{ date: "2026-10-21", available: true, closedText: "", slots: [{ id: 5, available: true, label: "5am - 10am" }] }] });
+  assert.equal(tab.open, true);
+  assert.equal(tab.priceRange, null);
+  assert.equal(tab.cheapestId, null);
+  assert.equal(V.dayLabel(undefined), "");
+  assert.equal(V.timeLabel(42), "");
+  assert.equal(V.bookedLabel({ id: 1, start: null, label: "5am - 10am" }).when, ", 5am - 10am");
+});

@@ -16,11 +16,13 @@
 
   /* Woolworths times are store-local; only the written date and clock are used, never the device time zone. */
   function dayLabel(iso) {
+    if (typeof iso !== "string" || iso.length < 10) return "";
     var d = new Date(Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.slice(8, 10)));
     return DAYS[d.getUTCDay()] + " " + d.getUTCDate() + " " + MONTHS[d.getUTCMonth()];
   }
 
   function timeLabel(iso) {
+    if (typeof iso !== "string" || iso.length < 16) return "";
     var h = +iso.slice(11, 13);
     var m = iso.slice(14, 16);
     return (h % 12 || 12) + (m === "00" ? "" : ":" + m) + (h < 12 ? "am" : "pm");
@@ -65,13 +67,12 @@
 
   function dayTabs(windows) {
     return ((windows && windows.days) || []).map(function (d) {
-      var open = d.available
-        ? (d.slots || []).filter(function (s) { return s.available && Number.isFinite(s.price); })
-        : [];
-      var prices = open.map(function (s) { return s.price; });
+      var open = d.available ? (d.slots || []).filter(function (s) { return s && s.available; }) : [];
+      var priced = open.filter(function (s) { return Number.isFinite(s.price); });
+      var prices = priced.map(function (s) { return s.price; });
       var min = prices.length ? Math.min.apply(null, prices) : null;
       var max = prices.length ? Math.max.apply(null, prices) : null;
-      var cheapest = open.filter(function (s) { return s.price === min; })[0];
+      var cheapest = priced.filter(function (s) { return s.price === min; })[0];
       return {
         date: d.date,
         open: open.length > 0,

@@ -154,7 +154,7 @@
   async function windows(dlv) {
     if (!dlv.address.addressId || !dlv.address.areaId || !dlv.address.suburbId) throw new Error("no delivery address");
     var a = dlv.address;
-    var w = await getJson(URLS.windows + "?areaId=" + a.areaId + "&fulfilmentMethod=Courier&addressId=" + a.addressId + "&suburbId=" + a.suburbId);
+    var w = await getJson(URLS.windows + "?areaId=" + encodeURIComponent(a.areaId) + "&fulfilmentMethod=Courier&addressId=" + encodeURIComponent(a.addressId) + "&suburbId=" + encodeURIComponent(a.suburbId));
     if (!w || !Array.isArray(w.Days)) throw new Error("windows response has no days");
     return {
       days: w.Days.map(function (d) {

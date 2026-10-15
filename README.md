@@ -14,6 +14,8 @@ The page started from the frozen v0 [`Weekday_Fuel.html`](docs/seed/Weekday_Fuel
 | `apps/android/app/src/main/java/dev/weekdayfuel/app/update/` | GitHub Releases updater |
 | `apps/android/app/src/main/java/dev/weekdayfuel/app/woolworths/` | Woolworths session, in-app Woolworths screen, trolley send |
 | `apps/android/app/src/main/assets/weekday_fuel/cart.js`, `assets/woolworths/trolley.js` | Cart-line calculation; script that sets the Woolworths trolley |
+| `apps/android/app/src/main/assets/woolworths/prices.js` | Script that reads live Woolworths prices |
+| `apps/android/app/src/main/assets/woolworths/checkout.js`, `assets/weekday_fuel/checkoutview.js` | Script that boosts offers, reads delivery times and the order summary, and books a time; Checkout panel helpers |
 | `.github/workflows/release-android.yml` | Tests, debug APK, publish to [`Evzy/weekday-fuel-releases`](https://github.com/Evzy/weekday-fuel-releases) |
 | `docs/CI_CD.md` | Release pipeline, secrets, signing |
 | `docs/seed/` | Seed brief, transcript notes, frozen artifact (from Platra) |
@@ -37,3 +39,5 @@ The page is served from `https://appassets.androidplatform.net/assets/...` via `
 ## Network
 
 No backend. The phone talks directly to GitHub Releases (update check), Google Fonts, and woolworths.com.au — the last only after you tap Send, Checkout, or a Woolworths link. Your Woolworths login stays in the app's browser storage on the phone.
+
+Opening Checkout changes your Woolworths account: it boosts every Everyday Rewards offer, and Book changes your delivery time. The app never pays; Pay on Woolworths opens the Woolworths checkout page, where you place the order yourself.

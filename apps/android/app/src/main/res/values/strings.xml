@@ -17,5 +17,5 @@
     <string name="woolworths_bad_request">Couldn\'t read the shop list to send. Try again.</string>
     <string name="woolworths_checkout_bad_request">Couldn\'t read that delivery time. Try again.</string>
     <string name="woolworths_checkout_busy">Woolworths was still busy with the last request. Try again.</string>
-    <string name="woolworths_checkout_book_unsure">The Woolworths page reloaded while booking. Check the delivery time and try again.</string>
+    <string name="woolworths_checkout_book_unsure">Couldn\'t confirm the booking with Woolworths. Tap Refresh to check the delivery time.</string>
 </resources>

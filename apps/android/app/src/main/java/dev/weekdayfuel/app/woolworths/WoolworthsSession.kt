@@ -71,7 +71,7 @@ class WoolworthsSession(private val context: Context, private val openExternal: 
         Runnable {
             // A hung request leaves the script "running", which refuses start(); reload the page before the next run.
             needsFreshPage = true
-            failCheckout(context.getString(R.string.woolworths_timeout))
+            failCheckout(context.getString(if (checkoutIsBook) R.string.woolworths_checkout_book_unsure else R.string.woolworths_timeout))
         }
 
     val webView: WebView =
@@ -148,7 +148,8 @@ class WoolworthsSession(private val context: Context, private val openExternal: 
         checkoutPolling = false
         handler.removeCallbacks(checkoutPoller)
         handler.removeCallbacks(checkoutWatchdog)
-        handler.postDelayed(checkoutWatchdog, TIMEOUT_MS)
+        // A load boosts offers one request at a time, so it gets longer than a booking.
+        handler.postDelayed(checkoutWatchdog, if (checkoutIsBook) TIMEOUT_MS else CHECKOUT_LOAD_TIMEOUT_MS)
         when {
             pending == null && (needsFreshPage || !onShopPage()) -> webView.loadUrl(WoolworthsUrls.HOME_URL)
             !pageLoading -> startCheckout()
@@ -280,7 +281,8 @@ class WoolworthsSession(private val context: Context, private val openExternal: 
         checkoutStarted = true
         val run = checkoutRun
         webView.evaluateJavascript("$checkoutScript\nwindow.__weekdayFuelCheckout.start($request);") { started ->
-            if (run != checkoutRun || started == "true") return@evaluateJavascript
+            // Only an explicit refusal means busy; null comes back when the document changed, and polling then restarts a load.
+            if (run != checkoutRun || started != "false") return@evaluateJavascript
             // The page still runs an earlier request; never poll its result for this one.
             needsFreshPage = true
             failCheckout(context.getString(R.string.woolworths_checkout_busy))
@@ -354,7 +356,7 @@ class WoolworthsSession(private val context: Context, private val openExternal: 
                 needsFreshPage = true
                 fail(context.getString(R.string.woolworths_offline))
                 failPrices(context.getString(R.string.woolworths_offline))
-                failCheckout(context.getString(R.string.woolworths_offline))
+                failCheckout(context.getString(if (checkoutIsBook) R.string.woolworths_checkout_book_unsure else R.string.woolworths_offline))
             }
         }
     }
@@ -370,5 +372,6 @@ class WoolworthsSession(private val context: Context, private val openExternal: 
         const val POLL_MS = 300L
         const val LOGIN_RETRY_MS = 2_000L
         const val TIMEOUT_MS = 60_000L
+        const val CHECKOUT_LOAD_TIMEOUT_MS = 120_000L
     }
 }
