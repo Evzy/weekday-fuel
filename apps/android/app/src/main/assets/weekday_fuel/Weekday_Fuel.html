@@ -9,7 +9,7 @@
   --bg:#EEF2EC; --surface:#FFFFFF; --sunk:#E3E9E1; --ink:#16201A; --muted:#5B6960; --line:#D6DED4;
   --accent:#2C50D0; --accent-soft:#DCE3FB; --on-accent:#FFFFFF;
   --yolk:#C9800F; --yolk-soft:#F7E6C6;
-  --good:#23794B; --good-soft:#D7EEDF; --warn:#A8650A; --bad:#B5362F; --bad-soft:#F6DCD9;
+  --good:#23794B; --good-soft:#D7EEDF; --warn:#A8650A; --bad:#B5362F; --bad-soft:#F6DCD9; --coles:#C8102E; --woolies:#1A7F3C;
   --f-display:"Bricolage Grotesque", "Avenir Next", system-ui, sans-serif;
   --f-body:"Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
   --f-num:"IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
@@ -19,13 +19,13 @@
   --bg:#0F1411; --surface:#17201A; --sunk:#1E2822; --ink:#E6ECE7; --muted:#97A49B; --line:#2A352E;
   --accent:#8AA2FF; --accent-soft:#232E55; --on-accent:#0F1411;
   --yolk:#F0B451; --yolk-soft:#3A2D14;
-  --good:#5FC58D; --good-soft:#173527; --warn:#E8A949; --bad:#F07C72; --bad-soft:#3D1D1A; color-scheme:dark;
+  --good:#5FC58D; --good-soft:#173527; --warn:#E8A949; --bad:#F07C72; --bad-soft:#3D1D1A; --coles:#FF7A7A; --woolies:#5FC58D; color-scheme:dark;
 }}
 :root[data-theme="dark"]{
   --bg:#0F1411; --surface:#17201A; --sunk:#1E2822; --ink:#E6ECE7; --muted:#97A49B; --line:#2A352E;
   --accent:#8AA2FF; --accent-soft:#232E55; --on-accent:#0F1411;
   --yolk:#F0B451; --yolk-soft:#3A2D14;
-  --good:#5FC58D; --good-soft:#173527; --warn:#E8A949; --bad:#F07C72; --bad-soft:#3D1D1A; color-scheme:dark;
+  --good:#5FC58D; --good-soft:#173527; --warn:#E8A949; --bad:#F07C72; --bad-soft:#3D1D1A; --coles:#FF7A7A; --woolies:#5FC58D; color-scheme:dark;
 }
 *{box-sizing:border-box}
 body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.45}
@@ -188,6 +188,12 @@ ul.ing{margin:0;padding-left:1.1em;font-size:.88rem;columns:2;column-gap:20px}
 .buy{display:block;margin-top:2px}
 .itemdetail{margin-top:8px;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--surface)}
 a.link{text-decoration:none;display:inline-block;color:var(--accent);border-color:var(--accent)}
+.pl{display:flex;gap:10px;align-items:baseline}
+.pl .p{font-family:var(--f-num);font-size:.85rem;white-space:nowrap;margin-left:auto;font-weight:500}
+.pl.coles,.sp.coles,a.link.coles{color:var(--coles)}
+.pl.woolies,.sp.woolies,a.link.woolies{color:var(--woolies)}
+.prices{display:flex;gap:10px;flex-wrap:wrap;font-family:var(--f-num);font-size:.85rem;font-weight:500}
+.sp.none{opacity:.7;font-weight:400}
 
 /* sheet */
 .scrim{position:fixed;inset:0;background:rgba(10,14,12,.45);z-index:40;display:flex;align-items:flex-end;justify-content:center}
@@ -210,6 +216,7 @@ a.link{text-decoration:none;display:inline-block;color:var(--accent);border-colo
 <nav class="tabs" aria-label="Sections"><div class="tabs-in" role="tablist" id="tabs"></div></nav>
 <div id="sheetroot"></div>
 
+<script src="catalogue.js"></script>
 <script src="cart.js"></script>
 <script>
 (function(){
@@ -341,52 +348,17 @@ const MEALS=[
 ];
 const MEAL = Object.fromEntries(MEALS.map(m=>[m.id,m]));
 
-/* [id, product, total $, status, where/detail]  status: "ok" = price checked online 7–12 Oct 2026, "est" = couldn't confirm */
-const SHOP=[
- {sec:"Your daily fixtures",note:"Bulk-buy these when they're half price. They keep at room temperature until opened.",items:[
-  ["dare","Dare Protein No Sugar Added Iced Coffee Double Espresso 500mL × 5",27.5,"est","About $5.50 each. The shelf price wasn't visible online, so check it in store"],
-  ["grenade","Grenade Salted Caramel Protein Bar 60g × 5",20.75,"ok","Grenade 60g bars average $4.15. Half price is $2.50, so buy 10+ then"]]},
- {sec:"Weekly top-up",note:"Sunday batch: put 1kg of chicken breast on a lined tray, season it, and bake at 200°C for 20–25 min (15 if butterflied). Slice it once it's cool. That gives about 750g cooked, which covers 5 meals. Freeze the rest of the raw chicken and the mince in single portions.",items:[
-  ["breast","Coles RSPCA Approved Chicken Breast Fillets Large Pack, approx. 1.4kg",16.8,"ok","Coles $12.00/kg. Trying only one or two chicken meals? The small pack (about 600g) is enough"],
-  ["mince","Coles No Added Hormone Beef 5 Star Extra Lean Mince 500g",9.8,"ok","Coles $9.80"],
-  ["thigh","Woolworths RSPCA Approved Chicken Thigh Fillets (teriyaki week only)",7.5,"est","Not confirmed"],
-  ["eggs","Woolworths 12 Pack Extra Large Free Range Eggs 700g",6.7,"ok","Woolworths $6.70"],
-  ["ham","D'Orsogna Ham Leg Triple Smoked 97% Fat Free, shaved at the deli, 300g",8.4,"ok","Woolworths deli $2.80/100g, sold in 100g steps. In store, ask for 300g shaved"],
-  ["yog","Chobani Greek Yoghurt Natural Light Plain 907g",8.8,"ok","$8.80 (tracked for Chobani Natural 907g; Light is usually the same price)"],
-  ["cheese","Woolworths Light Tasty Shredded Cheese 500g",9,"est","Not confirmed. Keeps for weeks in the fridge"],
-  ["wraps","Mission Carb Balance Wrap 6 Pack 288g",5.2,"ok","Coles $5.20, Woolworths $6.60. Freeze half"],
-  ["bread","Abbott's Bakery Farmhouse Wholemeal Sandwich Loaf 750g (freeze half)",5,"est","Not confirmed"],
-  ["muffin","Tip Top English Muffins Original 6 pack",4,"est","Not confirmed"],
-  ["spinach","Woolworths Baby Leaf Spinach 120g",3.3,"ok","$3.30. The link may show the 280g bag, so grab the 120g one for less waste"],
-  ["toms","Woolworths Cherry Tomatoes Punnet 250g",4,"est","Not confirmed"],
-  ["cucumber","Lebanese Cucumbers × 2",2,"est","Not confirmed"],
-  ["capsicum","Capsicum Green × 1",1.74,"ok","About $1.74 each ($7.90/kg)"]]},
- {sec:"Pantry & freezer (first shop, then occasional)",note:"Most of the flavour comes from these jars, and none of them need the fridge before opening.",items:[
-  ["rice","SunRice Microwave White Long Grain Rice Pouch 250g × 4",12,"ok","$3.00 at both, often $2.50 on special"],
-  ["pasta","San Remo Spaghetti No 5 500g + San Remo Macaroni No 38 500g",4.6,"est","Not confirmed. Home-brand pasta is $0.90 if you'd rather save"],
-  ["potato","Woolworths Washed Potatoes Bag 2kg",8.5,"ok","Woolworths $8.50 (Coles' 2kg bag is $6.00)"],
-  ["corn","Edgell Sweet Corn Kernels 420g can × 2",4,"est","Not confirmed. Lives in the pantry"],
-  ["fzpeas","Woolworths Frozen Australian Peas 1kg",3,"est","Not confirmed"],
-  ["fzmix","Woolworths Frozen Australian Carrots Peas & Corn 1kg",3.5,"est","Not confirmed"],
-  ["fzbroc","Woolworths Frozen Australian Broccoli Florets 500g",3,"est","Not confirmed"],
-  ["fzasian","Birds Eye Frozen Stir Fry Oriental Style",4,"est","Not confirmed"],
-  ["fzberry","Woolworths Frozen Mixed Berries 500g",5,"est","Not confirmed"],
-  ["evap","Carnation Light & Creamy Evaporated Milk can",2.8,"est","Not confirmed. In the baking aisle next to the condensed milk"],
-  ["coco","Ayam 100% Natural Light Coconut Milk 270mL",2.5,"est","Not confirmed. Use 70mL per curry and freeze the rest"],
-  ["curry","Maesri Red Curry Paste 114g tin",2.3,"ok","$2.30 at both (Maesri tins). In the Asian aisle"],
-  ["soy","Lee Kum Kee Premium Soy Sauce",4,"est","Not confirmed"],
-  ["parm","Perfect Italiano Grated Parmesan Finely Grated 100g",4,"est","Not confirmed"],
-  ["passata","Mutti Passata Tomato Puree 700g",3,"est","Not confirmed"],
-  ["panko","Crumbed & Co Original Style Panko Breadcrumbs 200g",3,"est","Not confirmed"],
-  ["sauces1","Kikkoman Teriyaki Marinade + Lee Kum Kee Panda Oyster Sauce",8,"est","Not confirmed"],
-  ["franks","Frank's RedHot Original Cayenne Pepper Hot Sauce 148mL",6,"est","Not confirmed"],
-  ["salsa","Old El Paso Thick 'N Chunky Salsa Mild 395g + Old El Paso Taco Spice Mix",6,"est","Not confirmed"],
-  ["paste","Woolworths Garlic Paste 140g + Gourmet Garden Ginger Paste 80g",7,"est","Not confirmed"],
-  ["sesame","Yeo's Sesame Oil",4,"est","Not confirmed. Sesame seeds for the teriyaki bowl are optional"],
-  ["gravy","Gravox Traditional Gravy Mix",3,"est","Not confirmed"],
-  ["honey","Woolworths Australian Pure Honey Squeeze",5,"est","Not confirmed"],
-  ["muesli","Uncle Tobys Natural Style Swiss Blend Muesli",5,"est","Not confirmed"],
-  ["pb","Bega Peanut Butter Smooth 470g",5,"est","Not confirmed"]]}
+/* Shop data and maths live in catalogue.js */
+const CAT=WeekdayFuelCatalogue;
+const STORES=["coles","woolies"];
+const STORE_NAME={coles:"Coles",woolies:"Woolworths"};
+const store=()=>S().store==="coles"?"coles":"woolies";
+const other=s=>s==="coles"?"woolies":"coles";
+const fxDays=()=>S().fixtureDays==null?5:S().fixtureDays;
+const SECTIONS=[
+ ["Your daily fixtures","Bulk-buy these when they're half price. They keep at room temperature until opened."],
+ ["Weekly top-up","Sunday batch: put 1kg of chicken breast on a lined tray, season it, and bake at 200°C for 20–25 min (15 if butterflied). Slice it once it's cool. That gives about 750g cooked, which covers 5 meals. Freeze the rest of the raw chicken and the mince in single portions."],
+ ["Pantry & freezer (first shop, then occasional)","Most of the flavour comes from these jars, and none of them need the fridge before opening."]
 ];
 
 /* per-100g (or 100mL) macros for checking the pack in store: [kcal,protein,carbs,fat,basis,source,extra] */
@@ -408,7 +380,8 @@ const MACROS={
  cucumber:[12,0.6,2,0.1,"100g","typical",""],
  capsicum:[24,1,4,0.2,"100g","typical",""],
  rice:[167,3,35,1.5,"100g","label","Label: 874 kJ (209 kcal) per half pouch"],
- pasta:[355,12.5,71,1.5,"100g","typical","Dry weight"],
+ spaghetti:[355,12.5,71,1.5,"100g","typical","Dry weight"],
+ macaroni:[355,12.5,71,1.5,"100g","typical","Dry weight"],
  potato:[70,2,14,0.1,"100g","typical",""],
  corn:[75,2.5,13,1,"100g","typical","Drained"],
  fzpeas:[75,5.5,9,0.5,"100g","typical",""],
@@ -423,10 +396,13 @@ const MACROS={
  parm:[400,36,0,28,"100g","typical",""],
  passata:[30,1.5,5,0.2,"100g","typical",""],
  panko:[370,11,75,2,"100g","typical",""],
- sauces1:[150,1,30,0.5,"100mL","typical","Teriyaki. Oyster sauce is similar"],
+ teriyaki_sauce:[150,1,30,0.5,"100mL","typical",""],
+ oyster:[110,2,25,0.2,"100g","typical",""],
  franks:[10,0,1,0,"100mL","typical","Close to zero calories"],
  salsa:[40,1.5,8,0.2,"100g","typical",""],
- paste:[100,3,15,3,"100g","typical",""],
+ taco:[300,8,55,4,"100g","typical","About 4g per bowl"],
+ garlic:[150,4,20,5,"100g","typical",""],
+ ginger:[100,2,15,3,"100g","typical",""],
  sesame:[884,0,0,100,"100mL","typical","Oil. 1 tsp is about 40 kcal"],
  gravy:[20,0.5,4,0.3,"100mL","typical","Made up with water"],
  honey:[300,0,82,0,"100g","typical",""],
@@ -440,6 +416,7 @@ const DEFAULT_SETTINGS={
   adjust:0,
   readyMealPrice:13,
   shopMode:"build",
+  store:"woolies",
   trial:{},
   fixtureDays:5,
   fixtures:{
@@ -711,163 +688,31 @@ function renderMeals(){
   h+=`<div class="flat small muted">Costs use Coles/Woolworths prices checked online in October 2026; macros come from typical labels. Your brands will differ a little, and the weekly weigh-in average corrects for that.</div>`;
   return h;
 }
-/* which shop items each meal needs (fixtures are always included) */
-const USES={
- toasty:["bread","ham","cheese","spinach","toms"],
- eggmuffin:["eggs","ham","muffin","cheese","spinach"],
- yogbowl:["yog","fzberry","honey","muesli","pb"],
- brekwrap:["eggs","ham","wraps","cheese","salsa","spinach"],
- tenderwrap:["breast","wraps","cheese","salsa","spinach","cucumber","toms"],
- burritobowl:["rice","breast","corn","capsicum","salsa","yog","cheese"],
- teriyaki:["thigh","sauces1","rice","fzasian","sesame"],
- buffalomac:["breast","pasta","evap","cheese","franks","fzbroc"],
- schnitzel:["breast","eggs","panko","potato","fzpeas","gravy"],
- koreanbeef:["mince","soy","honey","sesame","paste","rice","fzbroc","eggs"],
- bolognese:["mince","pasta","passata","fzmix","paste","parm"],
- redcurry:["breast","curry","coco","fzasian","rice"],
- friedrice:["breast","eggs","rice","fzpeas","corn","soy","sauces1","sesame"],
- snackplate:["eggs","cucumber","toms","cheese"]
-};
-const USED_IN={};Object.keys(USES).forEach(m=>USES[m].forEach(i=>{(USED_IN[i]=USED_IN[i]||[]).push(m)}));
-/* exact product pages where found; otherwise a store search */
-const LINKS={
- dare:[["Woolworths","https://www.woolworths.com.au/shop/productdetails/72280"],["Coles","https://www.coles.com.au/product/dare-protein-no-sugar-added-iced-coffee-double-espresso-500ml-8991361"]],
- grenade:[["Woolworths","https://www.woolworths.com.au/shop/productdetails/6027807/grenade-salted-caramel-protein-bar"]],
- breast:[["Coles","https://www.coles.com.au/product/coles-rspca-approved-chicken-breast-fillets-large-pack-approx.-1.4kg-2263179"]],
- mince:[["Coles","https://www.coles.com.au/product/coles-no-added-hormone-beef-5-star-extra-lean-mince-500g-8112799"]],
- thigh:[["Woolworths","https://www.woolworths.com.au/shop/productdetails/6078660/woolworths-rspca-approved-chicken-thigh-fillets"]],
- eggs:[["Woolworths","https://www.woolworths.com.au/shop/productdetails/582362/woolworths-12-pack-extra-large-free-range-eggs"]],
- ham:[["Woolworths","https://www.woolworths.com.au/shop/productdetails/175734/d-orsogna-ham-leg-triple-smoked-97-fat-free-shaved"]],
- yog:[["Woolworths","https://www.woolworths.com.au/shop/productdetails/717518/chobani-greek-yoghurt-natural-light-plain"]],
- cheese:[["Woolworths","https://www.woolworths.com.au/shop/productdetails/729008/woolworths-light-tasty-shredded-cheese"]],
- wraps:[["Coles","https://www.coles.com.au/product/mission-carb-balance-wrap-6-pack-288g-8566038"]],
- bread:[["Woolworths","https://www.woolworths.com.au/shop/productdetails/331591/abbott-s-bakery-farmhouse-wholemeal-bread-sandwich-slice-loaf"]],
- muffin:[["Woolworths","https://www.woolworths.com.au/shop/productdetails/6083082"]],
- spinach:[["Woolworths","https://www.woolworths.com.au/shop/productdetails/524336/woolworths-baby-leaf-spinach-spinach"]],
- toms:[["Woolworths","https://www.woolworths.com.au/shop/productdetails/149620/woolworths-cherry-tomatoes-punnet"]],
- cucumber:[["Woolworths","https://www.woolworths.com.au/shop/productdetails/137130/lebanese-cucumbers"]],
- capsicum:[["Woolworths","https://www.woolworths.com.au/shop/productdetails/135156/capsicum-green"]],
- rice:[["Woolworths","https://www.woolworths.com.au/shop/productdetails/244755/sunrice-microwave-white-long-grain-rice-pouch"]],
- pasta:[["Spaghetti","https://www.woolworths.com.au/shop/productdetails/43974/san-remo-spaghetti-pasta-no-5"],["Macaroni","https://www.woolworths.com.au/shop/productdetails/44025"]],
- potato:[["Woolworths","https://www.woolworths.com.au/shop/productdetails/262783/woolworths-washed-potatoes-bag"]],
- corn:[["Woolworths","https://www.woolworths.com.au/shop/productdetails/34437/edgell-corn-kernels"]],
- fzpeas:[["Woolworths","https://www.woolworths.com.au/shop/productdetails/754169/woolworths-frozen-australian-peas"]],
- fzmix:[["Woolworths","https://www.woolworths.com.au/shop/productdetails/768569"]],
- fzbroc:[["Woolworths","https://www.woolworths.com.au/shop/productdetails/768559/woolworths-frozen-australian-broccoli-florets"]],
- fzasian:[["Woolworths","https://www.woolworths.com.au/shop/productdetails/768622/birds-eye-frozen-stir-fry-oriental-style"]],
- fzberry:[["Woolworths","https://www.woolworths.com.au/shop/productdetails/260010"]],
- coco:[["Woolworths","https://www.woolworths.com.au/shop/productdetails/180429/ayam-100-natural-light-coconut-milk"]],
- soy:[["Woolworths","https://www.woolworths.com.au/shop/productdetails/198763/lee-kum-kee-soy-sauce-premium"]],
- parm:[["Woolworths","https://www.woolworths.com.au/shop/productdetails/6002004/perfect-italiano-grated-parmesan-cheese-finely-grated"]],
- passata:[["Woolworths","https://www.woolworths.com.au/shop/productdetails/795297/mutti-passata-tomato-puree"]],
- panko:[["Woolworths","https://www.woolworths.com.au/shop/productdetails/260884/crumbed-co-original-style-panko-breadcrumbs"]],
- sauces1:[["Teriyaki","https://www.woolworths.com.au/shop/productdetails/33948/kikkoman-marinade-teriyaki"],["Oyster sauce","https://www.woolworths.com.au/shop/productdetails/364439/lee-kum-kee-panda-sauce-oyster"]],
- franks:[["Woolworths","https://www.woolworths.com.au/shop/productdetails/759137/frank-s-redhot-original-cayenne-pepper-hot-sauce"]],
- salsa:[["Salsa","https://www.woolworths.com.au/shop/productdetails/6059611"],["Taco mix","https://www.woolworths.com.au/shop/productdetails/93444/old-el-paso-taco-spice-mix-taco-spice-mix"]],
- paste:[["Garlic","https://www.woolworths.com.au/shop/productdetails/669456/woolworths-garlic-paste"],["Ginger","https://www.woolworths.com.au/shop/productdetails/948511/gourmet-garden-paste-ginger"]],
- sesame:[["Woolworths","https://www.woolworths.com.au/shop/productdetails/39319/yeo-s-ingredients-sesame-oil"]],
- gravy:[["Woolworths","https://www.woolworths.com.au/shop/productdetails/38723/gravox-traditional-gravy-mix-traditional"]],
- honey:[["Woolworths","https://www.woolworths.com.au/shop/productdetails/6065552/woolworths-australian-pure-honey-squeeze"]],
- muesli:[["Woolworths","https://www.woolworths.com.au/shop/productdetails/36370/uncle-tobys-natural-style-swiss-blend-muesli-breakfast-cereal"]],
- pb:[["Woolworths","https://www.woolworths.com.au/shop/productdetails/38920/bega-peanut-butter-smooth"]]
-};
-
-function storeLinks(id){
-  const L=LINKS[id];
-  if(!L)return `<div class="small muted" style="margin-top:8px">I couldn't find an exact store page online for this one. Look for the product name above on the shelf.</div>`;
-  return `<div class="row" style="gap:6px;margin-top:8px">${L.map(([lab,u])=>`<a class="ghost link" href="${u}" target="_blank" rel="noopener">${esc(lab==="Woolworths"||lab==="Coles"?lab+" product page":lab+" · product page")} ↗</a>`).join("")}</div>`;
-}
-function macroLine(id){const m=MACROS[id];if(!m)return "";return `<span class="mac num">Per ${m[4]}: ${m[0]} kcal · ${m[1]}g P · ${m[2]}g C · ${m[3]}g F <span class="src">${m[5]==="label"?"from the label":"typical, check the pack"}</span>${m[6]?`<br>${esc(m[6])}`:""}</span>`}
-/* how much of each shop item one Standard serve uses */
-const AMT={
- toasty:{bread:2,ham:100,cheese:30,spinach:20,toms:50},
- eggmuffin:{eggs:3,ham:50,muffin:2,cheese:20,spinach:20},
- yogbowl:{yog:250,fzberry:100,muesli:40},
- brekwrap:{eggs:3,ham:50,wraps:1,cheese:20,spinach:20},
- tenderwrap:{breast:200,wraps:2,cheese:30,spinach:20,cucumber:0.5,toms:50},
- burritobowl:{rice:0.75,breast:200,corn:80,capsicum:0.5,yog:50,cheese:30},
- teriyaki:{thigh:200,rice:0.75,fzasian:150},
- buffalomac:{breast:180,pasta:75,evap:80,cheese:40,fzbroc:100},
- schnitzel:{breast:180,eggs:1,potato:200,fzpeas:120},
- koreanbeef:{mince:200,rice:0.5,eggs:1,fzbroc:150},
- bolognese:{mince:200,pasta:85,passata:200,fzmix:100,parm:10},
- redcurry:{breast:180,rice:0.75,coco:70,fzasian:150},
- friedrice:{breast:160,eggs:2,rice:0.75,fzpeas:60,corn:60},
- snackplate:{eggs:2,cucumber:0.5,toms:50,cheese:20}
-};
-/* pack each item comes in: size, unit, price, what to call it */
-const PACK={
- mince:{size:500,u:"g",price:9.8,name:"500g pack"},
- thigh:{size:500,u:"g",price:7.5,name:"~500g pack"},
- eggs:{size:12,u:"",price:6.7,name:"12 pack"},
- yog:{size:907,u:"g",price:8.8,name:"907g tub"},
- cheese:{size:500,u:"g",price:9,name:"500g bag"},
- wraps:{size:6,u:" wraps",price:5.2,name:"6 pack"},
- bread:{size:16,u:" slices",price:5,name:"loaf"},
- muffin:{size:6,u:"",price:4,name:"6 pack"},
- spinach:{size:120,u:"g",price:3.3,name:"120g bag"},
- toms:{size:250,u:"g",price:4,name:"250g punnet"},
- cucumber:{size:1,u:"",price:1,name:"cucumber"},
- capsicum:{size:1,u:"",price:1.74,name:"capsicum"},
- rice:{size:1,u:" pouches",price:3,name:"pouch"},
- pasta:{size:500,u:"g",price:2.3,name:"500g packet"},
- potato:{size:2000,u:"g",price:8.5,name:"2kg bag"},
- corn:{size:420,u:"g",price:2,name:"420g can"},
- fzpeas:{size:1000,u:"g",price:3,name:"1kg bag"},
- fzmix:{size:1000,u:"g",price:3.5,name:"1kg bag"},
- fzbroc:{size:500,u:"g",price:3,name:"500g bag"},
- fzasian:{size:500,u:"g",price:4,name:"bag"},
- fzberry:{size:500,u:"g",price:5,name:"500g bag"},
- evap:{size:340,u:"mL",price:2.8,name:"can"},
- coco:{size:270,u:"mL",price:2.5,name:"270mL can"},
- passata:{size:700,u:"g",price:3,name:"700g bottle"},
- parm:{size:100,u:"g",price:4,name:"100g bag"},
- muesli:{size:750,u:"g",price:5,name:"box"}
-};
 const STARTER={toasty:2,tenderwrap:2,burritobowl:2,buffalomac:2};
 function picks(){const t=S().trial;if(Array.isArray(t)){const o={};t.forEach(m=>o[m]=2);return o}return t||{}}
 function fmtAmt(v,u){if(u==="g"&&v>=1000)return (v/1000).toFixed(v%1000?1:0)+"kg";if(u==="mL"&&v>=1000)return (v/1000).toFixed(1)+"L";return (Math.round(v*10)/10)+(u||"")}
-/* work out what to buy for the picked meals */
-function buildList(){
-  const pk=picks();const need={};const usedBy={};
-  Object.keys(pk).forEach(m=>{const n=pk[m];if(!n||!USES[m])return;
-    USES[m].forEach(id=>{usedBy[id]=usedBy[id]||[];usedBy[id].push(m);const a=(AMT[m]||{})[id];if(a)need[id]=(need[id]||0)+a*n;else if(!(id in need))need[id]=0;});
-  });
-  const days=S().fixtureDays==null?5:S().fixtureDays;
-  const rows=[];
-  if(days>0){rows.push({id:"dare",qty:days+" bottles",buy:days+" × Dare",cost:days*S().fixtures.dare.cost,sec:0,n:days});rows.push({id:"grenade",qty:days+" bars",buy:days+" × Grenade",cost:days*S().fixtures.grenade.cost,sec:0,n:days});}
-  const secOf=id=>SHOP[1].items.some(i=>i[0]===id)?1:2;
-  Object.keys(need).forEach(id=>{
-    const amt=need[id];let qty="",buy="",cost=0,n=1;
-    if(id==="breast"){const big=amt>650;const packs=big?Math.ceil(amt/1400):1;qty=fmtAmt(amt,"g")+" raw";buy=big?(packs>1?packs+" × ":"")+"Large pack (~1.4kg)":"Small pack (~600g)";cost=big?packs*16.8:7.2;n=packs;}
-    else if(id==="ham"){const g=WeekdayFuelCart.deliGrams(amt);qty=fmtAmt(amt,"g");buy=g+"g shaved from the deli";cost=g/100*2.8;n=g/1000;}
-    else if(id==="pasta"&&amt){const ms=usedBy[id]||[];const both=ms.includes("buffalomac")&&ms.includes("bolognese");qty=fmtAmt(amt,"g");buy=both?"1 × macaroni + 1 × spaghetti":"1 × 500g packet";cost=both?4.6:2.3;}
-    else if(PACK[id]&&amt){const P=PACK[id];n=Math.ceil(amt/P.size-1e-9);qty=fmtAmt(amt,P.u);buy=(n>1?n+" × ":"1 × ")+P.name;cost=n*P.price;}
-    else{const it=SHOP.flatMap(s=>s.items).find(i=>i[0]===id);qty="a little";buy="1 × pack/jar (lasts many meals)";cost=it?it[2]:0;}
-    rows.push({id,qty,buy,cost,n,sec:secOf(id),used:usedBy[id]});
-  });
-  return rows;
+const needLabel=r=>/^(g|mL)$/.test(r.unit)?fmtAmt(r.need,r.unit):(Math.round(r.need*10)/10)+" "+r.unit;
+function macroLine(id){const m=MACROS[id];if(!m)return "";return `<span class="mac num">Per ${m[4]}: ${m[0]} kcal · ${m[1]}g P · ${m[2]}g C · ${m[3]}g F <span class="src">${m[5]==="label"?"from the label":"typical, check the pack"}</span>${m[6]?`<br>${esc(m[6])}`:""}</span>`}
+function storePrice(s,price){return price!=null?`<span class="sp ${s}">${STORE_NAME[s]} ${money(price)}</span>`:`<span class="sp ${s} none">Not at ${STORE_NAME[s]}</span>`}
+/* prices: {coles, woolies} dollars to show per store, or null where that store has none */
+function productsBlock(it,prices){
+  if(it.same&&it.coles&&it.woolies)return `<span>${esc(it.woolies.name)}</span><span class="prices">${STORES.map(s=>storePrice(s,prices[s])).join("")}</span>`;
+  return STORES.map(s=>`<span class="pl ${s}"><span class="grow">${it[s]?esc(it[s].name):"Not at "+STORE_NAME[s]}</span>${prices[s]!=null?`<span class="p">${money(prices[s])}</span>`:""}</span>`).join("");
 }
-function itemRow(id,label,price,st,det,extra){
-  const ticks=lsTicks();const open=state.openItem===id;const used=USED_IN[id]||[];
-  return `<div class="si ${ticks[id]?"done":""}"><input type="checkbox" id="tick-${id}" aria-label="Got ${esc(label)}" data-act="tick" data-v="${id}" ${ticks[id]?"checked":""}><div class="grow"><button class="itembtn" data-act="openitem" data-v="${id}" aria-expanded="${open}"><span class="grow">${esc(label)}</span><span class="p">${money(price)}</span></button>${extra||""}<span class="small muted" style="display:block">${st==="ok"?`<span class="tag ok">Checked</span>`:`<span class="tag est">Estimate</span>`} ${open?"tap to close":"tap for details"}</span>${open?`<div class="itemdetail"><div class="small">${esc(det||"")}</div>${macroLine(id)}${used.length?`<div class="eyebrow" style="margin-top:8px">Used in</div><div class="chips" style="margin-top:4px">${used.map(m=>`<button class="chip" data-act="recipe" data-v="${m}">${esc(MEAL[m].name)}</button>`).join("")}</div>`:""}${storeLinks(id)}</div>`:""}</div></div>`;
+function productLinks(it){
+  return `<div class="stack" style="gap:6px;margin-top:8px">${STORES.map(s=>it[s]?`<a class="ghost link ${s}" href="${esc(it[s].url)}" target="_blank" rel="noopener">${STORE_NAME[s]} product page ↗</a>`:`<span class="small muted">Not at ${STORE_NAME[s]}</span>`).join("")}</div>`;
 }
-function buildName(id,label,used){
-  if(id==="pasta"){const mac=(used||[]).includes("buffalomac"),sp=(used||[]).includes("bolognese");return mac&&sp?"San Remo Macaroni No 38 + Spaghetti No 5 (500g each)":mac?"San Remo Macaroni No 38 500g":"San Remo Spaghetti No 5 500g";}
-  if(id==="breast")return "Coles RSPCA Approved Chicken Breast Fillets";
-  if(id==="ham")return "D'Orsogna Ham Leg Triple Smoked 97% Fat Free (deli)";
-  if(id==="cucumber")return "Lebanese Cucumber";
-  return label.replace(/\s×\s\d+$/,"").replace(/\s\((freeze half|teriyaki week only)\)/,"").replace(/\s+can$/,"");
+function itemRow(it,prices,extra){
+  const id=it.id;const ticks=lsTicks();const open=state.openItem===id;const used=CAT.usedIn(id);
+  return `<div class="si ${ticks[id]?"done":""}"><input type="checkbox" id="tick-${id}" aria-label="Got ${esc(it.name)}" data-act="tick" data-v="${id}" ${ticks[id]?"checked":""}><div class="grow"><button class="itembtn" data-act="openitem" data-v="${id}" aria-expanded="${open}"><span class="grow stack" style="gap:2px">${productsBlock(it,prices)}</span></button>${extra||""}<span class="small muted" style="display:block">${open?"tap to close":"tap for details"}</span>${open?`<div class="itemdetail">${it.note?`<div class="small">${esc(it.note)}</div>`:""}${macroLine(id)}${used.length?`<div class="eyebrow" style="margin-top:8px">Used in</div><div class="chips" style="margin-top:4px">${used.map(m=>`<button class="chip" data-act="recipe" data-v="${m}">${esc(MEAL[m].name)}</button>`).join("")}</div>`:""}${productLinks(it)}</div>`:""}</div></div>`;
 }
-function itemIndex(){return Object.fromEntries(SHOP.flatMap(s=>s.items).map(i=>[i[0],i]))}
-function trolleyCart(rows,ticks,ITEM){return WeekdayFuelCart.cartLines(rows.map(r=>({id:r.id,n:r.n,used:r.used||[],name:buildName(r.id,ITEM[r.id][1],r.used)})),ticks,LINKS)}
 const MANUAL_WHY={coles:"Coles only",nostore:"no online store page"};
-function renderTrolley(rows,ticks,ITEM){
+function renderTrolley(rows,ticks){
   if(!window.WeekdayFuelHost)return "";
   const t=state.trolley;
   let h=`<div class="panel stack"><h3>Woolworths trolley</h3>`;
   if(!t){
-    const c=trolleyCart(rows,ticks,ITEM);
+    const c=WeekdayFuelCart.cartLines(rows,ticks);
     h+=`<div class="small muted">Puts the ${c.lines.length} Woolworths product${c.lines.length===1?"":"s"} still left to buy into your online trolley. Anything already there is set to these amounts, not doubled.</div>`;
     h+=`<div class="row"><button class="btn" data-act="sendtrolley" ${c.lines.length?"":"disabled"}>Send to Woolworths trolley</button></div>`;
   }else if(t.phase==="login"){
@@ -875,7 +720,7 @@ function renderTrolley(rows,ticks,ITEM){
   }else if(t.phase==="adding"){
     h+=`<div class="small num">Adding ${t.completed} of ${t.total}…</div>`;
   }else if(t.phase==="error"){
-    const c=trolleyCart(rows,ticks,ITEM);h+=`<div class="small">${esc(t.message||"")}</div><div class="row"><button class="btn" data-act="sendtrolley" ${c.lines.length?"":"disabled"}>Try again</button><button class="ghost" data-act="trolleyreset">Close</button></div>`;
+    const c=WeekdayFuelCart.cartLines(rows,ticks);h+=`<div class="small">${esc(t.message||"")}</div><div class="row"><button class="btn" data-act="sendtrolley" ${c.lines.length?"":"disabled"}>Try again</button><button class="ghost" data-act="trolleyreset">Close</button></div>`;
   }else{
     const byCode=Object.fromEntries(t.lines.map(l=>[l.stockcode,l]));
     const added=t.results.filter(r=>r.added),failed=t.results.filter(r=>!r.added);
@@ -890,7 +735,6 @@ function renderTrolley(rows,ticks,ITEM){
 }
 function renderShop(){
   const ticks=lsTicks();const build=S().shopMode!=="all";
-  const ITEM=itemIndex();
   let h=`<div><div class="eyebrow">Coles or Woolworths</div><h2>${build?"Build a shop":"Full shopping list"}</h2></div>`;
   h+=`<div class="dial" role="group" aria-label="List type" style="align-self:flex-start"><button aria-pressed="${build}" data-act="shopmode" data-v="build">Build a shop</button><button aria-pressed="${!build}" data-act="shopmode" data-v="all">Full list</button></div>`;
   if(build){
@@ -903,24 +747,29 @@ function renderShop(){
     });
     const days=S().fixtureDays==null?5:S().fixtureDays;
     h+=`<div class="row between" style="margin-top:4px"><span class="small"><b>Dare + Grenade</b> for how many days?</span><div class="step"><button data-act="fxdays" data-i="-1" ${days?"":"disabled"} aria-label="Fewer days">−</button><span class="num">${days}</span><button data-act="fxdays" data-i="1" aria-label="More days">+</button></div></div></div>`;
-    const rows=buildList();
+    const st=store(),ot=other(st);const rows=CAT.shopList(pk,days);
     if(!nMeals&&!rows.length){h+=`<div class="empty">Pick at least one meal and your list appears here.</div>`;return h;}
-    const left=rows.filter(r=>!ticks[r.id]).reduce((a,r)=>a+r.cost,0);const total=rows.reduce((a,r)=>a+r.cost,0);
-    h+=`<div class="panel vs" style="grid-template-columns:repeat(auto-fit,minmax(130px,1fr))"><div><span class="small muted">${nMeals} serve${nMeals===1?"":"s"} · ${rows.length} items</span><b>${money(total)}</b></div><div><span class="small muted">Left to buy</span><b style="color:var(--good)">${money(left)}</b></div></div>`;
-    h+=`<div class="small muted">Tick things off as they go in the trolley, or tick pantry items you already have at home. Prices are estimates and use whole packs, so the first shop costs more than the per-serve cost.</div>`;
+    const tot={coles:CAT.storeTotals(rows,"coles",ticks),woolies:CAT.storeTotals(rows,"woolies",ticks)};
+    h+=`<div class="panel vs">${STORES.map(s=>`<div><span class="small" style="display:block;color:var(--${s});font-weight:700">${STORE_NAME[s]}${tot[s].missed.length?` · ${tot[s].missed.length} missed`:""}</span><b>${money(tot[s].total)}</b></div>`).join("")}</div>`;
+    h+=`<div class="row between"><div class="dial" role="group" aria-label="Store" style="grid-template-columns:repeat(2,auto)">${STORES.map(s=>`<button aria-pressed="${st===s}" data-act="store" data-v="${s}">${STORE_NAME[s]}</button>`).join("")}</div><span class="small">Left to buy <b class="num" style="color:var(--good)">${money(tot[st].left)}</b></span></div>`;
+    h+=`<div class="small muted">${nMeals} serve${nMeals===1?"":"s"} · ${rows.length} items. Tick things off as they go in the trolley, or tick pantry items you already have at home. Prices use whole packs, so the first shop costs more than the per-serve cost. Coles prices checked ${fmtShort(CAT.colesChecked())}.</div>`;
     [["Fixtures",0],["Fresh",1],["Pantry & freezer (check what you already have)",2]].forEach(([t,sec])=>{
-      const rs=rows.filter(r=>r.sec===sec);if(!rs.length)return;
-      h+=`<div class="panel shopsec"><h3 style="margin-bottom:4px">${t}</h3>${rs.map(r=>{const it=ITEM[r.id];return itemRow(r.id,buildName(r.id,it[1],r.used),r.cost,it[3],it[4],`<span class="buy small"><b>Buy:</b> ${esc(r.buy)} <span class="muted">· need ${esc(r.qty)}</span></span>`)}).join("")}</div>`;
+      const rs=rows.filter(r=>r.sec===sec&&r[st]);if(!rs.length)return;
+      h+=`<div class="panel shopsec"><h3 style="margin-bottom:4px">${t}</h3>${rs.map(r=>itemRow(CAT.item(r.id),{coles:r.coles&&r.coles.cost,woolies:r.woolies&&r.woolies.cost},`<span class="buy small"><b>Buy:</b> ${esc(r[st].buy)} <span class="muted">· need ${esc(needLabel(r))}</span></span>`)).join("")}</div>`;
     });
-    h+=renderTrolley(rows,ticks,ITEM);
+    const miss=rows.filter(r=>!r[st]);
+    if(miss.length)h+=`<div class="panel stack"><h3>Missed at ${STORE_NAME[st]}</h3><div class="small muted">${STORE_NAME[st]} doesn't sell these. Get them at ${STORE_NAME[ot]}.</div>${miss.map(r=>{const o=r[ot];return `<div class="row between"><span class="small">${esc(o?o.product.name:r.name)}${o?` <span class="muted">· ${esc(o.buy)}</span>`:""}</span>${o?`<span class="num small" style="color:var(--${ot})">${money(o.cost)}</span>`:""}</div>`}).join("")}</div>`;
+    if(st==="woolies")h+=renderTrolley(rows,ticks);
     h+=`<div class="row"><button class="ghost" data-act="untickall">Clear ticks for next shop</button></div>`;
     return h;
   }
-  const all=SHOP.flatMap(s=>s.items);const okN=all.filter(i=>i[3]==="ok").length;
-  const weekly=SHOP.slice(0,2).reduce((a,s)=>a+s.items.reduce((b,i)=>b+i[2],0),0);const pantry=SHOP[2].items.reduce((b,i)=>b+i[2],0);
-  h+=`<p class="small muted" style="margin:0">Everything for every meal. ${okN} of ${all.length} prices checked online. Tap an item for macros, meals and its product page.</p>`;
-  h+=`<div class="panel vs" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr))"><div><span class="small muted">Weekly top-up + fixtures</span><b>${money(weekly)}</b></div><div><span class="small muted">Pantry, first shop only</span><b>${money(pantry)}</b></div></div>`;
-  SHOP.forEach(s=>{h+=`<div class="panel shopsec"><div class="row between" style="margin-bottom:4px"><h3>${esc(s.sec)}</h3><span class="num small muted">${money(s.items.reduce((b,i)=>b+i[2],0))}</span></div><div class="small muted" style="margin-bottom:6px">${esc(s.note)}</div>${s.items.map(([id,l,p,st,det])=>itemRow(id,l,p,st,det,"")).join("")}</div>`});
+  const items=CAT.ITEMS;
+  const DELI_LIST_G=300;
+  const listPrice=p=>p.perKg?Math.round(p.price*DELI_LIST_G/10)/100:p.price;
+  const secTotal=(sec,s)=>items.filter(i=>i.sec===sec&&i[s]).reduce((a,i)=>a+listPrice(i[s]),0);
+  h+=`<p class="small muted" style="margin:0">Everything for every meal, one pack each. Tap an item for macros, meals and both stores' product pages. Coles prices checked ${fmtShort(CAT.colesChecked())}.</p>`;
+  h+=`<div class="panel vs">${STORES.map(s=>`<div><span class="small" style="display:block;color:var(--${s});font-weight:700">${STORE_NAME[s]}</span><span class="small muted" style="display:block">Weekly top-up + fixtures</span><b>${money(secTotal(0,s)+secTotal(1,s))}</b><span class="small muted" style="display:block">Pantry, first shop only ${money(secTotal(2,s))}</span></div>`).join("")}</div>`;
+  SECTIONS.forEach(([title,note],sec)=>{h+=`<div class="panel shopsec"><div class="row between" style="margin-bottom:4px"><h3>${esc(title)}</h3><span class="num small">${STORES.map(s=>`<span style="color:var(--${s})">${money(secTotal(sec,s))}</span>`).join(" · ")}</span></div><div class="small muted" style="margin-bottom:6px">${esc(note)}</div>${items.filter(i=>i.sec===sec).map(i=>{const extra=(i.coles&&i.coles.perKg)||(i.woolies&&i.woolies.perKg)?`<span class="buy small muted">Deli price for ${DELI_LIST_G}g</span>`:"";return itemRow(i,{coles:i.coles&&listPrice(i.coles),woolies:i.woolies&&listPrice(i.woolies)},extra);}).join("")}</div>`});
   h+=`<div class="row"><button class="ghost" data-act="untickall">Clear ticks for next shop</button></div>`;
   return h;
 }
@@ -981,10 +830,11 @@ document.addEventListener("click",e=>{
     case "untickall":lsSetTicks({});break;
     case "openitem":state.openItem=state.openItem===v?null:v;break;
     case "shopmode":state.settings.shopMode=v;saveSettings();break;
+    case "store":state.settings.store=v;saveSettings();break;
     case "serve":{const pk=picks();const n=Math.max(0,Math.min(10,(pk[v]||0)+i));if(n)pk[v]=n;else delete pk[v];state.settings.trial=pk;saveSettings();break}
     case "starter":state.settings.trial=clone(STARTER);saveSettings();break;
     case "clearpicks":state.settings.trial={};saveSettings();break;
-    case "sendtrolley":{const c=trolleyCart(buildList(),lsTicks(),itemIndex());if(!c.lines.length)break;state.trolley={phase:"adding",completed:0,total:c.lines.length,lines:c.lines,manual:c.manual};WeekdayFuelHost.postMessage(JSON.stringify({type:"sendTrolley",lines:c.lines}));break}
+    case "sendtrolley":{const c=WeekdayFuelCart.cartLines(CAT.shopList(picks(),fxDays()),lsTicks());if(!c.lines.length)break;state.trolley={phase:"adding",completed:0,total:c.lines.length,lines:c.lines,manual:c.manual};WeekdayFuelHost.postMessage(JSON.stringify({type:"sendTrolley",lines:c.lines}));break}
     case "trolleyreset":state.trolley=null;break;
     case "checkout":WeekdayFuelHost.postMessage(JSON.stringify({type:"checkout"}));return;
     case "openwoolies":WeekdayFuelHost.postMessage(JSON.stringify({type:"openWoolworths",url:v}));return;
