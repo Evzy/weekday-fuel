@@ -15,4 +15,5 @@
     <string name="woolworths_timeout">Woolworths took too long to respond. Try again.</string>
     <string name="woolworths_offline">Couldn\'t reach Woolworths. Check your connection and try again.</string>
     <string name="woolworths_bad_request">Couldn\'t read the shop list to send. Try again.</string>
+    <string name="woolworths_checkout_bad_request">Couldn\'t read that delivery time. Try again.</string>
 </resources>

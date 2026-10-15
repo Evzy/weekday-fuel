@@ -62,4 +62,22 @@ class HostMessagesTest {
         val fallback = JSONObject(HostMessages.prices(PricesScriptState(PricesPhase.ERROR, null, JSONObject(), null)))
         assertEquals("Couldn't update Woolworths prices.", fallback.getString("message"))
     }
+
+    @Test
+    fun checkoutDoneCarriesResult() {
+        val result = JSONObject("""{"action":"load","loggedOut":false}""")
+        val json = JSONObject(HostMessages.checkout(CheckoutScriptState(CheckoutPhase.DONE, result, null)))
+        assertEquals("checkoutDone", json.getString("type"))
+        assertEquals("load", json.getJSONObject("result").getString("action"))
+    }
+
+    @Test
+    fun checkoutErrorCarriesMessage() {
+        val json = JSONObject(HostMessages.checkout(CheckoutScriptState(CheckoutPhase.ERROR, null, "login check HTTP 503")))
+        assertEquals("checkoutError", json.getString("type"))
+        assertEquals("login check HTTP 503", json.getString("message"))
+        val fallback = JSONObject(HostMessages.checkout(CheckoutScriptState(CheckoutPhase.ERROR, null, null)))
+        assertEquals("Couldn't reach Woolworths.", fallback.getString("message"))
+        assertEquals("checkoutError", JSONObject(HostMessages.checkoutFailure("x")).getString("type"))
+    }
 }

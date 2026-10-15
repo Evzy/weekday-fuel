@@ -26,6 +26,8 @@ class WoolworthsSession(private val context: Context, private val openExternal: 
         fun onFinished(state: TrolleyScriptState)
 
         fun onPrices(state: PricesScriptState)
+
+        fun onCheckout(state: CheckoutScriptState)
     }
 
     var listener: Listener? = null
@@ -55,6 +57,18 @@ class WoolworthsSession(private val context: Context, private val openExternal: 
             // A hung request leaves the script "fetching", which refuses start(); reload the page before the next refresh.
             needsFreshPage = true
             failPrices(context.getString(R.string.woolworths_timeout))
+        }
+    private val checkoutScript: String by lazy {
+        context.assets.open(CHECKOUT_ASSET).bufferedReader().use { it.readText() }
+    }
+    private var pendingCheckout: String? = null
+    private var checkoutPolling = false
+    private val checkoutPoller = Runnable { pollCheckout() }
+    private val checkoutWatchdog =
+        Runnable {
+            // A hung request leaves the script "running", which refuses start(); reload the page before the next run.
+            needsFreshPage = true
+            failCheckout(context.getString(R.string.woolworths_timeout))
         }
 
     val webView: WebView =
@@ -118,6 +132,26 @@ class WoolworthsSession(private val context: Context, private val openExternal: 
         pricesPolling = false
         handler.removeCallbacks(pricesPoller)
         handler.removeCallbacks(pricesWatchdog)
+    }
+
+    /** Runs one checkout script request (load or book) in the background page; [requestJson] comes from [CheckoutJson]. */
+    fun checkout(requestJson: String) {
+        pendingCheckout = requestJson
+        checkoutPolling = false
+        handler.removeCallbacks(checkoutPoller)
+        handler.removeCallbacks(checkoutWatchdog)
+        handler.postDelayed(checkoutWatchdog, TIMEOUT_MS)
+        when {
+            pending == null && (needsFreshPage || !onShopPage()) -> webView.loadUrl(WoolworthsUrls.HOME_URL)
+            !pageLoading -> startCheckout()
+        }
+    }
+
+    fun cancelCheckout() {
+        pendingCheckout = null
+        checkoutPolling = false
+        handler.removeCallbacks(checkoutPoller)
+        handler.removeCallbacks(checkoutWatchdog)
     }
 
     private fun start() {
@@ -228,6 +262,41 @@ class WoolworthsSession(private val context: Context, private val openExternal: 
         listener?.onPrices(PricesScriptState(PricesPhase.ERROR, null, JSONObject(), message))
     }
 
+    private fun startCheckout() {
+        val request = pendingCheckout ?: return
+        if (pageLoading || !onShopPage()) return
+        handler.removeCallbacks(checkoutPoller)
+        checkoutPolling = true
+        webView.evaluateJavascript("$checkoutScript\nwindow.__weekdayFuelCheckout.start($request);", null)
+        handler.postDelayed(checkoutPoller, POLL_MS)
+    }
+
+    private fun pollCheckout() {
+        if (!checkoutPolling) return
+        webView.evaluateJavascript(CHECKOUT_STATE_EXPRESSION) { result ->
+            if (!checkoutPolling) return@evaluateJavascript
+            val state = runCatching { CheckoutJson.parseScriptState(result) }.getOrNull()
+            when (state?.phase) {
+                null -> {
+                    // A new document dropped the script; onPageFinished or this restarts it.
+                    checkoutPolling = false
+                    if (!pageLoading) startCheckout()
+                }
+                CheckoutPhase.IDLE, CheckoutPhase.RUNNING -> handler.postDelayed(checkoutPoller, POLL_MS)
+                CheckoutPhase.DONE, CheckoutPhase.ERROR -> {
+                    cancelCheckout()
+                    listener?.onCheckout(state)
+                }
+            }
+        }
+    }
+
+    private fun failCheckout(message: String) {
+        if (pendingCheckout == null) return
+        cancelCheckout()
+        listener?.onCheckout(CheckoutScriptState(CheckoutPhase.ERROR, null, message))
+    }
+
     private inner class SessionClient : WebViewClient() {
         override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
             val scheme = request.url.scheme
@@ -254,6 +323,7 @@ class WoolworthsSession(private val context: Context, private val openExternal: 
                 start()
             }
             if (pendingPrices != null && !pricesPolling && shop) startPrices()
+            if (pendingCheckout != null && !checkoutPolling && shop) startCheckout()
         }
 
         override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
@@ -261,6 +331,7 @@ class WoolworthsSession(private val context: Context, private val openExternal: 
                 needsFreshPage = true
                 fail(context.getString(R.string.woolworths_offline))
                 failPrices(context.getString(R.string.woolworths_offline))
+                failCheckout(context.getString(R.string.woolworths_offline))
             }
         }
     }
@@ -270,6 +341,8 @@ class WoolworthsSession(private val context: Context, private val openExternal: 
         const val STATE_EXPRESSION = "window.__weekdayFuelTrolley ? window.__weekdayFuelTrolley.state() : null"
         const val PRICES_ASSET = "woolworths/prices.js"
         const val PRICES_STATE_EXPRESSION = "window.__weekdayFuelPrices ? window.__weekdayFuelPrices.state() : null"
+        const val CHECKOUT_ASSET = "woolworths/checkout.js"
+        const val CHECKOUT_STATE_EXPRESSION = "window.__weekdayFuelCheckout ? window.__weekdayFuelCheckout.state() : null"
         const val PRICES_TIMEOUT_MS = 30_000L
         const val POLL_MS = 300L
         const val LOGIN_RETRY_MS = 2_000L

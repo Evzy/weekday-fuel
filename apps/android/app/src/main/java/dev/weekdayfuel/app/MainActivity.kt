@@ -30,6 +30,8 @@ import androidx.webkit.WebViewFeature
 import dev.weekdayfuel.app.update.GithubApkReleaseInfo
 import dev.weekdayfuel.app.update.GithubApkReleaseUpdater
 import dev.weekdayfuel.app.update.ReleaseVersionCompare
+import dev.weekdayfuel.app.woolworths.CheckoutJson
+import dev.weekdayfuel.app.woolworths.CheckoutScriptState
 import dev.weekdayfuel.app.woolworths.HostMessages
 import dev.weekdayfuel.app.woolworths.PricesJson
 import dev.weekdayfuel.app.woolworths.PricesScriptState
@@ -158,6 +160,7 @@ class MainActivity : ComponentActivity() {
     override fun onDestroy() {
         woolworths.cancel()
         woolworths.cancelPrices()
+        woolworths.cancelCheckout()
         woolworths.webView.destroy()
         webView.destroy()
         super.onDestroy()
@@ -179,7 +182,15 @@ class MainActivity : ComponentActivity() {
                 val uri = Uri.parse(url)
                 showWoolworths(if (WoolworthsUrls.isWoolworthsPage(uri.scheme, uri.host)) url else WoolworthsUrls.HOME_URL)
             }
-            "checkout" -> showWoolworths(WoolworthsUrls.TROLLEY_URL)
+            "checkoutLoad" -> woolworths.checkout(CheckoutJson.loadRequest())
+            "checkoutBook" -> {
+                val request =
+                    CheckoutJson.bookRequest(msg) ?: run {
+                        replyToPage(HostMessages.checkoutFailure(getString(R.string.woolworths_checkout_bad_request)))
+                        return
+                    }
+                woolworths.checkout(request)
+            }
             "refreshPrices" -> {
                 val codes = runCatching { PricesJson.parseStockcodes(msg.optJSONArray("stockcodes") ?: JSONArray()) }.getOrNull()
                 if (codes.isNullOrEmpty()) {
@@ -241,6 +252,10 @@ class MainActivity : ComponentActivity() {
 
         override fun onPrices(state: PricesScriptState) {
             replyToPage(HostMessages.prices(state))
+        }
+
+        override fun onCheckout(state: CheckoutScriptState) {
+            replyToPage(HostMessages.checkout(state))
         }
     }
 

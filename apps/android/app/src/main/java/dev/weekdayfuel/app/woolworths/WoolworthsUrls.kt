@@ -3,7 +3,6 @@ package dev.weekdayfuel.app.woolworths
 object WoolworthsUrls {
     const val HOME_URL = "https://www.woolworths.com.au/"
     const val LOGIN_URL = "https://www.woolworths.com.au/shop/securelogin"
-    const val TROLLEY_URL = "https://www.woolworths.com.au/shop/checkout"
     const val SHOP_HOST = "www.woolworths.com.au"
 
     fun isWoolworthsHost(host: String?): Boolean =

@@ -7,6 +7,7 @@ import org.json.JSONObject
 object HostMessages {
     private const val GENERIC_FAILURE = "Something went wrong sending to Woolworths. Try again."
     private const val PRICES_FAILURE = "Couldn't update Woolworths prices."
+    private const val CHECKOUT_FAILURE = "Couldn't reach Woolworths."
 
     fun login(): String = JSONObject().put("type", "trolleyLogin").toString()
 
@@ -37,4 +38,11 @@ object HostMessages {
     }
 
     fun pricesFailure(message: String): String = JSONObject().put("type", "pricesError").put("message", message).toString()
+
+    fun checkout(state: CheckoutScriptState): String {
+        if (state.phase != CheckoutPhase.DONE || state.result == null) return checkoutFailure(state.error ?: CHECKOUT_FAILURE)
+        return JSONObject().put("type", "checkoutDone").put("result", state.result).toString()
+    }
+
+    fun checkoutFailure(message: String): String = JSONObject().put("type", "checkoutError").put("message", message).toString()
 }
