@@ -372,9 +372,11 @@ const dayShort=d=>parse(d).toLocaleDateString("en-AU",{weekday:"short",day:"nume
 function forLabel(r){if(!r||!r.used||!r.used.length)return "";return "For "+(r.days&&r.days.length?r.days.map(dayShort).join(", ")+" · ":"")+r.used.map(m=>MEAL[m]?MEAL[m].name:m).join(", ")}
 const forLine=r=>{const t=forLabel(r);return t?`<span class="small muted" style="display:block">${esc(t)}</span>`:""};
 const trolleyBusy=()=>!!state.trolley&&(state.trolley.phase==="adding"||state.trolley.phase==="login");
+const orderHint=()=>state.orderError?`<div class="hint"><span>${esc(state.orderError)}</span></div>`:"";
 function nextShopBtn(){
   if(trolleyBusy())return "";
-  const save=!WeekdayFuelOrders.isEmpty(shopRows(),(lsSent()||{}).lines),armed=state.armed==="nextshop";
+  let save=true;try{save=!WeekdayFuelOrders.isEmpty(shopRows(),(lsSent()||{}).lines)}catch(e){}
+  const armed=state.armed==="nextshop";
   const label=armed?(save?"Tap again to save this order and clear days, meals and ticks":"Tap again to clear days, meals and ticks"):(save?"Save order and start next shop":"Start next shop");
   return `<button class="ghost ${armed?"warn":""}" data-act="nextshop">${label}</button>`;
 }
@@ -465,7 +467,7 @@ function renderCheckout(){
   h+=`</div>`;
   if(!r.booked)h+=`<div class="hint"><span>Book a delivery time first, or pick one on Woolworths.</span></div>`;
   h+=`<div class="row"><button class="btn" data-act="copay" ${coBusy()?"disabled":""}>Pay on Woolworths</button><button class="ghost" data-act="cotry" ${coBusy()?"disabled":""}>Refresh</button><button class="ghost" data-act="codone">Done</button></div>`;
-  if(c.paid)h+=`<div class="row between"><span class="small">Finished this shop?</span>${nextShopBtn()}</div>`;
+  if(c.paid)h+=`<div class="row between"><span class="small">Finished this shop?</span>${nextShopBtn()}</div>${orderHint()}`;
   return h;
 }
 const SECTIONS=[
@@ -919,12 +921,13 @@ function renderTrolley(rows,ticks){
     if(stuck.length)h+=`<div class="eyebrow">Couldn't take out, remove these yourself</div>${stuck.map(r=>lineRow(r,r.reason||"")).join("")}`;
     if(t.manual.length)h+=`<div class="eyebrow">Add these yourself</div>${t.manual.map(m=>`<div class="small">${esc(m.name)} <span class="muted">(${MANUAL_WHY[m.reason]||"add it yourself"})</span>${forLine(byId[m.itemId])}</div>`).join("")}`;
     h+=`<div class="row"><button class="btn" data-act="checkout">Checkout</button><button class="ghost" data-act="trolleyreset">Done</button></div>`;
-    if(t.checkedOut)h+=`<div class="row between"><span class="small">Finished this shop?</span>${nextShopBtn()}</div>`;
+    if(t.checkedOut)h+=`<div class="row between"><span class="small">Finished this shop?</span>${nextShopBtn()}</div>${orderHint()}`;
   }
   return h+`</div>`;
 }
 /* Saves the current shop as an order. True when saved or when there was nothing to save. */
-function saveOrder(){
+function saveOrder(){try{return trySaveOrder()}catch(e){return false}}
+function trySaveOrder(){
   const rows=shopRows(),sent=lsSent(),lines=(sent&&sent.lines)||{};
   if(WeekdayFuelOrders.isEmpty(rows,lines))return true;
   const r=(state.checkout&&state.checkout.result)||state.coLast,pk=picks();
@@ -942,7 +945,7 @@ function renderPastOrders(){
   const O=WeekdayFuelOrders,list=lsOrders();
   if(!list.length&&!state.orderError)return "";
   let h=`<div class="panel stack"><h3>Past orders</h3>`;
-  if(state.orderError)h+=`<div class="hint"><span>Couldn't save the order. Nothing was cleared.</span></div>`;
+  h+=orderHint();
   list.forEach(o=>{
     const open=state.openOrder===o.id;
     h+=`<button class="pname" data-act="openorder" data-v="${esc(o.id)}" aria-expanded="${open}"><b>${esc(O.summaryLine(o))}</b></button>`;
@@ -1037,6 +1040,7 @@ document.addEventListener("click",e=>{
   const act=el.dataset.act,v=el.dataset.v,i=+el.dataset.i;
   if(act==="close"&&el.classList.contains("scrim")&&e.target!==el)return;
   if(act!=="rm"&&act!=="rmw"&&act!=="nextshop"&&act!=="delorder")state.armed=null;
+  state.orderError=false;
   const date=state.date;
   switch(act){
     case "tab":state.tab=v;state.adding=null;window.scrollTo(0,0);if(v==="shop"&&!coBusy())maybeRefreshPrices();break;
@@ -1053,9 +1057,9 @@ document.addEventListener("click",e=>{
     case "mealshop":{const d=ensureDay(date);const m=d.meals[i];if(m.shop===false)delete m.shop;else m.shop=false;saveDay(date);break}
     case "unshopday":{const sd=state.settings.shopDays=Object.assign({},S().shopDays);delete sd[v];saveSettings();break}
     case "openday":state.tab="today";state.date=v;state.adding=null;window.scrollTo(0,0);break;
-    case "nextshop":if(trolleyBusy())break;if(state.armed!=="nextshop"){state.armed="nextshop";break}state.armed=null;if(!saveOrder()){state.orderError=true;break}state.orderError=false;state.settings.shopDays={};state.settings.trial={};saveSettings();lsSetTicks({});lsSetSent(null);state.trolley=null;state.checkout=null;state.coLast=null;break;
+    case "nextshop":if(trolleyBusy())break;if(state.armed!=="nextshop"){state.armed="nextshop";break}state.armed=null;if(!saveOrder()){state.orderError="Couldn't save the order. Nothing was cleared.";break}state.settings.shopDays={};state.settings.trial={};saveSettings();lsSetTicks({});lsSetSent(null);state.trolley=null;state.checkout=null;state.coLast=null;break;
     case "openorder":state.openOrder=state.openOrder===v?null:v;break;
-    case "delorder":{if(state.armed==="order"+v){lsSetOrders(WeekdayFuelOrders.removeOrder(lsOrders(),v));state.armed=null;if(state.openOrder===v)state.openOrder=null}else state.armed="order"+v;break}
+    case "delorder":{if(state.armed!=="order"+v){state.armed="order"+v;break}state.armed=null;if(!lsSetOrders(WeekdayFuelOrders.removeOrder(lsOrders(),v))){state.orderError="Couldn't delete the order.";break}if(state.openOrder===v)state.openOrder=null;break}
     case "rm":{if(state.armed==="rm"+i){const d=ensureDay(date);d.meals.splice(i,1);saveDay(date);state.armed=null}else state.armed="rm"+i;break}
     case "adding":state.adding=state.adding===v?null:v;break;
     case "add":{const d=ensureDay(date);d.meals=d.meals||[];d.meals.push({id:v,slot:state.adding,t:"S"});state.adding=null;saveDay(date);break}
