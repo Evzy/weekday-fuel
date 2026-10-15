@@ -376,6 +376,7 @@
           stale = !!fresh.error;
           result.windows = fresh.error ? fresh : await section(function () { return windows(dlv); });
           result.addresses = fresh.error ? fresh : await section(function () { return readAddresses(dlv); });
+          result.options = fresh.error ? fresh : await section(readOptions);
         }
       }
       result.method = dlv.method;

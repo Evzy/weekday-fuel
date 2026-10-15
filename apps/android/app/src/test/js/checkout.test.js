@@ -490,6 +490,7 @@ test("address refuses an id that isn't saved, and after a switch re-reads the bo
   assert.equal(s.result.windows.days.length, 1);
   assert.ok(calls.some((c) => c.url.startsWith("/api/v3/ui/fulfilment/windows?areaId=4931&fulfilmentMethod=Courier&addressId=999&suburbId=4496")));
   assert.equal(s.result.summary.total, 145.43);
+  assert.deepEqual(s.result.options, { instructions: "Front step", leaveUnattended: true, offerUnattended: true });
   ({ api } = load(site({ "POST /apis/ui/Fulfilment": () => response(200, { IsSuccessful: false, Message: "Not serviced" }) })));
   api.start({ action: "address", addressId: 999 });
   s = await settle(api);
@@ -523,6 +524,7 @@ test("an address switch with an unclear answer still re-reads, and a failed re-r
   assert.equal(s.result.booked, null);
   assert.deepEqual(s.result.windows, { error: "logged out" });
   assert.deepEqual(s.result.addresses, { error: "logged out" });
+  assert.deepEqual(s.result.options, { error: "logged out" });
   let n = 0;
   const { api: b } = load(site({ "GET /api/ui/v2/bootstrap": () => response(200, BOOT(++n > 1 ? { Address: { AddressId: 999, AreaId: 4931, SuburbId: 4496 } } : { ReservedTime: BOOKED })) }));
   b.start({ action: "address", addressId: 999 });

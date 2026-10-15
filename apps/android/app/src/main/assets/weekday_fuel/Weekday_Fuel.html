@@ -376,7 +376,7 @@ const CO_URL="https://www.woolworths.com.au/checkout",WOOLIES_LOGIN_URL="https:/
 const coBusy=()=>!!state.checkout&&(state.checkout.phase==="loading"||state.checkout.phase==="saving");
 const CO_MSG={book:"checkoutBook",subs:"checkoutSubs",options:"checkoutOptions",address:"checkoutAddress"};
 function openCheckout(){state.checkout={phase:"loading",saving:null,result:null,day:null,errors:{},subsDraft:{},optDraft:null,optSaved:false,message:null,paid:false};WeekdayFuelHost.postMessage(JSON.stringify({type:"checkoutLoad"}))}
-function coSave(kind,fields){const c=state.checkout;if(!c||c.phase!=="ready")return;c.phase="saving";c.saving=kind;c.errors[kind]=null;if(kind==="options")c.optSaved=false;WeekdayFuelHost.postMessage(JSON.stringify(Object.assign({type:CO_MSG[kind]},fields)))}
+function coSave(kind,fields){const c=state.checkout;if(!c||c.phase!=="ready")return;c.phase="saving";c.saving=kind;c.sent=fields;c.errors[kind]=null;if(kind==="options")c.optSaved=false;WeekdayFuelHost.postMessage(JSON.stringify(Object.assign({type:CO_MSG[kind]},fields)))}
 function coDefaultDay(r){const bd=r.booked&&r.booked.start?String(r.booked.start).slice(0,10):null,tabs=WeekdayFuelCheckoutView.dayTabs(r.windows);return tabs.some(t=>t.date===bd)?bd:((tabs.find(t=>t.open)||tabs[0]||{}).date||null)}
 function onCheckout(m){
   const c=state.checkout;if(!c||(c.phase!=="loading"&&c.phase!=="saving"))return;
@@ -388,6 +388,7 @@ function onCheckout(m){
     ["method","booked","minimumSpend","trolley","windows","options","addresses"].forEach(k=>{if(k in r)c.result[k]=r[k]});
     if("summary" in r&&!keep)c.result.summary=r.summary;
     c.errors[kind]=err||null;
+    if(!err&&kind==="subs"&&keep)c.sent.items.forEach(ch=>{const it=(c.result.summary.items||[]).find(i=>i&&i.stockcode===ch.stockcode);if(it)it.allow=ch.allow});
     if(!err){if(kind==="subs")c.subsDraft={};if(kind==="options"){c.optDraft=null;c.optSaved=true}if(kind==="address")c.day=coDefaultDay(c.result)}
     c.phase="ready";c.saving=null;return}
   c.result=r;c.errors={};c.phase="ready";c.day=coDefaultDay(r);
@@ -406,7 +407,7 @@ function coOptions(c,r){const o=r.options;let h=`<div class="panel stack"><h3>De
   const d=c.optDraft||o,busy=coBusy();
   h+=`<label class="f">Note for the driver<textarea id="co-note" rows="3" maxlength="500" ${busy?"disabled":""}>${esc(d.instructions||"")}</textarea></label>`;
   if(o.offerUnattended)h+=`<label class="row small"><input type="checkbox" id="co-unatt" ${d.leaveUnattended?"checked":""} ${busy?"disabled":""}>Leave unattended</label>`;
-  h+=`<div class="row"><button class="ghost" data-act="cooptsave" ${busy||!c.optDraft?"disabled":""}>Save</button>${c.saving==="options"?`<span class="small">Saving…</span>`:c.optSaved?`<span class="small" style="color:var(--good)">Saved</span>`:""}</div>`;
+  h+=`<div class="row"><button class="ghost" data-act="cooptsave" ${busy||!c.optDraft?"disabled":""}>Save</button>${c.saving==="options"?`<span class="small">Saving…</span>`:c.optSaved?`<span class="small" id="co-optsaved" style="color:var(--good)">Saved</span>`:""}</div>`;
   if(c.errors.options)h+=`<div class="hint"><span>${coErr("Couldn't save",c.errors.options)}</span></div>`;
   return h+`</div>`}
 function coSubs(c,r){const s=r.summary;if(!s||s.error||!Array.isArray(s.items)||!s.items.length)return "";
@@ -1031,7 +1032,7 @@ document.addEventListener("click",e=>{
     case "sendtrolley":sendTrolley(state.trolley&&state.trolley.haveIt||{});break;
     case "trolleyreset":state.trolley=null;break;
     case "checkout":openCheckout();window.scrollTo(0,0);break;
-    case "cotry":if(!coBusy())openCheckout();break;
+    case "cotry":{if(coBusy())break;const old=state.checkout;openCheckout();if(old&&old.phase==="ready"){state.checkout.optDraft=old.optDraft;state.checkout.subsDraft=old.subsDraft}break}
     case "coday":if(state.checkout)state.checkout.day=v;break;
     case "cochange":{const c=state.checkout;if(c&&c.result&&c.result.booked)c.day=String(c.result.booked.start).slice(0,10);render();const t=document.getElementById("co-time");if(t)t.scrollIntoView({block:"start"});return}
     case "coslot":coSave("book",{timeslotId:+v,windowDate:el.dataset.d});break;
@@ -1073,6 +1074,7 @@ document.addEventListener("input",e=>{
   const o=c.result.options||{},d=c.optDraft||(c.optDraft={instructions:o.instructions||"",leaveUnattended:!!o.leaveUnattended});
   if(el.id==="co-note")d.instructions=el.value;else d.leaveUnattended=el.checked;
   c.optSaved=false;const b=document.querySelector('[data-act="cooptsave"]');if(b&&!coBusy())b.disabled=false;
+  const ok=document.getElementById("co-optsaved");if(ok)ok.remove();
 });
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&state.sheet){state.sheet=null;render()}});
 
