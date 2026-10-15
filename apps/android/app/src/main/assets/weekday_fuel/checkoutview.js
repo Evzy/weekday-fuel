@@ -95,6 +95,36 @@
     return lines;
   }
 
+  function subsView(items, draft) {
+    var d = draft || {};
+    var rows = (items || []).map(function (i) {
+      var shown = !i.fixed && Object.prototype.hasOwnProperty.call(d, i.stockcode) ? d[i.stockcode] === true : i.allow;
+      return { stockcode: i.stockcode, name: i.name, allow: shown, fixed: i.fixed, changed: shown !== i.allow };
+    });
+    var open = rows.filter(function (r) { return !r.fixed; });
+    return {
+      rows: rows,
+      allowed: open.filter(function (r) { return r.allow; }).length,
+      choosable: open.length,
+      changes: open.filter(function (r) { return r.changed; }).map(function (r) { return { stockcode: r.stockcode, allow: r.allow }; }),
+    };
+  }
+
+  function allDraft(items, allow) {
+    var d = {};
+    (items || []).forEach(function (i) {
+      if (!i.fixed && i.allow !== allow) d[i.stockcode] = allow;
+    });
+    return d;
+  }
+
+  function addressRows(addresses) {
+    if (!addresses || !Array.isArray(addresses.list)) return [];
+    return addresses.list.map(function (a) {
+      return { id: a.id, text: a.text || "Address " + a.id, current: a.id === addresses.current, primary: a.primary === true };
+    });
+  }
+
   var api = {
     money: money,
     dollars: dollars,
@@ -104,6 +134,9 @@
     boostSummary: boostSummary,
     dayTabs: dayTabs,
     summaryLines: summaryLines,
+    subsView: subsView,
+    allDraft: allDraft,
+    addressRows: addressRows,
   };
   if (typeof module === "object" && module.exports) module.exports = api;
   else root.WeekdayFuelCheckoutView = api;

@@ -116,3 +116,33 @@ test("a day with only unpriced open slots is still open, and odd dates give empt
   assert.equal(V.timeLabel(42), "");
   assert.equal(V.bookedLabel({ id: 1, start: null, label: "5am - 10am" }).when, ", 5am - 10am");
 });
+
+test("subsView shows drafts over saved values, counts choosable items and lists only real changes", () => {
+  const items = [
+    { stockcode: 1, name: "Tomatoes", allow: true, fixed: false },
+    { stockcode: 2, name: "Milk", allow: false, fixed: true },
+    { stockcode: 3, name: "Bread", allow: false, fixed: false },
+  ];
+  let v = V.subsView(items, {});
+  assert.deepEqual([v.allowed, v.choosable, v.changes], [1, 2, []]);
+  assert.deepEqual(v.rows.map((r) => [r.stockcode, r.allow, r.fixed, r.changed]), [[1, true, false, false], [2, false, true, false], [3, false, false, false]]);
+  v = V.subsView(items, { 1: false, 2: true, 3: false });
+  assert.deepEqual([v.allowed, v.changes], [0, [{ stockcode: 1, allow: false }]]);
+  assert.equal(v.rows[1].allow, false);
+  assert.deepEqual(V.subsView(undefined, undefined), { rows: [], allowed: 0, choosable: 0, changes: [] });
+  assert.deepEqual(V.allDraft(items, true), { 3: true });
+  assert.deepEqual(V.allDraft(items, false), { 1: false });
+  assert.deepEqual(V.subsView(items, V.allDraft(items, false)).changes, [{ stockcode: 1, allow: false }]);
+});
+
+test("addressRows marks the current address and falls back for a missing text", () => {
+  assert.deepEqual(
+    V.addressRows({ current: 999, list: [{ id: 111, text: "U 2 94 Tennyson St, ELWOOD VIC 3184", primary: true }, { id: 999, text: "", primary: false }] }),
+    [
+      { id: 111, text: "U 2 94 Tennyson St, ELWOOD VIC 3184", current: false, primary: true },
+      { id: 999, text: "Address 999", current: true, primary: false },
+    ],
+  );
+  assert.deepEqual(V.addressRows(null), []);
+  assert.deepEqual(V.addressRows({ error: "HTTP 500" }), []);
+});
