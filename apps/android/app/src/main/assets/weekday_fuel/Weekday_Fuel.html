@@ -798,7 +798,7 @@ function renderShop(){
       h+=`<div class="panel shopsec"><h3 style="margin-bottom:4px">${t}</h3>${rs.map(r=>itemRow(CAT.item(r.id),{coles:r.coles&&r.coles.cost,woolies:r.woolies&&r.woolies.cost},`<span class="buy small"><b>Buy:</b> ${esc(r[st].buy)} <span class="muted">· need ${esc(needLabel(r))}</span></span>`,{coles:r.coles&&r.coles.product,woolies:r.woolies&&r.woolies.product})).join("")}</div>`;
     });
     const miss=rows.filter(r=>!r[st]);
-    if(miss.length)h+=`<div class="panel stack"><h3>Missed at ${STORE_NAME[st]}</h3><div class="small muted">${STORE_NAME[st]} doesn't sell these. Get them at ${STORE_NAME[ot]}.</div>${miss.map(r=>{const o=r[ot];return `<div class="row between"><span class="small">${esc(o?o.product.name:r.name)}${st==="woolies"&&r.wooliesUnavailable?` <span class="muted">· Woolworths' ${esc(r.wooliesUnavailable.name)} is unavailable online now</span>`:""}${o?` <span class="muted">· ${esc(o.buy)}</span>`:""}</span>${o?`<span class="num small" style="color:var(--${ot})">${money(o.cost)}</span>`:""}</div>`}).join("")}</div>`;
+    if(miss.length)h+=`<div class="panel stack"><h3>Missed at ${STORE_NAME[st]}</h3><div class="small muted">${STORE_NAME[st]} doesn't ${miss.some(r=>r.wooliesUnavailable)&&st==="woolies"?"have these online right now":"sell these"}. Get them at ${STORE_NAME[ot]}.</div>${miss.map(r=>{const o=r[ot];return `<div class="row between"><span class="small">${esc(o?o.product.name:r.name)}${st==="woolies"&&r.wooliesUnavailable?` <span class="muted">· instead of ${esc(r.wooliesUnavailable.name)}, unavailable online now</span>`:""}${o?` <span class="muted">· ${esc(o.buy)}</span>`:""}</span>${o?`<span class="num small" style="color:var(--${ot})">${money(o.cost)}</span>`:""}</div>`}).join("")}</div>`;
     if(st==="woolies")h+=renderTrolley(rows,ticks);
     h+=`<div class="row"><button class="ghost" data-act="untickall">Clear ticks for next shop</button></div>`;
     return h;
@@ -911,6 +911,7 @@ document.addEventListener("keydown",e=>{if(e.key==="Escape"&&state.sheet){state.
 if(window.WeekdayFuelHost){
   WeekdayFuelHost.addEventListener("message",e=>{
     let m;try{m=JSON.parse(e.data)}catch(_){return}
+    if(!m)return;
     if(m.type==="pricesDone"||m.type==="pricesError"){onPrices(m);if(state.tab==="shop")render();return}
     const t=state.trolley;if(!t)return;
     if(m.type==="trolleyLogin")t.phase="login";
