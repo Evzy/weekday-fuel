@@ -494,7 +494,59 @@ test("address refuses an id that isn't saved, and after a switch re-reads the bo
   api.start({ action: "address", addressId: 999 });
   s = await settle(api);
   assert.equal(s.result.saveError, "Not serviced");
-  assert.equal("windows" in s.result, false);
+  assert.equal(s.result.windows.days.length, 1);
+  assert.equal(s.result.addresses.current, 111);
+});
+
+test("an address switch with an unclear answer still re-reads, and a failed re-read clears the booked time", async () => {
+  for (const answer of [() => response(500, {}), () => { throw new Error("offline"); }]) {
+    const { api, calls } = load(site({ "POST /apis/ui/Fulfilment": answer }));
+    api.start({ action: "address", addressId: 999 });
+    const s = await settle(api);
+    assert.ok(s.result.saveError);
+    assert.equal(posts(calls).length, 1);
+    assert.equal(s.result.addresses.current, 111);
+    assert.equal(s.result.windows.days.length, 1);
+  }
+  let boots = 0;
+  const { api } = load(
+    site({
+      "GET /api/ui/v2/bootstrap": () => {
+        boots++;
+        return boots > 1 ? response(200, { ShopperRequest: { IsGuest: true } }) : response(200, BOOT({ ReservedTime: BOOKED }));
+      },
+    }),
+  );
+  api.start({ action: "address", addressId: 999 });
+  const s = await settle(api);
+  assert.equal(s.result.saveError, null);
+  assert.equal(s.result.booked, null);
+  assert.deepEqual(s.result.windows, { error: "logged out" });
+  assert.deepEqual(s.result.addresses, { error: "logged out" });
+  let n = 0;
+  const { api: b } = load(site({ "GET /api/ui/v2/bootstrap": () => response(200, BOOT(++n > 1 ? { Address: { AddressId: 999, AreaId: 4931, SuburbId: 4496 } } : { ReservedTime: BOOKED })) }));
+  b.start({ action: "address", addressId: 999 });
+  assert.equal((await settle(b)).result.booked, null);
+});
+
+test("options sends nothing without the pick-up note, keeps leave-unattended when it isn't offered, and accepts a bare answer", async () => {
+  for (const body of [{ ...OPTIONS, PickupInstructions: undefined }, "nope", null]) {
+    const { api, calls } = load(site({ "GET /apis/ui/Delivery/Options": () => response(200, body) }));
+    api.start({ action: "options", instructions: "x", leaveUnattended: true });
+    const s = await settle(api);
+    assert.equal(s.result.saveError, "couldn't read your delivery options");
+    assert.equal(posts(calls).length, 0);
+  }
+  const { api, calls } = load(site({ "GET /apis/ui/Delivery/Options": () => response(200, { ...OPTIONS, ShouldShowCanLeaveUnattendedPreference: false, PickupInstructions: null }) }));
+  api.start({ action: "options", instructions: "Gate", leaveUnattended: false });
+  let s = await settle(api);
+  assert.deepEqual(JSON.parse(posts(calls)[0].init.body), { CanLeaveUnattended: true, PickupInstructions: null, DeliveryInstructions: "Gate" });
+  assert.deepEqual(s.result.options, { instructions: "Gate", leaveUnattended: true, offerUnattended: false });
+  const { api: b } = load(site({ "POST /apis/ui/Delivery/Options": () => response(200, true) }));
+  b.start({ action: "options", instructions: "Ring", leaveUnattended: false });
+  s = await settle(b);
+  assert.equal(s.result.saveError, null);
+  assert.deepEqual(s.result.options, { instructions: "Ring", leaveUnattended: false, offerUnattended: true });
 });
 
 test("writes on a pick-up order send nothing", async () => {
@@ -518,6 +570,11 @@ test("malformed write requests are refused before anything is sent", async () =>
     { action: "subs", items: [{ stockcode: 1.5, allow: true }] },
     { action: "subs", items: [{ stockcode: 134034, allow: "yes" }] },
     { action: "subs", items: [null] },
+    { action: "subs", items: new Array(3) },
+    { action: "subs", items: [{ stockcode: 1, allow: true }, { stockcode: 1, allow: false }] },
+    { action: "subs", items: [{ stockcode: 2 ** 53, allow: true }] },
+    { action: "address", addressId: 2 ** 53 },
+    { action: "book", timeslotId: 2 ** 53, windowDate: "2026-10-21" },
     { action: "options", instructions: "x".repeat(501), leaveUnattended: true },
     { action: "options", instructions: "x", leaveUnattended: "true" },
     { action: "options", leaveUnattended: true },

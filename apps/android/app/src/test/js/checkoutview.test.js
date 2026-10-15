@@ -146,3 +146,23 @@ test("addressRows marks the current address and falls back for a missing text", 
   assert.deepEqual(V.addressRows(null), []);
   assert.deepEqual(V.addressRows({ error: "HTTP 500" }), []);
 });
+
+test("substitution and address helpers survive odd input and never invent changes", () => {
+  const items = [null, "x", { stockcode: 4 }, { stockcode: 5, allow: "true", name: { a: 1 } }, { stockcode: 6, allow: true, fixed: "false" }];
+  let v = V.subsView(items, "ab");
+  assert.deepEqual(v.rows.map((r) => [r.stockcode, r.name, r.allow, r.fixed, r.changed]), [[4, "4", false, false, false], [5, "5", false, false, false], [6, "6", true, false, false]]);
+  assert.deepEqual(v.changes, []);
+  v = V.subsView(items, { 4: false, 5: undefined, 6: "no" });
+  assert.deepEqual(v.changes, []);
+  v = V.subsView(items, { 4: true });
+  assert.equal(v.rows[0].changed, true);
+  assert.deepEqual(v.changes, [{ stockcode: 4, allow: true }]);
+  assert.deepEqual(V.subsView({ a: 1 }, {}).rows, []);
+  assert.deepEqual(V.subsView("abc", {}).rows, []);
+  assert.deepEqual(V.allDraft(items, true), { 4: true, 5: true });
+  assert.deepEqual(V.allDraft(items, 1), { 6: false });
+  assert.deepEqual(V.allDraft(items, false), { 6: false });
+  assert.deepEqual(V.subsView(items, V.allDraft(items, true)).changes, [{ stockcode: 4, allow: true }, { stockcode: 5, allow: true }]);
+  assert.deepEqual(V.allDraft("x", true), {});
+  assert.deepEqual(V.addressRows({ list: [null, { text: "no id" }, { id: 7, text: { a: 1 } }] }), [{ id: 7, text: "Address 7", current: false, primary: false }]);
+});

@@ -16,9 +16,9 @@ object CheckoutJson {
 
     /** The page's `checkoutBook` message as the script's book request, or null when the slot id or date is missing or malformed. */
     fun bookRequest(msg: JSONObject): String? {
-        val id = msg.optLong("timeslotId", 0L)
-        val date = msg.optString("windowDate")
-        if (id <= 0L || !DATE.matches(date)) return null
+        val id = wholeNumber(msg.opt("timeslotId")) ?: return null
+        val date = msg.opt("windowDate") as? String ?: return null
+        if (!DATE.matches(date)) return null
         return JSONObject().put("action", "book").put("timeslotId", id).put("windowDate", date).toString()
     }
 

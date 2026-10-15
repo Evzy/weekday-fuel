@@ -221,7 +221,7 @@
           var attrs = p.AdditionalAttributes || {};
           return {
             stockcode: p.Stockcode,
-            name: p.DisplayName || p.Name || String(p.Stockcode),
+            name: [p.DisplayName, p.Name].find(function (n) { return typeof n === "string" && n; }) || String(p.Stockcode),
             allow: p.AllowSubstitution === true,
             fixed: attrs.isexcludedfromsubstitution === "True",
           };
@@ -290,32 +290,40 @@
     }
   }
 
-  /* The pick-up note is read first and sent back as it is. */
+  /* The pick-up note is read first and sent back as it is; without it nothing is sent. */
   async function saveOptions(req) {
     try {
       var current = await getJson(URLS.options);
+      if (!current || typeof current !== "object" || (typeof current.PickupInstructions !== "string" && current.PickupInstructions !== null)) {
+        return { error: "couldn't read your delivery options", options: null };
+      }
+      var offer = current.ShouldShowCanLeaveUnattendedPreference !== false;
+      var unattended = offer ? req.leaveUnattended : current.CanLeaveUnattended === true;
       var saved = await postJson(URLS.options, {
-        CanLeaveUnattended: req.leaveUnattended,
-        PickupInstructions: current && typeof current.PickupInstructions === "string" ? current.PickupInstructions : "",
+        CanLeaveUnattended: unattended,
+        PickupInstructions: current.PickupInstructions,
         DeliveryInstructions: req.instructions,
       });
-      var o = deliveryOptions(saved);
-      o.offerUnattended = !current || current.ShouldShowCanLeaveUnattendedPreference !== false;
+      var o = saved && typeof saved === "object" ? deliveryOptions(saved) : { instructions: req.instructions, leaveUnattended: unattended };
+      o.offerUnattended = offer;
       return { error: null, options: o };
     } catch (e) {
       return { error: message(e), options: null };
     }
   }
 
+  /* `sent` says the switch reached Woolworths, so the delivery details must be re-read whatever the answer. */
   async function switchAddress(req) {
+    var sent = false;
     try {
       var a = await getJson(URLS.addresses);
       var known = a && Array.isArray(a.Address) && a.Address.some(function (x) { return x && x.AddressId === req.addressId; });
-      if (!known) return "not one of your saved addresses";
+      if (!known) return { error: "not one of your saved addresses", sent: false };
+      sent = true;
       var j = await postJson(URLS.book, { fulfilmentMethod: "Courier", addressId: req.addressId });
-      return j && j.IsSuccessful === true ? null : (j && j.Message) || "not switched";
+      return { error: j && j.IsSuccessful === true ? null : (j && j.Message) || "not switched", sent: true };
     } catch (e) {
-      return message(e);
+      return { error: message(e), sent: sent };
     }
   }
 
@@ -329,6 +337,7 @@
       }
       var dlv = delivery(boot);
       var result = { action: req.action, loggedOut: false };
+      var stale = false;
       var courier = dlv.method === "Courier";
       if (req.action === "load") {
         result.boosts = await section(boostAll);
@@ -354,19 +363,23 @@
         result.saveError = saved.error;
         if (saved.options) result.options = saved.options;
       } else {
-        result.saveError = await switchAddress(req);
-        if (!result.saveError) {
+        var sw = await switchAddress(req);
+        result.saveError = sw.error;
+        if (sw.sent) {
           var fresh = await section(async function () {
-            boot = await bootstrap();
+            var b = await bootstrap();
+            if (!b || !b.ShopperRequest || b.ShopperRequest.IsGuest !== false) throw new Error("logged out");
+            boot = b;
             dlv = delivery(boot);
             return true;
           });
+          stale = !!fresh.error;
           result.windows = fresh.error ? fresh : await section(function () { return windows(dlv); });
           result.addresses = fresh.error ? fresh : await section(function () { return readAddresses(dlv); });
         }
       }
       result.method = dlv.method;
-      result.booked = dlv.booked;
+      result.booked = stale ? null : dlv.booked;
       result.minimumSpend = dlv.minimumSpend;
       result.trolley = trolleyCodes(boot);
       result.summary = await section(summary);
@@ -382,18 +395,17 @@
       case "load":
         return true;
       case "book":
-        return Number.isFinite(req.timeslotId) && req.timeslotId > 0 && /^\d{4}-\d{2}-\d{2}$/.test(String(req.windowDate));
-      case "subs":
-        return (
-          Array.isArray(req.items) &&
-          req.items.length > 0 &&
-          req.items.length <= 200 &&
-          req.items.every(function (i) { return i && Number.isInteger(i.stockcode) && i.stockcode > 0 && typeof i.allow === "boolean"; })
-        );
+        return Number.isSafeInteger(req.timeslotId) && req.timeslotId > 0 && /^\d{4}-\d{2}-\d{2}$/.test(String(req.windowDate));
+      case "subs": {
+        if (!Array.isArray(req.items) || req.items.length < 1 || req.items.length > 200) return false;
+        var items = Array.from(req.items);
+        var ok = items.every(function (i) { return i && Number.isSafeInteger(i.stockcode) && i.stockcode > 0 && typeof i.allow === "boolean"; });
+        return ok && new Set(items.map(function (i) { return i.stockcode; })).size === items.length;
+      }
       case "options":
         return typeof req.instructions === "string" && req.instructions.length <= 500 && typeof req.leaveUnattended === "boolean";
       case "address":
-        return Number.isInteger(req.addressId) && req.addressId > 0;
+        return Number.isSafeInteger(req.addressId) && req.addressId > 0;
       default:
         return false;
     }

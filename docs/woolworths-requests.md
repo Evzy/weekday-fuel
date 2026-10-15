@@ -58,7 +58,7 @@ Go / no-go: **Go**, 2026-10-15. In-app checks pass; the script request is accept
 
 ## Checkout requests (2026-10-15, logged in)
 
-Used by `assets/woolworths/checkout.js` (v0.5.0). All from a `www.woolworths.com.au` page with `credentials: "include"` unless noted.
+Used by `assets/woolworths/checkout.js` (v0.5.0, writes added in v0.5.1). All from a `www.woolworths.com.au` page with `credentials: "include"` unless noted.
 
 | What | Request | Notes |
 | --- | --- | --- |
@@ -70,9 +70,9 @@ Used by `assets/woolworths/checkout.js` (v0.5.0). All from a `www.woolworths.com
 | Book a time | `POST /apis/ui/Fulfilment`, body `{"addressId":<AddressId>,"fulfilmentMethod":"Courier","timeslotId":<slot Id>,"tradingAccount":null,"windowDate":"YYYY-MM-DD"}` | `200` `{"IsSuccessful":true,...}`; `bootstrap` then shows the slot in `ReservedTime`. Captured from the site's own Continue button. |
 | Order summary | `GET /apis/ui/Checkout` | `Model.Order` totals: `Subtotal` (after savings), `Savings`, `DeliveryFee`, `DeliveryFeeBeforeDiscount`, `PackagingFee` + `PackagingFeeLabel`, `TotalIncludingGst`, `BalanceToPay`, `TotalRewardsPointsEarned`; `UnavailableProducts`, `RestrictedProducts`; `Model.CheckoutSubtotalErrors` |
 | Delivery options | `GET /apis/ui/Delivery/Options` | `ShouldShowCanLeaveUnattendedPreference`, `DeliveryInstructions`, `PickupInstructions`, `CanLeaveUnattended`, `RestrictedItemsRecipient` |
-| Save delivery options | `POST /apis/ui/Delivery/Options`, body `{CanLeaveUnattended, PickupInstructions, DeliveryInstructions}` | `200`, the saved options. The script reads the pick-up note first and sends it back unchanged. |
+| Save delivery options | `POST /apis/ui/Delivery/Options`, body `{CanLeaveUnattended, PickupInstructions, DeliveryInstructions}` | `200`, the saved options. The script reads the pick-up note first and sends it back unchanged, and sends nothing if it can't read it. When leave unattended isn't offered, the current value is sent back. |
 | Saved addresses | `GET /apis/ui/address` | `Address[]`: `AddressId`, `AddressText`, `IsPrimary`, `AreaId`, `SuburbId` |
-| Switch delivery address | `POST /apis/ui/Fulfilment`, body `{"fulfilmentMethod":"Courier","addressId":<AddressId>}` | `{IsSuccessful, Message}`; the booked time may be dropped. The script only sends saved address ids. |
+| Switch delivery address | `POST /apis/ui/Fulfilment`, body `{"fulfilmentMethod":"Courier","addressId":<AddressId>}` | `{IsSuccessful, Message}`; the booked time may be dropped. The script only sends saved address ids, and re-reads `bootstrap` after any switch it sent, whatever the answer. |
 | Trolley items | `GET /apis/ui/Checkout` | `Model.Order.Products[]`: `Stockcode`, `DisplayName`, `AllowSubstitution`, `AdditionalAttributes.isexcludedfromsubstitution` (`"True"` / `"False"`) |
 | Save substitutions | `POST /apis/ui/Checkout/substitution`, body `{"Items":[{"Stockcode":134034,"AllowSubstitution":false}]}` | `200` `{"Success":true,"ErrorMessage":""}` |
 | Checkout page | `https://www.woolworths.com.au/checkout` | One page: address, date and time, driver notes, items, promo codes, totals, payment, Place order. The site's own clicks also send Akamai sensor requests. |

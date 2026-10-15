@@ -95,11 +95,17 @@
     return lines;
   }
 
+  function itemList(items) {
+    return (Array.isArray(items) ? items : []).filter(function (i) { return i && typeof i === "object"; });
+  }
+
   function subsView(items, draft) {
-    var d = draft || {};
-    var rows = (items || []).map(function (i) {
-      var shown = !i.fixed && Object.prototype.hasOwnProperty.call(d, i.stockcode) ? d[i.stockcode] === true : i.allow;
-      return { stockcode: i.stockcode, name: i.name, allow: shown, fixed: i.fixed, changed: shown !== i.allow };
+    var d = draft && typeof draft === "object" ? draft : {};
+    var rows = itemList(items).map(function (i) {
+      var saved = i.allow === true, fixed = i.fixed === true;
+      var shown = !fixed && Object.prototype.hasOwnProperty.call(d, i.stockcode) && typeof d[i.stockcode] === "boolean" ? d[i.stockcode] : saved;
+      var name = typeof i.name === "string" && i.name ? i.name : String(i.stockcode);
+      return { stockcode: i.stockcode, name: name, allow: shown, fixed: fixed, changed: shown !== saved };
     });
     var open = rows.filter(function (r) { return !r.fixed; });
     return {
@@ -111,18 +117,21 @@
   }
 
   function allDraft(items, allow) {
-    var d = {};
-    (items || []).forEach(function (i) {
-      if (!i.fixed && i.allow !== allow) d[i.stockcode] = allow;
+    var d = {}, want = allow === true;
+    itemList(items).forEach(function (i) {
+      if (i.fixed !== true && (i.allow === true) !== want) d[i.stockcode] = want;
     });
     return d;
   }
 
   function addressRows(addresses) {
     if (!addresses || !Array.isArray(addresses.list)) return [];
-    return addresses.list.map(function (a) {
-      return { id: a.id, text: a.text || "Address " + a.id, current: a.id === addresses.current, primary: a.primary === true };
-    });
+    return addresses.list
+      .filter(function (a) { return a && typeof a === "object" && a.id != null; })
+      .map(function (a) {
+        var text = typeof a.text === "string" && a.text ? a.text : "Address " + a.id;
+        return { id: a.id, text: text, current: a.id === addresses.current, primary: a.primary === true };
+      });
   }
 
   var api = {

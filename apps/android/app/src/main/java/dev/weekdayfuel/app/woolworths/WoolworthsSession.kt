@@ -137,7 +137,7 @@ class WoolworthsSession(private val context: Context, private val openExternal: 
         handler.removeCallbacks(pricesWatchdog)
     }
 
-    /** Runs one checkout script request (load or book) in the background page; [requestJson] comes from [CheckoutJson]. */
+    /** Runs one checkout script request (a load, or a book, subs, options or address write) in the background page; [requestJson] comes from [CheckoutJson]. */
     fun checkout(requestJson: String) {
         // A run already started in the page refuses start() until it ends; a fresh page drops it.
         if (pendingCheckout != null && checkoutStarted) needsFreshPage = true

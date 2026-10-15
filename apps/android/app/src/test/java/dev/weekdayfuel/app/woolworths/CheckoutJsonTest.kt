@@ -62,6 +62,8 @@ class CheckoutJsonTest {
         assertNull(CheckoutJson.bookRequest(JSONObject("""{"windowDate":"2026-10-21"}""")))
         assertNull(CheckoutJson.bookRequest(JSONObject("""{"timeslotId":0,"windowDate":"2026-10-21"}""")))
         assertNull(CheckoutJson.bookRequest(JSONObject("""{"timeslotId":948223}""")))
+        assertNull(CheckoutJson.bookRequest(JSONObject("""{"timeslotId":"948223","windowDate":"2026-10-21"}""")))
+        assertNull(CheckoutJson.bookRequest(JSONObject("""{"timeslotId":948223.7,"windowDate":"2026-10-21"}""")))
         assertNull(CheckoutJson.bookRequest(JSONObject("""{"timeslotId":948223,"windowDate":"21/10/2026"}""")))
         assertNull(CheckoutJson.bookRequest(JSONObject("""{"timeslotId":948223,"windowDate":"2026-10-21\");alert(1)//"}""")))
     }
