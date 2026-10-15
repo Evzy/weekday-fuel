@@ -255,8 +255,9 @@
 
   function deliveryOptions(o) {
     if (!o || typeof o !== "object") throw new Error("options response has no options");
+    if (typeof o.DeliveryInstructions !== "string" && o.DeliveryInstructions !== null) throw new Error("options response has no driver note");
     return {
-      instructions: typeof o.DeliveryInstructions === "string" ? o.DeliveryInstructions : "",
+      instructions: o.DeliveryInstructions || "",
       leaveUnattended: o.CanLeaveUnattended === true,
       offerUnattended: o.ShouldShowCanLeaveUnattendedPreference !== false,
     };
@@ -304,7 +305,7 @@
         PickupInstructions: current.PickupInstructions,
         DeliveryInstructions: req.instructions,
       });
-      var o = saved && typeof saved === "object" ? deliveryOptions(saved) : { instructions: req.instructions, leaveUnattended: unattended };
+      var o = saved && typeof saved === "object" && typeof saved.DeliveryInstructions === "string" ? deliveryOptions(saved) : { instructions: req.instructions, leaveUnattended: unattended };
       o.offerUnattended = offer;
       return { error: null, options: o };
     } catch (e) {
@@ -348,8 +349,12 @@
         result.bookError = await book(dlv, req);
         if (!result.bookError) {
           try {
-            boot = await bootstrap();
-            dlv = delivery(boot);
+            var nb = await bootstrap();
+            if (nb && nb.ShopperRequest && nb.ShopperRequest.IsGuest === false) {
+              var nd = delivery(nb);
+              boot = nb;
+              dlv = nd;
+            }
           } catch (e) {
             /* The booking went through; the earlier booked time is shown until the next load. */
           }

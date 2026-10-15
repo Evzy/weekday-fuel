@@ -96,7 +96,11 @@
   }
 
   function itemList(items) {
-    return (Array.isArray(items) ? items : []).filter(function (i) { return i && typeof i === "object"; });
+    var seen = {};
+    return (Array.isArray(items) ? items : []).filter(function (i) {
+      if (!i || typeof i !== "object" || seen[i.stockcode]) return false;
+      return (seen[i.stockcode] = true);
+    });
   }
 
   function subsView(items, draft) {

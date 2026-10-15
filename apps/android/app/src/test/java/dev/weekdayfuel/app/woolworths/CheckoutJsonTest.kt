@@ -89,6 +89,7 @@ class CheckoutJsonTest {
         assertNull(CheckoutJson.subsRequest(JSONObject("""{"items":[{"stockcode":34437.5,"allow":true}]}""")))
         assertNull(CheckoutJson.subsRequest(JSONObject("""{"items":[{"stockcode":-1,"allow":true}]}""")))
         assertNull(CheckoutJson.subsRequest(JSONObject("""{"items":[{"stockcode":34437,"allow":"yes"}]}""")))
+        assertNull(CheckoutJson.subsRequest(JSONObject("""{"items":[{"stockcode":34437,"allow":true},{"stockcode":34437,"allow":false}]}""")))
         val many = (1..201).joinToString(",") { """{"stockcode":$it,"allow":true}""" }
         assertNull(CheckoutJson.subsRequest(JSONObject("""{"items":[$many]}""")))
     }

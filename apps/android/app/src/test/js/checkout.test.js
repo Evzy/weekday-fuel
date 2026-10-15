@@ -327,6 +327,19 @@ test("book sends the site's body, then re-reads the booked time and summary", as
   assert.equal(boots, 2);
 });
 
+test("a booking that went through stays a success when the re-read is empty or logged out", async () => {
+  for (const second of [null, { ShopperRequest: { IsGuest: true } }]) {
+    let boots = 0;
+    const { api, calls } = load(site({ "GET /api/ui/v2/bootstrap": () => response(200, ++boots === 1 ? BOOT() : second) }));
+    api.start({ action: "book", timeslotId: 948223, windowDate: "2026-10-21" });
+    const s = await settle(api);
+    assert.equal(s.phase, "done");
+    assert.equal(s.result.bookError, null);
+    assert.equal(s.result.method, "Courier");
+    assert.equal(posts(calls).length, 1);
+  }
+});
+
 test("a refused booking reports Woolworths' message and keeps the old booking", async () => {
   let boots = 0;
   const { api } = load(
@@ -544,11 +557,16 @@ test("options sends nothing without the pick-up note, keeps leave-unattended whe
   let s = await settle(api);
   assert.deepEqual(JSON.parse(posts(calls)[0].init.body), { CanLeaveUnattended: true, PickupInstructions: null, DeliveryInstructions: "Gate" });
   assert.deepEqual(s.result.options, { instructions: "Gate", leaveUnattended: true, offerUnattended: false });
-  const { api: b } = load(site({ "POST /apis/ui/Delivery/Options": () => response(200, true) }));
-  b.start({ action: "options", instructions: "Ring", leaveUnattended: false });
-  s = await settle(b);
-  assert.equal(s.result.saveError, null);
-  assert.deepEqual(s.result.options, { instructions: "Ring", leaveUnattended: false, offerUnattended: true });
+  for (const answer of [true, {}, { DeliveryInstructions: 5 }]) {
+    const { api: b } = load(site({ "POST /apis/ui/Delivery/Options": () => response(200, answer) }));
+    b.start({ action: "options", instructions: "Ring", leaveUnattended: false });
+    s = await settle(b);
+    assert.equal(s.result.saveError, null);
+    assert.deepEqual(s.result.options, { instructions: "Ring", leaveUnattended: false, offerUnattended: true });
+  }
+  const { api: c } = load(site({ "GET /apis/ui/Delivery/Options": () => response(200, { ...OPTIONS, DeliveryInstructions: undefined }) }));
+  c.start({ action: "load" });
+  assert.deepEqual((await settle(c)).result.options, { error: "options response has no driver note" });
 });
 
 test("writes on a pick-up order send nothing", async () => {

@@ -22,14 +22,16 @@ object CheckoutJson {
         return JSONObject().put("action", "book").put("timeslotId", id).put("windowDate", date).toString()
     }
 
-    /** The page's `checkoutSubs` message as the script's subs request, or null unless it has 1–200 items, each a positive whole stockcode and a boolean. */
+    /** The page's `checkoutSubs` message as the script's subs request, or null unless it has 1–200 items, each a different positive whole stockcode and a boolean. */
     fun subsRequest(msg: JSONObject): String? {
         val items = msg.optJSONArray("items") ?: return null
         if (items.length() !in 1..MAX_SUBS) return null
         val out = JSONArray()
+        val seen = HashSet<Long>()
         for (i in 0 until items.length()) {
             val item = items.optJSONObject(i) ?: return null
             val code = wholeNumber(item.opt("stockcode")) ?: return null
+            if (!seen.add(code)) return null
             val allow = item.opt("allow") as? Boolean ?: return null
             out.put(JSONObject().put("stockcode", code).put("allow", allow))
         }

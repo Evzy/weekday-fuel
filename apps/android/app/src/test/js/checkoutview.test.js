@@ -164,5 +164,6 @@ test("substitution and address helpers survive odd input and never invent change
   assert.deepEqual(V.allDraft(items, false), { 6: false });
   assert.deepEqual(V.subsView(items, V.allDraft(items, true)).changes, [{ stockcode: 4, allow: true }, { stockcode: 5, allow: true }]);
   assert.deepEqual(V.allDraft("x", true), {});
+  assert.deepEqual(V.subsView([{ stockcode: 9, allow: false }, { stockcode: 9, allow: true }], { 9: true }).changes, [{ stockcode: 9, allow: true }]);
   assert.deepEqual(V.addressRows({ list: [null, { text: "no id" }, { id: 7, text: { a: 1 } }] }), [{ id: 7, text: "Address 7", current: false, primary: false }]);
 });
