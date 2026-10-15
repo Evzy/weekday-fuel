@@ -6,6 +6,7 @@ import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
+import android.view.ViewGroup
 import android.webkit.CookieManager
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
@@ -16,7 +17,7 @@ import org.json.JSONObject
 
 /** Owns a coles.com.au WebView that is never shown, and reads Coles prices in it. No JavaScript bridge. */
 @SuppressLint("SetJavaScriptEnabled")
-class ColesSession(private val context: Context, private val openExternal: (Uri) -> Unit) {
+class ColesSession(private val context: Context) {
     interface Listener {
         /** Phase is [ColesPricesPhase.DONE] or [ColesPricesPhase.ERROR]. */
         fun onColesPrices(state: ColesPricesState)
@@ -32,6 +33,7 @@ class ColesSession(private val context: Context, private val openExternal: (Uri)
     private var polling = false
     private var pageLoading = false
     private var needsFreshPage = false
+    private var destroyed = false
     private val poller = Runnable { poll() }
     private val retry = Runnable { if (pending != null && !polling && !pageLoading) start() }
     private val watchdog =
@@ -55,6 +57,7 @@ class ColesSession(private val context: Context, private val openExternal: (Uri)
         webView.url?.let(Uri::parse)?.let { ColesUrls.isColesPage(it.scheme, it.host) } == true
 
     fun refreshPrices(ids: List<String>) {
+        if (destroyed) return
         pending = ids
         polling = false
         handler.removeCallbacks(poller)
@@ -77,6 +80,8 @@ class ColesSession(private val context: Context, private val openExternal: (Uri)
 
     fun destroy() {
         cancel()
+        destroyed = true
+        (webView.parent as? ViewGroup)?.removeView(webView)
         webView.destroy()
     }
 
@@ -108,6 +113,8 @@ class ColesSession(private val context: Context, private val openExternal: (Uri)
                 }
                 ColesPricesPhase.IDLE, ColesPricesPhase.FETCHING -> handler.postDelayed(poller, POLL_MS)
                 ColesPricesPhase.DONE, ColesPricesPhase.ERROR -> {
+                    // The key and store are read at page load; a rotated key keeps failing until the page reloads.
+                    if (state.phase == ColesPricesPhase.ERROR) needsFreshPage = true
                     cancel()
                     listener?.onColesPrices(state)
                 }
@@ -122,11 +129,10 @@ class ColesSession(private val context: Context, private val openExternal: (Uri)
     }
 
     private inner class SessionClient : WebViewClient() {
+        // Nobody sees this page, so app links, store links and intents are dropped rather than opened.
         override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
             val scheme = request.url.scheme
-            if (scheme == "http" || scheme == "https") return false
-            openExternal(request.url)
-            return true
+            return scheme != "http" && scheme != "https"
         }
 
         override fun onPageStarted(view: WebView, url: String?, favicon: Bitmap?) {

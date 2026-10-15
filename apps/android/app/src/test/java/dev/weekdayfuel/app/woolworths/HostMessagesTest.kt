@@ -101,5 +101,22 @@ class HostMessagesTest {
         assertEquals("coles prices HTTP 401", json.getString("message"))
         val fallback = JSONObject(HostMessages.colesPrices(ColesPricesState(ColesPricesPhase.ERROR, null, null, JSONObject(), null)))
         assertEquals("Couldn't update Coles prices.", fallback.getString("message"))
+        val notDone = JSONObject(HostMessages.colesPrices(ColesPricesState(ColesPricesPhase.FETCHING, null, null, JSONObject(), null)))
+        assertEquals("colesPricesError", notDone.getString("type"))
+    }
+
+    @Test
+    fun colesPricesDoneWithoutTimeOrStoreSendsNulls() {
+        val json = JSONObject(HostMessages.colesPrices(ColesPricesState(ColesPricesPhase.DONE, null, null, JSONObject(), null)))
+        assertEquals("colesPricesDone", json.getString("type"))
+        assertTrue(json.isNull("at"))
+        assertTrue(json.isNull("store"))
+    }
+
+    @Test
+    fun colesPricesFailureCarriesMessage() {
+        val json = JSONObject(HostMessages.colesPricesFailure("Coles took too long."))
+        assertEquals("colesPricesError", json.getString("type"))
+        assertEquals("Coles took too long.", json.getString("message"))
     }
 }

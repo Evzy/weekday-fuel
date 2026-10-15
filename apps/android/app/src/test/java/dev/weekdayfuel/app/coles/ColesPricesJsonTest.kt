@@ -4,6 +4,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ColesPricesJsonTest {
@@ -49,6 +50,22 @@ class ColesPricesJsonTest {
         assertNull(ColesPricesJson.parseIds(JSONArray("""["12"]""")))
         assertNull(ColesPricesJson.parseIds(JSONArray("""["12345678"]""")))
         assertNull(ColesPricesJson.parseIds(JSONArray("""["8991361\"]);alert(1);//"]""")))
+        assertNull(ColesPricesJson.parseIds(JSONArray("""["1234\n"]""")))
+        assertNull(ColesPricesJson.parseIds(JSONArray("""["١٢٣٤"]""")))
+        assertNull(ColesPricesJson.parseIds(JSONArray("""["8991361",null]""")))
+        assertNull(ColesPricesJson.parseIds(JSONArray("""["01234567"]""")))
+    }
+
+    @Test
+    fun parseIdsAcceptsFourAndSevenDigits() {
+        assertEquals(listOf("1234", "1234567"), ColesPricesJson.parseIds(JSONArray("""["1234","1234567"]""")))
+    }
+
+    @Test
+    fun unknownPhaseIsIdleAndJunkIsRejected() {
+        assertEquals(ColesPricesPhase.IDLE, ColesPricesJson.parseScriptState(JSONObject.quote("""{"phase":"weird","prices":{}}"""))!!.phase)
+        assertNull(ColesPricesJson.parseScriptState("42"))
+        assertTrue(runCatching { ColesPricesJson.parseScriptState(JSONObject.quote("not json")) }.isFailure)
     }
 
     @Test

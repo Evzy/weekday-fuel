@@ -28,7 +28,6 @@ import androidx.webkit.JavaScriptReplyProxy
 import androidx.webkit.WebViewAssetLoader
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
-import dev.weekdayfuel.app.coles.ColesPricesJson
 import dev.weekdayfuel.app.coles.ColesPricesState
 import dev.weekdayfuel.app.coles.ColesSession
 import dev.weekdayfuel.app.update.GithubApkReleaseInfo
@@ -37,7 +36,6 @@ import dev.weekdayfuel.app.update.ReleaseVersionCompare
 import dev.weekdayfuel.app.woolworths.CheckoutJson
 import dev.weekdayfuel.app.woolworths.CheckoutScriptState
 import dev.weekdayfuel.app.woolworths.HostMessages
-import dev.weekdayfuel.app.woolworths.PricesJson
 import dev.weekdayfuel.app.woolworths.PricesScriptState
 import dev.weekdayfuel.app.woolworths.TrolleyJson
 import dev.weekdayfuel.app.woolworths.TrolleyScriptState
@@ -86,10 +84,15 @@ class MainActivity : ComponentActivity() {
             }
         woolworths = WoolworthsSession(this, ::openExternally)
         woolworths.listener = TrolleyListener()
-        coles = ColesSession(this, ::openExternally)
+        coles = ColesSession(this)
         coles.listener = ColesListener()
         // Kept full size underneath everything (like the Woolworths page behind the app) so the page runs normally; never shown.
-        coles.webView.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
+        coles.webView.apply {
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
+            importantForAutofill = View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS
+            isFocusable = false
+            isFocusableInTouchMode = false
+        }
         root.addView(coles.webView, FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
         woolworthsScreen = WoolworthsScreen(this, woolworths.webView, webView, onClose = ::hideWoolworths)
         root.addView(woolworthsScreen.view, FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
@@ -199,17 +202,20 @@ class MainActivity : ComponentActivity() {
             "checkoutOptions" -> runCheckout(CheckoutJson.optionsRequest(msg), R.string.woolworths_checkout_bad_change)
             "checkoutAddress" -> runCheckout(CheckoutJson.addressRequest(msg), R.string.woolworths_checkout_bad_change)
             "refreshPrices" -> {
-                val codes = runCatching { PricesJson.parseStockcodes(msg.optJSONArray("stockcodes") ?: JSONArray()) }.getOrNull()
-                val colesArray = msg.optJSONArray("colesIds")
-                val colesIds = colesArray?.let { runCatching { ColesPricesJson.parseIds(it) }.getOrNull() }
-                // The page waits for a Coles reply whenever it sent colesIds, so an unusable list still gets one.
-                if (colesArray != null && colesIds.isNullOrEmpty()) replyToPage(HostMessages.colesPricesFailure(getString(R.string.coles_bad_request)))
-                if (!colesIds.isNullOrEmpty()) coles.refreshPrices(colesIds)
-                if (codes.isNullOrEmpty()) {
-                    if (colesArray == null) replyToPage(HostMessages.pricesFailure(getString(R.string.woolworths_bad_request)))
-                    return
+                val request = RefreshPricesRequest.parse(msg)
+                if (request.colesWanted) {
+                    if (request.colesIds != null) {
+                        coles.refreshPrices(request.colesIds)
+                    } else {
+                        coles.cancel()
+                        replyToPage(HostMessages.colesPricesFailure(getString(R.string.coles_bad_request)))
+                    }
                 }
-                woolworths.refreshPrices(codes)
+                if (request.stockcodes != null) {
+                    woolworths.refreshPrices(request.stockcodes)
+                } else {
+                    replyToPage(HostMessages.pricesFailure(getString(R.string.woolworths_bad_request)))
+                }
             }
         }
     }
