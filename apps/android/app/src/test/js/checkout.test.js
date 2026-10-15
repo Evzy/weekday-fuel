@@ -74,21 +74,24 @@ const CHECKOUT = {
 const HASH = "a".repeat(64);
 const OFFERS_URL = "https://prod.api-wr.com/wx-rtl-offer-v2/offers?filter[status]=ACTIVE";
 
-/* A fake woolworths.com.au. `over` replaces answers by "METHOD path" (path without the query). */
+/* A fake woolworths.com.au. `over` replaces answers by "METHOD path" (path without the query); handlers also get the set of boosted coupon ids. */
 function site(over = {}) {
+  const boosted = new Set(["c2"]);
+  const OFFERS = [["o1", "c1", {}], ["o2", "c2", {}], ["o3", "c3", { primaryProductId: "999" }]];
   return (url, init) => {
     const key = ((init && init.method) || "GET") + " " + url.split("?")[0];
-    if (over[key]) return over[key](url, init);
+    if (over[key]) return over[key](url, init, boosted);
     if (key === "GET /api/ui/v2/bootstrap") return response(200, BOOT());
     if (key === "GET /api/v3/ui/shopper/rewards/crn/hash") return response(200, HASH);
     if (key === "GET https://prod.api-wr.com/wx-rtl-offer-v2/offers")
-      return response(200, {
-        data: [OFFER("o1", "c1", "NOT_BOOSTED"), OFFER("o2", "c2", "BOOSTED"), OFFER("o3", "c3", "NOT_BOOSTED", { primaryProductId: "999" })],
-      });
+      return response(200, { data: OFFERS.map(([id, c, d]) => OFFER(id, c, boosted.has(c) ? "BOOSTED" : "NOT_BOOSTED", d)) });
     if (key === "GET /api/v3/ui/fulfilment/windows") return response(200, WINDOWS);
     if (key === "GET /apis/ui/Checkout") return response(200, CHECKOUT);
     if (key === "POST /apis/ui/Fulfilment") return response(200, { IsSuccessful: true, Message: null });
-    if (key.startsWith("POST /api/v3/ui/rewards/offers/boost/")) return response(200, true);
+    if (key.startsWith("POST /api/v3/ui/rewards/offers/boost/")) {
+      boosted.add(decodeURIComponent(url.split("/").pop()));
+      return response(200, true);
+    }
     return response(404, {});
   };
 }
@@ -126,6 +129,7 @@ test("load boosts only NOT_BOOSTED offers by coupon id, one at a time, and reads
   assert.deepEqual(boosts.map((c) => c.url), ["/api/v3/ui/rewards/offers/boost/c1", "/api/v3/ui/rewards/offers/boost/c3"]);
   assert.equal(boosts[0].init.body, "{}");
   assert.equal(boosts[0].init.credentials, "include");
+  assert.equal(calls.filter((c) => c.url === OFFERS_URL).length, 2);
   const r = s.result;
   assert.equal(r.action, "load");
   assert.equal(r.loggedOut, false);
@@ -177,19 +181,53 @@ test("logged out stops before any boost", async () => {
   assert.equal(calls.length, 1);
 });
 
-test("a failed or refused boost is reported and the others still go", async () => {
+test("a failed boost is reported and the others still go", async () => {
+  const { api } = load(site({ "POST /api/v3/ui/rewards/offers/boost/c1": () => response(500, {}) }));
+  api.start({ action: "load" });
+  const s = await settle(api);
+  assert.deepEqual(
+    s.result.boosts.offers.map((o) => [o.couponId, o.outcome, o.reason]),
+    [["c1", "failed", "HTTP 500"], ["c2", "already", null], ["c3", "boosted", null]],
+  );
+});
+
+test("the offers list decides: a boost answered false that Woolworths recorded counts, an accepted one it did not record fails", async () => {
   const { api } = load(
     site({
-      "POST /api/v3/ui/rewards/offers/boost/c1": () => response(500, {}),
-      "POST /api/v3/ui/rewards/offers/boost/c3": () => response(200, false),
+      "POST /api/v3/ui/rewards/offers/boost/c1": (url, init, boosted) => {
+        boosted.add("c1");
+        return response(200, false);
+      },
+      "POST /api/v3/ui/rewards/offers/boost/c3": () => response(200, true),
     }),
   );
   api.start({ action: "load" });
   const s = await settle(api);
   assert.deepEqual(
     s.result.boosts.offers.map((o) => [o.couponId, o.outcome, o.reason]),
-    [["c1", "failed", "HTTP 500"], ["c2", "already", null], ["c3", "failed", "refused"]],
+    [["c1", "boosted", null], ["c2", "already", null], ["c3", "failed", "still not boosted"]],
   );
+});
+
+test("when the second offers read fails the boost replies stand, and nothing is re-read when nothing needed boosting", async () => {
+  let reads = 0;
+  const { api } = load(
+    site({
+      "GET https://prod.api-wr.com/wx-rtl-offer-v2/offers": () => {
+        reads += 1;
+        return reads === 1 ? response(200, { data: [OFFER("o1", "c1", "NOT_BOOSTED")] }) : response(503, {});
+      },
+    }),
+  );
+  api.start({ action: "load" });
+  const s = await settle(api);
+  assert.deepEqual(s.result.boosts.offers.map((o) => [o.couponId, o.outcome]), [["c1", "boosted"]]);
+  assert.equal(reads, 2);
+
+  const quiet = load(site({ "GET https://prod.api-wr.com/wx-rtl-offer-v2/offers": () => response(200, { data: [OFFER("o2", "c2", "BOOSTED")] }) }));
+  quiet.api.start({ action: "load" });
+  await settle(quiet.api);
+  assert.equal(quiet.calls.filter((c) => c.url === OFFERS_URL).length, 1);
 });
 
 test("each section fails on its own", async () => {
@@ -302,4 +340,48 @@ test("ignores start() while running and rejects unknown actions", async () => {
   assert.equal(api.start({ action: "load" }), true);
   await settle(api);
   assert.ok(calls.length > n);
+});
+
+test("a book request without a valid slot id or date is refused before anything is sent", async () => {
+  const { api, calls } = load(site());
+  assert.equal(api.start({ action: "book" }), false);
+  assert.equal(api.start({ action: "book", timeslotId: "948223", windowDate: "2026-10-21" }), false);
+  assert.equal(api.start({ action: "book", timeslotId: 0, windowDate: "2026-10-21" }), false);
+  assert.equal(api.start({ action: "book", timeslotId: 948223, windowDate: "21/10/2026" }), false);
+  assert.equal(calls.length, 0);
+});
+
+test("booking on a pick-up order sends nothing and says why", async () => {
+  const { api, calls } = load(site({ "GET /api/ui/v2/bootstrap": () => response(200, BOOT({ DeliveryMethod: "Pickup" })) }));
+  api.start({ action: "book", timeslotId: 948223, windowDate: "2026-10-21" });
+  const s = await settle(api);
+  assert.equal(s.result.bookError, "not a delivery order");
+  assert.equal(posts(calls).length, 0);
+});
+
+test("odd trolley items, a missing delivery address and an offer without a coupon don't break the run", async () => {
+  const boot = { ...BOOT({ Address: { AddressId: 111 } }), TrolleyRequest: { AvailableItems: [null, { Stockcode: 134034 }, { Stockcode: "x" }] } };
+  const noCoupon = OFFER("o9", "c9", "NOT_BOOSTED", { primaryProductId: "abc" });
+  noCoupon.attributes.coupons = [];
+  const { api } = load(
+    site({
+      "GET /api/ui/v2/bootstrap": () => response(200, boot),
+      "GET https://prod.api-wr.com/wx-rtl-offer-v2/offers": () => response(200, { data: [null, noCoupon] }),
+    }),
+  );
+  api.start({ action: "load" });
+  const s = await settle(api);
+  assert.equal(s.phase, "done");
+  assert.deepEqual(s.result.trolley, [134034]);
+  assert.deepEqual(s.result.windows, { error: "no delivery address" });
+  assert.deepEqual(s.result.boosts.offers.map((o) => [o.id, o.outcome, o.reason, o.productId]), [["o9", "failed", "no coupon", null]]);
+});
+
+test("a network error in the login check ends in error", async () => {
+  const { api } = load(() => {
+    throw new Error("offline");
+  });
+  api.start({ action: "load" });
+  const s = await settle(api);
+  assert.deepEqual([s.phase, s.error], ["error", "offline"]);
 });

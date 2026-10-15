@@ -53,9 +53,9 @@
   }
 
   function trolleyCodes(boot) {
-    var items = (boot.TrolleyRequest && boot.TrolleyRequest.AvailableItems) || [];
-    return items
-      .map(function (i) { return i.Stockcode; })
+    var items = boot.TrolleyRequest && boot.TrolleyRequest.AvailableItems;
+    return (Array.isArray(items) ? items : [])
+      .map(function (i) { return i && i.Stockcode; })
       .filter(function (c) { return typeof c === "number"; });
   }
 
@@ -69,7 +69,7 @@
       couponId: c.id || null,
       heading: d.heading || "",
       description: (d.description && d.description.summary) || "",
-      productId: d.primaryProductId ? Number(d.primaryProductId) : null,
+      productId: Number.isFinite(Number(d.primaryProductId)) && Number(d.primaryProductId) > 0 ? Number(d.primaryProductId) : null,
       minimumSpend: typeof red.minimumSpend === "number" && red.minimumSpend > 0 ? red.minimumSpend / 100 : null,
       ends: red.endDateTime || null,
       outcome: a.boostState === "BOOSTED" ? "already" : null,
@@ -93,9 +93,6 @@
       if (!r.ok) {
         o.outcome = "failed";
         o.reason = "HTTP " + r.status;
-      } else if ((await r.text()).trim() === "false") {
-        o.outcome = "failed";
-        o.reason = "refused";
       } else {
         o.outcome = "boosted";
       }
@@ -105,9 +102,7 @@
     }
   }
 
-  async function boostAll() {
-    var hash = await getJson(URLS.crnHash);
-    if (typeof hash !== "string" || !hash) throw new Error("no rewards card");
+  async function readOffers(hash) {
     var r = await fetch(URLS.offers, {
       headers: {
         "customer-identity": hash,
@@ -120,12 +115,44 @@
     if (!r.ok) throw new Error("HTTP " + r.status);
     var list = await r.json();
     if (!list || !Array.isArray(list.data)) throw new Error("offers response has no list");
-    var offers = list.data.map(offer);
-    for (var i = 0; i < offers.length; i++) if (!offers[i].outcome) await boost(offers[i]);
+    return list.data;
+  }
+
+  async function boostAll() {
+    var hash = await getJson(URLS.crnHash);
+    if (typeof hash !== "string" || !hash) throw new Error("no rewards card");
+    var offers = (await readOffers(hash)).filter(Boolean).map(offer);
+    var tried = false;
+    for (var i = 0; i < offers.length; i++) {
+      if (offers[i].outcome) continue;
+      await boost(offers[i]);
+      tried = true;
+    }
+    if (tried) {
+      try {
+        var after = {};
+        (await readOffers(hash)).filter(Boolean).forEach(function (o) {
+          after[o.id] = o.attributes && o.attributes.boostState;
+        });
+        offers.forEach(function (o) {
+          if (o.outcome === "already" || !(o.id in after)) return;
+          if (after[o.id] === "BOOSTED") {
+            o.outcome = "boosted";
+            o.reason = null;
+          } else if (o.outcome === "boosted") {
+            o.outcome = "failed";
+            o.reason = "still not boosted";
+          }
+        });
+      } catch (e) {
+        /* Without a second read the boost replies stand. */
+      }
+    }
     return { offers: offers };
   }
 
   async function windows(dlv) {
+    if (!dlv.address.addressId || !dlv.address.areaId || !dlv.address.suburbId) throw new Error("no delivery address");
     var a = dlv.address;
     var w = await getJson(URLS.windows + "?areaId=" + a.areaId + "&fulfilmentMethod=Courier&addressId=" + a.addressId + "&suburbId=" + a.suburbId);
     if (!w || !Array.isArray(w.Days)) throw new Error("windows response has no days");
@@ -171,13 +198,14 @@
       total: o.TotalIncludingGst,
       toPay: o.BalanceToPay,
       points: o.TotalRewardsPointsEarned,
-      warning: String(m.CheckoutSubtotalErrors || ""),
+      warning: typeof m.CheckoutSubtotalErrors === "string" ? m.CheckoutSubtotalErrors : "",
       unavailable: names(o.UnavailableProducts),
       restricted: names(o.RestrictedProducts),
     };
   }
 
   async function book(dlv, req) {
+    if (dlv.method !== "Courier" || !dlv.address.addressId) return "not a delivery order";
     try {
       var r = await fetch(URLS.book, {
         method: "POST",
@@ -238,6 +266,7 @@
     start: function (req) {
       if (state.phase === "running") return false;
       if (!req || (req.action !== "load" && req.action !== "book")) return false;
+      if (req.action === "book" && !(Number.isFinite(req.timeslotId) && req.timeslotId > 0 && /^\d{4}-\d{2}-\d{2}$/.test(String(req.windowDate)))) return false;
       run(req);
       return true;
     },
