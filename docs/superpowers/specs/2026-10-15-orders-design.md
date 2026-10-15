@@ -1,6 +1,6 @@
 # Past orders — design
 
-**Status:** approved 2026-10-15
+**Status:** approved 2026-10-15; v0.6.0 released 2026-10-15, owner phone checks pending
 **Scope:** roadmap spec 5 of 5 (see `2026-10-15-deli-ham-trolley-design.md`): finishing a shop saves it as an order, and Build a shop lists past orders
 **Release:** v0.6.0
 
