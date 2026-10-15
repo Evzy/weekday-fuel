@@ -493,7 +493,7 @@ function ensureDay(date){if(!state.days[date])state.days[date]=clone(dayOf(date)
 function totals(day){
   const t={k:0,p:0,c:0,f:0,cost:0};
   for(const key in S().fixtures){if(day.fx&&day.fx[key]){const x=S().fixtures[key];t.k+=x.k;t.p+=x.p;t.c+=x.c;t.f+=x.f;t.cost+=x.cost}}
-  (day.meals||[]).forEach(m=>{const meal=MEAL[m.id];if(!meal)return;const x=meal.t[m.t];t.k+=x.k;t.p+=x.p;t.c+=x.c;t.f+=x.f;t.cost+=x.cost});
+  (day.meals||[]).forEach(m=>{const meal=MEAL[m.id];if(!meal)return;const x=meal.t[m.t];t.k+=x.k;t.p+=x.p;t.c+=x.c;t.f+=x.f;t.cost+=mealCosts(meal)[m.t]});
   (day.extras||[]).forEach(x=>{t.k+=+x.k||0;t.p+=+x.p||0});
   return t;
 }
@@ -672,11 +672,19 @@ function renderWeigh(){
   if(recent.length)h+=`<div class="panel"><h3 style="margin-bottom:6px">Recent entries</h3><div class="wlist">${recent.map(x=>`<div class="wli"><span>${fmtDay(x.d)}</span><span class="num">${x.kg.toFixed(1)} kg</span><button class="ghost ${state.armed==="w"+x.d?"warn":""}" data-act="rmw" data-v="${x.d}">${state.armed==="w"+x.d?"Tap to delete":"Delete"}</button></div>`).join("")}</div></div>`;
   return h;
 }
+/* Standard from the chosen store's prices; Light and Extra keep their typed ratio to Standard */
+function mealCosts(m){
+  const s=CAT.mealCost(m.id,store());
+  if(s==null)return {L:m.t.L.cost,S:m.t.S.cost,X:m.t.X.cost};
+  const scale=k=>Math.round(s*m.t[k].cost/m.t.S.cost*100)/100;
+  return {L:scale("L"),S:s,X:scale("X")};
+}
 function tierTable(m){
-  return `<div class="tblwrap"><table class="tiers"><thead><tr><th>Portion</th><th>kcal</th><th>P</th><th>C</th><th>F</th><th>Cost</th></tr></thead><tbody>${TIERS.map(([k,l])=>{const v=m.t[k];return `<tr><td>${l}<small>${esc(v.what)}</small></td><td>${v.k}</td><td>${v.p}</td><td>${v.c}</td><td>${v.f}</td><td>${money(v.cost)}</td></tr>`}).join("")}</tbody></table></div>`;
+  const mc=mealCosts(m);
+  return `<div class="tblwrap"><table class="tiers"><thead><tr><th>Portion</th><th>kcal</th><th>P</th><th>C</th><th>F</th><th>Cost</th></tr></thead><tbody>${TIERS.map(([k,l])=>{const v=m.t[k];return `<tr><td>${l}<small>${esc(v.what)}</small></td><td>${v.k}</td><td>${v.p}</td><td>${v.c}</td><td>${v.f}</td><td>${money(mc[k])}</td></tr>`}).join("")}</tbody></table></div>`;
 }
 function mealCard(m,full){
-  const rm=m.remake?`<div class="vs"><div><span class="small muted">Ready-made at the shop</span><b>${money(S().readyMealPrice)}</b></div><div><span class="small muted">This, Standard</span><b style="color:var(--good)">${money(m.t.S.cost)}</b></div></div>`:"";
+  const rm=m.remake?`<div class="vs"><div><span class="small muted">Ready-made at the shop</span><b>${money(S().readyMealPrice)}</b></div><div><span class="small muted">This, Standard</span><b style="color:var(--good)">${money(mealCosts(m).S)}</b></div></div>`:"";
   return `<div class="card"><div class="row between" style="align-items:flex-start"><div class="grow"><div class="row" style="gap:6px;margin-bottom:4px"><span class="tag">${esc(m.cuisine)}</span><span class="tag">${m.mins} min</span>${m.remake?`<span class="tag remake">Remake</span>`:""}</div><h3>${esc(m.name)}</h3><div class="small muted">Fixed protein core: ${esc(m.core)}</div></div>${full?"":`<button class="ghost" data-act="recipe" data-v="${m.id}">Recipe</button>`}</div>${rm}${tierTable(m)}${full?`<div class="stack" style="gap:8px"><div class="eyebrow">Shopping</div><ul class="ing">${m.ing.map(i=>`<li>${esc(i)}</li>`).join("")}</ul><div class="eyebrow">Method</div><ol class="steps">${m.steps.map(s=>`<li>${esc(s)}</li>`).join("")}</ol>${m.note?`<div class="hint"><span>${esc(m.note)}</span></div>`:""}</div>`:""}<div class="row" style="gap:6px">${(m.slots.includes("breakfast")?["breakfast"]:m.slots.includes("snack")?["snack"]:["lunch","dinner"]).map(s=>`<button class="ghost" data-act="addto" data-v="${m.id}" data-s="${s}">Add to ${state.date===iso(new Date())?"today":fmtShort(state.date)} as ${s}</button>`).join("")}</div></div>`;
 }
 function renderMeals(){
@@ -685,7 +693,7 @@ function renderMeals(){
   let h=`<div><div class="eyebrow">${MEALS.length} meals · each one under 20 min</div><h2>Meal library</h2><p class="small muted" style="margin:4px 0 0">Every meal has a fixed protein core. Light, Standard and Loaded only change the carbs and fat (rice, pasta, cheese, oil), so you change the size of a meal without changing what you cook.</p></div>`;
   h+=`<div class="chips">${[["all","All"],["breakfast","Breakfast"],["main","Lunch & dinner"],["snack","Snacks"],["remake","Ready-meal remakes"]].map(([k,l])=>`<button class="chip" aria-pressed="${f===k}" data-act="mf" data-v="${k}">${l}</button>`).join("")}</div>`;
   h+=MEALS.filter(filt).map(m=>mealCard(m,false)).join("");
-  h+=`<div class="flat small muted">Costs use Coles/Woolworths prices checked online in October 2026; macros come from typical labels. Your brands will differ a little, and the weekly weigh-in average corrects for that.</div>`;
+  h+=`<div class="flat small muted">Costs use ${STORE_NAME[store()]} prices (switch store on the Shop tab); macros come from typical labels. Your brands will differ a little, and the weekly weigh-in average corrects for that.</div>`;
   return h;
 }
 const STARTER={toasty:2,tenderwrap:2,burritobowl:2,buffalomac:2};
@@ -743,7 +751,7 @@ function renderShop(){
     if(!nMeals)h+=`<div class="hint"><span>Not sure where to start? The <b>starter shop</b> picks 4 meals that share most of their ingredients (toasty, chicken wraps, burrito bowl, buffalo mac), 2 serves each, so you buy fewer things.</span></div><div><button class="btn" data-act="starter">Use the starter shop</button></div>`;
     const groups=[["Breakfast",m=>m.slots.includes("breakfast")],["Lunch & dinner",m=>m.slots.includes("main")],["Snack",m=>m.slots.includes("snack")&&!m.slots.includes("breakfast")]];
     groups.forEach(([g,f])=>{
-      h+=`<div class="eyebrow" style="margin-top:4px">${g}</div><div class="picks">${MEALS.filter(f).map(m=>{const n=pk[m.id]||0;return `<div class="pickrow ${n?"on":""}"><button class="pname" data-act="recipe" data-v="${m.id}"><b>${esc(m.name)}</b><span class="small muted num">${m.t.S.k} kcal · ${m.t.S.p}g P · ${money(m.t.S.cost)}</span></button><div class="step" role="group" aria-label="Serves of ${esc(m.name)}"><button data-act="serve" data-v="${m.id}" data-i="-1" aria-label="Fewer" ${n?"":"disabled"}>−</button><span class="num">${n}</span><button data-act="serve" data-v="${m.id}" data-i="1" aria-label="More">+</button></div></div>`}).join("")}</div>`;
+      h+=`<div class="eyebrow" style="margin-top:4px">${g}</div><div class="picks">${MEALS.filter(f).map(m=>{const n=pk[m.id]||0;return `<div class="pickrow ${n?"on":""}"><button class="pname" data-act="recipe" data-v="${m.id}"><b>${esc(m.name)}</b><span class="small muted num">${m.t.S.k} kcal · ${m.t.S.p}g P · ${money(mealCosts(m).S)}</span></button><div class="step" role="group" aria-label="Serves of ${esc(m.name)}"><button data-act="serve" data-v="${m.id}" data-i="-1" aria-label="Fewer" ${n?"":"disabled"}>−</button><span class="num">${n}</span><button data-act="serve" data-v="${m.id}" data-i="1" aria-label="More">+</button></div></div>`}).join("")}</div>`;
     });
     const days=S().fixtureDays==null?5:S().fixtureDays;
     h+=`<div class="row between" style="margin-top:4px"><span class="small"><b>Dare + Grenade</b> for how many days?</span><div class="step"><button data-act="fxdays" data-i="-1" ${days?"":"disabled"} aria-label="Fewer days">−</button><span class="num">${days}</span><button data-act="fxdays" data-i="1" aria-label="More days">+</button></div></div></div>`;
