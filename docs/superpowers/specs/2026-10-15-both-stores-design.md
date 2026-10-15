@@ -1,7 +1,7 @@
 # Coles and Woolworths on every Shop item — design
 
-**Status:** approved 2026-10-15
-**Scope:** roadmap spec 2 of 4 (see `2026-10-15-deli-ham-trolley-design.md`): every Shop item gets its real Coles and Woolworths product and price, Shop totals per store, a store switch, computed meal costs, and live Woolworths prices
+**Status:** approved 2026-10-15; v0.3.0 released and accepted by the owner 2026-10-15; v0.3.1 (live Woolworths prices) to do
+**Scope:** roadmap spec 2 of 5 (see `2026-10-15-deli-ham-trolley-design.md`): every Shop item gets its real Coles and Woolworths product and price, Shop totals per store, a store switch, computed meal costs, and live Woolworths prices
 
 ## Goal
 
@@ -127,4 +127,4 @@ v0.3.1:
 
 ## Out of scope
 
-Live Coles prices, a Coles trolley, a "cheapest mix" store option, the orders page (roadmap 3) and in-app checkout (roadmap 4).
+Live Coles prices, a Coles trolley, a "cheapest mix" store option, Suggest a day to the trolley (roadmap 3), in-app checkout (roadmap 4) and the orders page (roadmap 5).

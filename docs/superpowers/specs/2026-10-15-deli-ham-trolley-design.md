@@ -7,14 +7,15 @@
 
 "Send to Woolworths trolley" also sends the shaved deli ham, at the weight Build a shop says to buy. The owner no longer adds it by hand.
 
-## Roadmap (agreed 2026-10-15)
+## Roadmap (agreed 2026-10-15, reordered the same day)
 
-This is the first of four specs, built and released in order:
+Specs are built and released in this order:
 
-1. **Deli ham in the trolley** (this spec).
-2. **Both stores on every item:** a Coles and a Woolworths product per Shop item with links and actual prices, Coles in red and Woolworths in green, one row when it is the same product at both, separate entries when they differ, a Coles total and a Woolworths total, and items one store lacks listed as missed. The trolley stays Woolworths-only.
-3. **Orders page:** "Start an order" copies the current shopping list into an order that tracks what is still left to get by hand, and clears the Shop list.
-4. **Checkout in the app:** delivery or pick-up and address, time slot, substitutions, Rewards and promo codes, fees and minimum order, each step with a "View on Woolworths" button that opens the real site at that step.
+1. **Deli ham in the trolley** (this spec). Done, v0.2.1.
+2. **Both stores on every item:** a Coles and a Woolworths product per Shop item with links and actual prices, Coles in red and Woolworths in green, one row when it is the same product at both, separate entries when they differ, a Coles total and a Woolworths total, and items one store lacks listed as missed. The trolley stays Woolworths-only. v0.3.0 done; live Woolworths prices (v0.3.1) next.
+3. **Suggest a day to the trolley:** from Today's suggested day, send the whole day or chosen meals/items to the Woolworths trolley. Only what those meals need; pantry items are flagged every time so the owner ticks off what is already at home (no buying spices every time); each item says which meal it is for, so the owner can swap that meal instead.
+4. **Checkout in the app:** activate every Everyday Rewards boost for maximum points; pull the available delivery time slots and pick one in the app. Then delivery or pick-up and address, substitutions, promo codes, fees and minimum order, each step with a "View on Woolworths" button that opens the real site at that step.
+5. **Orders page:** "Start an order" copies the current shopping list into an order that tracks what is still left to get by hand, and clears the Shop list.
 
 ## Facts (Woolworths, 2026-10-15)
 
