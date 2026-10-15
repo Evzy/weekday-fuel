@@ -50,6 +50,9 @@ test("fixtures are one per day at each store", () => {
   assert.deepEqual([dare.coles.quantity, dare.coles.cost, dare.coles.buy], [5, 27.5, "5 bottles"]);
   assert.equal(dare.woolies.cost, 25);
   assert.deepEqual(cat.shopList({}, 0), []);
+  assert.equal(cat.shopList({}, 1)[0].coles.buy, "1 bottle");
+  const pouch = create([{ ...ITEMS[0], id: "rice", unit: "pouches" }], { bowl: { rice: 1 } });
+  assert.equal(pouch.shopList({ bowl: 1 }, 0)[0].woolies.buy, "1 pouch");
 });
 
 test("whole packs per store, from each store's own pack size", () => {

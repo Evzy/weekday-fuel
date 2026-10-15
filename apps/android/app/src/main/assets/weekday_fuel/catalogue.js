@@ -268,6 +268,10 @@
     return product.size + (/^(g|mL)$/.test(unit) ? unit : " " + unit);
   }
 
+  function singular(unit) {
+    return unit.replace(/(ch|sh|x)es$/, "$1").replace(/s$/, "");
+  }
+
   function storeLine(item, product, need) {
     if (product.perKg) {
       var grams = deliGrams(need);
@@ -280,7 +284,7 @@
       product: chosen,
       quantity: packs,
       cost: round2(packs * chosen.price),
-      buy: chosen.size === 1 ? packs + " " + item.unit : packs + " × " + packLabel(chosen, item.unit),
+      buy: chosen.size === 1 ? packs + " " + (packs === 1 ? singular(item.unit) : item.unit) : packs + " × " + packLabel(chosen, item.unit),
     };
   }
 
