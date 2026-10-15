@@ -223,6 +223,7 @@ a.link{text-decoration:none;display:inline-block;color:var(--accent);border-colo
 <script src="catalogue.js"></script>
 <script src="cart.js"></script>
 <script src="checkoutview.js"></script>
+<script src="orders.js"></script>
 <script>
 (function(){
 "use strict";
@@ -371,7 +372,12 @@ const dayShort=d=>parse(d).toLocaleDateString("en-AU",{weekday:"short",day:"nume
 function forLabel(r){if(!r||!r.used||!r.used.length)return "";return "For "+(r.days&&r.days.length?r.days.map(dayShort).join(", ")+" · ":"")+r.used.map(m=>MEAL[m]?MEAL[m].name:m).join(", ")}
 const forLine=r=>{const t=forLabel(r);return t?`<span class="small muted" style="display:block">${esc(t)}</span>`:""};
 const trolleyBusy=()=>!!state.trolley&&(state.trolley.phase==="adding"||state.trolley.phase==="login");
-const nextShopBtn=()=>trolleyBusy()?"":`<button class="ghost ${state.armed==="nextshop"?"warn":""}" data-act="nextshop">${state.armed==="nextshop"?"Tap again to clear days, meals and ticks":"Start next shop"}</button>`;
+function nextShopBtn(){
+  if(trolleyBusy())return "";
+  const save=!WeekdayFuelOrders.isEmpty(shopRows(),(lsSent()||{}).lines),armed=state.armed==="nextshop";
+  const label=armed?(save?"Tap again to save this order and clear days, meals and ticks":"Tap again to clear days, meals and ticks"):(save?"Save order and start next shop":"Start next shop");
+  return `<button class="ghost ${armed?"warn":""}" data-act="nextshop">${label}</button>`;
+}
 const CO_URL="https://www.woolworths.com.au/checkout",WOOLIES_LOGIN_URL="https://www.woolworths.com.au/shop/securelogin";
 const coBusy=()=>!!state.checkout&&(state.checkout.phase==="loading"||state.checkout.phase==="saving");
 const CO_MSG={book:"checkoutBook",subs:"checkoutSubs",options:"checkoutOptions",address:"checkoutAddress"};
@@ -552,7 +558,7 @@ const clone=o=>JSON.parse(JSON.stringify(o));
 function deepMerge(base,over){const out=clone(base);if(!over)return out;for(const k in over){if(k==="trial"){out[k]=clone(over[k]);continue}if(over[k]&&typeof over[k]==="object"&&!Array.isArray(over[k])&&out[k]&&typeof out[k]==="object")out[k]=deepMerge(out[k],over[k]);else out[k]=over[k];}return out}
 
 /* ---------- state + storage ---------- */
-const state={tab:"today",date:iso(new Date()),settings:clone(DEFAULT_SETTINGS),days:{},weights:{},adding:null,mealFilter:"all",sheet:null,armed:null,openItem:null,trolley:null,prices:null,pricesTried:0,checkout:null};
+const state={tab:"today",date:iso(new Date()),settings:clone(DEFAULT_SETTINGS),days:{},weights:{},adding:null,mealFilter:"all",sheet:null,armed:null,openItem:null,trolley:null,prices:null,pricesTried:0,checkout:null,coLast:null,openOrder:null,orderError:false};
 let db=null;
 const LS="weekdayfuel.v1";
 function lsGet(){try{return JSON.parse(localStorage.getItem(LS)||"null")}catch(e){return null}}
@@ -563,6 +569,9 @@ function lsSetTicks(t){try{localStorage.setItem(LS+".shop",JSON.stringify(t))}ca
 const SENT=LS+".sent";
 function lsSent(){try{const s=JSON.parse(localStorage.getItem(SENT)||"null");return s&&typeof s.fingerprint==="string"&&s.lines&&typeof s.lines==="object"?s:null}catch(e){return null}}
 function lsSetSent(s){try{s?localStorage.setItem(SENT,JSON.stringify(s)):localStorage.removeItem(SENT)}catch(e){}}
+const ORDERS=LS+".orders";
+function lsOrders(){try{return WeekdayFuelOrders.parseOrders(localStorage.getItem(ORDERS)||"[]")}catch(e){return []}}
+function lsSetOrders(list){try{localStorage.setItem(ORDERS,JSON.stringify(list));return true}catch(e){return false}}
 /* state.prices: null, "busy" or "error" */
 function refreshPrices(){
   if(!window.WeekdayFuelHost||state.prices==="busy")return;
@@ -914,6 +923,44 @@ function renderTrolley(rows,ticks){
   }
   return h+`</div>`;
 }
+/* Saves the current shop as an order. True when saved or when there was nothing to save. */
+function saveOrder(){
+  const rows=shopRows(),sent=lsSent(),lines=(sent&&sent.lines)||{};
+  if(WeekdayFuelOrders.isEmpty(rows,lines))return true;
+  const r=(state.checkout&&state.checkout.result)||state.coLast,pk=picks();
+  const meals=Object.keys(pk).filter(id=>pk[id]>0&&MEAL[id]).map(id=>({name:MEAL[id].name,serves:pk[id]}))
+    .concat(dayMeals().filter(dm=>MEAL[dm.meal]).map(dm=>({name:MEAL[dm.meal].name+" ("+dayShort(dm.day)+")",serves:1})));
+  const order=WeekdayFuelOrders.snapshot(rows,lsTicks(),lines,{
+    at:new Date().toISOString(),store:store(),days:shopDays(),meals,
+    delivery:r&&r.booked&&r.booked.start?WeekdayFuelCheckoutView.bookedLabel(r.booked).when:null,
+    wooliesTotal:r&&r.summary&&!r.summary.error&&typeof r.summary.total==="number"?r.summary.total:null,
+    forText:forLabel,product:wooliesProduct,
+  });
+  return lsSetOrders(WeekdayFuelOrders.addOrder(lsOrders(),order));
+}
+function renderPastOrders(){
+  const O=WeekdayFuelOrders,list=lsOrders();
+  if(!list.length&&!state.orderError)return "";
+  let h=`<div class="panel stack"><h3>Past orders</h3>`;
+  if(state.orderError)h+=`<div class="hint"><span>Couldn't save the order. Nothing was cleared.</span></div>`;
+  list.forEach(o=>{
+    const open=state.openOrder===o.id;
+    h+=`<button class="pname" data-act="openorder" data-v="${esc(o.id)}" aria-expanded="${open}"><b>${esc(O.summaryLine(o))}</b></button>`;
+    if(!open)return;
+    h+=`<div class="stack" style="gap:6px">`;
+    if(o.days.length)h+=`<div class="small muted">Days: ${esc(o.days.map(fmtShort).join(", "))}</div>`;
+    if(o.meals.length)h+=`<div class="small muted">Meals: ${esc(o.meals.map(m=>m.serves>1?m.name+" ×"+m.serves:m.name).join(", "))}</div>`;
+    if(o.delivery)h+=`<div class="small muted">Delivery: ${esc(o.delivery)}</div>`;
+    O.GROUPS.forEach(k=>{
+      const items=o.groups[k];if(!items.length)return;
+      h+=`<div class="eyebrow">${esc(O.GROUP_TITLES[k])} (${items.length})</div>`;
+      h+=items.map(i=>`<div class="small">${k==="buy"&&i.store?`<span style="color:var(--${i.store})">${esc(STORE_NAME[i.store])}</span> · `:""}<b>${esc(i.name)}</b>${i.buy?` · ${esc(i.buy)}`:""}${i.cost!==null?` · ${money(i.cost)}`:""}${i.note?` <span class="muted">· ${esc(i.note)}</span>`:""}${i.for?`<span class="muted" style="display:block">${esc(i.for)}</span>`:""}</div>`).join("");
+    });
+    const armed=state.armed==="order"+o.id;
+    h+=`<div class="row"><button class="ghost ${armed?"warn":""}" data-act="delorder" data-v="${esc(o.id)}">${armed?"Tap again to delete this order":"Delete"}</button></div></div>`;
+  });
+  return h+`</div>`;
+}
 function renderShop(){
   if(state.checkout&&window.WeekdayFuelHost)return renderCheckout();
   const ticks=lsTicks();const build=S().shopMode!=="all";
@@ -933,7 +980,7 @@ function renderShop(){
     const days=S().fixtureDays==null?5:S().fixtureDays;
     h+=`<div class="row between" style="margin-top:4px"><span class="small"><b>Dare + Grenade</b> for how many days?</span><div class="step"><button data-act="fxdays" data-i="-1" ${days?"":"disabled"} aria-label="Fewer days">−</button><span class="num">${days}</span><button data-act="fxdays" data-i="1" aria-label="More days">+</button></div></div></div>`;
     const st=store(),ot=other(st);const rows=CAT.shopList(pk,days,dm);
-    if(!nMeals&&!dm.length&&!rows.length&&!sdays.length&&!Object.keys((lsSent()||{lines:{}}).lines).length){h+=`<div class="empty">Pick at least one meal and your list appears here.</div>`;return h;}
+    if(!nMeals&&!dm.length&&!rows.length&&!sdays.length&&!Object.keys((lsSent()||{lines:{}}).lines).length){h+=`<div class="empty">Pick at least one meal and your list appears here.</div>`;return h+renderPastOrders();}
     const tot={coles:CAT.storeTotals(rows,"coles",ticks),woolies:CAT.storeTotals(rows,"woolies",ticks)};
     h+=`<div class="panel vs">${STORES.map(s=>`<div><span class="small" style="display:block;color:var(--${s});font-weight:700">${STORE_NAME[s]}${tot[s].missed.length?` · ${tot[s].missed.length} missed`:""}</span><b>${money(tot[s].total)}</b></div>`).join("")}</div>`;
     h+=`<div class="row between"><div class="dial" role="group" aria-label="Store" style="grid-template-columns:repeat(2,auto)">${STORES.map(s=>`<button aria-pressed="${st===s}" data-act="store" data-v="${s}">${STORE_NAME[s]}</button>`).join("")}</div><span class="small">Left to buy <b class="num" style="color:var(--good)">${money(tot[st].left)}</b></span></div>`;
@@ -946,7 +993,7 @@ function renderShop(){
     if(miss.length)h+=`<div class="panel stack"><h3>Missed at ${STORE_NAME[st]}</h3><div class="small muted">${STORE_NAME[st]} doesn't ${miss.some(r=>r.wooliesUnavailable)&&st==="woolies"?"have these online right now":"sell these"}. Get them at ${STORE_NAME[ot]}.</div>${miss.map(r=>{const o=r[ot];return `<div class="row between"><span class="small">${esc(o?o.product.name:r.name)}${st==="woolies"&&r.wooliesUnavailable?` <span class="muted">· instead of ${esc(r.wooliesUnavailable.name)}, unavailable online now</span>`:""}${o?` <span class="muted">· ${esc(o.buy)}</span>`:""}${forLine(r)}</span>${o?`<span class="num small" style="color:var(--${ot})">${money(o.cost)}</span>`:""}</div>`}).join("")}</div>`;
     if(st==="woolies")h+=renderTrolley(rows,ticks);
     h+=`<div class="row"><button class="ghost" data-act="untickall">Clear ticks</button>${nextShopBtn()}</div>`;
-    return h;
+    return h+renderPastOrders();
   }
   const items=CAT.ITEMS;
   const DELI_LIST_G=300;
@@ -989,7 +1036,7 @@ document.addEventListener("click",e=>{
   const el=e.target.closest("[data-act]");if(!el)return;
   const act=el.dataset.act,v=el.dataset.v,i=+el.dataset.i;
   if(act==="close"&&el.classList.contains("scrim")&&e.target!==el)return;
-  if(act!=="rm"&&act!=="rmw"&&act!=="nextshop")state.armed=null;
+  if(act!=="rm"&&act!=="rmw"&&act!=="nextshop"&&act!=="delorder")state.armed=null;
   const date=state.date;
   switch(act){
     case "tab":state.tab=v;state.adding=null;window.scrollTo(0,0);if(v==="shop"&&!coBusy())maybeRefreshPrices();break;
@@ -1006,7 +1053,9 @@ document.addEventListener("click",e=>{
     case "mealshop":{const d=ensureDay(date);const m=d.meals[i];if(m.shop===false)delete m.shop;else m.shop=false;saveDay(date);break}
     case "unshopday":{const sd=state.settings.shopDays=Object.assign({},S().shopDays);delete sd[v];saveSettings();break}
     case "openday":state.tab="today";state.date=v;state.adding=null;window.scrollTo(0,0);break;
-    case "nextshop":if(trolleyBusy())break;if(state.armed!=="nextshop"){state.armed="nextshop";break}state.armed=null;state.settings.shopDays={};state.settings.trial={};saveSettings();lsSetTicks({});lsSetSent(null);state.trolley=null;state.checkout=null;break;
+    case "nextshop":if(trolleyBusy())break;if(state.armed!=="nextshop"){state.armed="nextshop";break}state.armed=null;if(!saveOrder()){state.orderError=true;break}state.orderError=false;state.settings.shopDays={};state.settings.trial={};saveSettings();lsSetTicks({});lsSetSent(null);state.trolley=null;state.checkout=null;state.coLast=null;break;
+    case "openorder":state.openOrder=state.openOrder===v?null:v;break;
+    case "delorder":{if(state.armed==="order"+v){lsSetOrders(WeekdayFuelOrders.removeOrder(lsOrders(),v));state.armed=null;if(state.openOrder===v)state.openOrder=null}else state.armed="order"+v;break}
     case "rm":{if(state.armed==="rm"+i){const d=ensureDay(date);d.meals.splice(i,1);saveDay(date);state.armed=null}else state.armed="rm"+i;break}
     case "adding":state.adding=state.adding===v?null:v;break;
     case "add":{const d=ensureDay(date);d.meals=d.meals||[];d.meals.push({id:v,slot:state.adding,t:"S"});state.adding=null;saveDay(date);break}
@@ -1042,7 +1091,7 @@ document.addEventListener("click",e=>{
     case "cosubsave":{const c=state.checkout;if(!c||c.phase!=="ready")break;const ch=WeekdayFuelCheckoutView.subsView((c.result.summary&&c.result.summary.items)||[],c.subsDraft).changes;if(ch.length)coSave("subs",{items:ch});break}
     case "cooptsave":{const c=state.checkout;if(!c||c.phase!=="ready"||!c.optDraft)break;coSave("options",{instructions:c.optDraft.instructions,leaveUnattended:!!c.optDraft.leaveUnattended});break}
     case "copay":if(coBusy())break;if(state.checkout)state.checkout.paid=true;if(state.trolley)state.trolley.checkedOut=true;WeekdayFuelHost.postMessage(JSON.stringify({type:"openWoolworths",url:CO_URL}));break;
-    case "codone":state.checkout=null;break;
+    case "codone":state.coLast=(state.checkout&&state.checkout.result)||state.coLast;state.checkout=null;break;
     case "openwoolies":if(coBusy())return;WeekdayFuelHost.postMessage(JSON.stringify({type:"openWoolworths",url:v}));return;
     case "fxdays":{const d=S().fixtureDays==null?5:S().fixtureDays;state.settings.fixtureDays=Math.max(0,Math.min(7,d+i));saveSettings();break}
     default:return;
