@@ -37,7 +37,7 @@
   function orderedItem(line, product, qty, note, forText) {
     var same = !!line && Math.abs(qty - line.quantity) < 1e-9;
     return {
-      name: product.name,
+      name: String(product.name),
       buy: same ? line.buy : amount(product, qty),
       cost: same ? line.cost : typeof product.price === "number" ? round2(qty * product.price) : null,
       store: "woolies",
@@ -48,6 +48,7 @@
 
   function snapshot(rows, ticks, sentLines, opts) {
     var o = opts || {};
+    var at = typeof o.at === "string" && !isNaN(Date.parse(o.at)) ? o.at : new Date().toISOString();
     var sent = sentLines || {};
     var t = ticks || {};
     var store = o.store === "coles" ? "coles" : "woolies";
@@ -84,14 +85,15 @@
     Object.keys(sent).forEach(function (code) {
       if (used[code] || !isQty(sent[code])) return;
       var p = typeof o.product === "function" ? o.product(Number(code)) : null;
+      if (!p || typeof p.name !== "string" || !p.name) p = null;
       groups.ordered.push(
         p ? orderedItem(null, p, sent[code], "not in this shop", "") : { name: "Product " + code, buy: String(sent[code]), cost: null, store: "woolies", note: "not in this shop", for: "" },
       );
     });
     return {
       v: 1,
-      id: String(o.at),
-      at: String(o.at),
+      id: at,
+      at: at,
       store: store,
       days: (Array.isArray(o.days) ? o.days : []).filter(isDate),
       meals: (Array.isArray(o.meals) ? o.meals : []).filter(validMeal).map(function (m) { return { name: m.name, serves: m.serves }; }),
@@ -138,7 +140,14 @@
     } catch (e) {
       return [];
     }
-    return Array.isArray(list) ? list.filter(validOrder) : [];
+    if (!Array.isArray(list)) return [];
+    var seen = {};
+    return list
+      .filter(function (o) {
+        if (!validOrder(o) || seen[o.id]) return false;
+        return (seen[o.id] = true);
+      })
+      .slice(0, KEEP);
   }
 
   function addOrder(list, order) {

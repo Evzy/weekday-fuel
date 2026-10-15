@@ -106,6 +106,22 @@ test("parseOrders keeps only well-formed orders; addOrder and removeOrder manage
   assert.deepEqual(O.removeOrder([{ id: "x" }, { id: "y" }], "x"), [{ id: "y" }]);
 });
 
+test("every snapshot reads back, even with a nameless product, a missing time or a sent pantry item; the read list is capped and deduplicated", () => {
+  const odd = O.snapshot([rice, bread, evap], {}, { 300: 1, 777: 1 }, { ...OPTS, at: undefined, product: () => ({ price: 2 }) });
+  assert.ok(!isNaN(Date.parse(odd.at)));
+  assert.equal(odd.id, odd.at);
+  assert.deepEqual(odd.groups.ordered.map((i) => i.name), ["Rice 1kg", "Product 777"]);
+  assert.deepEqual(odd.groups.pantry, []);
+  for (const o of [odd, O.snapshot([bread, ham, milk, rice, breast, evap, yog], { milk: true }, { 100: 1, 999: 1 }, OPTS), O.snapshot([], {}, {}, {})]) {
+    assert.deepEqual(O.parseOrders(JSON.stringify([o])), [o]);
+  }
+  const many = Array.from({ length: 40 }, (_, i) => ({ ...odd, id: "id" + i }));
+  const read = O.parseOrders(JSON.stringify([...many, { ...odd, id: "id0" }]));
+  assert.equal(read.length, 30);
+  assert.equal(read[0].id, "id0");
+  assert.equal(new Set(read.map((o) => o.id)).size, 30);
+});
+
 test("summaryLine gives the date, how many were ordered and the total", () => {
   const o = O.snapshot([bread, ham], {}, { 100: 1, 175734: 0.2 }, OPTS);
   assert.equal(O.summaryLine(o), "Thu 15 Oct · 2 ordered · $145.43");
