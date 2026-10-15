@@ -150,3 +150,35 @@ test("checked gives each store's oldest price date", () => {
   assert.equal(cat.checked("coles"), "2026-10-12");
   assert.equal(cat.checked("woolies"), "2026-10-15");
 });
+
+test("planned days combine with picks and with each other before packs are rounded", () => {
+  const rows = cat.shopList({ tenderwrap: 1 }, 0, [
+    { day: "2026-10-20", meal: "buffalomac" },
+    { day: "2026-10-19", meal: "toasty" },
+    { day: "2026-10-20", meal: "toasty" },
+  ]);
+  assert.deepEqual(rows.map((r) => [r.id, r.need]), [["breast", 380], ["ham", 200], ["cheese", 130], ["evap", 80]]);
+  const r = byId(rows);
+  assert.equal(r.cheese.woolies.quantity, 1);
+  assert.deepEqual(r.cheese.days, ["2026-10-19", "2026-10-20"]);
+  assert.deepEqual(r.cheese.used, ["tenderwrap", "buffalomac", "toasty"]);
+  assert.deepEqual([r.ham.days, r.ham.used, r.ham.woolies.quantity], [["2026-10-19", "2026-10-20"], ["toasty"], 0.2]);
+  assert.deepEqual(r.breast.days, ["2026-10-20"]);
+});
+
+test("the same meal on two days is one meal in used and one pack when it fits", () => {
+  const [ham, cheese] = cat.shopList({}, 0, [{ day: "2026-10-19", meal: "toasty" }, { day: "2026-10-20", meal: "toasty" }]);
+  assert.deepEqual([cheese.id, cheese.need, cheese.woolies.quantity, cheese.used], ["cheese", 60, 1, ["toasty"]]);
+  assert.deepEqual([ham.id, ham.days], ["ham", ["2026-10-19", "2026-10-20"]]);
+});
+
+test("no planned days leaves the list as it was, with empty days", () => {
+  const before = cat.shopList({ toasty: 2, tenderwrap: 2 }, 3);
+  assert.deepEqual(cat.shopList({ toasty: 2, tenderwrap: 2 }, 3, []), before);
+  assert.ok(before.every((r) => Array.isArray(r.days) && r.days.length === 0));
+  assert.deepEqual(byId(before).dare.used, []);
+});
+
+test("an unknown meal in a planned day adds nothing", () => {
+  assert.deepEqual(cat.shopList({}, 0, [{ day: "2026-10-19", meal: "nope" }]), []);
+});

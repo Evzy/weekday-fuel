@@ -308,17 +308,25 @@
       byId[it.id] = it;
     });
 
-    function shopList(picks, fixtureDays) {
+    function shopList(picks, fixtureDays, dayMeals) {
       var need = {};
       var used = {};
-      Object.keys(picks).forEach(function (meal) {
-        var serves = picks[meal];
+      var days = {};
+      function addMeal(meal, serves, day) {
         var per = amounts[meal];
         if (!serves || !per) return;
         Object.keys(per).forEach(function (id) {
           need[id] = (need[id] || 0) + per[id] * serves;
-          (used[id] = used[id] || []).push(meal);
+          var u = (used[id] = used[id] || []);
+          if (u.indexOf(meal) < 0) u.push(meal);
+          if (day) (days[id] = days[id] || {})[day] = true;
         });
+      }
+      Object.keys(picks).forEach(function (meal) {
+        addMeal(meal, picks[meal], null);
+      });
+      (dayMeals || []).forEach(function (dm) {
+        addMeal(dm.meal, 1, dm.day);
       });
       if (fixtureDays > 0) {
         items.forEach(function (it) {
@@ -338,6 +346,7 @@
             unit: it.unit,
             need: n,
             used: used[it.id] || [],
+            days: Object.keys(days[it.id] || {}).sort(),
             coles: it.coles ? storeLine(it, it.coles, n) : null,
             woolies: it.woolies ? storeLine(it, it.woolies, n) : null,
             wooliesUnavailable: it.wooliesUnavailable || null,
