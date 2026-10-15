@@ -112,20 +112,21 @@ class ColesSession(private val context: Context) {
                     handler.postDelayed(retry, RETRY_MS)
                 }
                 ColesPricesPhase.IDLE, ColesPricesPhase.FETCHING -> handler.postDelayed(poller, POLL_MS)
-                ColesPricesPhase.DONE, ColesPricesPhase.ERROR -> {
-                    // The key and store are read at page load; a rotated key keeps failing until the page reloads.
-                    if (state.phase == ColesPricesPhase.ERROR) needsFreshPage = true
-                    cancel()
-                    listener?.onColesPrices(state)
-                }
+                ColesPricesPhase.DONE, ColesPricesPhase.ERROR -> finish(state)
             }
         }
     }
 
     private fun fail(message: String) {
         if (pending == null) return
+        finish(ColesPricesState(ColesPricesPhase.ERROR, null, null, JSONObject(), message))
+    }
+
+    /** Unloads the page between refreshes (hours apart) so Coles' scripts don't run in the background; the next refresh loads it fresh, with the current key. */
+    private fun finish(state: ColesPricesState) {
         cancel()
-        listener?.onColesPrices(ColesPricesState(ColesPricesPhase.ERROR, null, null, JSONObject(), message))
+        webView.loadUrl(BLANK_URL)
+        listener?.onColesPrices(state)
     }
 
     private inner class SessionClient : WebViewClient() {
@@ -156,6 +157,7 @@ class ColesSession(private val context: Context) {
 
     private companion object {
         const val SCRIPT_ASSET = "coles/prices.js"
+        const val BLANK_URL = "about:blank"
         const val STATE_EXPRESSION = "window.__weekdayFuelColesPrices ? window.__weekdayFuelColesPrices.state() : null"
         const val POLL_MS = 300L
         const val RETRY_MS = 1_000L
