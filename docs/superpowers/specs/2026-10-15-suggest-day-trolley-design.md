@@ -1,6 +1,6 @@
 # Suggest a day to the trolley — design
 
-**Status:** approved 2026-10-15
+**Status:** approved 2026-10-15; v0.4.0 released 2026-10-15, owner phone checks pending
 **Scope:** roadmap spec 3 of 5 (see `2026-10-15-deli-ham-trolley-design.md`): add a planned day, or some of its meals, to the shop and the Woolworths trolley, with a pantry check every send and each item labelled with the days and meals it is for
 **Release:** v0.4.0, after live Woolworths prices (v0.3.1)
 
