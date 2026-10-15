@@ -40,6 +40,7 @@ class WoolworthsSession(private val context: Context, private val openExternal: 
     private var lastCompleted = -1
     private var loginNotified = false
     private var needsFreshPage = false
+    private var clearHistoryOnLoad = false
     private val poller = Runnable { poll() }
     private val loginRetry = Runnable { retryLogin() }
     private val watchdog = Runnable { fail(context.getString(R.string.woolworths_timeout)) }
@@ -68,7 +69,11 @@ class WoolworthsSession(private val context: Context, private val openExternal: 
 
     val hasPending: Boolean get() = pending != null
 
-    fun load(url: String) = webView.loadUrl(url)
+    /** Loads a page for the owner; Back from it closes the screen instead of returning to background loads. */
+    fun load(url: String) {
+        clearHistoryOnLoad = true
+        webView.loadUrl(url)
+    }
 
     private fun onShopPage(): Boolean =
         webView.url?.let(Uri::parse)?.let { WoolworthsUrls.isShopPage(it.scheme, it.host) } == true
@@ -238,6 +243,10 @@ class WoolworthsSession(private val context: Context, private val openExternal: 
 
         override fun onPageFinished(view: WebView, url: String?) {
             pageLoading = false
+            if (clearHistoryOnLoad) {
+                clearHistoryOnLoad = false
+                view.clearHistory()
+            }
             // Not while polling: same-document navigations also fire this, and a real new document makes poll() see no state and restart.
             val shop = url?.let(Uri::parse)?.let { WoolworthsUrls.isShopPage(it.scheme, it.host) } == true
             if (pending != null && !polling && shop) {
