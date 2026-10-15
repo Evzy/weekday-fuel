@@ -50,7 +50,7 @@ jobs:
         run: chmod +x gradlew
 
       - name: JS unit tests
-        run: node --test apps/android/app/src/test/js/cart.test.js apps/android/app/src/test/js/trolley.test.js
+        run: node --test apps/android/app/src/test/js/cart.test.js apps/android/app/src/test/js/trolley.test.js apps/android/app/src/test/js/catalogue.test.js
 
       # Same debug signing cert as local dev (see docs/CI_CD.md) so GitHub APKs can upgrade installs.
       - name: Decode shared debug keystore
