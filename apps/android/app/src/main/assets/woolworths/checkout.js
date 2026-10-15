@@ -1,4 +1,4 @@
-/* Injected into woolworths.com.au by WoolworthsSession. Boosts every Everyday Rewards offer, reads delivery times and the order summary, and books a time, with the site's own requests. */
+/* Injected into woolworths.com.au by WoolworthsSession. Boosts every Everyday Rewards offer, reads delivery times, options, addresses and the order summary, and books a time, saves substitutions and delivery options, and switches the delivery address, with the site's own requests. */
 (function () {
   "use strict";
   if (window.__weekdayFuelCheckout) return;
@@ -11,6 +11,9 @@
     windows: "/api/v3/ui/fulfilment/windows",
     book: "/apis/ui/Fulfilment",
     summary: "/apis/ui/Checkout",
+    options: "/apis/ui/Delivery/Options",
+    addresses: "/apis/ui/address",
+    subs: "/apis/ui/Checkout/substitution",
   };
   /* The site's own public client id for the offers service. */
   var CLIENT_ID = "IRfFJjr4Px9UY1XxKtSOAUYGTpelx0S0Q";
@@ -22,6 +25,17 @@
 
   async function getJson(url) {
     var r = await fetch(url, { credentials: "include", headers: { Accept: "application/json" } });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    return r.json();
+  }
+
+  async function postJson(url, body) {
+    var r = await fetch(url, {
+      method: "POST",
+      credentials: "include",
+      headers: { Accept: "application/json", "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
     if (!r.ok) throw new Error("HTTP " + r.status);
     return r.json();
   }
@@ -201,6 +215,18 @@
       warning: typeof m.CheckoutSubtotalErrors === "string" ? m.CheckoutSubtotalErrors : "",
       unavailable: names(o.UnavailableProducts),
       restricted: names(o.RestrictedProducts),
+      items: (Array.isArray(o.Products) ? o.Products : [])
+        .filter(Boolean)
+        .map(function (p) {
+          var attrs = p.AdditionalAttributes || {};
+          return {
+            stockcode: p.Stockcode,
+            name: p.DisplayName || p.Name || String(p.Stockcode),
+            allow: p.AllowSubstitution === true,
+            fixed: attrs.isexcludedfromsubstitution === "True",
+          };
+        })
+        .filter(function (i) { return typeof i.stockcode === "number"; }),
     };
   }
 
@@ -227,6 +253,72 @@
     }
   }
 
+  function deliveryOptions(o) {
+    if (!o || typeof o !== "object") throw new Error("options response has no options");
+    return {
+      instructions: typeof o.DeliveryInstructions === "string" ? o.DeliveryInstructions : "",
+      leaveUnattended: o.CanLeaveUnattended === true,
+      offerUnattended: o.ShouldShowCanLeaveUnattendedPreference !== false,
+    };
+  }
+
+  async function readOptions() {
+    return deliveryOptions(await getJson(URLS.options));
+  }
+
+  async function readAddresses(dlv) {
+    var a = await getJson(URLS.addresses);
+    if (!a || !Array.isArray(a.Address)) throw new Error("addresses response has no list");
+    return {
+      current: dlv.address.addressId || null,
+      list: a.Address.filter(Boolean)
+        .map(function (x) {
+          return { id: x.AddressId, text: typeof x.AddressText === "string" ? x.AddressText.replace(/\s+/g, " ").trim() : "", primary: x.IsPrimary === true };
+        })
+        .filter(function (x) { return typeof x.id === "number" && x.id > 0; }),
+    };
+  }
+
+  async function saveSubs(req) {
+    try {
+      var j = await postJson(URLS.subs, {
+        Items: req.items.map(function (i) { return { Stockcode: i.stockcode, AllowSubstitution: i.allow }; }),
+      });
+      return j && j.Success === true ? null : (j && j.ErrorMessage) || "not saved";
+    } catch (e) {
+      return message(e);
+    }
+  }
+
+  /* The pick-up note is read first and sent back as it is. */
+  async function saveOptions(req) {
+    try {
+      var current = await getJson(URLS.options);
+      var saved = await postJson(URLS.options, {
+        CanLeaveUnattended: req.leaveUnattended,
+        PickupInstructions: current && typeof current.PickupInstructions === "string" ? current.PickupInstructions : "",
+        DeliveryInstructions: req.instructions,
+      });
+      var o = deliveryOptions(saved);
+      o.offerUnattended = !current || current.ShouldShowCanLeaveUnattendedPreference !== false;
+      return { error: null, options: o };
+    } catch (e) {
+      return { error: message(e), options: null };
+    }
+  }
+
+  async function switchAddress(req) {
+    try {
+      var a = await getJson(URLS.addresses);
+      var known = a && Array.isArray(a.Address) && a.Address.some(function (x) { return x && x.AddressId === req.addressId; });
+      if (!known) return "not one of your saved addresses";
+      var j = await postJson(URLS.book, { fulfilmentMethod: "Courier", addressId: req.addressId });
+      return j && j.IsSuccessful === true ? null : (j && j.Message) || "not switched";
+    } catch (e) {
+      return message(e);
+    }
+  }
+
   async function run(req) {
     state = { phase: "running", result: null, error: null };
     try {
@@ -237,7 +329,13 @@
       }
       var dlv = delivery(boot);
       var result = { action: req.action, loggedOut: false };
-      if (req.action === "book") {
+      var courier = dlv.method === "Courier";
+      if (req.action === "load") {
+        result.boosts = await section(boostAll);
+        result.windows = courier ? await section(function () { return windows(dlv); }) : null;
+        result.options = courier ? await section(readOptions) : null;
+        result.addresses = courier ? await section(function () { return readAddresses(dlv); }) : null;
+      } else if (req.action === "book") {
         result.bookError = await book(dlv, req);
         if (!result.bookError) {
           try {
@@ -247,9 +345,25 @@
             /* The booking went through; the earlier booked time is shown until the next load. */
           }
         }
+      } else if (!courier) {
+        result.saveError = "not a delivery order";
+      } else if (req.action === "subs") {
+        result.saveError = await saveSubs(req);
+      } else if (req.action === "options") {
+        var saved = await saveOptions(req);
+        result.saveError = saved.error;
+        if (saved.options) result.options = saved.options;
       } else {
-        result.boosts = await section(boostAll);
-        result.windows = dlv.method === "Courier" ? await section(function () { return windows(dlv); }) : null;
+        result.saveError = await switchAddress(req);
+        if (!result.saveError) {
+          var fresh = await section(async function () {
+            boot = await bootstrap();
+            dlv = delivery(boot);
+            return true;
+          });
+          result.windows = fresh.error ? fresh : await section(function () { return windows(dlv); });
+          result.addresses = fresh.error ? fresh : await section(function () { return readAddresses(dlv); });
+        }
       }
       result.method = dlv.method;
       result.booked = dlv.booked;
@@ -262,11 +376,33 @@
     }
   }
 
+  function validRequest(req) {
+    if (!req) return false;
+    switch (req.action) {
+      case "load":
+        return true;
+      case "book":
+        return Number.isFinite(req.timeslotId) && req.timeslotId > 0 && /^\d{4}-\d{2}-\d{2}$/.test(String(req.windowDate));
+      case "subs":
+        return (
+          Array.isArray(req.items) &&
+          req.items.length > 0 &&
+          req.items.length <= 200 &&
+          req.items.every(function (i) { return i && Number.isInteger(i.stockcode) && i.stockcode > 0 && typeof i.allow === "boolean"; })
+        );
+      case "options":
+        return typeof req.instructions === "string" && req.instructions.length <= 500 && typeof req.leaveUnattended === "boolean";
+      case "address":
+        return Number.isInteger(req.addressId) && req.addressId > 0;
+      default:
+        return false;
+    }
+  }
+
   window.__weekdayFuelCheckout = {
     start: function (req) {
       if (state.phase === "running") return false;
-      if (!req || (req.action !== "load" && req.action !== "book")) return false;
-      if (req.action === "book" && !(Number.isFinite(req.timeslotId) && req.timeslotId > 0 && /^\d{4}-\d{2}-\d{2}$/.test(String(req.windowDate)))) return false;
+      if (!validRequest(req)) return false;
       run(req);
       return true;
     },

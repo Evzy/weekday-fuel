@@ -68,8 +68,23 @@ const CHECKOUT = {
       Subtotal: 131.43, Savings: 1.65, DeliveryFee: 12, DeliveryFeeBeforeDiscount: 15, PackagingFee: 2,
       PackagingFeeLabel: "Paper bags", TotalIncludingGst: 145.43, BalanceToPay: 145.43, TotalRewardsPointsEarned: 132,
       UnavailableProducts: [{ Stockcode: 198763, Description: "Soy sauce" }], RestrictedProducts: [],
+      Products: [
+        { Stockcode: 134034, DisplayName: "Tomatoes 500g", AllowSubstitution: true, AdditionalAttributes: { isexcludedfromsubstitution: "False" } },
+        { Stockcode: 717518, DisplayName: "Fresh milk 2L", AllowSubstitution: false, AdditionalAttributes: { isexcludedfromsubstitution: "True" } },
+        null,
+      ],
     },
   },
+};
+const OPTIONS = {
+  ShouldShowCanLeaveUnattendedPreference: true, DeliveryInstructions: "Front step", PickupInstructions: "Back door",
+  CanLeaveUnattended: true, RestrictedItemsRecipient: "",
+};
+const ADDRESSES = {
+  Address: [
+    { AddressId: 111, AddressText: "U 2  94 Tennyson St, ELWOOD VIC 3184", IsPrimary: true, AreaId: 222, SuburbId: 333 },
+    { AddressId: 999, AddressText: "4 Greta St, OAKLEIGH EAST VIC 3166", IsPrimary: false, AreaId: 4931, SuburbId: 4496 },
+  ],
 };
 const HASH = "a".repeat(64);
 const OFFERS_URL = "https://prod.api-wr.com/wx-rtl-offer-v2/offers?filter[status]=ACTIVE";
@@ -92,6 +107,10 @@ function site(over = {}) {
       boosted.add(decodeURIComponent(url.split("/").pop()));
       return response(200, true);
     }
+    if (key === "GET /apis/ui/Delivery/Options") return response(200, OPTIONS);
+    if (key === "POST /apis/ui/Delivery/Options") return response(200, { ...JSON.parse(init.body), RestrictedItemsRecipient: "" });
+    if (key === "GET /apis/ui/address") return response(200, ADDRESSES);
+    if (key === "POST /apis/ui/Checkout/substitution") return response(200, { Success: true, ErrorMessage: "" });
     return response(404, {});
   };
 }
@@ -153,6 +172,10 @@ test("load boosts only NOT_BOOSTED offers by coupon id, one at a time, and reads
   assert.deepEqual(r.summary, {
     subtotal: 131.43, savings: 1.65, deliveryFee: 12, deliveryFeeBefore: 15, bagFee: 2, bagLabel: "Paper bags",
     total: 145.43, toPay: 145.43, points: 132, warning: "", unavailable: ["Soy sauce"], restricted: [],
+    items: [
+      { stockcode: 134034, name: "Tomatoes 500g", allow: true, fixed: false },
+      { stockcode: 717518, name: "Fresh milk 2L", allow: false, fixed: true },
+    ],
   });
   assert.equal("bookError" in r, false);
 });
@@ -384,4 +407,123 @@ test("a network error in the login check ends in error", async () => {
   api.start({ action: "load" });
   const s = await settle(api);
   assert.deepEqual([s.phase, s.error], ["error", "offline"]);
+});
+
+test("load reads delivery options and saved addresses for a delivery order, and neither for pick-up", async () => {
+  let { api } = load(site());
+  api.start({ action: "load" });
+  let s = await settle(api);
+  assert.deepEqual(s.result.options, { instructions: "Front step", leaveUnattended: true, offerUnattended: true });
+  assert.deepEqual(s.result.addresses, {
+    current: 111,
+    list: [
+      { id: 111, text: "U 2 94 Tennyson St, ELWOOD VIC 3184", primary: true },
+      { id: 999, text: "4 Greta St, OAKLEIGH EAST VIC 3166", primary: false },
+    ],
+  });
+  ({ api } = load(site({ "GET /api/ui/v2/bootstrap": () => response(200, BOOT({ DeliveryMethod: "Pickup" })) })));
+  api.start({ action: "load" });
+  s = await settle(api);
+  assert.equal(s.result.options, null);
+  assert.equal(s.result.addresses, null);
+});
+
+test("subs sends only the given items in the site's body, boosts nothing, and re-reads the summary", async () => {
+  const { api, calls } = load(site());
+  assert.equal(api.start({ action: "subs", items: [{ stockcode: 134034, allow: false }] }), true);
+  const s = await settle(api);
+  const sent = posts(calls);
+  assert.deepEqual(sent.map((c) => c.url), ["/apis/ui/Checkout/substitution"]);
+  assert.deepEqual(JSON.parse(sent[0].init.body), { Items: [{ Stockcode: 134034, AllowSubstitution: false }] });
+  assert.equal(sent[0].init.credentials, "include");
+  assert.equal(s.result.action, "subs");
+  assert.equal(s.result.saveError, null);
+  assert.equal(s.result.summary.items.length, 2);
+  assert.equal("boosts" in s.result, false);
+  assert.equal("windows" in s.result, false);
+  for (const [answer, error] of [[response(200, { Success: false, ErrorMessage: "Nope" }), "Nope"], [response(200, { Success: false, ErrorMessage: "" }), "not saved"], [response(500, {}), "HTTP 500"]]) {
+    const { api: a } = load(site({ "POST /apis/ui/Checkout/substitution": () => answer }));
+    a.start({ action: "subs", items: [{ stockcode: 134034, allow: false }] });
+    assert.equal((await settle(a)).result.saveError, error);
+  }
+});
+
+test("options keeps the pick-up note, returns the saved options, and reports a failure", async () => {
+  const { api, calls } = load(site());
+  api.start({ action: "options", instructions: "Ring the bell", leaveUnattended: false });
+  const s = await settle(api);
+  const sent = posts(calls);
+  assert.deepEqual(sent.map((c) => c.url), ["/apis/ui/Delivery/Options"]);
+  assert.deepEqual(JSON.parse(sent[0].init.body), { CanLeaveUnattended: false, PickupInstructions: "Back door", DeliveryInstructions: "Ring the bell" });
+  assert.equal(s.result.saveError, null);
+  assert.deepEqual(s.result.options, { instructions: "Ring the bell", leaveUnattended: false, offerUnattended: true });
+  const { api: a } = load(site({ "POST /apis/ui/Delivery/Options": () => response(400, {}) }));
+  a.start({ action: "options", instructions: "x", leaveUnattended: true });
+  const f = await settle(a);
+  assert.equal(f.result.saveError, "HTTP 400");
+  assert.equal("options" in f.result, false);
+});
+
+test("address refuses an id that isn't saved, and after a switch re-reads the booked time, times, addresses and summary", async () => {
+  let { api, calls } = load(site());
+  api.start({ action: "address", addressId: 555 });
+  let s = await settle(api);
+  assert.equal(s.result.saveError, "not one of your saved addresses");
+  assert.equal(posts(calls).length, 0);
+  let boots = 0;
+  ({ api, calls } = load(
+    site({
+      "GET /api/ui/v2/bootstrap": () => {
+        boots++;
+        return response(200, BOOT(boots > 1 ? { Address: { AddressId: 999, AreaId: 4931, SuburbId: 4496 } } : {}));
+      },
+    }),
+  ));
+  api.start({ action: "address", addressId: 999 });
+  s = await settle(api);
+  const sent = posts(calls);
+  assert.deepEqual(sent.map((c) => c.url), ["/apis/ui/Fulfilment"]);
+  assert.deepEqual(JSON.parse(sent[0].init.body), { fulfilmentMethod: "Courier", addressId: 999 });
+  assert.equal(boots, 2);
+  assert.equal(s.result.saveError, null);
+  assert.equal(s.result.addresses.current, 999);
+  assert.equal(s.result.windows.days.length, 1);
+  assert.ok(calls.some((c) => c.url.startsWith("/api/v3/ui/fulfilment/windows?areaId=4931&fulfilmentMethod=Courier&addressId=999&suburbId=4496")));
+  assert.equal(s.result.summary.total, 145.43);
+  ({ api } = load(site({ "POST /apis/ui/Fulfilment": () => response(200, { IsSuccessful: false, Message: "Not serviced" }) })));
+  api.start({ action: "address", addressId: 999 });
+  s = await settle(api);
+  assert.equal(s.result.saveError, "Not serviced");
+  assert.equal("windows" in s.result, false);
+});
+
+test("writes on a pick-up order send nothing", async () => {
+  for (const req of [{ action: "subs", items: [{ stockcode: 1, allow: true }] }, { action: "options", instructions: "", leaveUnattended: false }, { action: "address", addressId: 999 }]) {
+    const { api, calls } = load(site({ "GET /api/ui/v2/bootstrap": () => response(200, BOOT({ DeliveryMethod: "Pickup" })) }));
+    api.start(req);
+    const s = await settle(api);
+    assert.equal(s.result.saveError, "not a delivery order");
+    assert.equal(posts(calls).length, 0);
+  }
+});
+
+test("malformed write requests are refused before anything is sent", async () => {
+  const { api, calls } = load(site());
+  const many = Array.from({ length: 201 }, (_, i) => ({ stockcode: i + 1, allow: true }));
+  for (const req of [
+    { action: "subs" },
+    { action: "subs", items: [] },
+    { action: "subs", items: many },
+    { action: "subs", items: [{ stockcode: "134034", allow: true }] },
+    { action: "subs", items: [{ stockcode: 1.5, allow: true }] },
+    { action: "subs", items: [{ stockcode: 134034, allow: "yes" }] },
+    { action: "subs", items: [null] },
+    { action: "options", instructions: "x".repeat(501), leaveUnattended: true },
+    { action: "options", instructions: "x", leaveUnattended: "true" },
+    { action: "options", leaveUnattended: true },
+    { action: "address", addressId: 0 },
+    { action: "address", addressId: "999" },
+    { action: "pay" },
+  ]) assert.equal(api.start(req), false, JSON.stringify(req).slice(0, 80));
+  assert.equal(calls.length, 0);
 });
