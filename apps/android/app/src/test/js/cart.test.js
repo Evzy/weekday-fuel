@@ -1,6 +1,6 @@
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
-const { cartLines } = require("../../main/assets/weekday_fuel/cart.js");
+const { cartLines, removalLines, shopFingerprint, sentAfter } = require("../../main/assets/weekday_fuel/cart.js");
 
 const W = "https://www.woolworths.com.au/shop/productdetails/";
 const YOG = { name: "Chobani Greek Yoghurt 907g", url: W + "717518", stockcode: 717518, size: 907, price: 8.8 };
@@ -39,4 +39,57 @@ test("a product unavailable online goes to the do-it-yourself list with its reas
   const { lines, manual } = cartLines([r], {});
   assert.deepEqual(lines, []);
   assert.deepEqual(manual, [{ itemId: "cheese", name: "Woolworths Light Tasty 500g", reason: "unavailable" }]);
+});
+
+test("items answered 'I have it' are left out of the trolley and the do-it-yourself list", () => {
+  const rows = [row("yog", { product: YOG, quantity: 2 }), row("breast", null, { product: COLES_BREAST, quantity: 1 }), row("ham", { product: HAM, quantity: 0.2 })];
+  const { lines, manual } = cartLines(rows, {}, { yog: true, breast: true });
+  assert.deepEqual(lines.map((l) => l.stockcode), [175734]);
+  assert.deepEqual(manual, []);
+});
+
+test("removalLines sets to 0 only products the shop no longer needs", () => {
+  const rows = [row("yog", { product: YOG, quantity: 1 })];
+  assert.deepEqual(removalLines({ 717518: 2, 72280: 5, 175734: 0.3 }, rows), [
+    { stockcode: 72280, quantity: 0 },
+    { stockcode: 175734, quantity: 0 },
+  ]);
+});
+
+test("removalLines never removes an item still on the list, even unavailable online", () => {
+  const unavailable = { ...row("cheese", null), wooliesUnavailable: { name: "Woolworths Light Tasty 500g", stockcode: 729008 } };
+  assert.deepEqual(removalLines({ 717518: 2, 729008: 1 }, [row("yog", { product: YOG, quantity: 2 }), unavailable]), []);
+  assert.deepEqual(removalLines(null, [row("yog", { product: YOG, quantity: 2 })]), []);
+});
+
+test("shopFingerprint follows the plan, not key order", () => {
+  const days = [{ day: "2026-10-19", meal: "toasty" }, { day: "2026-10-20", meal: "buffalomac" }];
+  const a = shopFingerprint({ toasty: 2, tenderwrap: 1 }, days, 5);
+  assert.equal(shopFingerprint({ tenderwrap: 1, toasty: 2, eggmuffin: 0 }, [days[1], days[0]], 5), a);
+  assert.notEqual(shopFingerprint({ toasty: 3, tenderwrap: 1 }, days, 5), a);
+  assert.notEqual(shopFingerprint({ toasty: 2, tenderwrap: 1 }, [days[0]], 5), a);
+  assert.notEqual(shopFingerprint({ toasty: 2, tenderwrap: 1 }, [days[0], { day: "2026-10-20", meal: "schnitzel" }], 5), a);
+  assert.notEqual(shopFingerprint({ toasty: 2, tenderwrap: 1 }, days, 4), a);
+  assert.equal(typeof a, "string");
+});
+
+test("sentAfter records what our sends left in the trolley", () => {
+  const last = { 717518: 2, 72280: 5, 175734: 0.3, 729008: 1 };
+  const lines = [
+    { stockcode: 717518, quantity: 3 },
+    { stockcode: 46795, quantity: 1 },
+    { stockcode: 72280, quantity: 0 },
+    { stockcode: 175734, quantity: 0 },
+    { stockcode: 524322, quantity: 1 },
+  ];
+  const results = [
+    { stockcode: 717518, added: true },
+    { stockcode: 46795, added: true },
+    { stockcode: 72280, added: true },
+    { stockcode: 175734, added: false, reason: "HTTP 500" },
+    { stockcode: 524322, added: false, reason: "not available" },
+  ];
+  assert.deepEqual(sentAfter(last, lines, results), { 717518: 3, 46795: 1, 175734: 0.3, 729008: 1 });
+  assert.deepEqual(sentAfter(null, [{ stockcode: 46795, quantity: 1 }], [{ stockcode: 46795, added: true }]), { 46795: 1 });
+  assert.deepEqual(last, { 717518: 2, 72280: 5, 175734: 0.3, 729008: 1 });
 });
