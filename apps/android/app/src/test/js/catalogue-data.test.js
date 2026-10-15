@@ -46,6 +46,22 @@ test("every meal's items exist and every non-fixture item is used by a meal", ()
   for (const it of cat.ITEMS) if (it.sec !== 0) assert.ok(cat.usedIn(it.id).length, it.id + " is never used");
 });
 
+test("every Coles product URL ends with its id and all Coles ids are unique", () => {
+  const ids = [];
+  for (const it of cat.ITEMS) {
+    const p = it.coles;
+    if (!p) continue;
+    for (const prod of [p, p.small]) {
+      if (!prod) continue;
+      const id = cat.colesId(prod);
+      assert.ok(id, it.id + " Coles id");
+      assert.ok(prod.url.endsWith("-" + id), it.id + " url ends with id");
+      ids.push(id);
+    }
+  }
+  assert.equal(new Set(ids).size, ids.length);
+});
+
 test("the starter shop prices at both stores", () => {
   const rows = cat.shopList({ toasty: 2, tenderwrap: 2, burritobowl: 2, buffalomac: 2 }, 5);
   for (const store of ["coles", "woolies"]) assert.ok(cat.storeTotals(rows, store, {}).total > 0, store);

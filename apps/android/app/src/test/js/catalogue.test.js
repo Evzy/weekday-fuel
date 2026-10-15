@@ -208,7 +208,11 @@ test("live Coles prices replace catalogue prices, with was-prices for specials",
 });
 
 test("no Coles prices, a product left out, or no price keeps the catalogue item", () => {
-  assert.deepEqual(applyColesPrices(ITEMS, null), ITEMS);
+  assert.equal(applyColesPrices(ITEMS, null), ITEMS);
+  const empty = applyColesPrices(ITEMS, {});
+  assert.notEqual(empty, ITEMS);
+  assert.equal(empty.length, ITEMS.length);
+  empty.forEach((it, i) => assert.equal(it, ITEMS[i]));
   const live = applyColesPrices(ITEMS, { 8145346: { price: null, was: null, special: false, available: true } });
   assert.equal(live.find((i) => i.id === "cheese"), ITEMS[3]);
   assert.equal(live.find((i) => i.id === "breast"), ITEMS[1]);
@@ -227,10 +231,54 @@ test("a Coles product unavailable online counts as missed at Coles", () => {
   assert.deepEqual(c.storeTotals(rows, "coles", {}).missed, ["ham", "cheese"]);
 });
 
+test("when both chicken packs are unavailable online the item is missed with the catalogue product kept", () => {
+  const live = applyColesPrices(ITEMS, {
+    2263179: { price: 16.8, was: null, special: false, available: false },
+    2263168: { price: 7.2, was: null, special: false, available: false },
+  });
+  const breast = live.find((i) => i.id === "breast");
+  assert.equal(breast.coles, null);
+  assert.equal(breast.colesUnavailable, ITEMS[1].coles);
+  const row = byId(create(live, AMOUNTS).shopList({ tenderwrap: 1 }, 0)).breast;
+  assert.equal(row.coles, null);
+  assert.equal(row.colesUnavailable, ITEMS[1].coles);
+});
+
+test("a live small pack price leaves the large pack at its catalogue price", () => {
+  const live = applyColesPrices(ITEMS, { 2263168: { price: 5, was: 6, special: true, available: true } });
+  const breast = live.find((i) => i.id === "breast");
+  assert.equal(breast.coles.price, ITEMS[1].coles.price);
+  assert.equal(breast.coles.live, undefined);
+  assert.equal(breast.coles.small.price, 5);
+  assert.equal(breast.coles.small.was, 6);
+  assert.equal(breast.coles.small.live, true);
+});
+
+test("applyColesPrices does not mutate frozen catalogue items", () => {
+  const frozen = structuredClone(ITEMS);
+  const snap = JSON.stringify(frozen);
+  function freezeDeep(o) {
+    if (o && typeof o === "object") {
+      Object.freeze(o);
+      for (const v of Object.values(o)) freezeDeep(v);
+    }
+  }
+  frozen.forEach(freezeDeep);
+  assert.doesNotThrow(() =>
+    applyColesPrices(frozen, {
+      2263179: { price: 16.8, was: null, special: false, available: false },
+      8145346: { price: 6, was: null, special: false, available: false },
+    }),
+  );
+  assert.equal(JSON.stringify(frozen), snap);
+});
+
 test("an unavailable large Coles pack falls back to the small pack, and an unavailable small pack is dropped", () => {
   const large = applyColesPrices(ITEMS, { 2263179: { price: 16.8, was: null, special: false, available: false } });
   const b1 = large.find((i) => i.id === "breast");
   assert.equal(b1.coles.name, "Coles Chicken Breast Small");
+  assert.equal(b1.coles.price, ITEMS[1].coles.small.price);
+  assert.equal(b1.coles.live, undefined);
   assert.equal(b1.coles.small, undefined);
   assert.equal(b1.colesUnavailable, undefined);
   const row1 = byId(create(large, AMOUNTS).shopList({ tenderwrap: 4 }, 0)).breast;

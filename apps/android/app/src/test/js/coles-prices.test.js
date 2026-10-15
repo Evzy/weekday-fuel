@@ -34,6 +34,11 @@ function load(handler, page = {}) {
   return { api: globalThis.window.__weekdayFuelColesPrices, calls };
 }
 
+function reinject() {
+  delete require.cache[require.resolve(SCRIPT)];
+  require(SCRIPT);
+}
+
 async function settle(api) {
   for (let i = 0; i < 200; i++) {
     const s = JSON.parse(api.state());
@@ -77,6 +82,7 @@ test("asks for every product and the store in one request and maps price, was, s
   });
   assert.ok(!Number.isNaN(Date.parse(s.at)));
   assert.equal(s.error, null);
+  assert.doesNotMatch(api.state(), /k123/);
 });
 
 test("splits long lists into requests of 30 and asks for the store only in the first", async () => {
@@ -126,6 +132,7 @@ test("HTTP errors, GraphQL errors and unreadable replies end in error with no pr
     api.start(["132045"]);
     const s = await settle(api);
     assert.deepEqual([s.phase, s.error, s.prices, s.at, s.store], ["error", message, {}, null, null]);
+    assert.doesNotMatch(api.state(), /k123/);
   }
 });
 
@@ -136,6 +143,31 @@ test("a network error ends in error", async () => {
   api.start(["132045"]);
   const s = await settle(api);
   assert.deepEqual([s.phase, s.error], ["error", "offline"]);
+});
+
+test("re-injecting the script leaves the same API object and state", async () => {
+  const { api } = load(() => response(200, reply([R(132045, 2.2, null)])));
+  api.start(["132045"]);
+  await settle(api);
+  const stateStr = api.state();
+  reinject();
+  assert.equal(globalThis.window.__weekdayFuelColesPrices, api);
+  assert.equal(api.state(), stateStr);
+});
+
+test("maps pricing edge cases for price, was, special and availability", async () => {
+  const { api } = load(() =>
+    response(200, reply([
+      { id: 9001, availability: true, pricing: { now: 0, was: 5, promotionType: "SPECIAL" } },
+      R(9002, 5, 3),
+      { id: 9003, availability: true, pricing: { now: 5, was: null, promotionType: "MULTIBUY" } },
+    ])),
+  );
+  api.start(["9001", "9002", "9003"]);
+  const s = await settle(api);
+  assert.deepEqual(s.prices[9001], { price: null, was: null, special: true, available: false });
+  assert.deepEqual(s.prices[9002], { price: 5, was: null, special: false, available: true });
+  assert.deepEqual(s.prices[9003], { price: 5, was: null, special: false, available: true });
 });
 
 test("ignores start() while fetching, and can run again after", async () => {
