@@ -445,7 +445,12 @@ Add fields after `private val watchdog = ...`:
     private var pendingPrices: List<Long>? = null
     private var pricesPolling = false
     private val pricesPoller = Runnable { pollPrices() }
-    private val pricesWatchdog = Runnable { failPrices(context.getString(R.string.woolworths_timeout)) }
+    private val pricesWatchdog =
+        Runnable {
+            // A hung request leaves the script "fetching", which refuses start(); reload the page before the next refresh.
+            needsFreshPage = true
+            failPrices(context.getString(R.string.woolworths_timeout))
+        }
 ```
 
 Add the public functions after `cancel()`:
