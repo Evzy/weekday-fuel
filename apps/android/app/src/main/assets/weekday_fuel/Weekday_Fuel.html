@@ -695,16 +695,16 @@ const needLabel=r=>/^(g|mL)$/.test(r.unit)?fmtAmt(r.need,r.unit):(Math.round(r.n
 function macroLine(id){const m=MACROS[id];if(!m)return "";return `<span class="mac num">Per ${m[4]}: ${m[0]} kcal · ${m[1]}g P · ${m[2]}g C · ${m[3]}g F <span class="src">${m[5]==="label"?"from the label":"typical, check the pack"}</span>${m[6]?`<br>${esc(m[6])}`:""}</span>`}
 function storePrice(s,price){return price!=null?`<span class="sp ${s}">${STORE_NAME[s]} ${money(price)}</span>`:`<span class="sp ${s} none">Not at ${STORE_NAME[s]}</span>`}
 /* prices: {coles, woolies} dollars to show per store, or null where that store has none */
-function productsBlock(it,prices){
-  if(it.same&&it.coles&&it.woolies)return `<span>${esc(it.woolies.name)}</span><span class="prices">${STORES.map(s=>storePrice(s,prices[s])).join("")}</span>`;
-  return STORES.map(s=>`<span class="pl ${s}"><span class="grow">${it[s]?esc(it[s].name):"Not at "+STORE_NAME[s]}</span>${prices[s]!=null?`<span class="p">${money(prices[s])}</span>`:""}</span>`).join("");
+function productsBlock(it,prices,pr){
+  if(it.same&&pr.coles&&pr.woolies)return `<span>${esc(pr.woolies.name)}</span><span class="prices">${STORES.map(s=>storePrice(s,prices[s])).join("")}</span>`;
+  return STORES.map(s=>`<span class="pl ${s}"><span class="grow">${pr[s]?esc(pr[s].name):"Not at "+STORE_NAME[s]}</span>${prices[s]!=null?`<span class="p">${money(prices[s])}</span>`:""}</span>`).join("");
 }
-function productLinks(it){
-  return `<div class="stack" style="gap:6px;margin-top:8px">${STORES.map(s=>it[s]?`<a class="ghost link ${s}" href="${esc(it[s].url)}" target="_blank" rel="noopener">${STORE_NAME[s]} product page ↗</a>`:`<span class="small muted">Not at ${STORE_NAME[s]}</span>`).join("")}</div>`;
+function productLinks(it,pr){
+  return `<div class="stack" style="gap:6px;margin-top:8px">${STORES.map(s=>pr[s]?`<a class="ghost link ${s}" href="${esc(pr[s].url)}" target="_blank" rel="noopener">${STORE_NAME[s]} product page ↗</a>`:`<span class="small muted">Not at ${STORE_NAME[s]}</span>`).join("")}</div>`;
 }
-function itemRow(it,prices,extra){
-  const id=it.id;const ticks=lsTicks();const open=state.openItem===id;const used=CAT.usedIn(id);
-  return `<div class="si ${ticks[id]?"done":""}"><input type="checkbox" id="tick-${id}" aria-label="Got ${esc(it.name)}" data-act="tick" data-v="${id}" ${ticks[id]?"checked":""}><div class="grow"><button class="itembtn" data-act="openitem" data-v="${id}" aria-expanded="${open}"><span class="grow stack" style="gap:2px">${productsBlock(it,prices)}</span></button>${extra||""}<span class="small muted" style="display:block">${open?"tap to close":"tap for details"}</span>${open?`<div class="itemdetail">${it.note?`<div class="small">${esc(it.note)}</div>`:""}${macroLine(id)}${used.length?`<div class="eyebrow" style="margin-top:8px">Used in</div><div class="chips" style="margin-top:4px">${used.map(m=>`<button class="chip" data-act="recipe" data-v="${m}">${esc(MEAL[m].name)}</button>`).join("")}</div>`:""}${productLinks(it)}</div>`:""}</div></div>`;
+function itemRow(it,prices,extra,products){
+  const pr=products||{coles:it.coles,woolies:it.woolies};const id=it.id;const ticks=lsTicks();const open=state.openItem===id;const used=CAT.usedIn(id);
+  return `<div class="si ${ticks[id]?"done":""}"><input type="checkbox" id="tick-${id}" aria-label="Got ${esc(it.name)}" data-act="tick" data-v="${id}" ${ticks[id]?"checked":""}><div class="grow"><button class="itembtn" data-act="openitem" data-v="${id}" aria-expanded="${open}"><span class="grow stack" style="gap:2px">${productsBlock(it,prices,pr)}</span></button>${extra||""}<span class="small muted" style="display:block">${open?"tap to close":"tap for details"}</span>${open?`<div class="itemdetail">${it.note?`<div class="small">${esc(it.note)}</div>`:""}${macroLine(id)}${used.length?`<div class="eyebrow" style="margin-top:8px">Used in</div><div class="chips" style="margin-top:4px">${used.map(m=>`<button class="chip" data-act="recipe" data-v="${m}">${esc(MEAL[m].name)}</button>`).join("")}</div>`:""}${productLinks(it,pr)}</div>`:""}</div></div>`;
 }
 const MANUAL_WHY={coles:"Coles only",nostore:"no online store page"};
 function renderTrolley(rows,ticks){
@@ -755,7 +755,7 @@ function renderShop(){
     h+=`<div class="small muted">${nMeals} serve${nMeals===1?"":"s"} · ${rows.length} items. Tick things off as they go in the trolley, or tick pantry items you already have at home. Prices use whole packs, so the first shop costs more than the per-serve cost. Coles prices checked ${fmtShort(CAT.colesChecked())}.</div>`;
     [["Fixtures",0],["Fresh",1],["Pantry & freezer (check what you already have)",2]].forEach(([t,sec])=>{
       const rs=rows.filter(r=>r.sec===sec&&r[st]);if(!rs.length)return;
-      h+=`<div class="panel shopsec"><h3 style="margin-bottom:4px">${t}</h3>${rs.map(r=>itemRow(CAT.item(r.id),{coles:r.coles&&r.coles.cost,woolies:r.woolies&&r.woolies.cost},`<span class="buy small"><b>Buy:</b> ${esc(r[st].buy)} <span class="muted">· need ${esc(needLabel(r))}</span></span>`)).join("")}</div>`;
+      h+=`<div class="panel shopsec"><h3 style="margin-bottom:4px">${t}</h3>${rs.map(r=>itemRow(CAT.item(r.id),{coles:r.coles&&r.coles.cost,woolies:r.woolies&&r.woolies.cost},`<span class="buy small"><b>Buy:</b> ${esc(r[st].buy)} <span class="muted">· need ${esc(needLabel(r))}</span></span>`,{coles:r.coles&&r.coles.product,woolies:r.woolies&&r.woolies.product})).join("")}</div>`;
     });
     const miss=rows.filter(r=>!r[st]);
     if(miss.length)h+=`<div class="panel stack"><h3>Missed at ${STORE_NAME[st]}</h3><div class="small muted">${STORE_NAME[st]} doesn't sell these. Get them at ${STORE_NAME[ot]}.</div>${miss.map(r=>{const o=r[ot];return `<div class="row between"><span class="small">${esc(o?o.product.name:r.name)}${o?` <span class="muted">· ${esc(o.buy)}</span>`:""}</span>${o?`<span class="num small" style="color:var(--${ot})">${money(o.cost)}</span>`:""}</div>`}).join("")}</div>`;
