@@ -367,7 +367,8 @@ function shopRows(){return CAT.shopList(picks(),fxDays(),dayMeals())}
 const dayShort=d=>parse(d).toLocaleDateString("en-AU",{weekday:"short",day:"numeric"});
 function forLabel(r){if(!r||!r.used||!r.used.length)return "";return "For "+(r.days&&r.days.length?r.days.map(dayShort).join(", ")+" · ":"")+r.used.map(m=>MEAL[m]?MEAL[m].name:m).join(", ")}
 const forLine=r=>{const t=forLabel(r);return t?`<span class="small muted" style="display:block">${esc(t)}</span>`:""};
-const nextShopBtn=()=>`<button class="ghost ${state.armed==="nextshop"?"warn":""}" data-act="nextshop">${state.armed==="nextshop"?"Tap again to clear days, meals and ticks":"Start next shop"}</button>`;
+const trolleyBusy=()=>!!state.trolley&&(state.trolley.phase==="adding"||state.trolley.phase==="login");
+const nextShopBtn=()=>trolleyBusy()?"":`<button class="ghost ${state.armed==="nextshop"?"warn":""}" data-act="nextshop">${state.armed==="nextshop"?"Tap again to clear days, meals and ticks":"Start next shop"}</button>`;
 const SECTIONS=[
  ["Your daily fixtures","Bulk-buy these when they're half price. They keep at room temperature until opened."],
  ["Weekly top-up","Sunday batch: put 1kg of chicken breast on a lined tray, season it, and bake at 200°C for 20–25 min (15 if butterflied). Slice it once it's cool. That gives about 750g cooked, which covers 5 meals. Freeze the rest of the raw chicken and the mince in single portions."],
@@ -789,8 +790,10 @@ function renderTrolley(rows,ticks){
     h+=`<div class="row"><button class="btn" data-act="pantrycheck" ${s.lines.length?"":"disabled"}>${sent?"Send again":"Send to Woolworths trolley"}</button></div>`;
   }else if(t.phase==="pantry"){
     const s=trolleySend(rows,t.haveIt);
-    h+=`<div class="small"><b>Pantry check.</b> Tick anything you already have at home and it stays out of the trolley.</div>`;
-    h+=pantryRows(rows,ticks).map(r=>{const l=r.woolies||r.coles;const name=r.woolies?r.woolies.product.name:r.name;return `<label class="si"><input type="checkbox" aria-label="I have ${esc(name)}" data-act="haveit" data-v="${r.id}" ${t.haveIt[r.id]?"checked":""}><span class="grow"><b>${esc(name)}</b><span class="small muted" style="display:block">I have it${l?` · otherwise buy ${esc(l.buy)}`:""}</span>${forLine(r)}</span></label>`}).join("");
+    const pantry=pantryRows(rows,ticks),rm=s.lines.filter(l=>l.quantity===0);
+    if(pantry.length)h+=`<div class="small"><b>Pantry check.</b> Tick anything you already have at home and it stays out of the trolley.</div>`;
+    h+=pantry.map(r=>{const l=r.woolies||r.coles;const name=r.woolies?r.woolies.product.name:r.name;return `<label class="si"><input type="checkbox" aria-label="I have ${esc(name)}" data-act="haveit" data-v="${r.id}" ${t.haveIt[r.id]?"checked":""}><span class="grow"><b>${esc(name)}</b><span class="small muted" style="display:block">I have it${l?` · otherwise buy ${esc(l.buy)}`:""}</span>${forLine(r)}</span></label>`}).join("");
+    if(rm.length)h+=`<div class="eyebrow">Taking out, no longer needed</div>${rm.map(l=>`<div class="small">${esc(l.name)}</div>`).join("")}`;
     h+=`<div class="row"><button class="btn" data-act="sendtrolley" ${s.lines.length?"":"disabled"}>Send</button><button class="ghost" data-act="trolleyreset">Cancel</button></div>`;
   }else if(t.phase==="login"){
     h+=`<div class="small">Log in to Woolworths in the window that opened. Sending carries on by itself once you're in.</div>`;
@@ -806,7 +809,7 @@ function renderTrolley(rows,ticks){
     const added=adds.filter(r=>r.added),failed=adds.filter(r=>!r.added),removed=rms.filter(r=>r.added),stuck=rms.filter(r=>!r.added);
     const siteChanged=failed.every(r=>r.reason==="not available"||String(r.reason||"").startsWith("HTTP 4"));
     if(!added.length&&failed.length)h+=siteChanged?`<div class="hint"><span>Nothing could be added. Woolworths may have changed their website, so the automatic send is out of date. Open each product below to add it yourself.</span></div>`:`<div class="hint"><span>Nothing could be added. Check your connection, then tap Done and send again.</span></div>`;
-    h+=`<div class="small"><b>Added ${added.length}</b> of ${adds.length}${rms.length?` · <b>removed ${removed.length}</b> of ${rms.length}`:""}.</div>`;
+    h+=`<div class="small">${adds.length?`<b>Added ${added.length}</b> of ${adds.length}`:""}${adds.length&&rms.length?" · ":""}${rms.length?`<b>Removed ${removed.length}</b> of ${rms.length}`:""}.</div>`;
     const lineRow=(r,note)=>{const l=byCode[r.stockcode]||{name:String(r.stockcode)};const f=l.itemId?forLabel(byId[l.itemId]):"";return `<div class="row between"><span class="small grow">${esc(l.name)}${note?` <span class="muted">· ${esc(note)}</span>`:""}${f?`<span class="muted" style="display:block">${esc(f)}</span>`:""}</span>${!r.added&&l.url?`<button class="ghost" data-act="openwoolies" data-v="${esc(l.url)}">Open ↗</button>`:""}</div>`};
     if(added.length)h+=`<div class="eyebrow">In your trolley</div>${added.map(r=>lineRow(r,"")).join("")}`;
     if(removed.length)h+=`<div class="eyebrow">Taken out</div>${removed.map(r=>lineRow(r,"Removed (no longer needed)")).join("")}`;
@@ -836,7 +839,7 @@ function renderShop(){
     const days=S().fixtureDays==null?5:S().fixtureDays;
     h+=`<div class="row between" style="margin-top:4px"><span class="small"><b>Dare + Grenade</b> for how many days?</span><div class="step"><button data-act="fxdays" data-i="-1" ${days?"":"disabled"} aria-label="Fewer days">−</button><span class="num">${days}</span><button data-act="fxdays" data-i="1" aria-label="More days">+</button></div></div></div>`;
     const st=store(),ot=other(st);const rows=CAT.shopList(pk,days,dm);
-    if(!nMeals&&!dm.length&&!rows.length){h+=`<div class="empty">Pick at least one meal and your list appears here.</div>`;return h;}
+    if(!nMeals&&!dm.length&&!rows.length&&!sdays.length&&!lsSent()){h+=`<div class="empty">Pick at least one meal and your list appears here.</div>`;return h;}
     const tot={coles:CAT.storeTotals(rows,"coles",ticks),woolies:CAT.storeTotals(rows,"woolies",ticks)};
     h+=`<div class="panel vs">${STORES.map(s=>`<div><span class="small" style="display:block;color:var(--${s});font-weight:700">${STORE_NAME[s]}${tot[s].missed.length?` · ${tot[s].missed.length} missed`:""}</span><b>${money(tot[s].total)}</b></div>`).join("")}</div>`;
     h+=`<div class="row between"><div class="dial" role="group" aria-label="Store" style="grid-template-columns:repeat(2,auto)">${STORES.map(s=>`<button aria-pressed="${st===s}" data-act="store" data-v="${s}">${STORE_NAME[s]}</button>`).join("")}</div><span class="small">Left to buy <b class="num" style="color:var(--good)">${money(tot[st].left)}</b></span></div>`;
@@ -909,7 +912,7 @@ document.addEventListener("click",e=>{
     case "mealshop":{const d=ensureDay(date);const m=d.meals[i];if(m.shop===false)delete m.shop;else m.shop=false;saveDay(date);break}
     case "unshopday":{const sd=state.settings.shopDays=Object.assign({},S().shopDays);delete sd[v];saveSettings();break}
     case "openday":state.tab="today";state.date=v;state.adding=null;window.scrollTo(0,0);break;
-    case "nextshop":if(state.armed!=="nextshop"){state.armed="nextshop";break}state.armed=null;state.settings.shopDays={};state.settings.trial={};saveSettings();lsSetTicks({});lsSetSent(null);state.trolley=null;break;
+    case "nextshop":if(trolleyBusy())break;if(state.armed!=="nextshop"){state.armed="nextshop";break}state.armed=null;state.settings.shopDays={};state.settings.trial={};saveSettings();lsSetTicks({});lsSetSent(null);state.trolley=null;break;
     case "rm":{if(state.armed==="rm"+i){const d=ensureDay(date);d.meals.splice(i,1);saveDay(date);state.armed=null}else state.armed="rm"+i;break}
     case "adding":state.adding=state.adding===v?null:v;break;
     case "add":{const d=ensureDay(date);d.meals=d.meals||[];d.meals.push({id:v,slot:state.adding,t:"S"});state.adding=null;saveDay(date);break}
@@ -930,7 +933,7 @@ document.addEventListener("click",e=>{
     case "serve":{const pk=picks();const n=Math.max(0,Math.min(10,(pk[v]||0)+i));if(n)pk[v]=n;else delete pk[v];state.settings.trial=pk;saveSettings();break}
     case "starter":state.settings.trial=clone(STARTER);saveSettings();break;
     case "clearpicks":state.settings.trial={};saveSettings();break;
-    case "pantrycheck":if(pantryRows(shopRows(),lsTicks()).length)state.trolley={phase:"pantry",haveIt:{}};else sendTrolley({});break;
+    case "pantrycheck":{const rows=shopRows();if(pantryRows(rows,lsTicks()).length||trolleySend(rows,{}).lines.some(l=>l.quantity===0))state.trolley={phase:"pantry",haveIt:{}};else sendTrolley({});break}
     case "haveit":if(state.trolley&&state.trolley.phase==="pantry")state.trolley.haveIt[v]=el.checked;break;
     case "sendtrolley":sendTrolley(state.trolley&&state.trolley.haveIt||{});break;
     case "trolleyreset":state.trolley=null;break;
@@ -969,10 +972,11 @@ if(window.WeekdayFuelHost){
     if(!m)return;
     if(m.type==="pricesDone"||m.type==="pricesError"){onPrices(m);if(state.tab==="shop")render();return}
     const t=state.trolley;if(!t)return;
-    if(m.type==="trolleyLogin")t.phase="login";
+    const live=(t.phase==="adding"||t.phase==="login")&&Array.isArray(t.lines);
+    if(m.type==="trolleyLogin"){if(!live)return;t.phase="login"}
     else if(m.type==="trolleyProgress"){if(t.phase!=="adding"&&t.phase!=="login")return;t.phase="adding";t.completed=m.completed;t.total=m.total}
-    else if(m.type==="trolleyDone"){t.phase="done";t.results=Array.isArray(m.results)?m.results:[];const old=lsSent();lsSetSent({at:new Date().toISOString(),fingerprint:t.fingerprint,lines:WeekdayFuelCart.sentAfter(old&&old.lines,t.lines,t.results)})}
-    else if(m.type==="trolleyError"){t.phase="error";t.message=m.message}
+    else if(m.type==="trolleyDone"){if(!live)return;t.phase="done";t.results=Array.isArray(m.results)?m.results:[];const old=lsSent();lsSetSent({at:new Date().toISOString(),fingerprint:t.fingerprint,lines:WeekdayFuelCart.sentAfter(old&&old.lines,t.lines,t.results)})}
+    else if(m.type==="trolleyError"){if(!live)return;t.phase="error";t.message=m.message}
     else return;
     if(state.tab==="shop")render();
   });
