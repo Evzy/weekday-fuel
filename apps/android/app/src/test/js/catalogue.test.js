@@ -1,6 +1,6 @@
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
-const { create, deliGrams } = require("../../main/assets/weekday_fuel/catalogue.js");
+const { create, deliGrams, applyLivePrices } = require("../../main/assets/weekday_fuel/catalogue.js");
 
 const W = "https://www.woolworths.com.au/shop/productdetails/";
 const C = "https://www.coles.com.au/product/";
@@ -107,4 +107,46 @@ test("usedIn, item and colesChecked", () => {
   assert.deepEqual(cat.usedIn("ham"), ["toasty", "eggmuffin"]);
   assert.equal(cat.item("cheese").name, "Light tasty cheese");
   assert.equal(cat.colesChecked(), "2026-10-12");
+});
+
+test("live prices replace Woolworths prices without changing the catalogue", () => {
+  const live = applyLivePrices(ITEMS, {
+    729008: { price: 7.5, was: 9, special: true, available: true },
+    175734: { price: 30, was: null, special: false, available: true },
+    123456: { price: 13, was: 13, special: false, available: true },
+  });
+  const cheese = live.find((i) => i.id === "cheese");
+  assert.deepEqual([cheese.woolies.price, cheese.woolies.was, cheese.woolies.live, cheese.woolies.name], [7.5, 9, true, "Woolworths Light Tasty 500g"]);
+  assert.equal(cheese.coles, ITEMS[3].coles);
+  assert.equal(ITEMS[3].woolies.price, 9);
+  assert.equal(live.find((i) => i.id === "breast").woolies.was, null);
+  assert.equal(live.find((i) => i.id === "dare"), ITEMS[0]);
+  const c = create(live, AMOUNTS);
+  assert.equal(byId(c.shopList({ toasty: 1 }, 0)).ham.woolies.cost, 3);
+  assert.equal(c.mealCost("toasty", "woolies"), 3.45);
+});
+
+test("no live prices, or an unusable price, leaves items as they are", () => {
+  assert.deepEqual(applyLivePrices(ITEMS, null), ITEMS);
+  const live = applyLivePrices(ITEMS, { 729008: { price: null, was: null, special: false, available: true } });
+  assert.equal(live.find((i) => i.id === "cheese"), ITEMS[3]);
+});
+
+test("a product unavailable online counts as missed at Woolworths", () => {
+  const live = applyLivePrices(ITEMS, { 729008: { price: 9, was: null, special: false, available: false } });
+  const cheese = live.find((i) => i.id === "cheese");
+  assert.equal(cheese.woolies, null);
+  assert.equal(cheese.wooliesUnavailable.stockcode, 729008);
+  const c = create(live, AMOUNTS);
+  const rows = c.shopList({ toasty: 1 }, 0);
+  assert.equal(byId(rows).cheese.woolies, null);
+  assert.equal(byId(rows).cheese.wooliesUnavailable.name, "Woolworths Light Tasty 500g");
+  assert.equal(byId(rows).ham.wooliesUnavailable, null);
+  assert.deepEqual(c.storeTotals(rows, "woolies", {}).missed, ["cheese"]);
+  assert.equal(c.mealCost("toasty", "woolies"), 3.25);
+});
+
+test("checked gives each store's oldest price date", () => {
+  assert.equal(cat.checked("coles"), "2026-10-12");
+  assert.equal(cat.checked("woolies"), "2026-10-15");
 });

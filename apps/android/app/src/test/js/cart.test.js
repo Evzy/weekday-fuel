@@ -33,3 +33,10 @@ test("items Woolworths doesn't sell go to the do-it-yourself list", () => {
     { itemId: "mystery", name: "Plain mystery", reason: "nostore" },
   ]);
 });
+
+test("a product unavailable online goes to the do-it-yourself list with its reason", () => {
+  const r = { ...row("cheese", null, { product: { name: "Coles Light Tasty 500g" }, quantity: 1 }), wooliesUnavailable: { name: "Woolworths Light Tasty 500g" } };
+  const { lines, manual } = cartLines([r], {});
+  assert.deepEqual(lines, []);
+  assert.deepEqual(manual, [{ itemId: "cheese", name: "Woolworths Light Tasty 500g", reason: "unavailable" }]);
+});

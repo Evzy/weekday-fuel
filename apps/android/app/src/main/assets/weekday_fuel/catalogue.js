@@ -288,6 +288,20 @@
     };
   }
 
+  /* prices: { [stockcode]: { price, was, special, available } } read live from Woolworths. */
+  function applyLivePrices(items, prices) {
+    if (!prices) return items;
+    return items.map(function (it) {
+      var p = it.woolies;
+      var live = p && prices[p.stockcode];
+      if (!live) return it;
+      if (live.available === false) return Object.assign({}, it, { woolies: null, wooliesUnavailable: p });
+      if (!(typeof live.price === "number" && live.price > 0)) return it;
+      var was = typeof live.was === "number" && live.was > live.price ? live.was : null;
+      return Object.assign({}, it, { woolies: Object.assign({}, p, { price: live.price, was: was, live: true }) });
+    });
+  }
+
   function create(items, amounts) {
     var byId = {};
     items.forEach(function (it) {
@@ -326,6 +340,7 @@
             used: used[it.id] || [],
             coles: it.coles ? storeLine(it, it.coles, n) : null,
             woolies: it.woolies ? storeLine(it, it.woolies, n) : null,
+            wooliesUnavailable: it.wooliesUnavailable || null,
           };
         });
     }
@@ -366,12 +381,13 @@
       });
     }
 
-    function colesChecked() {
+    function checked(store) {
       var dates = [];
       items.forEach(function (it) {
-        if (!it.coles) return;
-        dates.push(it.coles.checked);
-        if (it.coles.small) dates.push(it.coles.small.checked);
+        var p = it[store];
+        if (!p) return;
+        dates.push(p.checked);
+        if (p.small) dates.push(p.small.checked);
       });
       return dates.sort()[0] || null;
     }
@@ -387,12 +403,16 @@
       storeTotals: storeTotals,
       mealCost: mealCost,
       usedIn: usedIn,
-      colesChecked: colesChecked,
+      checked: checked,
+      colesChecked: function () {
+        return checked("coles");
+      },
     };
   }
 
   var api = create(ITEMS, AMOUNTS);
   api.create = create;
+  api.applyLivePrices = applyLivePrices;
   if (typeof module === "object" && module.exports) module.exports = api;
   else root.WeekdayFuelCatalogue = api;
 })(this);
