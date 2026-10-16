@@ -941,7 +941,7 @@ function renderTrolley(rows,ticks,s){
     const siteChanged=s==="woolies"?failed.every(r=>r.reason==="not available"||String(r.reason||"").startsWith("HTTP 4")):failed.every(r=>r.reason==="no answer for this product"||String(r.reason||"").startsWith("HTTP 4"));
     if(!added.length&&failed.length){
       if(siteChanged)h+=`<div class="hint"><span>Nothing could be added. ${N} may have changed their website, so the automatic send is out of date. Open each product below to add it yourself.</span></div>`;
-      else if(s==="coles")h+=`<div class="hint"><span>Nothing could be added. Coles couldn't add any of these. Open each product below to add it yourself.</span></div>`;
+      else if(s==="coles")h+=`<div class="hint"><span>Coles couldn't add any of these. Open each product below to add it yourself.</span></div>`;
       else h+=`<div class="hint"><span>Nothing could be added. Check your connection, then tap Done and send again.</span></div>`;
     }
     h+=`<div class="small">${adds.length?`<b>Added ${added.length}</b> of ${adds.length}`:""}${adds.length&&rms.length?" · ":""}${rms.length?`<b>Removed ${removed.length}</b> of ${rms.length}`:""}${adds.length||rms.length?"":"Nothing was sent"}.</div>`;
