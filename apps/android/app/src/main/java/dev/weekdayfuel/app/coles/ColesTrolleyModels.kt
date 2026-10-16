@@ -34,7 +34,7 @@ object ColesTrolleyJson {
     }
 
     fun linesToJson(lines: List<ColesTrolleyLine>): String =
-        JSONArray().apply { lines.forEach { put(JSONObject().put("productId", it.productId).put("quantity", it.quantity)) } }.toString()
+        lines.joinToString(prefix = "[", postfix = "]", separator = ",") { """{"productId":"${it.productId}","quantity":${it.quantity}}""" }
 
     /** [evaluateResult] is what `evaluateJavascript` returns for `__weekdayFuelColesTrolley.state()`: a JSON-encoded string, or "null". */
     fun parseScriptState(evaluateResult: String?): ColesTrolleyState? {
