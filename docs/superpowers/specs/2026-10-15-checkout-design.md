@@ -1,6 +1,6 @@
 # Checkout in the app — design
 
-**Status:** approved 2026-10-15; v0.5.0 released 2026-10-15, owner phone checks pending
+**Status:** approved 2026-10-15; v0.5.0 released 2026-10-15, owner phone checks passed 2026-10-16; done
 **Scope:** roadmap spec 4 of 5 (see `2026-10-15-deli-ham-trolley-design.md`), first half: boost every Everyday Rewards offer, pick and book a delivery time, see the order summary, then pay on Woolworths
 **Release:** v0.5.0, after Suggest a day to the trolley (v0.4.0). v0.5.1 adds substitutions, driver notes and leave unattended, delivery or pick-up and the address.
 

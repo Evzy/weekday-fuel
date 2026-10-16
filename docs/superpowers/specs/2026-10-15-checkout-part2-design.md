@@ -1,6 +1,6 @@
 # Checkout in the app, part 2 — design
 
-**Status:** approved 2026-10-15; v0.5.1 released 2026-10-15, owner phone checks pending
+**Status:** approved 2026-10-15; v0.5.1 released 2026-10-15, owner phone checks passed 2026-10-16; done
 **Scope:** roadmap spec 4 of 5, second half: substitutions, driver note and leave unattended, and the delivery address, in the Checkout panel from `2026-10-15-checkout-design.md`
 **Release:** v0.5.1, after v0.5.0 (boosts, delivery time, order summary, Pay on Woolworths)
 
