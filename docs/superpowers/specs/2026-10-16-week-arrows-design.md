@@ -1,6 +1,6 @@
 # Week arrows — design
 
-**Status:** approved 2026-10-16; v0.7.1 released 2026-10-16, owner phone checks pending
+**Status:** approved 2026-10-16; v0.7.1 released 2026-10-16, owner phone checks passed 2026-10-16; done
 **Scope:** The arrows above the week strip on the Today tab move a week at a time, and a "Today" button brings you back. Nothing else changes.
 **Release:** v0.7.1
 
