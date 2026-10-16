@@ -1,4 +1,4 @@
-/* Turns Build a shop rows into Woolworths trolley lines. Pure: no DOM, no storage. */
+/* Turns Build a shop rows into Woolworths and Coles trolley lines. Pure: no DOM, no storage. */
 (function (root) {
   "use strict";
 
@@ -58,21 +58,63 @@
     return JSON.stringify({ picks: p, days: d, fixtureDays: fixtureDays || 0 });
   }
 
-  function sentAfter(lastLines, lines, results) {
+  /* Coles trolley lines, keyed by Coles product ID (idOf = catalogue colesId). Rows that share a product are merged. */
+  function colesCartLines(rows, ticks, haveIt, idOf) {
+    var lines = [];
+    var byId = {};
+    var manual = [];
+    rows.forEach(function (row) {
+      if (ticks[row.id] || (haveIt && haveIt[row.id])) return;
+      var line = row.coles;
+      var id = line ? idOf(line.product) : null;
+      if (!id) {
+        if (row.colesUnavailable) manual.push({ itemId: row.id, name: row.colesUnavailable.name, reason: "unavailable" });
+        else manual.push({ itemId: row.id, name: row.woolies ? row.woolies.product.name : row.name, reason: row.woolies ? "woolies" : "nostore" });
+        return;
+      }
+      if (byId[id]) {
+        byId[id].quantity += line.quantity;
+        return;
+      }
+      byId[id] = { itemId: row.id, productId: id, quantity: line.quantity, name: line.product.name, url: line.product.url };
+      lines.push(byId[id]);
+    });
+    return { lines: lines, manual: manual };
+  }
+
+  function colesRemovalLines(lastLines, rows, idOf) {
+    var keep = {};
+    rows.forEach(function (row) {
+      var a = row.coles && idOf(row.coles.product);
+      var b = row.colesUnavailable && idOf(row.colesUnavailable);
+      if (a) keep[a] = true;
+      if (b) keep[b] = true;
+    });
+    return Object.keys(lastLines || {})
+      .filter(function (id) {
+        return !keep[id];
+      })
+      .map(function (id) {
+        return { productId: id, quantity: 0 };
+      });
+  }
+
+  function sentAfter(lastLines, lines, results, key) {
+    var k = key || "stockcode";
     var out = Object.assign({}, lastLines || {});
     var done = {};
     (results || []).forEach(function (r) {
-      if (r.added) done[r.stockcode] = true;
+      if (r.added) done[r[k]] = true;
     });
     lines.forEach(function (l) {
-      if (!done[l.stockcode]) return;
-      if (l.quantity === 0) delete out[l.stockcode];
-      else out[l.stockcode] = l.quantity;
+      if (!done[l[k]]) return;
+      if (l.quantity === 0) delete out[l[k]];
+      else out[l[k]] = l.quantity;
     });
     return out;
   }
 
-  var api = { cartLines: cartLines, removalLines: removalLines, shopFingerprint: shopFingerprint, sentAfter: sentAfter };
+  var api = { cartLines: cartLines, removalLines: removalLines, colesCartLines: colesCartLines, colesRemovalLines: colesRemovalLines, shopFingerprint: shopFingerprint, sentAfter: sentAfter };
   if (typeof module === "object" && module.exports) module.exports = api;
   else root.WeekdayFuelCart = api;
 })(this);

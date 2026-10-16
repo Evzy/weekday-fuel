@@ -146,3 +146,34 @@ test("in a Coles shop an item unavailable online at Coles is noted", () => {
   const w = O.snapshot([gone], {}, {}, { at: OPTS.at, store: "woolies" });
   assert.deepEqual(w.groups.buy, [item("Milk 2L", "1 bottle", 3.1, "woolies", null, "")]);
 });
+
+const CMAC = { name: "Coles Macaroni 500g", url: "https://www.coles.com.au/product/coles-macaroni-3329137", price: 1 };
+const CBREAST = { name: "Coles chicken breast", url: "https://www.coles.com.au/product/coles-breast-2263179", price: 12 };
+const cid = (p) => { const m = /-(\d{4,7})$/.exec((p && p.url) || ""); return m ? m[1] : null; };
+const mac = ROW("mac", 2, null, LINE(CMAC, 1, 1, "1 pack"));
+const cbreast = ROW("breast", 1, null, LINE(CBREAST, 1, 12, "1 pack"));
+const COPTS = { ...OPTS, store: "coles", wooliesTotal: null, colesId: cid, colesProduct: (id) => (id === "8991361" ? { name: "Dare 500mL", price: 4.65 } : null) };
+
+test("in a Coles shop, products sent to the Coles trolley are ordered, at Coles", () => {
+  const o = O.snapshot([cbreast, mac, evap], {}, {}, { ...COPTS, colesSent: { 2263179: 2, 3329137: 0, 8991361: 1, 7777777: 3 } });
+  assert.deepEqual(o.groups.ordered, [
+    item("Coles chicken breast", "2 packs", 24, "coles"),
+    item("Product 7777777", "3", null, "coles", "not in this shop", ""),
+    item("Dare 500mL", "1 pack", 4.65, "coles", "not in this shop", ""),
+  ]);
+  assert.deepEqual(o.groups.pantry, [item("Coles Macaroni 500g", "1 pack", 1, "coles")]);
+  assert.deepEqual(o.groups.buy, [item("Evaporated milk", "", null, null, "no online store")]);
+});
+
+test("a sent amount equal to the shop line keeps the shop's own description", () => {
+  const o = O.snapshot([cbreast], {}, {}, { ...COPTS, colesSent: { 2263179: 1 } });
+  assert.deepEqual(o.groups.ordered, [item("Coles chicken breast", "1 pack", 12, "coles")]);
+});
+
+test("isEmpty counts Coles sends, and groupTitle names the order's store", () => {
+  assert.equal(O.isEmpty([], {}, { 3329137: 1 }), false);
+  assert.equal(O.isEmpty([], {}, { 3329137: 0 }), true);
+  assert.equal(O.groupTitle({ store: "coles" }, "ordered"), "Ordered on Coles");
+  assert.equal(O.groupTitle({ store: "woolies" }, "ordered"), "Ordered on Woolworths");
+  assert.equal(O.groupTitle({ store: "coles" }, "buy"), "Buy yourself");
+});

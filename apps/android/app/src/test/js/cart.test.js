@@ -1,6 +1,6 @@
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
-const { cartLines, removalLines, shopFingerprint, sentAfter } = require("../../main/assets/weekday_fuel/cart.js");
+const { cartLines, removalLines, colesCartLines, colesRemovalLines, shopFingerprint, sentAfter } = require("../../main/assets/weekday_fuel/cart.js");
 
 const W = "https://www.woolworths.com.au/shop/productdetails/";
 const YOG = { name: "Chobani Greek Yoghurt 907g", url: W + "717518", stockcode: 717518, size: 907, price: 8.8 };
@@ -92,4 +92,44 @@ test("sentAfter records what our sends left in the trolley", () => {
   assert.deepEqual(sentAfter(last, lines, results), { 717518: 3, 46795: 1, 175734: 0.3, 729008: 1 });
   assert.deepEqual(sentAfter(null, [{ stockcode: 46795, quantity: 1 }], [{ stockcode: 46795, added: true }]), { 46795: 1 });
   assert.deepEqual(last, { 717518: 2, 72280: 5, 175734: 0.3, 729008: 1 });
+});
+
+const CB = { name: "Coles Chicken Breast Large", url: "https://www.coles.com.au/product/coles-breast-large-2263179", price: 16.8 };
+const CM = { name: "Coles Macaroni 500g", url: "https://www.coles.com.au/product/coles-macaroni-3329137", price: 1 };
+const YOG_ROW_W = { product: YOG, quantity: 1 };
+const idOf = (p) => { const m = /-(\d{4,7})$/.exec((p && p.url) || ""); return m ? m[1] : null; };
+
+test("a Coles line becomes a trolley line keyed by its Coles product ID", () => {
+  const { lines, manual } = colesCartLines([row("breast", null, { product: CB, quantity: 2 })], {}, {}, idOf);
+  assert.deepEqual(lines, [{ itemId: "breast", productId: "2263179", quantity: 2, name: CB.name, url: CB.url }]);
+  assert.deepEqual(manual, []);
+});
+
+test("Coles lines skip ticked and 'I have it' items and merge rows that share a product", () => {
+  const rows = [row("mac", null, { product: CM, quantity: 1 }), row("mac2", null, { product: CM, quantity: 2 }), row("breast", null, { product: CB, quantity: 1 }), row("yog", YOG_ROW_W, { product: CB, quantity: 1 })];
+  const { lines } = colesCartLines(rows, { breast: true }, { yog: true }, idOf);
+  assert.deepEqual(lines, [{ itemId: "mac", productId: "3329137", quantity: 3, name: CM.name, url: CM.url }]);
+});
+
+test("items Coles doesn't have online go to the do-it-yourself list with their reason", () => {
+  const unavailable = { ...row("cheese", { product: YOG, quantity: 1 }), colesUnavailable: { name: "Coles Light Tasty 500g" } };
+  const { lines, manual } = colesCartLines([row("yog", { product: YOG, quantity: 1 }), unavailable, row("mystery", null)], {}, {}, idOf);
+  assert.deepEqual(lines, []);
+  assert.deepEqual(manual, [
+    { itemId: "yog", name: YOG.name, reason: "woolies" },
+    { itemId: "cheese", name: "Coles Light Tasty 500g", reason: "unavailable" },
+    { itemId: "mystery", name: "Plain mystery", reason: "nostore" },
+  ]);
+});
+
+test("colesRemovalLines sets to 0 only Coles products the shop no longer needs", () => {
+  const rows = [row("mac", null, { product: CM, quantity: 1 }), { ...row("breast", null), colesUnavailable: CB }];
+  assert.deepEqual(colesRemovalLines({ 3329137: 1, 2263179: 1, 5077283: 2 }, rows, idOf), [{ productId: "5077283", quantity: 0 }]);
+  assert.deepEqual(colesRemovalLines(null, rows, idOf), []);
+});
+
+test("sentAfter can key Coles lines by productId", () => {
+  const lines = [{ productId: "3329137", quantity: 2 }, { productId: "5077283", quantity: 0 }, { productId: "2263179", quantity: 1 }];
+  const results = [{ productId: "3329137", added: true }, { productId: "5077283", added: true }, { productId: "2263179", added: false }];
+  assert.deepEqual(sentAfter({ 5077283: 2, 1111: 1 }, lines, results, "productId"), { 1111: 1, 3329137: 2 });
 });

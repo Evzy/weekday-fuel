@@ -34,13 +34,13 @@
   }
 
   /* `line` is the shop's own line for this product, used when the sent amount matches it. */
-  function orderedItem(line, product, qty, note, forText) {
+  function orderedItem(line, product, qty, note, forText, store) {
     var same = !!line && Math.abs(qty - line.quantity) < 1e-9;
     return {
       name: String(product.name),
       buy: same ? line.buy : amount(product, qty),
       cost: same ? line.cost : typeof product.price === "number" ? round2(qty * product.price) : null,
-      store: "woolies",
+      store: store || "woolies",
       note: note,
       for: forText,
     };
@@ -50,6 +50,9 @@
     var o = opts || {};
     var at = typeof o.at === "string" && !isNaN(Date.parse(o.at)) ? o.at : new Date().toISOString();
     var sent = sentLines || {};
+    var colesSent = o.colesSent && typeof o.colesSent === "object" ? o.colesSent : {};
+    var colesId = typeof o.colesId === "function" ? o.colesId : function () { return null; };
+    var usedColes = {};
     var t = ticks || {};
     var store = o.store === "coles" ? "coles" : "woolies";
     var other = store === "coles" ? "woolies" : "coles";
@@ -69,6 +72,20 @@
       }
       if (gone && isQty(sent[gone.stockcode])) {
         groups.ordered.push(orderedItem(null, gone, sent[gone.stockcode], "was unavailable online", f));
+        return;
+      }
+      var c = row.coles;
+      var cGone = row.colesUnavailable;
+      var cId = c ? colesId(c.product) : null;
+      var cGoneId = cGone ? colesId(cGone) : null;
+      if (cId) usedColes[cId] = true;
+      if (cGoneId) usedColes[cGoneId] = true;
+      if (cId && isQty(colesSent[cId])) {
+        groups.ordered.push(orderedItem(c, c.product, colesSent[cId], null, f, "coles"));
+        return;
+      }
+      if (cGoneId && isQty(colesSent[cGoneId])) {
+        groups.ordered.push(orderedItem(null, cGone, colesSent[cGoneId], "was unavailable online", f, "coles"));
         return;
       }
       var where = row[store] ? store : row[other] ? other : null;
@@ -91,6 +108,14 @@
         p ? orderedItem(null, p, sent[code], "not in this shop", "") : { name: "Product " + code, buy: String(sent[code]), cost: null, store: "woolies", note: "not in this shop", for: "" },
       );
     });
+    Object.keys(colesSent).forEach(function (id) {
+      if (usedColes[id] || !isQty(colesSent[id])) return;
+      var p = typeof o.colesProduct === "function" ? o.colesProduct(id) : null;
+      if (!p || typeof p.name !== "string" || !p.name) p = null;
+      groups.ordered.push(
+        p ? orderedItem(null, p, colesSent[id], "not in this shop", "", "coles") : { name: "Product " + id, buy: String(colesSent[id]), cost: null, store: "coles", note: "not in this shop", for: "" },
+      );
+    });
     return {
       v: 1,
       id: at,
@@ -104,10 +129,17 @@
     };
   }
 
-  function isEmpty(rows, sentLines) {
-    var s = sentLines || {};
+  function isEmpty(rows, sentLines, colesSent) {
     var real = Array.isArray(rows) && rows.some(function (r) { return !!r && r.sec !== 0; });
-    return !real && !Object.keys(s).some(function (k) { return isQty(s[k]); });
+    var any = function (s) {
+      return Object.keys(s || {}).some(function (k) { return isQty(s[k]); });
+    };
+    return !real && !any(sentLines) && !any(colesSent);
+  }
+
+  function groupTitle(order, key) {
+    if (key === "ordered") return order && order.store === "coles" ? "Ordered on Coles" : "Ordered on Woolworths";
+    return GROUP_TITLES[key];
   }
 
   function validItem(i) {
@@ -182,6 +214,7 @@
     addOrder: addOrder,
     removeOrder: removeOrder,
     summaryLine: summaryLine,
+    groupTitle: groupTitle,
   };
   if (typeof module === "object" && module.exports) module.exports = api;
   else root.WeekdayFuelOrders = api;
