@@ -137,12 +137,30 @@ test("401 or 403 from either request means log in, and a logged-out read sends n
   assert.equal(s.phase, "needsLogin");
 });
 
+test("a rejected PATCH becomes per-product HTTP failures and still finishes", async () => {
+  const { api } = load({
+    get: () => response(200, trolley([ITEM(132045, 2, "111")])),
+    patch: () => response(400, {}),
+  });
+  api.start([
+    { productId: "132045", quantity: 2 },
+    { productId: "3329137", quantity: 1 },
+  ]);
+  const s = await settle(api);
+  assert.equal(s.phase, "done");
+  assert.equal(s.error, null);
+  assert.deepEqual(s.results, [
+    { productId: "132045", added: true },
+    { productId: "3329137", added: false, reason: "HTTP 400" },
+  ]);
+  assert.doesNotMatch(api.state(), /k123/);
+});
+
 test("HTTP errors, unreadable replies and a reply with no items end in error", async () => {
   const cases = [
     [{ get: () => response(500, {}) }, "coles trolley HTTP 500"],
     [{ get: () => response(200, null, true) }, "Unexpected token <"],
     [{ get: () => response(200, { errors: [] }) }, "coles trolley response has no items"],
-    [{ get: () => response(200, trolley([])), patch: () => response(400, {}) }, "coles trolley HTTP 400"],
     [{ get: () => { throw new Error("offline"); } }, "offline"],
   ];
   for (const [handlers, message] of cases) {

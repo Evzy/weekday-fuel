@@ -938,8 +938,12 @@ function renderTrolley(rows,ticks,s){
     const isRm=r=>!!byCode[r[k]]&&byCode[r[k]].quantity===0;
     const adds=t.results.filter(r=>!isRm(r)),rms=t.results.filter(isRm);
     const added=adds.filter(r=>r.added),failed=adds.filter(r=>!r.added),removed=rms.filter(r=>r.added),stuck=rms.filter(r=>!r.added);
-    const siteChanged=s==="coles"||failed.every(r=>r.reason==="not available"||String(r.reason||"").startsWith("HTTP 4"));
-    if(!added.length&&failed.length)h+=siteChanged?`<div class="hint"><span>Nothing could be added. ${N} may have changed their website, so the automatic send is out of date. Open each product below to add it yourself.</span></div>`:`<div class="hint"><span>Nothing could be added. Check your connection, then tap Done and send again.</span></div>`;
+    const siteChanged=s==="woolies"?failed.every(r=>r.reason==="not available"||String(r.reason||"").startsWith("HTTP 4")):failed.every(r=>r.reason==="no answer for this product"||String(r.reason||"").startsWith("HTTP 4"));
+    if(!added.length&&failed.length){
+      if(siteChanged)h+=`<div class="hint"><span>Nothing could be added. ${N} may have changed their website, so the automatic send is out of date. Open each product below to add it yourself.</span></div>`;
+      else if(s==="coles")h+=`<div class="hint"><span>Nothing could be added. Coles couldn't add any of these. Open each product below to add it yourself.</span></div>`;
+      else h+=`<div class="hint"><span>Nothing could be added. Check your connection, then tap Done and send again.</span></div>`;
+    }
     h+=`<div class="small">${adds.length?`<b>Added ${added.length}</b> of ${adds.length}`:""}${adds.length&&rms.length?" · ":""}${rms.length?`<b>Removed ${removed.length}</b> of ${rms.length}`:""}${adds.length||rms.length?"":"Nothing was sent"}.</div>`;
     const lineRow=(r,note)=>{const l=byCode[r[k]]||{name:String(r[k])};const f=l.itemId?forLabel(byId[l.itemId]):"";return `<div class="row between"><span class="small grow">${esc(l.name)}${note?` <span class="muted">· ${esc(note)}</span>`:""}${f?`<span class="muted" style="display:block">${esc(f)}</span>`:""}</span>${!r.added&&l.url?`<button class="ghost" data-act="${TROLLEY[s].open}" data-v="${esc(l.url)}">Open ↗</button>`:""}</div>`};
     if(added.length)h+=`<div class="eyebrow">In your trolley</div>${added.map(r=>lineRow(r,"")).join("")}`;
@@ -1175,7 +1179,7 @@ if(window.WeekdayFuelHost){
     if(ty==="Login"){if(!live)return;t.phase="login"}
     else if(ty==="Progress"){if(t.phase!=="adding"&&t.phase!=="login")return;t.phase="adding";t.completed=m.completed;t.total=m.total}
     else if(ty==="Done"){if(!live)return;t.phase="done";t.results=Array.isArray(m.results)?m.results:[];const old=sentFor(s);setSentFor(s,{at:new Date().toISOString(),fingerprint:t.fingerprint,lines:WeekdayFuelCart.sentAfter(old&&old.lines,t.lines,t.results,TROLLEY[s].key)})}
-    else if(ty==="Error"){if(!live)return;t.phase="error";t.message=m.message}
+    else if(ty==="Error"){if(!live)return;t.phase="error";t.message=m.message||(s==="coles"?"Couldn't send to the Coles trolley.":"Something went wrong sending to Woolworths. Try again.")}
     else return;
     if(state.tab==="shop")render();
   });

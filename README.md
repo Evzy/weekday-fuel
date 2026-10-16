@@ -2,7 +2,7 @@
 
 Self-contained Android app for weekday meal budgeting, weigh-ins, meals, and shopping. No backend: all state lives on the phone (`localStorage` inside the WebView).
 
-The page started from the frozen v0 [`Weekday_Fuel.html`](docs/seed/Weekday_Fuel.html) in `docs/seed/` and now evolves through specs inside a WebView—including sending your Build-a-shop list to the Woolworths trolley—plus a GitHub Releases update check on cold start.
+The page started from the frozen v0 [`Weekday_Fuel.html`](docs/seed/Weekday_Fuel.html) in `docs/seed/` and now evolves through specs inside a WebView—including sending your Build-a-shop list to the Woolworths or Coles trolley—plus a GitHub Releases update check on cold start.
 
 ## Layout
 
@@ -11,9 +11,10 @@ The page started from the frozen v0 [`Weekday_Fuel.html`](docs/seed/Weekday_Fuel
 | `apps/android/` | Android app (`dev.weekdayfuel.app`) |
 | `apps/android/app/src/main/assets/weekday_fuel/Weekday_Fuel.html` | The shipped UI |
 | `apps/android/app/src/main/java/dev/weekdayfuel/app/MainActivity.kt` | WebView host: JS + DOM storage on; Woolworths and Coles links open in in-app store screens, other links externally |
+| `apps/android/app/src/main/java/dev/weekdayfuel/app/StoreScreen.kt` | ← Weekday Fuel bar over a store's page (Woolworths or Coles screen) |
 | `apps/android/app/src/main/java/dev/weekdayfuel/app/update/` | GitHub Releases updater |
-| `apps/android/app/src/main/java/dev/weekdayfuel/app/woolworths/` | Woolworths session, in-app Woolworths screen, trolley send |
-| `apps/android/app/src/main/java/dev/weekdayfuel/app/coles/` | Hidden Coles page that reads Coles prices (no JS bridge) |
+| `apps/android/app/src/main/java/dev/weekdayfuel/app/woolworths/` | Woolworths session, trolley send |
+| `apps/android/app/src/main/java/dev/weekdayfuel/app/coles/` | Coles session: reads Coles prices and sets the Coles trolley; shown in the Coles screen for login, product pages and checkout |
 | `apps/android/app/src/main/assets/weekday_fuel/cart.js`, `assets/woolworths/trolley.js` | Cart-line calculation; script that sets the Woolworths trolley |
 | `apps/android/app/src/main/assets/woolworths/prices.js` | Script that reads live Woolworths prices |
 | `apps/android/app/src/main/assets/coles/prices.js` | Script that reads live Coles prices |

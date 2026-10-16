@@ -241,9 +241,16 @@ class ColesSession(private val context: Context) {
                     if (!loginNotified) listener?.onColesTrolleyNeedsLogin()
                     loginNotified = true
                 }
-                ColesTrolleyPhase.DONE, ColesTrolleyPhase.ERROR -> {
+                ColesTrolleyPhase.DONE -> {
                     clearSend()
                     listener?.onColesTrolley(state)
+                    unloadIfIdle()
+                }
+                ColesTrolleyPhase.ERROR -> {
+                    clearSend()
+                    listener?.onColesTrolley(
+                        ColesTrolleyState(ColesTrolleyPhase.ERROR, emptyList(), context.getString(R.string.coles_trolley_failed)),
+                    )
                     unloadIfIdle()
                 }
             }
@@ -258,7 +265,7 @@ class ColesSession(private val context: Context) {
         unloadIfIdle()
     }
 
-    /** Unloads the page between refreshes (hours apart) so Coles' scripts don't run in the background; the next refresh loads it fresh, with the current key. */
+    /** Finishes a price refresh; unloads the page only when idle so Coles' scripts are not left running in the background. */
     private fun finish(state: ColesPricesState) {
         cancel()
         unloadIfIdle()
@@ -266,7 +273,7 @@ class ColesSession(private val context: Context) {
     }
 
     private inner class SessionClient : WebViewClient() {
-        // Nobody sees this page, so app links, store links and intents are dropped rather than opened.
+        // Only http(s) loads are allowed; app links, store links and intents are dropped.
         override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
             val scheme = request.url.scheme
             return scheme != "http" && scheme != "https"

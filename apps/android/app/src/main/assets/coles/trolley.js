@@ -86,25 +86,34 @@
         actions.push(a);
       });
       if (actions.length) {
-        var body = await call(url, {
+        var patchRes = await fetch(url, {
           method: "PATCH",
           credentials: "include",
           headers: headers(key),
           body: JSON.stringify({ ageGateVerified: false, swapBehaviour: false, items: [{ actions: actions }] }),
         });
-        var ok = {};
-        var bad = {};
-        ((body && body.results) || []).forEach(function (g) {
-          ((g && g.actionedItems) || []).forEach(function (i) {
-            if (i && i.productId != null) ok[String(i.productId)] = true;
+        if (patchRes.status === 401 || patchRes.status === 403) throw LOGIN;
+        if (!patchRes.ok) {
+          var httpReason = "HTTP " + patchRes.status;
+          actions.forEach(function (a) {
+            results[a.productId] = { productId: a.productId, added: false, reason: httpReason };
           });
-          ((g && g.failedItems) || []).forEach(function (i) {
-            if (i && i.productId != null) bad[String(i.productId)] = (i.error && typeof i.error.message === "string" && i.error.message) || "not added";
+        } else {
+          var body = await patchRes.json();
+          var ok = {};
+          var bad = {};
+          ((body && body.results) || []).forEach(function (g) {
+            ((g && g.actionedItems) || []).forEach(function (i) {
+              if (i && i.productId != null) ok[String(i.productId)] = true;
+            });
+            ((g && g.failedItems) || []).forEach(function (i) {
+              if (i && i.productId != null) bad[String(i.productId)] = (i.error && typeof i.error.message === "string" && i.error.message) || "not added";
+            });
           });
-        });
-        actions.forEach(function (a) {
-          results[a.productId] = ok[a.productId] ? { productId: a.productId, added: true } : { productId: a.productId, added: false, reason: bad[a.productId] || "no answer for this product" };
-        });
+          actions.forEach(function (a) {
+            results[a.productId] = ok[a.productId] ? { productId: a.productId, added: true } : { productId: a.productId, added: false, reason: bad[a.productId] || "no answer for this product" };
+          });
+        }
       }
       state = { phase: "done", results: lines.map(function (l) { return results[l.productId]; }), error: null };
     } catch (e) {
