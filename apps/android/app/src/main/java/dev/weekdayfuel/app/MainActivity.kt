@@ -30,6 +30,9 @@ import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
 import dev.weekdayfuel.app.coles.ColesPricesState
 import dev.weekdayfuel.app.coles.ColesSession
+import dev.weekdayfuel.app.coles.ColesTrolleyJson
+import dev.weekdayfuel.app.coles.ColesTrolleyState
+import dev.weekdayfuel.app.coles.ColesUrls
 import dev.weekdayfuel.app.update.GithubApkReleaseInfo
 import dev.weekdayfuel.app.update.GithubApkReleaseUpdater
 import dev.weekdayfuel.app.update.ReleaseVersionCompare
@@ -39,7 +42,6 @@ import dev.weekdayfuel.app.woolworths.HostMessages
 import dev.weekdayfuel.app.woolworths.PricesScriptState
 import dev.weekdayfuel.app.woolworths.TrolleyJson
 import dev.weekdayfuel.app.woolworths.TrolleyScriptState
-import dev.weekdayfuel.app.woolworths.WoolworthsScreen
 import dev.weekdayfuel.app.woolworths.WoolworthsSession
 import dev.weekdayfuel.app.woolworths.WoolworthsUrls
 import kotlinx.coroutines.launch
@@ -50,11 +52,14 @@ class MainActivity : ComponentActivity() {
     private lateinit var webView: WebView
     private lateinit var woolworths: WoolworthsSession
     private lateinit var coles: ColesSession
-    private lateinit var woolworthsScreen: WoolworthsScreen
+    private lateinit var woolworthsScreen: StoreScreen
+    private lateinit var colesScreen: StoreScreen
     private var hostReply: JavaScriptReplyProxy? = null
 
     /** True while the Woolworths screen is up only because a send needs the owner to log in. */
     private var loginShownForSend = false
+
+    private var loginShownForColesSend = false
 
     /** Set when the user tapped Update but first had to grant "install unknown apps". */
     private var pendingUpdate: GithubApkReleaseInfo? = null
@@ -86,15 +91,9 @@ class MainActivity : ComponentActivity() {
         woolworths.listener = TrolleyListener()
         coles = ColesSession(this)
         coles.listener = ColesListener()
-        // Kept full size underneath everything (like the Woolworths page behind the app) so the page runs normally; never shown.
-        coles.webView.apply {
-            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
-            importantForAutofill = View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS
-            isFocusable = false
-            isFocusableInTouchMode = false
-        }
-        root.addView(coles.webView, FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
-        woolworthsScreen = WoolworthsScreen(this, woolworths.webView, webView, onClose = ::hideWoolworths)
+        colesScreen = StoreScreen(this, coles.webView, webView, onClose = ::hideColes)
+        root.addView(colesScreen.view, FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
+        woolworthsScreen = StoreScreen(this, woolworths.webView, webView, onClose = ::hideWoolworths)
         root.addView(woolworthsScreen.view, FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
         root.addView(webView, FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
         setContentView(root)
@@ -120,6 +119,8 @@ class MainActivity : ComponentActivity() {
             object : OnBackPressedCallback(true) {
                 override fun handleOnBackPressed() {
                     when {
+                        colesScreen.isShowing && coles.webView.canGoBack() -> coles.webView.goBack()
+                        colesScreen.isShowing -> hideColes()
                         woolworthsScreen.isShowing && woolworths.webView.canGoBack() -> woolworths.webView.goBack()
                         woolworthsScreen.isShowing -> hideWoolworths()
                         webView.canGoBack() -> webView.goBack()
@@ -201,6 +202,19 @@ class MainActivity : ComponentActivity() {
             "checkoutSubs" -> runCheckout(CheckoutJson.subsRequest(msg), R.string.woolworths_checkout_bad_change)
             "checkoutOptions" -> runCheckout(CheckoutJson.optionsRequest(msg), R.string.woolworths_checkout_bad_change)
             "checkoutAddress" -> runCheckout(CheckoutJson.addressRequest(msg), R.string.woolworths_checkout_bad_change)
+            "sendColesTrolley" -> {
+                val lines = msg.optJSONArray("lines")?.let { runCatching { ColesTrolleyJson.parseLines(it) }.getOrNull() }
+                if (lines.isNullOrEmpty()) {
+                    replyToPage(HostMessages.colesTrolleyFailure(getString(R.string.coles_bad_lines)))
+                    return
+                }
+                coles.send(lines)
+            }
+            "openColes" -> {
+                val uri = Uri.parse(msg.optString("url"))
+                showColes(if (ColesUrls.isColesPage(uri.scheme, uri.host)) uri.toString() else ColesUrls.HOME_URL)
+            }
+            "colesCheckout" -> showColes(ColesUrls.CHECKOUT_URL)
             "refreshPrices" -> {
                 val request = RefreshPricesRequest.parse(msg)
                 if (request.colesWanted) {
@@ -244,6 +258,24 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private fun showColes(url: String) {
+        coles.visible = true
+        coles.load(url)
+        colesScreen.show()
+    }
+
+    private fun hideColes() {
+        colesScreen.hide()
+        if (loginShownForColesSend) {
+            loginShownForColesSend = false
+            if (coles.hasPendingSend) {
+                coles.cancelSend()
+                replyToPage(HostMessages.colesTrolleyFailure(getString(R.string.coles_login_cancelled)))
+            }
+        }
+        coles.visible = false
+    }
+
     private fun closeLoginIfShownForSend() {
         if (loginShownForSend) {
             loginShownForSend = false
@@ -284,6 +316,22 @@ class MainActivity : ComponentActivity() {
     private inner class ColesListener : ColesSession.Listener {
         override fun onColesPrices(state: ColesPricesState) {
             replyToPage(HostMessages.colesPrices(state))
+        }
+
+        override fun onColesTrolleyNeedsLogin() {
+            if (!colesScreen.isShowing) showColes(ColesUrls.HOME_URL)
+            loginShownForColesSend = true
+            colesScreen.setStatus(getString(R.string.coles_login_status))
+            replyToPage(HostMessages.colesTrolleyLogin())
+        }
+
+        override fun onColesTrolley(state: ColesTrolleyState) {
+            if (loginShownForColesSend) {
+                loginShownForColesSend = false
+                colesScreen.hide()
+                coles.visible = false
+            }
+            replyToPage(HostMessages.colesTrolley(state))
         }
     }
 
@@ -362,6 +410,10 @@ class MainActivity : ComponentActivity() {
             if (request.url.host == WebViewAssetLoader.DEFAULT_DOMAIN) return false
             if (WoolworthsUrls.isWoolworthsPage(request.url.scheme, request.url.host)) {
                 showWoolworths(request.url.toString())
+                return true
+            }
+            if (ColesUrls.isColesPage(request.url.scheme, request.url.host)) {
+                showColes(request.url.toString())
                 return true
             }
             openExternally(request.url)

@@ -10,7 +10,7 @@ The page started from the frozen v0 [`Weekday_Fuel.html`](docs/seed/Weekday_Fuel
 | --- | --- |
 | `apps/android/` | Android app (`dev.weekdayfuel.app`) |
 | `apps/android/app/src/main/assets/weekday_fuel/Weekday_Fuel.html` | The shipped UI |
-| `apps/android/app/src/main/java/dev/weekdayfuel/app/MainActivity.kt` | WebView host: JS + DOM storage on, off-app links (Woolworths/Coles) open externally |
+| `apps/android/app/src/main/java/dev/weekdayfuel/app/MainActivity.kt` | WebView host: JS + DOM storage on; Woolworths and Coles links open in in-app store screens, other links externally |
 | `apps/android/app/src/main/java/dev/weekdayfuel/app/update/` | GitHub Releases updater |
 | `apps/android/app/src/main/java/dev/weekdayfuel/app/woolworths/` | Woolworths session, in-app Woolworths screen, trolley send |
 | `apps/android/app/src/main/java/dev/weekdayfuel/app/coles/` | Hidden Coles page that reads Coles prices (no JS bridge) |

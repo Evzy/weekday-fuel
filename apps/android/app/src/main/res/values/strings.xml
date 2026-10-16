@@ -22,4 +22,7 @@
     <string name="coles_timeout">Coles took too long to respond. Try again.</string>
     <string name="coles_offline">Couldn\'t reach Coles. Check your connection and try again.</string>
     <string name="coles_bad_request">Couldn\'t read the Coles products to price. Try again.</string>
+    <string name="coles_login_status">Log in to Coles to send your shop</string>
+    <string name="coles_login_cancelled">Log in to Coles, then tap Send again.</string>
+    <string name="coles_bad_lines">Couldn\'t read the shop list to send to Coles. Try again.</string>
 </resources>

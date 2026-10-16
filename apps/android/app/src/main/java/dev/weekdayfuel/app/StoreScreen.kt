@@ -1,4 +1,4 @@
-package dev.weekdayfuel.app.woolworths
+package dev.weekdayfuel.app
 
 import android.content.Context
 import android.view.Gravity
@@ -8,13 +8,12 @@ import android.webkit.WebView
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
-import dev.weekdayfuel.app.R
 
 /**
- * "← Weekday Fuel" bar above the session WebView. When hidden it stays attached and visible underneath
+ * "← Weekday Fuel" bar above a store's session WebView (Woolworths or Coles). When hidden it stays attached and visible underneath
  * the app page (z-order), because a hidden WebView throttles the session's scripts.
  */
-class WoolworthsScreen(
+class StoreScreen(
     context: Context,
     sessionView: WebView,
     private val appView: View,
@@ -33,6 +32,8 @@ class WoolworthsScreen(
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(context.getColor(R.color.page_background))
             importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
+            // Hidden underneath the app page, the store page must not take keyboard focus.
+            descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
             val bar =
                 LinearLayout(context).apply {
                     orientation = LinearLayout.HORIZONTAL
@@ -56,6 +57,7 @@ class WoolworthsScreen(
 
     fun show() {
         isShowing = true
+        view.descendantFocusability = ViewGroup.FOCUS_AFTER_DESCENDANTS
         view.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_AUTO
         appView.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
         view.bringToFront()
@@ -64,6 +66,8 @@ class WoolworthsScreen(
     fun hide() {
         isShowing = false
         setStatus(null)
+        view.findFocus()?.clearFocus()
+        view.descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
         appView.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_AUTO
         view.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
         appView.bringToFront()

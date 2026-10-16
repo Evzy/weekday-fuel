@@ -6,6 +6,11 @@ import org.junit.Test
 
 class ColesUrlsTest {
     @Test
+    fun checkoutIsOnTheColesSite() {
+        assertTrue(ColesUrls.CHECKOUT_URL.startsWith(ColesUrls.HOME_URL))
+    }
+
+    @Test
     fun onlyHttpsColesShopHostIsAColesPage() {
         assertTrue(ColesUrls.isColesPage("https", "www.coles.com.au"))
         assertFalse(ColesUrls.isColesPage("http", "www.coles.com.au"))

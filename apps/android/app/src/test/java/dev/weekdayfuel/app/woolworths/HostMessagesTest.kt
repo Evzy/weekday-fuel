@@ -2,6 +2,9 @@ package dev.weekdayfuel.app.woolworths
 
 import dev.weekdayfuel.app.coles.ColesPricesPhase
 import dev.weekdayfuel.app.coles.ColesPricesState
+import dev.weekdayfuel.app.coles.ColesTrolleyPhase
+import dev.weekdayfuel.app.coles.ColesTrolleyResult
+import dev.weekdayfuel.app.coles.ColesTrolleyState
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -118,5 +121,21 @@ class HostMessagesTest {
         val json = JSONObject(HostMessages.colesPricesFailure("Coles took too long."))
         assertEquals("colesPricesError", json.getString("type"))
         assertEquals("Coles took too long.", json.getString("message"))
+    }
+
+    @Test
+    fun colesTrolleyMessages() {
+        assertEquals("colesTrolleyLogin", JSONObject(HostMessages.colesTrolleyLogin()).getString("type"))
+        val done = JSONObject(HostMessages.colesTrolley(ColesTrolleyState(ColesTrolleyPhase.DONE, listOf(ColesTrolleyResult("3329137", true, null), ColesTrolleyResult("9999999", false, "Product is unavailable")), null)))
+        assertEquals("colesTrolleyDone", done.getString("type"))
+        val r = done.getJSONArray("results")
+        assertEquals("3329137", r.getJSONObject(0).getString("productId"))
+        assertTrue(r.getJSONObject(0).getBoolean("added"))
+        assertFalse(r.getJSONObject(0).has("reason"))
+        assertEquals("Product is unavailable", r.getJSONObject(1).getString("reason"))
+        val err = JSONObject(HostMessages.colesTrolley(ColesTrolleyState(ColesTrolleyPhase.ERROR, emptyList(), null)))
+        assertEquals("colesTrolleyError", err.getString("type"))
+        assertEquals("Couldn't send to the Coles trolley.", err.getString("message"))
+        assertEquals("Coles took too long.", JSONObject(HostMessages.colesTrolleyFailure("Coles took too long.")).getString("message"))
     }
 }
