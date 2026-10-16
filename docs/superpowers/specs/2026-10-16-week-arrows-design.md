@@ -1,6 +1,6 @@
 # Week arrows — design
 
-**Status:** approved 2026-10-16
+**Status:** approved 2026-10-16; v0.7.1 released 2026-10-16, owner phone checks pending
 **Scope:** The arrows above the week strip on the Today tab move a week at a time, and a "Today" button brings you back. Nothing else changes.
 **Release:** v0.7.1
 
@@ -12,7 +12,7 @@ The arrows above the week strip move one day at a time, which duplicates the str
 
 | Question | Decision |
 | --- | --- |
-| Which day is selected after a jump | The same weekday: Wednesday 15 Oct goes to Wednesday 22 Oct (right) or Wednesday 8 Oct (left). |
+| Which day is selected after a jump | The same weekday: Thursday 15 Oct goes to Thursday 22 Oct (right) or Thursday 8 Oct (left). |
 | A way back to today | A small "Today" button next to the arrows, shown only when the selected day isn't today. |
 
 ## Design
@@ -28,7 +28,7 @@ All in `apps/android/app/src/main/assets/weekday_fuel/Weekday_Fuel.html`, in the
 - JS tests (`node --test "apps/android/app/src/test/js/*.test.js"`) and the inline-script parse check still pass; nothing here is in a tested module.
 - Browser check on the local page (no host needed):
   - From today, right arrow selects the same weekday a week later, the strip shows that week, and the "Today" button appears; left arrow twice selects the same weekday a week before today.
-  - From Wednesday 29 Oct, right arrow selects Wednesday 5 Nov.
+  - From Thursday 29 Oct, right arrow selects Thursday 5 Nov.
   - "Today" selects today and disappears.
   - The arrows' accessible names are "Previous week" and "Next week".
 
