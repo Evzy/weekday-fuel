@@ -734,7 +734,7 @@ function weekStrip(){
 function renderToday(){
   const date=state.date;const day=dayOf(date);const tg=target();const t=totals(day);const we=isWeekend(date);const on=tracked(date);
   const isToday=date===iso(new Date());
-  let h=`<div class="row between"><div class="daynav"><button class="iconbtn" data-act="shift" data-v="-1" aria-label="Previous day">${ICON.left}</button><button class="iconbtn" data-act="shift" data-v="1" aria-label="Next day">${ICON.right}</button></div><div class="grow" style="text-align:right"><div class="eyebrow">${isToday?"Today":"Planning"}</div><h2>${fmtDay(date)}</h2></div></div>`;
+  let h=`<div class="row between"><div class="daynav"><button class="iconbtn" data-act="shift" data-v="-7" aria-label="Previous week">${ICON.left}</button><button class="iconbtn" data-act="shift" data-v="7" aria-label="Next week">${ICON.right}</button>${isToday?"":`<button class="ghost" data-act="goto" data-v="${iso(new Date())}">Today</button>`}</div><div class="grow" style="text-align:right"><div class="eyebrow">${isToday?"Today":"Planning"}</div><h2>${fmtDay(date)}</h2></div></div>`;
   h+=`<div class="panel">${weekStrip()}</div>`;
   if(we&&!on){
     h+=`<div class="panel stack"><h2>Weekend: off the books</h2><p class="muted" style="margin:0">Eat how you like. Keep weighing in each morning, and Monday's plan will adjust from the trend.</p><div><button class="btn alt" data-act="track">Plan this day anyway</button></div></div>`;
