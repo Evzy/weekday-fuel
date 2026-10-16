@@ -53,6 +53,7 @@
     var colesSent = o.colesSent && typeof o.colesSent === "object" ? o.colesSent : {};
     var colesId = typeof o.colesId === "function" ? o.colesId : function () { return null; };
     var usedColes = {};
+    var colesOrdered = {};
     var t = ticks || {};
     var store = o.store === "coles" ? "coles" : "woolies";
     var other = store === "coles" ? "woolies" : "coles";
@@ -66,6 +67,12 @@
       var gone = row.wooliesUnavailable;
       if (w) used[w.product.stockcode] = true;
       if (gone) used[gone.stockcode] = true;
+      var c = row.coles;
+      var cGone = row.colesUnavailable;
+      var cId = c ? colesId(c.product) : null;
+      var cGoneId = cGone ? colesId(cGone) : null;
+      if (cId) usedColes[cId] = true;
+      if (cGoneId) usedColes[cGoneId] = true;
       if (w && isQty(sent[w.product.stockcode])) {
         groups.ordered.push(orderedItem(w, w.product, sent[w.product.stockcode], null, f));
         return;
@@ -74,17 +81,15 @@
         groups.ordered.push(orderedItem(null, gone, sent[gone.stockcode], "was unavailable online", f));
         return;
       }
-      var c = row.coles;
-      var cGone = row.colesUnavailable;
-      var cId = c ? colesId(c.product) : null;
-      var cGoneId = cGone ? colesId(cGone) : null;
-      if (cId) usedColes[cId] = true;
-      if (cGoneId) usedColes[cGoneId] = true;
       if (cId && isQty(colesSent[cId])) {
+        if (colesOrdered[cId]) return;
+        colesOrdered[cId] = true;
         groups.ordered.push(orderedItem(c, c.product, colesSent[cId], null, f, "coles"));
         return;
       }
       if (cGoneId && isQty(colesSent[cGoneId])) {
+        if (colesOrdered[cGoneId]) return;
+        colesOrdered[cGoneId] = true;
         groups.ordered.push(orderedItem(null, cGone, colesSent[cGoneId], "was unavailable online", f, "coles"));
         return;
       }

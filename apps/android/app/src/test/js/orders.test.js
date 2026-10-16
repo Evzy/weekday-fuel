@@ -177,3 +177,27 @@ test("isEmpty counts Coles sends, and groupTitle names the order's store", () =>
   assert.equal(O.groupTitle({ store: "woolies" }, "ordered"), "Ordered on Woolworths");
   assert.equal(O.groupTitle({ store: "coles" }, "buy"), "Buy yourself");
 });
+
+test("Woolworths send marks the Coles product used so it is not listed again", () => {
+  const dual = ROW("dual", 1, LINE(P(100, "Wholemeal bread", 4), 1, 4, "1 loaf"), LINE(CMAC, 1, 1, "1 pack"));
+  const o = O.snapshot([dual], {}, { 100: 1 }, { ...OPTS, colesSent: { 3329137: 1 }, colesId: cid });
+  assert.deepEqual(o.groups.ordered, [item("Wholemeal bread", "1 loaf", 4, "woolies")]);
+  assert.ok(!o.groups.ordered.some((i) => i.note === "not in this shop"));
+});
+
+test("two rows sharing a sent Coles product produce one ordered line with combined quantity", () => {
+  const mac1 = ROW("mac", 1, null, LINE(CMAC, 1, 1, "1 pack"));
+  const mac2 = ROW("mac2", 1, null, LINE(CMAC, 2, 2, "2 packs"));
+  const o = O.snapshot([mac1, mac2], {}, {}, { ...COPTS, colesSent: { 3329137: 3 } });
+  assert.deepEqual(o.groups.ordered, [item("Coles Macaroni 500g", "3 packs", 3, "coles")]);
+  assert.equal(o.groups.ordered[0].for, "For toasty");
+  assert.deepEqual(o.groups.had, []);
+  assert.deepEqual(o.groups.pantry, []);
+  assert.deepEqual(o.groups.buy, []);
+});
+
+test("a sent colesUnavailable product is ordered at Coles with an unavailable note", () => {
+  const gone = ROW("cheese", 1, null, null, { colesUnavailable: CBREAST });
+  const o = O.snapshot([gone], {}, {}, { ...COPTS, colesSent: { 2263179: 1 } });
+  assert.deepEqual(o.groups.ordered, [item("Coles chicken breast", "1 pack", 12, "coles", "was unavailable online")]);
+});
