@@ -17,6 +17,7 @@ The page started from the frozen v0 [`Weekday_Fuel.html`](docs/seed/Weekday_Fuel
 | `apps/android/app/src/main/assets/weekday_fuel/cart.js`, `assets/woolworths/trolley.js` | Cart-line calculation; script that sets the Woolworths trolley |
 | `apps/android/app/src/main/assets/woolworths/prices.js` | Script that reads live Woolworths prices |
 | `apps/android/app/src/main/assets/coles/prices.js` | Script that reads live Coles prices |
+| `apps/android/app/src/main/assets/coles/trolley.js` | Script that sets the Coles trolley |
 | `apps/android/app/src/main/assets/woolworths/checkout.js`, `assets/weekday_fuel/checkoutview.js` | Script that boosts offers, reads delivery times and the order summary, and books a time; Checkout panel helpers |
 | `apps/android/app/src/main/assets/weekday_fuel/orders.js` | Past orders: the snapshot saved when a shop is finished, and the stored list |
 | `.github/workflows/release-android.yml` | Tests, debug APK, publish to [`Evzy/weekday-fuel-releases`](https://github.com/Evzy/weekday-fuel-releases) |
