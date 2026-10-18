@@ -8,9 +8,9 @@
       id: "toasty", name: "Loaded ham & cheese toasty", slots: ["breakfast"], cuisine: "Aussie", mins: 6, prep: "quick",
       core: "100g shaved ham",
       t: {
-        L: { k: 395, p: 32, c: 38, f: 11, cost: 5.15, what: "2 wholemeal slices, 1 light cheese slice" },
-        S: { k: 490, p: 38, c: 38, f: 19, cost: 5.6, what: "2 cheese slices + thin butter outside" },
-        X: { k: 590, p: 42, c: 60, f: 18, cost: 6.25, what: "Thick sourdough, 2 cheese slices, butter" },
+        L: { k: 380, p: 29, c: 38, f: 11, cost: 4.75, what: "2 wholemeal slices, 1 light cheese slice" },
+        S: { k: 475, p: 35, c: 38, f: 18, cost: 5.15, what: "2 cheese slices + thin butter outside" },
+        X: { k: 575, p: 39, c: 60, f: 18, cost: 5.75, what: "Thick sourdough, 2 cheese slices, butter" },
       },
       extras: [{ tiers: "X", text: "2 thick slices of sourdough (buy separately)" }, { tiers: "L", text: "Oil spray" }, { tiers: "SX", text: "Thin spread of butter for the outside" }],
       steps: [
@@ -24,9 +24,9 @@
       id: "eggmuffin", name: "Egg & ham breakfast muffins", slots: ["breakfast"], cuisine: "Café", mins: 7, prep: "quick",
       core: "3 eggs + 50g ham",
       t: {
-        L: { k: 465, p: 38, c: 29, f: 21, cost: 5.05, what: "1 English muffin, no cheese" },
-        S: { k: 680, p: 50, c: 56, f: 28, cost: 6.35, what: "2 muffins + 1 light cheese slice" },
-        X: { k: 785, p: 56, c: 56, f: 37, cost: 7.25, what: "2 muffins, 2 cheese slices, butter" },
+        L: { k: 455, p: 36, c: 29, f: 21, cost: 4.85, what: "1 English muffin, no cheese" },
+        S: { k: 675, p: 48, c: 56, f: 28, cost: 6.1, what: "2 muffins + 1 light cheese slice" },
+        X: { k: 780, p: 54, c: 56, f: 37, cost: 6.95, what: "2 muffins, 2 cheese slices, butter" },
       },
       extras: ["Oil spray", "Hot sauce or tomato sauce, to taste", { tiers: "X", text: "Butter for the muffins" }],
       steps: [
@@ -55,9 +55,9 @@
       id: "brekwrap", name: "Scrambled egg breakfast wrap", slots: ["breakfast"], cuisine: "Mexican", mins: 6, prep: "quick",
       core: "3 eggs + 50g ham",
       t: {
-        L: { k: 415, p: 38, c: 9, f: 22, fib: 16, cost: 4.8, what: "1 protein wrap, salsa, spinach" },
-        S: { k: 485, p: 44, c: 9, f: 27, fib: 16, cost: 5.5, what: "+ 20g light grated cheese" },
-        X: { k: 615, p: 54, c: 13, f: 31, fib: 33, cost: 6.85, what: "2 wraps, 30g cheese" },
+        L: { k: 410, p: 37, c: 9, f: 22, fib: 16, cost: 4.6, what: "1 protein wrap, salsa, spinach" },
+        S: { k: 475, p: 43, c: 9, f: 27, fib: 16, cost: 5.25, what: "+ 20g light grated cheese" },
+        X: { k: 605, p: 52, c: 13, f: 31, fib: 33, cost: 6.55, what: "2 wraps, 30g cheese" },
       },
       extras: ["Salt and pepper", "Oil spray"],
       steps: [
