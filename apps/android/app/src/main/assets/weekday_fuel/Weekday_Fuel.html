@@ -653,7 +653,7 @@ function renderToday(){
     h+=`<div class="empty stack" style="gap:10px"><div>No meals planned yet. Tap <b>Suggest a day</b> for a breakfast, lunch and dinner sized to fit around your fixtures, or add meals one at a time.</div><div><button class="btn" data-act="suggest">Suggest a day</button></div></div>`;
   } else {
     h+=`<div>`+day.meals.map((m,i)=>{const meal=MEAL[m.id];if(!meal)return"";const v=meal.t[m.t];
-      return `<div class="meal"><div class="grow"><div class="slot">${esc(m.slot)}${meal.remake?` · <span class="tag remake">Remake</span>`:""}</div><button class="name" data-act="recipe" data-v="${meal.id}" data-t="${m.t}">${esc(meal.name)}</button><div class="what">${esc(meal.core)} · ${esc(v.what)}</div></div>
+      return `<div class="meal"><div class="grow"><div class="slot">${esc(m.slot)}${meal.remake?` · <span class="tag remake">Remake</span>`:""}</div><button class="name" data-act="recipe" data-v="${meal.id}" data-t="${esc(m.t)}">${esc(meal.name)}</button><div class="what">${esc(meal.core)} · ${esc(v.what)}</div></div>
       <div class="kp">${v.k} kcal<br><span style="color:var(--yolk)">${v.p}g P</span></div>
       <div class="acts"><div class="dial" role="group" aria-label="Portion">${TIERS.map(([k,l])=>`<button aria-pressed="${m.t===k}" data-act="tier" data-i="${i}" data-v="${k}">${l}</button>`).join("")}</div><button class="ghost" data-act="swap" data-i="${i}">Swap</button>${inShop?`<button class="ghost" aria-pressed="${m.shop!==false}" data-act="mealshop" data-i="${i}">${m.shop!==false?"In shop":"Not in shop"}</button>`:""}<button class="ghost ${state.armed==="rm"+i?"warn":""}" data-act="rm" data-i="${i}">${state.armed==="rm"+i?"Tap to remove":"Remove"}</button></div></div>`}).join("")+`</div>`;
   }
@@ -972,8 +972,10 @@ function renderSheet(){
   if(!state.sheet){root.innerHTML="";return}
   const isBatch=state.sheet.startsWith("batch:"),b=isBatch?BATCH[state.sheet.slice(6)]:null,m=isBatch?null:MEAL[state.sheet];
   if(!b&&!m){state.sheet=null;root.innerHTML="";return}
-  const name=b?b.name:m.name;
+  const name=b?b.name:m.name,prev=root.querySelector(".sheet"),keep=prev&&root.dataset.sheet===state.sheet?prev.scrollTop:0;
   root.innerHTML=`<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(name)}"><div class="row between" style="margin-bottom:10px"><span class="eyebrow">${b?"Batch prep":"Recipe"}</span><button class="ghost" data-act="close">Close</button></div>${b?batchCard(b):mealCard(m,true,state.sheetTier)}</div></div>`;
+  root.dataset.sheet=state.sheet;
+  if(keep)root.querySelector(".sheet").scrollTop=keep;
 }
 function render(){
   renderTabs();
