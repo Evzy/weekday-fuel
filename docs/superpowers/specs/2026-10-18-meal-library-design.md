@@ -1,6 +1,6 @@
 # Meal library: rules, checks and an agent workflow for adding meals
 
-**Status:** approved 2026-10-18 (design); spec awaiting owner review
+**Status:** approved 2026-10-18; v0.9.0 released 2026-10-18, owner phone checks pending
 **Release:** v0.9.0 (setup, full recipes, portion-aware shop; new meals come in later releases)
 
 ## Goal
