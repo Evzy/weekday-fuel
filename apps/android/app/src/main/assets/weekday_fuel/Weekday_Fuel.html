@@ -368,7 +368,7 @@ const other=s=>s==="coles"?"woolies":"coles";
 const fxDays=()=>S().fixtureDays==null?5:S().fixtureDays;
 /* Planned days in the shop: settings.shopDays {date:true}; a day's meal with shop:false is left out */
 const shopDays=()=>{const sd=S().shopDays||{};return Object.keys(sd).filter(d=>sd[d]).sort()};
-function dayMeals(){return shopDays().flatMap(d=>((state.days[d]&&state.days[d].meals)||[]).filter(m=>m.shop!==false).map(m=>({day:d,meal:m.id})))}
+function dayMeals(){return shopDays().flatMap(d=>((state.days[d]&&state.days[d].meals)||[]).filter(m=>m.shop!==false).map(m=>({day:d,meal:m.id,t:m.t})))}
 function shopRows(){return CAT.shopList(picks(),fxDays(),dayMeals())}
 const dayShort=d=>parse(d).toLocaleDateString("en-AU",{weekday:"short",day:"numeric"});
 function forLabel(r){if(!r||!r.used||!r.used.length)return "";return "For "+(r.days&&r.days.length?r.days.map(dayShort).join(", ")+" · ":"")+r.used.map(m=>MEAL[m]?MEAL[m].name:m).join(", ")}

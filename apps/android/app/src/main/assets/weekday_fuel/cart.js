@@ -52,7 +52,7 @@
       });
     var d = (dayMeals || [])
       .map(function (dm) {
-        return dm.day + ":" + dm.meal;
+        return dm.day + ":" + dm.meal + (dm.t === "L" || dm.t === "X" ? ":" + dm.t : "");
       })
       .sort();
     return JSON.stringify({ picks: p, days: d, fixtureDays: fixtureDays || 0 });

@@ -298,3 +298,32 @@ test("an unavailable large Coles pack falls back to the small pack, and an unava
   const b3 = both.find((i) => i.id === "breast");
   assert.deepEqual([b3.coles.price, b3.coles.live, b3.coles.small.price, b3.coles.small.was, b3.coles.small.live], [15, true, 7, 8, true]);
 });
+
+const TIERED = create(ITEMS, { mac: { breast: 180, cheese: { L: 25, S: 40, X: 0 }, evap: { L: 0, S: 0, X: 80 } } });
+
+test("amountFor reads a fixed amount or the portion's amount, Standard by default, 0 when unused", () => {
+  assert.equal(TIERED.amountFor("mac", "breast", "L"), 180);
+  assert.equal(TIERED.amountFor("mac", "cheese"), 40);
+  assert.equal(TIERED.amountFor("mac", "cheese", "X"), 0);
+  assert.equal(TIERED.amountFor("mac", "ham", "S"), 0);
+  assert.equal(TIERED.amountFor("nope", "breast", "S"), 0);
+});
+
+test("planned meals are bought at their portion, picks at Standard, and unused items are left out", () => {
+  const picked = byId(TIERED.shopList({ mac: 1 }, 0));
+  assert.deepEqual(Object.keys(picked), ["breast", "cheese"]);
+  assert.equal(picked.cheese.need, 40);
+  const loaded = byId(TIERED.shopList({}, 0, [{ day: "2026-10-20", meal: "mac", t: "X" }]));
+  assert.deepEqual(Object.keys(loaded), ["breast", "evap"]);
+  assert.equal(loaded.evap.need, 80);
+  const mixed = byId(TIERED.shopList({}, 0, [{ day: "2026-10-20", meal: "mac", t: "L" }, { day: "2026-10-21", meal: "mac" }]));
+  assert.equal(mixed.cheese.need, 65);
+  assert.deepEqual(mixed.cheese.days, ["2026-10-20", "2026-10-21"]);
+  assert.equal(mixed.evap, undefined);
+});
+
+test("mealCost prices Standard and usedIn counts a meal when any portion uses the item", () => {
+  assert.equal(TIERED.mealCost("mac", "coles"), 2.76);
+  assert.deepEqual(TIERED.usedIn("evap"), ["mac"]);
+  assert.deepEqual(TIERED.usedIn("ham"), []);
+});

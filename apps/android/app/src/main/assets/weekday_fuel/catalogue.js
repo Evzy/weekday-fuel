@@ -337,31 +337,45 @@
     });
   }
 
+  /* An AMOUNTS value is a number (every portion) or {L, S, X}; a portion amount of 0 means that portion doesn't use the item. */
+  function tierAmount(v, tier) {
+    if (typeof v === "number") return v;
+    var a = v && v[tier || "S"];
+    return typeof a === "number" ? a : 0;
+  }
+
   function create(items, amounts) {
     var byId = {};
     items.forEach(function (it) {
       byId[it.id] = it;
     });
 
+    function amountFor(meal, id, tier) {
+      var per = amounts[meal];
+      return per && Object.prototype.hasOwnProperty.call(per, id) ? tierAmount(per[id], tier) : 0;
+    }
+
     function shopList(picks, fixtureDays, dayMeals) {
       var need = {};
       var used = {};
       var days = {};
-      function addMeal(meal, serves, day) {
+      function addMeal(meal, serves, day, tier) {
         var per = amounts[meal];
         if (!serves || !per) return;
         Object.keys(per).forEach(function (id) {
-          need[id] = (need[id] || 0) + per[id] * serves;
+          var a = tierAmount(per[id], tier);
+          if (!(a > 0)) return;
+          need[id] = (need[id] || 0) + a * serves;
           var u = (used[id] = used[id] || []);
           if (u.indexOf(meal) < 0) u.push(meal);
           if (day) (days[id] = days[id] || {})[day] = true;
         });
       }
       Object.keys(picks).forEach(function (meal) {
-        addMeal(meal, picks[meal], null);
+        addMeal(meal, picks[meal], null, "S");
       });
       (dayMeals || []).forEach(function (dm) {
-        addMeal(dm.meal, 1, dm.day);
+        addMeal(dm.meal, 1, dm.day, dm.t === "L" || dm.t === "X" ? dm.t : "S");
       });
       if (fixtureDays > 0) {
         items.forEach(function (it) {
@@ -412,17 +426,21 @@
       var other = store === "coles" ? "woolies" : "coles";
       var sum = 0;
       Object.keys(per).forEach(function (id) {
+        var q = tierAmount(per[id], "S");
         var it = byId[id];
         var p = it && (it[store] || it[other]);
-        if (!p) return;
-        sum += p.perKg ? (per[id] / 1000) * p.price : (per[id] / p.size) * p.price;
+        if (!(q > 0) || !p) return;
+        sum += p.perKg ? (q / 1000) * p.price : (q / p.size) * p.price;
       });
       return round2(sum);
     }
 
     function usedIn(id) {
       return Object.keys(amounts).filter(function (meal) {
-        return id in amounts[meal];
+        var v = amounts[meal][id];
+        return v !== undefined && ["L", "S", "X"].some(function (t) {
+          return tierAmount(v, t) > 0;
+        });
       });
     }
 
@@ -444,6 +462,7 @@
         return byId[id];
       },
       deliGrams: deliGrams,
+      amountFor: amountFor,
       shopList: shopList,
       storeTotals: storeTotals,
       mealCost: mealCost,

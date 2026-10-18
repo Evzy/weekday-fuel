@@ -133,3 +133,10 @@ test("sentAfter can key Coles lines by productId", () => {
   const results = [{ productId: "3329137", added: true }, { productId: "5077283", added: true }, { productId: "2263179", added: false }];
   assert.deepEqual(sentAfter({ 5077283: 2, 1111: 1 }, lines, results, "productId"), { 1111: 1, 3329137: 2 });
 });
+
+test("a planned meal's Light or Loaded portion is part of the fingerprint, and Standard keys are unchanged", () => {
+  const base = shopFingerprint({}, [{ day: "2026-10-20", meal: "mac" }], 5);
+  assert.equal(shopFingerprint({}, [{ day: "2026-10-20", meal: "mac", t: "S" }], 5), base);
+  assert.notEqual(shopFingerprint({}, [{ day: "2026-10-20", meal: "mac", t: "X" }], 5), base);
+  assert.notEqual(shopFingerprint({}, [{ day: "2026-10-20", meal: "mac", t: "L" }], 5), shopFingerprint({}, [{ day: "2026-10-20", meal: "mac", t: "X" }], 5));
+});
