@@ -56,6 +56,21 @@
     return sentLineQty(row, sent, colesSent, colesId) !== null;
   }
 
+  function mergeSentOrderRows(rows, haveFreeRows, sent, colesSent, colesId) {
+    var out = Array.isArray(rows) ? rows.slice() : [];
+    var seen = Object.create(null);
+    out.forEach(function (r) {
+      if (r && r.id) seen[r.id] = true;
+    });
+    (Array.isArray(haveFreeRows) ? haveFreeRows : []).forEach(function (r) {
+      if (!r || !r.id || seen[r.id]) return;
+      if (!rowHasSentLine(r, sent, colesSent, colesId)) return;
+      seen[r.id] = true;
+      out.push(r);
+    });
+    return out;
+  }
+
   function isDate(d) {
     return typeof d === "string" && DATE.test(d);
   }
@@ -294,6 +309,7 @@
     snapshot: snapshot,
     sentLineQty: sentLineQty,
     rowHasSentLine: rowHasSentLine,
+    mergeSentOrderRows: mergeSentOrderRows,
     isEmpty: isEmpty,
     parseOrders: parseOrders,
     addOrder: addOrder,

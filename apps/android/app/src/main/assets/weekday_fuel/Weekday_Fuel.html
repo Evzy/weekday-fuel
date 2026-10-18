@@ -265,13 +265,13 @@ const other=s=>s==="coles"?"woolies":"coles";
 const fxDays=()=>S().fixtureDays==null?5:S().fixtureDays;
 /* Planned days in the shop: settings.shopDays {date:true}; a day's meal with shop:false is left out */
 const shopDays=()=>{const sd=S().shopDays||{};return Object.keys(sd).filter(d=>sd[d]).sort()};
+function dayMealsFrom(mealOk){
+  return shopDays().flatMap(d=>((state.days[d]&&state.days[d].meals)||[]).filter(m=>m.shop!==false&&(!mealOk||mealOk(m))).map(m=>({day:d,meal:m.id,t:m.t})));
+}
+function dayMealsAll(){return dayMealsFrom(null)}
 function dayMeals(){
   const inv=lsInv();
-  return shopDays().flatMap(d=>((state.days[d]&&state.days[d].meals)||[]).filter(m=>{
-    if(m.shop===false)return false;
-    if(inv&&typeof m.ate==="string")return false;
-    return true;
-  }).map(m=>({day:d,meal:m.id,t:m.t})));
+  return dayMealsFrom(inv?m=>typeof m.ate!=="string":null);
 }
 function shopHaveTargetDate(){const sd=shopDays();return sd.length?sd[0]:iso(new Date())}
 let shopCtx=null;
@@ -295,16 +295,15 @@ function shopCovered(){
   if(shopHave()===null)return [];
   return CAT.coveredList(picks(),fxDays(),dayMeals(),shopHave());
 }
-function shopListNoHave(){return CAT.shopList(picks(),fxDays(),dayMeals())}
+function shopListNoHave(){return CAT.shopList(picks(),fxDays(),dayMealsAll())}
 function shopSentCtx(){
   const sent=lsSent(),lines=(sent&&sent.lines)||{},colesLines=(lsColesSent()||{}).lines||{};
   const byId=Object.fromEntries(shopListNoHave().map(r=>[r.id,r]));
   return {lines,colesLines,colesId:WeekdayFuelCatalogue.colesId,byId};
 }
 function shopOrderRows(){
-  const rows=shopRows(),{lines,colesLines,colesId,byId}=shopSentCtx();
-  const extra=shopCovered().filter(c=>{const full=byId[c.id];return full&&WeekdayFuelOrders.rowHasSentLine(full,lines,colesLines,colesId)}).map(c=>byId[c.id]);
-  return rows.concat(extra);
+  const rows=shopRows(),{lines,colesLines,colesId}=shopSentCtx();
+  return WeekdayFuelOrders.mergeSentOrderRows(rows,shopListNoHave(),lines,colesLines,colesId);
 }
 function shopSnapshotCovered(){
   const {lines,colesLines,colesId,byId}=shopSentCtx();
@@ -1053,7 +1052,7 @@ function trySaveOrder(){
   if(WeekdayFuelOrders.isEmpty(rows,lines,colesLines)&&!covered.length)return true;
   const r=(state.checkout&&state.checkout.result)||state.coLast,pk=picks();
   const meals=Object.keys(pk).filter(id=>pk[id]>0&&MEAL[id]).map(id=>({name:MEAL[id].name,serves:pk[id]}))
-    .concat(dayMeals().filter(dm=>MEAL[dm.meal]).map(dm=>({name:MEAL[dm.meal].name+(dm.t==="L"?", Light":dm.t==="X"?", Loaded":"")+" ("+dayShort(dm.day)+")",serves:1})));
+    .concat(dayMealsAll().filter(dm=>MEAL[dm.meal]).map(dm=>({name:MEAL[dm.meal].name+(dm.t==="L"?", Light":dm.t==="X"?", Loaded":"")+" ("+dayShort(dm.day)+")",serves:1})));
   const order=WeekdayFuelOrders.snapshot(rows,lsTicks(),lines,{
     at:new Date().toISOString(),store:store(),days:shopDays(),meals,
     delivery:r&&r.booked&&r.booked.start?WeekdayFuelCheckoutView.bookedLabel(r.booked).when:null,
@@ -1199,7 +1198,7 @@ document.addEventListener("click",e=>{
     case "mealshop":{const d=ensureDay(date);const m=d.meals[i];if(m.shop===false)delete m.shop;else m.shop=false;saveDay(date);break}
     case "unshopday":{const sd=state.settings.shopDays=Object.assign({},S().shopDays);delete sd[v];saveSettings();break}
     case "openday":state.tab="today";state.date=v;state.adding=null;window.scrollTo(0,0);break;
-    case "nextshop":if(trolleyBusy())break;if(state.armed!=="nextshop"){state.armed="nextshop";break}state.armed=null;{let saved;try{saved=trySaveOrder()}catch(e){saved=false}if(!saved){state.orderError={where:el.dataset.w,msg:"Couldn't save the order. Nothing was cleared."};break}if(saved!==true){const orderId=saved;try{const st=store(),haveIt=WeekdayFuelInventory.shopHaveIt(state.trolley,sentFor(st)),buys=WeekdayFuelInventory.buysFromRows(shopOrderRows(),st,lsTicks(),haveIt,{sent:(lsSent()||{}).lines||{},colesSent:(lsColesSent()||{}).lines||{},colesId:WeekdayFuelCatalogue.colesId});if(buys.length){const events=buys.map(b=>({k:"buy",item:b.item,amount:b.amount,order:orderId})),inv=WeekdayFuelInventory.addEvents(lsInv(),events,new Date().toISOString());if(!lsSetInv(inv))state.orderError={where:"kitchen",msg:"Saved the order, but couldn't update the kitchen stock."}}}catch(e){state.orderError={where:"kitchen",msg:"Saved the order, but couldn't update the kitchen stock."}}}state.settings.shopDays={};state.settings.trial={};saveSettings();lsSetTicks({});lsSetSent(null);lsSetColesSent(null);state.trolley=null;state.checkout=null;state.coLast=null;break}
+    case "nextshop":if(trolleyBusy())break;if(state.armed!=="nextshop"){state.armed="nextshop";break}state.armed=null;{let saved;try{saved=trySaveOrder()}catch(e){saved=false}if(!saved){state.orderError={where:el.dataset.w,msg:"Couldn't save the order. Nothing was cleared."};break}if(saved!==true){const orderId=saved;try{const st=store(),haveIt=WeekdayFuelInventory.shopHaveIt(state.trolley,sentFor(st)),buys=WeekdayFuelInventory.buysFromRows(shopOrderRows(),st,lsTicks(),haveIt,{sent:(lsSent()||{}).lines||{},colesSent:(lsColesSent()||{}).lines||{},colesId:WeekdayFuelCatalogue.colesId});if(buys.length){const sentRec=sentFor(st),nowMs=Date.now();let stockAt=new Date().toISOString();if(sentRec&&typeof sentRec.at==="string"&&!isNaN(Date.parse(sentRec.at))&&Date.parse(sentRec.at)<=nowMs)stockAt=sentRec.at;const events=buys.map(b=>({k:"buy",item:b.item,amount:b.amount,order:orderId,at:stockAt})),inv=WeekdayFuelInventory.addEvents(lsInv(),events,stockAt);if(!lsSetInv(inv))state.orderError={where:"kitchen",msg:"Saved the order, but couldn't update the kitchen stock."}}}catch(e){state.orderError={where:"kitchen",msg:"Saved the order, but couldn't update the kitchen stock."}}}state.settings.shopDays={};state.settings.trial={};saveSettings();lsSetTicks({});lsSetSent(null);lsSetColesSent(null);state.trolley=null;state.checkout=null;state.coLast=null;break}
     case "openorder":state.openOrder=state.openOrder===v?null:v;break;
     case "delorder":{if(state.armed!=="order"+v){state.armed="order"+v;break}state.armed=null;if(!lsSetOrders(WeekdayFuelOrders.removeOrder(lsOrders(),v))){state.orderError={where:"del"+v,msg:"Couldn't delete the order."};break}const inv=lsInv();if(inv&&!lsSetInv(WeekdayFuelInventory.removeOrder(inv,v)))state.orderError={where:"kitchen",msg:"Deleted the order, but couldn't update the kitchen stock."};if(state.openOrder===v)state.openOrder=null;break}
     case "rm":{if(state.armed==="rm"+i){const d=ensureDay(date);d.meals.splice(i,1);saveDay(date);state.armed=null}else state.armed="rm"+i;break}

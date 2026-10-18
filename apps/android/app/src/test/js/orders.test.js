@@ -262,6 +262,16 @@ test("when the chosen pack and an alternate were both sent, the chosen line has 
   ]);
 });
 
+test("mergeSentOrderRows adds have-free sent rows missing from the live shop list", () => {
+  const cid = (p) => String(p.id || p.name);
+  const live = [bread];
+  const full = [bread, ham];
+  const merged = O.mergeSentOrderRows(live, full, { 175734: 0.2 }, {}, null);
+  assert.equal(merged.length, 2);
+  assert.equal(merged[1].id, "ham");
+  assert.equal(O.mergeSentOrderRows(live, full, {}, {}, null).length, 1);
+});
+
 test("rowHasSentLine matches woolies, alts, unavailable and coles ids", () => {
   const cid = (p) => String(p.id || p.name);
   assert.equal(O.rowHasSentLine(bread, { 100: 1 }, {}, null), true);

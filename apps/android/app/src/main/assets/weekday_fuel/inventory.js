@@ -99,9 +99,17 @@
 
   function addEvents(inv, events, now) {
     var at = typeof now === "string" && !isNaN(Date.parse(now)) ? now : new Date().toISOString();
+    var list = Array.isArray(events) ? events : [];
+    var earliest = at;
+    list.forEach(function (ev) {
+      if (ev && typeof ev.at === "string" && !isNaN(Date.parse(ev.at))) {
+        if (Date.parse(ev.at) < Date.parse(earliest)) earliest = ev.at;
+      }
+    });
+    var startAt = Date.parse(earliest) < Date.parse(at) ? earliest : at;
     var base = inv
       ? { v: inv.v, start: inv.start, events: inv.events.slice() }
-      : { v: 1, start: at, events: [] };
+      : { v: 1, start: startAt, events: [] };
     var n = nextCounter(base.events, at);
     var prefix = at + "#";
     (Array.isArray(events) ? events : []).forEach(function (ev) {

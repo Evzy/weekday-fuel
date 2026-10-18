@@ -113,6 +113,25 @@ test("parse keeps valid inventory and drops bad events", () => {
   );
 });
 
+test("addEvents on creation sets start to the earlier of now and the earliest event at", () => {
+  const sentAt = "2026-10-20T08:00:00.000Z";
+  const saveAt = "2026-10-20T18:00:00.000Z";
+  const a = I.addEvents(null, [{ k: "buy", item: "breast", amount: 600, order: "ord1", at: sentAt }], saveAt);
+  assert.equal(a.start, sentAt);
+  assert.equal(a.events[0].at, sentAt);
+});
+
+test("meals ticked after a backdated buy still consume stock when ate is on or after start", () => {
+  const sentAt = "2026-10-20T08:00:00.000Z";
+  const tickAt = "2026-10-20T12:00:00.000Z";
+  const base = I.addEvents(null, [{ k: "buy", item: "breast", amount: 600, order: "ord1", at: sentAt }], sentAt);
+  const days = {
+    "2026-10-20": { meals: [{ id: "bowl", name: "B", t: "S", ate: tickAt }] },
+  };
+  const st = I.stock(base, days, cat, new Date(2026, 9, 21, 12, 0, 0), () => false);
+  assert.equal(st.breast.amount, 450);
+});
+
 test("addEvents assigns ids and at; removeOrder strips buy events for that order", () => {
   const a = I.addEvents(null, [{ k: "buy", item: "breast", amount: 600, order: "ord1" }], START);
   assert.equal(a.start, START);
