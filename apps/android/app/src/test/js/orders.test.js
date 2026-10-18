@@ -213,7 +213,7 @@ const wBreast = ROW(
 
 test("a sent alternate Woolworths pack is ordered when the shop now chose a different size", () => {
   const o = O.snapshot([wBreast], {}, { 969723: 1 }, OPTS);
-  assert.deepEqual(o.groups.ordered, [item("Woolworths Breast tray", "1 pack", 24.2, "woolies", "pack size changed since sending")]);
+  assert.deepEqual(o.groups.ordered, [item("Woolworths Breast tray", "1 × 1.5–2.2kg tray", 24.2, "woolies", "pack size changed since sending")]);
   assert.deepEqual(o.groups.buy, []);
 });
 
@@ -230,4 +230,34 @@ test("a sent alternate Coles pack is ordered when the shop now chose a different
   const o = O.snapshot([cBreastPack], {}, {}, { ...COPTS, colesSent: { 2263179: 1 }, colesId: cid });
   assert.deepEqual(o.groups.ordered, [item("Coles Chicken Breast Large", "1 pack", 15.4, "coles", "pack size changed since sending")]);
   assert.deepEqual(o.groups.buy, []);
+});
+
+test("two Coles rows sharing the same chosen small pack match one sent large pack once", () => {
+  const line = { product: COLES_SMALL, quantity: 2, cost: 17.4, buy: "2 × 600g", alts: [COLES_LARGE] };
+  const o = O.snapshot([ROW("breast", 1, null, line), ROW("breast2", 1, null, line)], {}, {}, { ...COPTS, colesSent: { 2263179: 1 }, colesId: cid });
+  assert.equal(o.groups.ordered.length, 1);
+  assert.equal(o.groups.ordered[0].note, "pack size changed since sending");
+});
+
+test("when the chosen pack and an alternate were both sent, the chosen line has no note and the alternate is not in this shop", () => {
+  const wOpts = {
+    ...OPTS,
+    product: (code) => (code === 969723 ? TRAY : code === 6078624 ? PACK650 : code === 999 ? { name: "Old cheese", price: 5 } : null),
+  };
+  const w = O.snapshot([wBreast], {}, { 6078624: 2, 969723: 1 }, wOpts);
+  assert.deepEqual(w.groups.ordered, [
+    item("Woolworths Chicken Breast 650g", "2 × 650g", 18.8, "woolies", null),
+    item("Woolworths Breast tray", "1 × 1.5–2.2kg tray", 24.2, "woolies", "not in this shop", ""),
+  ]);
+  const cOpts = {
+    ...COPTS,
+    colesSent: { 2263168: 2, 2263179: 1 },
+    colesId: cid,
+    colesProduct: (id) => (id === "2263179" ? COLES_LARGE : id === "8991361" ? { name: "Dare 500mL", price: 4.65 } : null),
+  };
+  const c = O.snapshot([cBreastPack], {}, {}, cOpts);
+  assert.deepEqual(c.groups.ordered, [
+    item("Coles Chicken Breast Small", "2 × 600g", 17.4, "coles", null),
+    item("Coles Chicken Breast Large", "1 pack", 15.4, "coles", "not in this shop", ""),
+  ]);
 });

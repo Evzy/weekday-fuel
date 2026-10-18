@@ -30,6 +30,7 @@
 
   function amount(product, qty) {
     if (product.perKg) return Math.round(qty * 1000) + "g";
+    if (product.sizeLabel && String(product.sizeLabel).length) return qty + " × " + product.sizeLabel;
     return qty + (qty === 1 ? " pack" : " packs");
   }
 

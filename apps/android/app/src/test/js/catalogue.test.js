@@ -559,6 +559,34 @@ test("storeLine lists unchosen pack candidates in alts, and items without packs 
   const coles = byId(cat.shopList({ tenderwrap: 3 }, 0)).breast.coles;
   assert.deepEqual(coles.alts.map((p) => p.name), ["Coles Chicken Breast Large"]);
   assert.ok(!byId(cat.shopList({ toasty: 2 }, 0)).cheese.coles.alts);
+  const trayItems = [
+    {
+      id: "breast",
+      sec: 1,
+      name: "Chicken breast",
+      unit: "g",
+      note: "",
+      same: false,
+      coles: null,
+      woolies: {
+        name: "Woolworths Chicken Breast 650g",
+        url: W + "6078624",
+        stockcode: 6078624,
+        size: 650,
+        price: 9.4,
+        checked: "2026-10-15",
+        packs: [{ name: "Woolworths Breast tray", url: W + "969723", stockcode: 969723, size: 1500, sizeLabel: "1.5–2.2kg tray", price: 24.2, checked: "2026-10-18" }],
+      },
+    },
+  ];
+  const trayCat = create(trayItems, { big: { breast: 1400 } });
+  const tray = byId(trayCat.shopList({ big: 1 }, 0)).breast.woolies;
+  assert.equal(tray.product.name, "Woolworths Breast tray");
+  assert.deepEqual(tray.alts.map((p) => p.name), ["Woolworths Chicken Breast 650g"]);
+  const noPacks = create([{ ...trayItems[0], woolies: { ...trayItems[0].woolies, packs: undefined } }], { big: { breast: 1400 } });
+  assert.ok(!byId(noPacks.shopList({ big: 1 }, 0)).breast.woolies.alts);
+  const emptyPacks = create([{ ...trayItems[0], woolies: { ...trayItems[0].woolies, packs: [] } }], { mid: { breast: 1000 } });
+  assert.ok(!byId(emptyPacks.shopList({ mid: 1 }, 0)).breast.woolies.alts);
 });
 
 test("RETIRED is exported with name and url for removed products", () => {
