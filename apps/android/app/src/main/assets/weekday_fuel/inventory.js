@@ -398,7 +398,8 @@
       var day = days[d];
       if (!day || !Array.isArray(day.meals)) return;
       day.meals.forEach(function (m) {
-        if (shopDaySet[d] && m && m.shop === false) {
+        var bought = m && typeof m.bought === "string" && m.bought !== "";
+        if (shopDaySet[d] && m && (m.shop === false || bought)) {
           reserveMeal(out, cat, m);
           return;
         }

@@ -226,6 +226,7 @@ a.link{text-decoration:none;display:inline-block;color:var(--accent);border-colo
 <script src="cart.js"></script>
 <script src="checkoutview.js"></script>
 <script src="orders.js"></script>
+<script src="bought.js"></script>
 <script src="inventory.js"></script>
 <script>
 (function(){
@@ -266,7 +267,14 @@ const fxDays=()=>S().fixtureDays==null?5:S().fixtureDays;
 /* Planned days in the shop: settings.shopDays {date:true}; a day's meal with shop:false is left out */
 const shopDays=()=>{const sd=S().shopDays||{};return Object.keys(sd).filter(d=>sd[d]).sort()};
 function dayMealsFrom(mealOk){
-  return shopDays().flatMap(d=>((state.days[d]&&state.days[d].meals)||[]).filter(m=>m.shop!==false&&(!mealOk||mealOk(m))).map(m=>({day:d,meal:m.id,t:m.t})));
+  return shopDays().flatMap(d=>((state.days[d]&&state.days[d].meals)||[]).filter(m=>m.shop!==false&&!WeekdayFuelBought.isBought(m)&&(!mealOk||mealOk(m))).map(m=>({day:d,meal:m.id,t:m.t})));
+}
+function runBoughtBackfillIfNeeded(){
+  if(S().boughtBackfill)return;
+  const r=WeekdayFuelBought.backfillBought(state.days,lsOrders());
+  if(r.changed.length){state.days=r.days;r.changed.forEach(d=>saveDay(d))}
+  state.settings.boughtBackfill=true;
+  saveSettings();
 }
 function dayMealsAll(){return dayMealsFrom(null)}
 function dayMeals(){
@@ -643,6 +651,7 @@ function saveSettings(){queueWrite("config/settings",clone(state.settings))}
 async function initStore(){
   const cached=lsGet();
   if(cached){state.settings=deepMerge(DEFAULT_SETTINGS,cached.settings);state.days=cached.days||{};state.weights=cached.weights||{};}
+  runBoughtBackfillIfNeeded();
   setSync(false,"Saved on this device");
   render();
   try{ if(window.claude&&window.claude.use) db=await window.claude.use("db"); }catch(e){db=null}
@@ -1198,9 +1207,9 @@ document.addEventListener("click",e=>{
     case "mealshop":{const d=ensureDay(date);const m=d.meals[i];if(m.shop===false)delete m.shop;else m.shop=false;saveDay(date);break}
     case "unshopday":{const sd=state.settings.shopDays=Object.assign({},S().shopDays);delete sd[v];saveSettings();break}
     case "openday":state.tab="today";state.date=v;state.adding=null;window.scrollTo(0,0);break;
-    case "nextshop":if(trolleyBusy())break;if(state.armed!=="nextshop"){state.armed="nextshop";break}state.armed=null;{let saved;try{saved=trySaveOrder()}catch(e){saved=false}if(!saved){state.orderError={where:el.dataset.w,msg:"Couldn't save the order. Nothing was cleared."};break}if(saved!==true){const orderId=saved;try{const st=store(),haveIt=WeekdayFuelInventory.shopHaveIt(state.trolley,sentFor(st)),buys=WeekdayFuelInventory.buysFromRows(shopOrderRows(),st,lsTicks(),haveIt,{sent:(lsSent()||{}).lines||{},colesSent:(lsColesSent()||{}).lines||{},colesId:WeekdayFuelCatalogue.colesId});if(buys.length){const events=buys.map(b=>({k:"buy",item:b.item,amount:b.amount,order:orderId})),inv=WeekdayFuelInventory.addEvents(lsInv(),events,new Date().toISOString());if(!lsSetInv(inv))state.orderError={where:"kitchen",msg:"Saved the order, but couldn't update the kitchen stock."}}}catch(e){state.orderError={where:"kitchen",msg:"Saved the order, but couldn't update the kitchen stock."}}}state.settings.shopDays={};state.settings.trial={};saveSettings();lsSetTicks({});lsSetSent(null);lsSetColesSent(null);state.trolley=null;state.checkout=null;state.coLast=null;break}
+    case "nextshop":if(trolleyBusy())break;if(state.armed!=="nextshop"){state.armed="nextshop";break}state.armed=null;{let saved;try{saved=trySaveOrder()}catch(e){saved=false}if(!saved){state.orderError={where:el.dataset.w,msg:"Couldn't save the order. Nothing was cleared."};break}if(saved!==true){const orderId=saved;try{const st=store(),haveIt=WeekdayFuelInventory.shopHaveIt(state.trolley,sentFor(st)),buys=WeekdayFuelInventory.buysFromRows(shopOrderRows(),st,lsTicks(),haveIt,{sent:(lsSent()||{}).lines||{},colesSent:(lsColesSent()||{}).lines||{},colesId:WeekdayFuelCatalogue.colesId});if(buys.length){const events=buys.map(b=>({k:"buy",item:b.item,amount:b.amount,order:orderId})),inv=WeekdayFuelInventory.addEvents(lsInv(),events,new Date().toISOString());if(!lsSetInv(inv))state.orderError={where:"kitchen",msg:"Saved the order, but couldn't update the kitchen stock."}}}catch(e){state.orderError={where:"kitchen",msg:"Saved the order, but couldn't update the kitchen stock."}}try{const mark=WeekdayFuelBought.markBought(state.days,shopDays(),orderId);state.days=mark.days;mark.changed.forEach(d=>saveDay(d))}catch(e){}}state.settings.shopDays={};state.settings.trial={};saveSettings();lsSetTicks({});lsSetSent(null);lsSetColesSent(null);state.trolley=null;state.checkout=null;state.coLast=null;break}
     case "openorder":state.openOrder=state.openOrder===v?null:v;break;
-    case "delorder":{if(state.armed!=="order"+v){state.armed="order"+v;break}state.armed=null;if(!lsSetOrders(WeekdayFuelOrders.removeOrder(lsOrders(),v))){state.orderError={where:"del"+v,msg:"Couldn't delete the order."};break}const inv=lsInv();if(inv&&!lsSetInv(WeekdayFuelInventory.removeOrder(inv,v)))state.orderError={where:"kitchen",msg:"Deleted the order, but couldn't update the kitchen stock."};if(state.openOrder===v)state.openOrder=null;break}
+    case "delorder":{if(state.armed!=="order"+v){state.armed="order"+v;break}state.armed=null;if(!lsSetOrders(WeekdayFuelOrders.removeOrder(lsOrders(),v))){state.orderError={where:"del"+v,msg:"Couldn't delete the order."};break}const inv=lsInv();if(inv&&!lsSetInv(WeekdayFuelInventory.removeOrder(inv,v)))state.orderError={where:"kitchen",msg:"Deleted the order, but couldn't update the kitchen stock."};try{const un=WeekdayFuelBought.unmarkBought(state.days,v);state.days=un.days;un.changed.forEach(d=>saveDay(d))}catch(e){}if(state.openOrder===v)state.openOrder=null;break}
     case "rm":{if(state.armed==="rm"+i){const d=ensureDay(date);d.meals.splice(i,1);saveDay(date);state.armed=null}else state.armed="rm"+i;break}
     case "adding":state.adding=state.adding===v?null:v;break;
     case "add":{const d=ensureDay(date);d.meals=d.meals||[];d.meals.push({id:v,slot:state.adding,t:"S"});state.adding=null;saveDay(date);break}

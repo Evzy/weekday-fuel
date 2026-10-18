@@ -310,6 +310,22 @@ test("reserved sums pending past meals and fixtures before the first shop day", 
   assert.equal(r.grenade, 2);
 });
 
+test("reserved treats bought shop-day meals like shop false", () => {
+  const base = inv([]);
+  const days = {
+    "2026-10-21": {
+      meals: [
+        { id: "bowl", name: "B", t: "S", bought: "ord1" },
+        { id: "toasty", name: "T", t: "S" },
+      ],
+    },
+  };
+  const r = I.reserved(base, days, cat, "2026-10-20", ["2026-10-21"], () => false);
+  assert.equal(r.breast, 150);
+  assert.equal(r.rice, 1);
+  assert.equal(r.ham, undefined);
+});
+
 test("reserved skips ticked, skipped, pre-start and shop-day meals except shop false", () => {
   const base = inv([]);
   const days = {
