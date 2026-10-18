@@ -1,6 +1,6 @@
 # Suggest my week: design
 
-**Status:** approved 2026-10-18 (design); spec awaiting owner review
+**Status:** approved 2026-10-18
 
 ## Goal
 
@@ -22,7 +22,7 @@ Single user (the owner). Everything stays on the phone.
 | Choosing the week | Generate about 2,000 random weeks that satisfy the rules, fit portions, and score each by its real shop: whole-pack cost at the chosen store plus a penalty for fresh food left over. Pick at random among the weeks within 3% of the best score, so repeated taps give different good weeks. |
 | When rules can't be met | Relax "not two days in a row" first, then "at most twice"; the pools never run dry, so a plan always comes back. |
 | Shop | All planned days are added to the shop (as the In shop toggle does). |
-| Feedback | A one-line note under the button: "Planned Mon 19–Fri 23: 8 different meals, shop about $74 at Coles." It clears on the next action. |
+| Feedback | A one-line note under the button: "Planned Mon 19–Fri 23: 8 different meals, shop about $74 at Coles." It clears on the next action. If every day to plan already has a breakfast, lunch and dinner, nothing changes and the note says to remove the meals to replace, then tap again. |
 
 ## Components
 
@@ -53,7 +53,7 @@ Single user (the owner). Everything stays on the phone.
   - relaxing rules when kept meals make them impossible;
   - the choice comes from the near-best set (with a seeded rng the result is deterministic).
 - Real-data test: a planned week from the real `MEALS`/catalogue satisfies the rules and scores no worse than the median of random valid weeks.
-- Controller browser check: the button plans Mon–Fri, keeps a pre-planned meal and its portion, lunches are batch chicken, the shop shows the days, the note shows, repeat taps give different weeks; compare the shop total with five "Suggest a day" taps.
+- Controller browser check: the button plans Mon–Fri, keeps a pre-planned meal and its portion, lunches are batch chicken, the shop shows the days, the note shows, a second tap on a full week changes nothing and says so, and after clearing the days a tap gives a different week; compare the shop total with five "Suggest a day" taps.
 - Owner phone check: Sunday night, Suggest next week, look over the week and the shop, send the trolley.
 
 ## Out of scope
