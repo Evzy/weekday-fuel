@@ -8,9 +8,9 @@
       id: "toasty", name: "Loaded ham & cheese toasty", slots: ["breakfast"], cuisine: "Aussie", mins: 6, prep: "quick",
       core: "100g shaved ham",
       t: {
-        L: { k: 390, p: 35, c: 38, f: 11, cost: 3.2, what: "2 wholemeal slices, 1 light cheese slice" },
-        S: { k: 490, p: 41, c: 38, f: 19, cost: 3.5, what: "2 cheese slices + thin butter outside" },
-        X: { k: 580, p: 41, c: 60, f: 18, cost: 3.9, what: "Thick sourdough, 2 cheese slices, butter" },
+        L: { k: 395, p: 32, c: 38, f: 11, cost: 5.15, what: "2 wholemeal slices, 1 light cheese slice" },
+        S: { k: 490, p: 38, c: 38, f: 19, cost: 5.6, what: "2 cheese slices + thin butter outside" },
+        X: { k: 590, p: 42, c: 60, f: 18, cost: 6.25, what: "Thick sourdough, 2 cheese slices, butter" },
       },
       extras: [{ tiers: "X", text: "2 thick slices of sourdough (buy separately)" }, { tiers: "L", text: "Oil spray" }, { tiers: "SX", text: "Thin spread of butter for the outside" }],
       steps: [
@@ -24,9 +24,9 @@
       id: "eggmuffin", name: "Egg & ham breakfast muffins", slots: ["breakfast"], cuisine: "Café", mins: 7, prep: "quick",
       core: "3 eggs + 50g ham",
       t: {
-        L: { k: 410, p: 34, c: 27, f: 18, cost: 2.7, what: "1 English muffin, no cheese" },
-        S: { k: 600, p: 45, c: 52, f: 23, cost: 3.4, what: "2 muffins + 1 light cheese slice" },
-        X: { k: 700, p: 51, c: 52, f: 32, cost: 3.9, what: "2 muffins, 2 cheese slices, butter" },
+        L: { k: 465, p: 38, c: 29, f: 21, cost: 5.05, what: "1 English muffin, no cheese" },
+        S: { k: 680, p: 50, c: 56, f: 28, cost: 6.35, what: "2 muffins + 1 light cheese slice" },
+        X: { k: 785, p: 56, c: 56, f: 37, cost: 7.25, what: "2 muffins, 2 cheese slices, butter" },
       },
       extras: ["Oil spray", "Hot sauce or tomato sauce, to taste", { tiers: "X", text: "Butter for the muffins" }],
       steps: [
@@ -40,9 +40,9 @@
       id: "yogbowl", name: "Greek yoghurt berry bowl", slots: ["breakfast", "snack"], cuisine: "No-cook", mins: 2, prep: "assemble",
       core: "250g high-protein plain Greek yoghurt",
       t: {
-        L: { k: 210, p: 26, c: 25, f: 0, cost: 2.9, what: "Yoghurt, 100g frozen berries, 1 tsp honey" },
-        S: { k: 370, p: 30, c: 49, f: 5, cost: 3.3, what: "+ 40g muesli" },
-        X: { k: 545, p: 36, c: 63, f: 16, cost: 3.7, what: "+ 60g muesli + 1 tbsp peanut butter" },
+        L: { k: 205, p: 24, c: 24, f: 1, cost: 3.7, what: "Yoghurt, 100g frozen berries, 1 tsp honey" },
+        S: { k: 365, p: 28, c: 48, f: 5, cost: 4.25, what: "+ 40g muesli" },
+        X: { k: 540, p: 34, c: 62, f: 15, cost: 4.75, what: "+ 60g muesli + 1 tbsp peanut butter" },
       },
       extras: [],
       steps: [
@@ -55,9 +55,9 @@
       id: "brekwrap", name: "Scrambled egg breakfast wrap", slots: ["breakfast"], cuisine: "Mexican", mins: 6, prep: "quick",
       core: "3 eggs + 50g ham",
       t: {
-        L: { k: 430, p: 38, c: 22, f: 21, cost: 2.8, what: "1 protein wrap, salsa, spinach" },
-        S: { k: 490, p: 44, c: 22, f: 25, cost: 3.2, what: "+ 20g light grated cheese" },
-        X: { k: 660, p: 56, c: 40, f: 32, cost: 4.0, what: "2 wraps, 30g cheese" },
+        L: { k: 415, p: 38, c: 9, f: 22, fib: 16, cost: 4.8, what: "1 protein wrap, salsa, spinach" },
+        S: { k: 485, p: 44, c: 9, f: 27, fib: 16, cost: 5.5, what: "+ 20g light grated cheese" },
+        X: { k: 615, p: 54, c: 13, f: 31, fib: 33, cost: 6.85, what: "2 wraps, 30g cheese" },
       },
       extras: ["Salt and pepper", "Oil spray"],
       steps: [
@@ -71,9 +71,9 @@
       id: "tenderwrap", name: "Chicken tender wraps", slots: ["main"], cuisine: "Your go-to", mins: 5, prep: "assemble", batch: ["chicken"],
       core: "150g cooked chicken breast (Sunday batch)",
       t: {
-        L: { k: 455, p: 53, c: 25, f: 14, cost: 3.55, what: "1 protein wrap, 20g light cheese" },
-        S: { k: 625, p: 65, c: 43, f: 20, cost: 4.55, what: "2 wraps, 30g light cheese" },
-        X: { k: 735, p: 71, c: 45, f: 30, cost: 5.05, what: "2 wraps, 50g cheese, light mayo" },
+        L: { k: 415, p: 60, c: 10, f: 11, fib: 16, cost: 5.75, what: "1 protein wrap, 20g light cheese" },
+        S: { k: 545, p: 70, c: 14, f: 15, fib: 33, cost: 7.4, what: "2 wraps, 30g light cheese" },
+        X: { k: 660, p: 76, c: 17, f: 24, fib: 33, cost: 8.1, what: "2 wraps, 50g cheese, light mayo" },
       },
       extras: [{ tiers: "X", text: "1 tbsp light mayo" }],
       steps: [
@@ -88,9 +88,9 @@
       id: "burritobowl", name: "Chicken burrito bowl", slots: ["main"], cuisine: "Mexican", mins: 5, prep: "assemble", batch: ["chicken"],
       core: "150g cooked chicken breast (Sunday batch)",
       t: {
-        L: { k: 560, p: 50, c: 69, f: 8, cost: 3.7, what: "½ rice pouch, no cheese" },
-        S: { k: 755, p: 61, c: 91, f: 15, cost: 4.4, what: "¾ pouch + 30g light cheese" },
-        X: { k: 975, p: 64, c: 114, f: 27, cost: 5.8, what: "Whole pouch, cheese, ½ avocado" },
+        L: { k: 565, p: 58, c: 65, f: 6, cost: 6.6, what: "½ rice pouch, no cheese" },
+        S: { k: 770, p: 69, c: 87, f: 15, cost: 7.85, what: "¾ pouch + 30g light cheese" },
+        X: { k: 995, p: 72, c: 110, f: 27, cost: 10.35, what: "Whole pouch, cheese, ½ avocado" },
       },
       extras: ["Splash of water", { tiers: "X", text: "½ avocado (buy separately)" }, RICE_REST],
       steps: [
@@ -104,9 +104,9 @@
       id: "teriyaki", name: "Teriyaki chicken rice bowl", slots: ["main"], cuisine: "Japanese", mins: 12, prep: "quick",
       core: "200g chicken thigh fillet",
       t: {
-        L: { k: 600, p: 48, c: 65, f: 14, cost: 5.1, what: "½ rice pouch, stir-fry veg" },
-        S: { k: 735, p: 51, c: 87, f: 17, cost: 5.55, what: "¾ pouch + sesame seeds" },
-        X: { k: 940, p: 53, c: 109, f: 29, cost: 6.3, what: "Whole pouch + Kewpie drizzle" },
+        L: { k: 615, p: 47, c: 66, f: 16, cost: 6.6, what: "½ rice pouch, stir-fry veg" },
+        S: { k: 740, p: 50, c: 89, f: 18, cost: 7.2, what: "¾ pouch + sesame seeds" },
+        X: { k: 940, p: 52, c: 112, f: 30, cost: 8.05, what: "Whole pouch + Kewpie drizzle" },
       },
       extras: ["Oil spray", { tiers: "SX", text: "1 tsp sesame seeds" }, { tiers: "X", text: "1 tbsp Kewpie mayo" }, RICE_REST],
       steps: [
@@ -120,9 +120,9 @@
       id: "buffalomac", name: "Buffalo chicken mac & cheese", slots: ["main"], cuisine: "American", mins: 15, prep: "cook", remake: "YES-style buffalo chicken mac",
       core: "180g chicken breast",
       t: {
-        L: { k: 565, p: 64, c: 51, f: 10, cost: 3.9, what: "50g dry macaroni, 25g light cheese" },
-        S: { k: 700, p: 71, c: 69, f: 14, cost: 4.1, what: "75g macaroni, 40g light cheese" },
-        X: { k: 870, p: 74, c: 87, f: 21, cost: 4.5, what: "100g macaroni, 50g full-fat tasty" },
+        L: { k: 585, p: 64, c: 49, f: 12, cost: 5.9, what: "50g dry macaroni, 25g light cheese" },
+        S: { k: 725, p: 72, c: 67, f: 16, cost: 6.2, what: "75g macaroni, 40g light cheese" },
+        X: { k: 880, p: 75, c: 85, f: 23, cost: 6.8, what: "100g macaroni, 50g full-fat tasty" },
       },
       extras: ["Oil spray", "½ tsp garlic powder", "½ tsp paprika", { tiers: "X", text: "50g full-fat tasty cheese, grated, instead of the light cheese (buy separately)" }],
       steps: [
@@ -138,9 +138,9 @@
       id: "schnitzel", name: "Chicken schnitzel, mash & peas", slots: ["main"], cuisine: "Pub classic", mins: 18, prep: "cook", remake: "YES-style chicken schnitzel",
       core: "180g chicken breast, crumbed",
       t: {
-        L: { k: 550, p: 53, c: 51, f: 13, cost: 3.4, what: "100g potato mash" },
-        S: { k: 650, p: 55, c: 73, f: 13, cost: 3.7, what: "200g mash + gravy" },
-        X: { k: 810, p: 57, c: 91, f: 21, cost: 4.1, what: "300g mash with butter + gravy" },
+        L: { k: 610, p: 61, c: 49, f: 16, fib: 8, cost: 4.1, what: "100g potato mash" },
+        S: { k: 710, p: 64, c: 68, f: 16, fib: 10, cost: 4.45, what: "200g mash + gravy" },
+        X: { k: 850, p: 66, c: 82, f: 24, fib: 12, cost: 4.95, what: "300g mash with butter + gravy" },
       },
       extras: ["1 tsp oil + oil spray", "½ tsp paprika, salt and pepper", "Splash of milk for the mash", { tiers: "X", text: "Knob of butter for the mash" }],
       steps: [
@@ -156,9 +156,9 @@
       id: "koreanbeef", name: "Korean beef mince bowl", slots: ["main"], cuisine: "Korean", mins: 10, prep: "quick",
       core: "200g lean beef mince",
       t: {
-        L: { k: 595, p: 52, c: 57, f: 16, cost: 6.3, what: "½ rice pouch, less honey" },
-        S: { k: 710, p: 59, c: 67, f: 21, cost: 6.85, what: "+ fried egg on top" },
-        X: { k: 920, p: 63, c: 111, f: 22, cost: 8.3, what: "Whole pouch + fried egg" },
+        L: { k: 635, p: 53, c: 64, f: 18, cost: 7.8, what: "½ rice pouch, less honey" },
+        S: { k: 740, p: 61, c: 70, f: 24, cost: 8.45, what: "+ fried egg on top" },
+        X: { k: 945, p: 64, c: 113, f: 25, cost: 10.25, what: "Whole pouch + fried egg" },
       },
       extras: ["Oil spray", RICE_REST],
       steps: [
@@ -173,9 +173,9 @@
       id: "bolognese", name: "15-minute bolognese", slots: ["main"], cuisine: "Italian", mins: 15, prep: "cook",
       core: "200g lean beef mince",
       t: {
-        L: { k: 615, p: 57, c: 64, f: 13, cost: 5.4, what: "60g spaghetti, 10g parmesan" },
-        S: { k: 700, p: 60, c: 82, f: 14, cost: 5.45, what: "85g spaghetti" },
-        X: { k: 870, p: 67, c: 100, f: 22, cost: 5.85, what: "110g spaghetti, 20g parmesan, olive oil" },
+        L: { k: 625, p: 59, c: 62, f: 14, cost: 6.65, what: "60g spaghetti, 10g parmesan" },
+        S: { k: 715, p: 62, c: 79, f: 14, cost: 6.7, what: "85g spaghetti" },
+        X: { k: 885, p: 69, c: 97, f: 22, cost: 7.2, what: "110g spaghetti, 20g parmesan, olive oil" },
       },
       extras: ["1 tsp dried Italian herbs", { tiers: "X", text: "1 tsp olive oil" }],
       steps: [
@@ -190,9 +190,9 @@
       id: "redcurry", name: "Thai red curry chicken", slots: ["main"], cuisine: "Thai", mins: 12, prep: "quick",
       core: "180g chicken breast",
       t: {
-        L: { k: 605, p: 50, c: 59, f: 17, cost: 5.4, what: "½ rice pouch" },
-        S: { k: 710, p: 52, c: 81, f: 18, cost: 6.1, what: "¾ rice pouch" },
-        X: { k: 860, p: 54, c: 103, f: 23, cost: 6.85, what: "Whole pouch, extra coconut milk" },
+        L: { k: 610, p: 50, c: 55, f: 19, cost: 6, what: "½ rice pouch" },
+        S: { k: 710, p: 52, c: 77, f: 20, cost: 6.8, what: "¾ rice pouch" },
+        X: { k: 870, p: 54, c: 100, f: 26, cost: 7.65, what: "Whole pouch, extra coconut milk" },
       },
       extras: ["Oil spray", "Water, the same amount as the coconut milk", "Splash of fish sauce (optional)", RICE_REST],
       steps: [
@@ -207,9 +207,9 @@
       id: "friedrice", name: "No-chop chicken fried rice", slots: ["main"], cuisine: "Chinese", mins: 8, prep: "quick", batch: ["chicken"],
       core: "120g cooked chicken breast + 2 eggs",
       t: {
-        L: { k: 608, p: 52, c: 64, f: 16, cost: 5.3, what: "½ rice pouch, spray oil" },
-        S: { k: 785, p: 54, c: 86, f: 21, cost: 6.0, what: "¾ pouch + sesame oil" },
-        X: { k: 940, p: 56, c: 108, f: 27, cost: 6.8, what: "Whole pouch, 2 tsp oil + sesame oil" },
+        L: { k: 695, p: 63, c: 65, f: 18, cost: 6, what: "½ rice pouch, spray oil" },
+        S: { k: 840, p: 65, c: 87, f: 24, cost: 6.8, what: "¾ pouch + sesame oil" },
+        X: { k: 1015, p: 67, c: 109, f: 33, cost: 7.6, what: "Whole pouch, 2 tsp oil + sesame oil" },
       },
       extras: [{ tiers: "LS", text: "Oil spray" }, { tiers: "X", text: "2 tsp vegetable oil" }, RICE_REST],
       steps: [
@@ -223,9 +223,9 @@
       id: "snackplate", name: "Egg & salad snack plate", slots: ["snack"], cuisine: "No-cook", mins: 1, prep: "assemble", batch: ["eggs"],
       core: "2 hard-boiled eggs",
       t: {
-        L: { k: 166, p: 14, c: 5, f: 10, cost: 1.6, what: "Eggs, cucumber, cherry tomatoes" },
-        S: { k: 240, p: 20, c: 5, f: 15, cost: 1.9, what: "+ 1 light cheese slice" },
-        X: { k: 315, p: 27, c: 5, f: 20, cost: 2.5, what: "3 eggs + cheese" },
+        L: { k: 180, p: 16, c: 4, f: 12, cost: 2.45, what: "Eggs, cucumber, cherry tomatoes" },
+        S: { k: 250, p: 21, c: 4, f: 17, cost: 2.95, what: "+ 1 light cheese slice" },
+        X: { k: 330, p: 29, c: 4, f: 22, cost: 3.75, what: "3 eggs + cheese" },
       },
       extras: ["Salt and pepper"],
       steps: [

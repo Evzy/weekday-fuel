@@ -43,7 +43,7 @@ test("kcal are within 5% of 4 × protein + 4 × carbs + 9 × fat for every porti
   for (const m of MEALS) {
     for (const t of TIERS) {
       const v = m.t[t];
-      const calc = 4 * v.p + 4 * v.c + 9 * v.f;
+      const calc = 4 * v.p + 4 * v.c + 9 * v.f + 2 * (v.fib || 0);
       assert.ok(Math.abs(v.k - calc) <= 0.05 * calc, `${m.id} ${t}: ${v.k} kcal vs ${calc} from macros`);
     }
   }
