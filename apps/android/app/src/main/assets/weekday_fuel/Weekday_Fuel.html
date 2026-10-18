@@ -588,9 +588,9 @@ const SLOT_ORDER=["breakfast","lunch","snack","dinner"];
 function suggestWeek(){
   const P=WeekdayFuelPlanner,w=P.weekDays(state.date,iso(new Date())),s=store();
   const mealsOf=d=>(state.days[d]&&state.days[d].meals)||[];
-  const before={},kept={};
+  const before={},kept={},unknown={};
   w.before.forEach(d=>{before[d]=mealsOf(d)});
-  w.dates.forEach(d=>{kept[d]=mealsOf(d)});
+  w.dates.forEach(d=>{kept[d]=mealsOf(d).filter(m=>MEAL[m.id]);unknown[d]=mealsOf(d).filter(m=>!MEAL[m.id])});
   if(w.dates.every(d=>["breakfast","lunch","dinner"].every(sl=>kept[d].some(m=>m.slot===sl)))){state.weekNote="Every day already has a breakfast, lunch and dinner. Remove the meals you want replaced, then tap again.";return}
   const chicken=m=>(m.batch||[]).includes("chicken");
   const pools={
@@ -602,11 +602,13 @@ function suggestWeek(){
   const r=P.planWeek({dates:w.dates,before,kept,pools,fit,score:dm=>P.shopScore(CAT,dm,s)});
   if(!r){state.weekNote="Couldn't plan this week. Try Suggest a day for each day instead.";return}
   const sd=state.settings.shopDays=Object.assign({},S().shopDays);
-  w.dates.forEach(d=>{const day=ensureDay(d);day.meals=r.days[d].slice().sort((a,b)=>SLOT_ORDER.indexOf(a.slot)-SLOT_ORDER.indexOf(b.slot));day.meals.forEach(m=>delete m.shop);saveDay(d);sd[d]=true});
+  const changed=w.dates.filter(d=>r.days[d].length!==kept[d].length);
+  changed.forEach(d=>{const day=ensureDay(d);day.meals=r.days[d].concat(unknown[d]).sort((a,b)=>SLOT_ORDER.indexOf(a.slot)-SLOT_ORDER.indexOf(b.slot));if(!sd[d])day.meals.forEach(m=>delete m.shop);saveDay(d);sd[d]=true});
   saveSettings();
-  const first=w.dates[0],last=w.dates[w.dates.length-1];
-  const total=CAT.storeTotals(shopRows(),s,{}).total;
-  state.weekNote=`Planned ${dayShort(first)}${last!==first?"–"+dayShort(last):""}: ${r.distinct} different meals, shop about ${money(total)} at ${STORE_NAME[s]}.`;
+  const first=changed[0],last=changed[changed.length-1];
+  const wdm=w.dates.flatMap(d=>r.days[d].map(m=>({day:d,meal:m.id,t:m.t})));
+  const weekCost=CAT.storeTotals(CAT.shopList({},0,wdm),s,{}).total;
+  state.weekNote=`Planned ${dayShort(first)}${last!==first?"–"+dayShort(last):""}: ${r.distinct} different meals, about ${money(weekCost)} of groceries at ${STORE_NAME[s]}. The days are in your shop.`;
   state.date=first;state.adding=null;
 }
 
@@ -1032,7 +1034,7 @@ document.addEventListener("click",e=>{
     case "untrack":{const d=ensureDay(date);d.track=false;saveDay(date);break}
     case "fx":{const d=ensureDay(date);d.fx=d.fx||{};d.fx[v]=!d.fx[v];saveDay(date);break}
     case "suggest":suggestDay(date);state.adding=null;break;
-    case "suggestweek":suggestWeek();break;
+    case "suggestweek":if(state.planning)break;state.planning=true;state.weekNote="Planning your week…";setTimeout(()=>{try{suggestWeek()}finally{state.planning=false;render()}},30);break;
     case "fit":{const d=ensureDay(date);fitTiers(d);saveDay(date);break}
     case "tier":{const d=ensureDay(date);d.meals[i].t=v;saveDay(date);break}
     case "swap":swapMeal(date,i);break;
