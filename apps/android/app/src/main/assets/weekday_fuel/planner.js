@@ -56,7 +56,7 @@
     return Math.round(total * 100) / 100;
   }
 
-  function buildWeek(o, level, rng) {
+  function buildWeek(o, level, rng, nb) {
     var count = {};
     var on = {};
     function note(date, id) {
@@ -80,6 +80,8 @@
     var dayMeals = [];
     for (var i = 0; i < o.dates.length; i++) {
       var d = o.dates[i];
+      var prev = nb[d][0];
+      var next = nb[d][1];
       var kept = (o.kept || {})[d] || [];
       var have = {};
       kept.forEach(function (m) {
@@ -91,7 +93,7 @@
         if (have[slot]) continue;
         var pool = (o.pools[slot] || []).filter(function (id) {
           if ((count[id] || 0) >= level.max || onDay(d, id)) return false;
-          return !(level.apart && (onDay(addDays(d, -1), id) || onDay(addDays(d, 1), id)));
+          return !(level.apart && (onDay(prev, id) || onDay(next, id)));
         });
         if (!pool.length) return null;
         var id = pool[Math.floor(rng() * pool.length)];
@@ -115,15 +117,19 @@
     var rng = o.rng || Math.random;
     var tries = o.tries || 2000;
     var near = o.near == null ? 0.03 : o.near;
+    var nb = {};
+    o.dates.forEach(function (d) {
+      nb[d] = [addDays(d, -1), addDays(d, 1)];
+    });
     for (var l = 0; l < LEVELS.length; l++) {
       var found = [];
       for (var i = 0; i < tries; i++) {
-        var w = buildWeek(o, LEVELS[l], rng);
+        var w = buildWeek(o, LEVELS[l], rng, nb);
         if (w) found.push(w);
       }
       if (!found.length) continue;
       var best = Math.min.apply(null, found.map(function (x) { return x.score; }));
-      var close = found.filter(function (x) { return x.score <= best * (1 + near) + 1e-9; });
+      var close = found.filter(function (x) { return x.score <= best + Math.abs(best) * near + 1e-9; });
       var pick = close[Math.floor(rng() * close.length)];
       var ids = {};
       o.dates.forEach(function (d) {

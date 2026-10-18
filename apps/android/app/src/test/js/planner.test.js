@@ -65,7 +65,7 @@ function checkRules(res, o) {
 
 test("weekDays plans the viewed week from today on, or the next week when none are left", () => {
   assert.deepEqual(weekDays("2026-10-21", "2026-10-21"), { dates: ["2026-10-21", "2026-10-22", "2026-10-23"], before: ["2026-10-19", "2026-10-20"], label: "Suggest my week" });
-  assert.deepEqual(weekDays("2026-10-23", "2026-10-23").dates, ["2026-10-23"]);
+  assert.deepEqual(weekDays("2026-10-23", "2026-10-23"), { dates: ["2026-10-23"], before: ["2026-10-19", "2026-10-20", "2026-10-21", "2026-10-22"], label: "Suggest my week" });
   for (const day of ["2026-10-24", "2026-10-25"]) {
     assert.deepEqual(weekDays(day, day), { dates: ["2026-10-26", "2026-10-27", "2026-10-28", "2026-10-29", "2026-10-30"], before: [], label: "Suggest next week" });
   }
@@ -89,19 +89,21 @@ test("a planned week follows the rules: one breakfast, lunch and dinner a day, l
 });
 
 test("kept meals stay as the same objects with their portions, only empty slots are filled, and full days aren't refitted", () => {
-  const keptDinner = { id: "d1", slot: "dinner", t: "X" };
-  const full = [{ id: "b1", slot: "breakfast", t: "L" }, { id: "l1", slot: "lunch", t: "S" }, { id: "d2", slot: "dinner", t: "X" }];
-  const calls = [];
-  const o = opts({ rng: seeded(7), kept: { "2026-10-20": [keptDinner], "2026-10-22": full }, fit: fitS(calls) });
-  const res = planWeek(o);
-  checkRules(res, o);
-  assert.equal(res.days["2026-10-20"][0], keptDinner);
-  assert.equal(keptDinner.t, "X");
-  assert.equal(res.days["2026-10-20"].filter((m) => m.slot === "dinner").length, 1);
-  assert.deepEqual(res.days["2026-10-22"], full);
-  full.forEach((m, i) => assert.equal(res.days["2026-10-22"][i], m));
-  assert.ok(!calls.some(([d]) => d === "2026-10-22"));
-  assert.ok(calls.some(([d, locked]) => d === "2026-10-20" && locked === 1));
+  for (let seed = 1; seed <= 20; seed++) {
+    const keptDinner = { id: "d1", slot: "dinner", t: "X" };
+    const full = [{ id: "b1", slot: "breakfast", t: "L" }, { id: "l1", slot: "lunch", t: "S" }, { id: "d2", slot: "dinner", t: "X" }];
+    const calls = [];
+    const o = opts({ rng: seeded(seed), kept: { "2026-10-20": [keptDinner], "2026-10-22": full }, fit: fitS(calls) });
+    const res = planWeek(o);
+    checkRules(res, o);
+    assert.equal(res.days["2026-10-20"][0], keptDinner);
+    assert.equal(keptDinner.t, "X");
+    assert.equal(res.days["2026-10-20"].filter((m) => m.slot === "dinner").length, 1);
+    assert.deepEqual(res.days["2026-10-22"], full);
+    full.forEach((m, i) => assert.equal(res.days["2026-10-22"][i], m));
+    assert.ok(!calls.some(([d]) => d === "2026-10-22"));
+    assert.ok(calls.some(([d, locked]) => d === "2026-10-20" && locked === 1));
+  }
 });
 
 test("earlier days of the week count towards the twice-a-week limit", () => {
@@ -134,7 +136,7 @@ test("with near 0 the chosen week is the best-scoring one found", () => {
   assert.equal(res.score, -2);
 });
 
-test("on the real meals, a planned week follows the rules and its shop is no dearer than a typical random week", () => {
+test("on the real meals, a planned week follows the rules and its shop is no dearer than the median of single random weeks", () => {
   const chicken = (m) => (m.batch || []).includes("chicken");
   const pools = {
     breakfast: MEALS.filter((m) => m.slots.includes("breakfast") && m.id !== "yogbowl").map((m) => m.id),
