@@ -220,6 +220,7 @@ a.link{text-decoration:none;display:inline-block;color:var(--accent);border-colo
 <nav class="tabs" aria-label="Sections"><div class="tabs-in" role="tablist" id="tabs"></div></nav>
 <div id="sheetroot"></div>
 
+<script src="meals.js"></script>
 <script src="catalogue.js"></script>
 <script src="cart.js"></script>
 <script src="checkoutview.js"></script>
@@ -242,116 +243,9 @@ const ICON = {
 const TABS=[["today","Today"],["weigh","Weigh-in"],["meals","Meals"],["shop","Shop"],["targets","Targets"]];
 const TIERS=[["L","Light"],["S","Standard"],["X","Loaded"]];
 
-/* k=kcal p=protein c=carbs f=fat (g), cost=AUD per serve (estimate) */
-const MEALS=[
- {id:"toasty",name:"Loaded ham & cheese toasty",slots:["breakfast"],cuisine:"Aussie",mins:6,
-  core:"100g shaved ham",
-  t:{L:{k:390,p:35,c:38,f:11,cost:3.2,what:"2 wholemeal slices, 1 light cheese slice"},
-     S:{k:490,p:41,c:38,f:19,cost:3.5,what:"2 cheese slices + thin butter outside"},
-     X:{k:580,p:41,c:60,f:18,cost:3.9,what:"Thick sourdough, 2 cheese slices, butter"}},
-  ing:["Abbott's Bakery Farmhouse Wholemeal (sourdough for Loaded)", "D'Orsogna 97% Fat Free Triple Smoked Ham, deli shaved, 100g", "Woolworths Light Tasty Shredded Cheese", "Woolworths Baby Leaf Spinach", "Woolworths Cherry Tomatoes punnet", "Butter or olive oil spray"],
-  steps:["Layer ham, cheese, spinach and tomato between the bread.","Spray or thinly butter the outsides.","Sandwich press or pan 3–4 min until golden."]},
- {id:"eggmuffin",name:"Egg & ham breakfast muffins",slots:["breakfast"],cuisine:"Café",mins:7,
-  core:"3 eggs + 50g ham",
-  t:{L:{k:410,p:34,c:27,f:18,cost:2.7,what:"1 English muffin, no cheese"},
-     S:{k:600,p:45,c:52,f:23,cost:3.4,what:"2 muffins + 1 light cheese slice"},
-     X:{k:700,p:51,c:52,f:32,cost:3.9,what:"2 muffins, 2 cheese slices, butter"}},
-  ing:["3 Woolworths Extra Large Free Range Eggs", "D'Orsogna 97% Fat Free Ham, 50g", "Tip Top English Muffins Original", "Woolworths Light Tasty Shredded Cheese", "Woolworths Baby Leaf Spinach", "Hot sauce or tomato sauce"],
-  steps:["Fry the eggs in oil spray, 3 min (break the yolks if you want them firm).","Toast the muffins while the eggs cook.","Stack muffin, cheese, ham, spinach, egg. Sauce to taste."]},
- {id:"yogbowl",name:"Greek yoghurt berry bowl",slots:["breakfast","snack"],cuisine:"No-cook",mins:2,
-  core:"250g high-protein plain Greek yoghurt",
-  t:{L:{k:210,p:26,c:25,f:0,cost:2.9,what:"Yoghurt, 100g frozen berries, 1 tsp honey"},
-     S:{k:370,p:30,c:49,f:5,cost:3.3,what:"+ 40g muesli"},
-     X:{k:545,p:36,c:63,f:16,cost:3.7,what:"+ 60g muesli + 1 tbsp peanut butter"}},
-  ing:["Chobani Greek Yogurt Natural Light (907g tub), 250g", "Woolworths Frozen Mixed Berries", "Woolworths Australian Pure Honey", "Uncle Tobys Natural Style Swiss Muesli", "Bega Smooth Peanut Butter (Loaded)"],
-  steps:["Microwave the berries 40 sec so they go jammy (or let them thaw overnight).","Spoon over the yoghurt, add honey and toppings."]},
- {id:"brekwrap",name:"Scrambled egg breakfast wrap",slots:["breakfast"],cuisine:"Mexican",mins:6,
-  core:"3 eggs + 50g ham",
-  t:{L:{k:430,p:38,c:22,f:21,cost:2.8,what:"1 protein wrap, salsa, spinach"},
-     S:{k:490,p:44,c:22,f:25,cost:3.2,what:"+ 20g light grated cheese"},
-     X:{k:660,p:56,c:40,f:32,cost:4.0,what:"2 wraps, 30g cheese"}},
-  ing:["3 Woolworths Extra Large Free Range Eggs", "D'Orsogna 97% Fat Free Ham, 50g", "Mission Carb Balance Wraps", "Woolworths Light Tasty Shredded Cheese", "Old El Paso Thick 'N Chunky Salsa Mild", "Woolworths Baby Leaf Spinach"],
-  steps:["Whisk eggs with salt and pepper. Scramble in a pan on medium, 2 min, stirring.","Fold in ham and spinach for the last 30 sec.","Warm the wrap 15 sec, fill, top with cheese and salsa, roll."]},
-
- {id:"tenderwrap",name:"Chicken tender wraps",slots:["main"],cuisine:"Your go-to",mins:5,
-  core:"150g cooked chicken breast (Sunday batch)",
-  t:{L:{k:455,p:53,c:25,f:14,cost:3.55,what:"1 protein wrap, 20g light cheese"},
-     S:{k:625,p:65,c:43,f:20,cost:4.55,what:"2 wraps, 30g light cheese"},
-     X:{k:735,p:71,c:45,f:30,cost:5.05,what:"2 wraps, 50g cheese, light mayo"}},
-  ing:["150g Sunday batch chicken breast (or Moira Mac's BBQ chicken from the deli)", "Mission Carb Balance Wraps", "Woolworths Light Tasty Shredded Cheese", "Old El Paso Thick 'N Chunky Salsa Mild", "Woolworths Baby Leaf Spinach", "Lebanese cucumber & cherry tomatoes"],
-  steps:["Slice the batch chicken and warm it 60–90 sec in the microwave (or a pan for crunch).","Load wraps with chicken, cheese, salad, salsa. Roll.","Optional: 2 min in the sandwich press."],
-  note:"Crumbed frozen tenders instead of plain chicken add roughly 150 kcal per serve. Deli BBQ chicken adds about $1.70 a serve."},
- {id:"burritobowl",name:"Chicken burrito bowl",slots:["main"],cuisine:"Mexican",mins:5,
-  core:"150g cooked chicken breast (Sunday batch)",
-  t:{L:{k:560,p:50,c:69,f:8,cost:3.7,what:"½ rice pouch, no cheese"},
-     S:{k:755,p:61,c:91,f:15,cost:4.4,what:"¾ pouch + 30g light cheese"},
-     X:{k:975,p:64,c:114,f:27,cost:5.8,what:"Whole pouch, cheese, ½ avocado"}},
-  ing:["SunRice Microwave White Long Grain Rice Pouch 250g", "150g Sunday batch chicken breast", "Edgell Sweet Corn Kernels 420g can", "Green capsicum", "Old El Paso Thick 'N Chunky Salsa Mild", "Old El Paso Taco Spice Mix", "Chobani Greek Yogurt Natural Light (as sour cream)", "Woolworths Light Tasty Shredded Cheese"],
-  steps:["Toss the chicken in 1 tsp taco seasoning and a splash of water. Microwave 90 sec.","Microwave the rice pouch 90 sec and the corn 2 min.","Bowl it: rice, chicken, corn, capsicum, salsa, a dollop of yoghurt, cheese."]},
- {id:"teriyaki",name:"Teriyaki chicken rice bowl",slots:["main"],cuisine:"Japanese",mins:12,
-  core:"200g chicken thigh fillet",
-  t:{L:{k:600,p:48,c:65,f:14,cost:5.1,what:"½ rice pouch, stir-fry veg"},
-     S:{k:735,p:51,c:87,f:17,cost:5.55,what:"¾ pouch + sesame seeds"},
-     X:{k:940,p:53,c:109,f:29,cost:6.3,what:"Whole pouch + Kewpie drizzle"}},
-  ing:["200g Woolworths RSPCA Approved Chicken Thigh Fillets", "Kikkoman Teriyaki Marinade", "SunRice Microwave White Long Grain Rice Pouch", "Birds Eye Stir Fry Oriental Style", "Sesame seeds", "Kewpie mayo (Loaded)"],
-  steps:["Slice the thigh into strips. Pan-fry in oil spray on high, 6–7 min until browned.","Add the frozen veg for 2 min, then 2–3 tbsp teriyaki. Bubble 1 min until sticky.","Serve over the microwaved rice with sesame seeds."]},
-
- {id:"buffalomac",name:"Buffalo chicken mac & cheese",slots:["main"],cuisine:"American",mins:15,remake:"YES-style buffalo chicken mac",
-  core:"180g chicken breast",
-  t:{L:{k:565,p:64,c:51,f:10,cost:3.9,what:"50g dry macaroni, 25g light cheese"},
-     S:{k:700,p:71,c:69,f:14,cost:4.1,what:"75g macaroni, 40g light cheese"},
-     X:{k:870,p:74,c:87,f:21,cost:4.5,what:"100g macaroni, 50g full-fat tasty"}},
-  ing:["180g Coles RSPCA Approved Chicken Breast", "San Remo Macaroni No 38", "Carnation Light & Creamy Evaporated Milk", "Woolworths Light Tasty Shredded Cheese", "Frank's RedHot", "Woolworths Frozen Broccoli Florets", "Garlic powder, paprika"],
-  steps:["Boil the macaroni 9 min. Meanwhile pan-fry the diced chicken in oil spray with garlic powder and paprika, 6 min.","Take the pan off the heat and toss the chicken through 2–3 tbsp Frank's.","Drain the pasta, return to the pot on low. Add 80ml evaporated milk and the cheese and stir 1 min until it turns into a glossy sauce.","Microwave the broccoli 3 min. Fold the chicken and broccoli through, then add more hot sauce on top."],
-  note:"Evaporated milk is the trick. It makes a creamy sauce that won't split, and the can lives in the pantry. Cook 2 serves and box one for tomorrow."},
- {id:"schnitzel",name:"Chicken schnitzel, mash & peas",slots:["main"],cuisine:"Pub classic",mins:18,remake:"YES-style chicken schnitzel",
-  core:"180g chicken breast, crumbed",
-  t:{L:{k:550,p:53,c:51,f:13,cost:3.4,what:"100g potato mash"},
-     S:{k:650,p:55,c:73,f:13,cost:3.7,what:"200g mash + gravy"},
-     X:{k:810,p:57,c:91,f:21,cost:4.1,what:"300g mash with butter + gravy"}},
-  ing:["180g Coles RSPCA Approved Chicken Breast", "1 Woolworths Extra Large Free Range Egg", "Crumbed & Co Panko Breadcrumbs", "Woolworths Washed Potatoes 2kg", "Woolworths Frozen Australian Peas", "Gravox Traditional Gravy Mix", "Paprika, salt, pepper"],
-  steps:["Slice the breast in half horizontally, or bash it to about 1cm thick.","Dip it in beaten egg, then panko seasoned with paprika and salt. Pan-fry in 1 tsp oil + spray, 3 min each side (air fryer: 200°C, 12 min).","Meanwhile prick the potato and microwave it 6–8 min, then mash with a fork and a splash of milk.","Microwave the peas & corn 3 min. Make up the gravy with boiling water."],
-  note:"Crumb 2–3 breasts at once and freeze them raw between baking paper. They go straight from freezer to pan."},
- {id:"koreanbeef",name:"Korean beef mince bowl",slots:["main"],cuisine:"Korean",mins:10,
-  core:"200g lean beef mince",
-  t:{L:{k:595,p:52,c:57,f:16,cost:6.3,what:"½ rice pouch, less honey"},
-     S:{k:710,p:59,c:67,f:21,cost:6.85,what:"+ fried egg on top"},
-     X:{k:920,p:63,c:111,f:22,cost:8.3,what:"Whole pouch + fried egg"}},
-  ing:["200g Coles 5 Star Extra Lean Beef Mince", "Lee Kum Kee Premium Soy Sauce", "Woolworths Australian Pure Honey", "Yeo's Sesame Oil", "Woolworths Garlic Paste + Gourmet Garden Ginger Paste", "SunRice Microwave White Long Grain Rice Pouch", "Woolworths Frozen Broccoli Florets", "1 egg (Standard/Loaded)"],
-  steps:["Brown the mince on high, 5 min, breaking it up.","Add 1 tsp each garlic and ginger paste, 2 tbsp soy, 1 tbsp honey, 1 tsp sesame oil. Cook 2 min until glossy.","Microwave the rice and broccoli. Top with a fried egg if you're on Standard or Loaded."],
-  note:"4-star mince is cheaper and adds about 60 kcal."},
- {id:"bolognese",name:"15-minute bolognese",slots:["main"],cuisine:"Italian",mins:15,
-  core:"200g lean beef mince",
-  t:{L:{k:615,p:57,c:64,f:13,cost:5.4,what:"60g spaghetti, 10g parmesan"},
-     S:{k:700,p:60,c:82,f:14,cost:5.45,what:"85g spaghetti"},
-     X:{k:870,p:67,c:100,f:22,cost:5.85,what:"110g spaghetti, 20g parmesan, olive oil"}},
-  ing:["200g Coles 5 Star Extra Lean Beef Mince", "San Remo Spaghetti No 5", "Passata", "Woolworths Frozen Carrots, Peas & Corn", "Woolworths Garlic Paste", "Dried Italian herbs", "Perfect Italiano Grated Parmesan"],
-  steps:["Put the pasta on to boil (10 min).","Brown the mince with 1 tsp garlic paste, 5 min. Add 100g frozen veg and 200g passata plus herbs. Simmer 5 min.","Toss through the drained pasta and finish with parmesan."],
-  note:"Double the sauce and freeze half flat in a zip bag. It takes up little freezer space."},
- {id:"redcurry",name:"Thai red curry chicken",slots:["main"],cuisine:"Thai",mins:12,
-  core:"180g chicken breast",
-  t:{L:{k:605,p:50,c:59,f:17,cost:5.4,what:"½ rice pouch"},
-     S:{k:710,p:52,c:81,f:18,cost:6.1,what:"¾ rice pouch"},
-     X:{k:860,p:54,c:103,f:23,cost:6.85,what:"Whole pouch, extra coconut milk"}},
-  ing:["180g Coles RSPCA Approved Chicken Breast", "Maesri red curry paste (114g tin)", "Ayam Light Coconut Milk 270mL (use 70mL)", "Birds Eye Stir Fry Oriental Style", "Fish sauce (optional)", "SunRice Microwave White Long Grain Rice Pouch"],
-  steps:["Slice the chicken thin. Fry 1 tbsp curry paste in oil spray for 30 sec, add the chicken and cook 4 min.","Add the frozen veg, 70mL light coconut milk and 70mL water. Simmer 4 min.","Splash of fish sauce, then serve over the rice."],
-  note:"Ayam Light is still fairly rich (about 170 kcal per 100mL), so use 70mL and top up with water. Freeze the rest of the can in an ice-cube tray."},
- {id:"friedrice",name:"No-chop chicken fried rice",slots:["main"],cuisine:"Chinese",mins:8,
-  core:"120g cooked chicken breast + 2 eggs",
-  t:{L:{k:640,p:52,c:64,f:16,cost:5.3,what:"½ rice pouch, spray oil"},
-     S:{k:785,p:54,c:86,f:21,cost:6.0,what:"¾ pouch + sesame oil"},
-     X:{k:940,p:56,c:108,f:27,cost:6.8,what:"Whole pouch, 2 tsp oil"}},
-  ing:["120g Sunday batch chicken breast", "2 Woolworths Extra Large Free Range Eggs", "SunRice Microwave White Long Grain Rice Pouch", "Woolworths Frozen Australian Peas + Edgell Corn Kernels", "Lee Kum Kee Premium Soy Sauce", "Lee Kum Kee Panda Oyster Sauce", "Yeo's Sesame Oil"],
-  steps:["Scramble the eggs in a hot pan, 1 min, and push them to the side.","Add the frozen veg 2 min, then the rice straight from the pouch and the chicken. Break it up.","2 tbsp soy and 1 tbsp oyster sauce. Toss on high for 2 min."]},
-
- {id:"snackplate",name:"Egg & salad snack plate",slots:["snack"],cuisine:"No-cook",mins:1,
-  core:"2 hard-boiled eggs",
-  t:{L:{k:175,p:14,c:5,f:10,cost:1.6,what:"Eggs, cucumber, cherry tomatoes"},
-     S:{k:240,p:20,c:5,f:15,cost:1.9,what:"+ 1 light cheese slice"},
-     X:{k:315,p:27,c:5,f:20,cost:2.5,what:"3 eggs + cheese"}},
-  ing:["Woolworths Extra Large Free Range Eggs (boil 6 at once, they keep 5 days)", "Lebanese cucumber", "Woolworths Cherry Tomatoes punnet", "Woolworths Light Tasty Shredded Cheese", "Salt & pepper"],
-  steps:["Boil a batch: 9 min, then cold water. Peel as needed.","Slice the cucumber and halve the tomatoes. Season."]}
-];
+const MEALS=WeekdayFuelMeals.MEALS,BATCHES=WeekdayFuelMeals.BATCHES;
+const BATCH=Object.fromEntries(BATCHES.map(b=>[b.id,b]));
+const PREP_LABEL={assemble:"Assemble",quick:"Quick cook",cook:"Full cook"};
 const MEAL = Object.fromEntries(MEALS.map(m=>[m.id,m]));
 
 /* Shop data and maths live in catalogue.js; cached live Woolworths prices replace its Woolworths prices */
@@ -759,7 +653,7 @@ function renderToday(){
     h+=`<div class="empty stack" style="gap:10px"><div>No meals planned yet. Tap <b>Suggest a day</b> for a breakfast, lunch and dinner sized to fit around your fixtures, or add meals one at a time.</div><div><button class="btn" data-act="suggest">Suggest a day</button></div></div>`;
   } else {
     h+=`<div>`+day.meals.map((m,i)=>{const meal=MEAL[m.id];if(!meal)return"";const v=meal.t[m.t];
-      return `<div class="meal"><div class="grow"><div class="slot">${esc(m.slot)}${meal.remake?` · <span class="tag remake">Remake</span>`:""}</div><button class="name" data-act="recipe" data-v="${meal.id}">${esc(meal.name)}</button><div class="what">${esc(meal.core)} · ${esc(v.what)}</div></div>
+      return `<div class="meal"><div class="grow"><div class="slot">${esc(m.slot)}${meal.remake?` · <span class="tag remake">Remake</span>`:""}</div><button class="name" data-act="recipe" data-v="${meal.id}" data-t="${m.t}">${esc(meal.name)}</button><div class="what">${esc(meal.core)} · ${esc(v.what)}</div></div>
       <div class="kp">${v.k} kcal<br><span style="color:var(--yolk)">${v.p}g P</span></div>
       <div class="acts"><div class="dial" role="group" aria-label="Portion">${TIERS.map(([k,l])=>`<button aria-pressed="${m.t===k}" data-act="tier" data-i="${i}" data-v="${k}">${l}</button>`).join("")}</div><button class="ghost" data-act="swap" data-i="${i}">Swap</button>${inShop?`<button class="ghost" aria-pressed="${m.shop!==false}" data-act="mealshop" data-i="${i}">${m.shop!==false?"In shop":"Not in shop"}</button>`:""}<button class="ghost ${state.armed==="rm"+i?"warn":""}" data-act="rm" data-i="${i}">${state.armed==="rm"+i?"Tap to remove":"Remove"}</button></div></div>`}).join("")+`</div>`;
   }
@@ -842,14 +736,16 @@ function tierTable(m){
   const mc=mealCosts(m);
   return `<div class="tblwrap"><table class="tiers"><thead><tr><th>Portion</th><th>kcal</th><th>P</th><th>C</th><th>F</th><th>Cost</th></tr></thead><tbody>${TIERS.map(([k,l])=>{const v=m.t[k];return `<tr><td>${l}<small>${esc(v.what)}</small></td><td>${v.k}</td><td>${v.p}</td><td>${v.c}</td><td>${v.f}</td><td>${money(mc[k])}</td></tr>`}).join("")}</tbody></table></div>`;
 }
-function mealCard(m,full){
+function mealCard(m,full,tier){
+  const tr=tier||"S";
   const rm=m.remake?`<div class="vs"><div><span class="small muted">Ready-made at the shop</span><b>${money(S().readyMealPrice)}</b></div><div><span class="small muted">This, Standard</span><b style="color:var(--good)">${money(mealCosts(m).S)}</b></div></div>`:"";
-  return `<div class="card"><div class="row between" style="align-items:flex-start"><div class="grow"><div class="row" style="gap:6px;margin-bottom:4px"><span class="tag">${esc(m.cuisine)}</span><span class="tag">${m.mins} min</span>${m.remake?`<span class="tag remake">Remake</span>`:""}</div><h3>${esc(m.name)}</h3><div class="small muted">Fixed protein core: ${esc(m.core)}</div></div>${full?"":`<button class="ghost" data-act="recipe" data-v="${m.id}">Recipe</button>`}</div>${rm}${tierTable(m)}${full?`<div class="stack" style="gap:8px"><div class="eyebrow">Shopping</div><ul class="ing">${m.ing.map(i=>`<li>${esc(i)}</li>`).join("")}</ul><div class="eyebrow">Method</div><ol class="steps">${m.steps.map(s=>`<li>${esc(s)}</li>`).join("")}</ol>${m.note?`<div class="hint"><span>${esc(m.note)}</span></div>`:""}</div>`:""}<div class="row" style="gap:6px">${(m.slots.includes("breakfast")?["breakfast"]:m.slots.includes("snack")?["snack"]:["lunch","dinner"]).map(s=>`<button class="ghost" data-act="addto" data-v="${m.id}" data-s="${s}">Add to ${state.date===iso(new Date())?"today":fmtShort(state.date)} as ${s}</button>`).join("")}</div></div>`;
+  return `<div class="card"><div class="row between" style="align-items:flex-start"><div class="grow"><div class="row" style="gap:6px;margin-bottom:4px"><span class="tag">${esc(m.cuisine)}</span><span class="tag">${m.mins} min</span><span class="tag">${esc(PREP_LABEL[m.prep]||"")}</span>${m.remake?`<span class="tag remake">Remake</span>`:""}</div><h3>${esc(m.name)}</h3><div class="small muted">Fixed protein core: ${esc(m.core)}</div></div>${full?"":`<button class="ghost" data-act="recipe" data-v="${m.id}">Recipe</button>`}</div>${rm}${tierTable(m)}${full?`<div class="stack" style="gap:8px"><div class="row between"><div class="eyebrow">Ingredients</div><div class="dial" role="group" aria-label="Recipe portion">${TIERS.map(([k,l])=>`<button aria-pressed="${tr===k}" data-act="sheettier" data-v="${k}">${l}</button>`).join("")}</div></div><ul class="ing">${recipeLines(m,tr)}</ul>${(m.batch||[]).map(id=>BATCH[id]).filter(Boolean).map(b=>`<div class="row between"><span class="small">Uses ${esc(b.name)} from your batch prep</span><button class="ghost" data-act="batch" data-v="${b.id}">Batch prep</button></div>`).join("")}<div class="eyebrow">Method</div><ol class="steps">${m.steps.map(s=>`<li>${esc(s)}</li>`).join("")}</ol>${m.note?`<div class="hint"><span>${esc(m.note)}</span></div>`:""}</div>`:""}<div class="row" style="gap:6px">${(m.slots.includes("breakfast")?["breakfast"]:m.slots.includes("snack")?["snack"]:["lunch","dinner"]).map(s=>`<button class="ghost" data-act="addto" data-v="${m.id}" data-s="${s}">Add to ${state.date===iso(new Date())?"today":fmtShort(state.date)} as ${s}</button>`).join("")}</div></div>`;
 }
 function renderMeals(){
   const f=state.mealFilter;
   const filt=m=>f==="all"||(f==="breakfast"&&m.slots.includes("breakfast"))||(f==="main"&&m.slots.includes("main"))||(f==="snack"&&m.slots.includes("snack"))||(f==="remake"&&m.remake);
   let h=`<div><div class="eyebrow">${MEALS.length} meals · each one under 20 min</div><h2>Meal library</h2><p class="small muted" style="margin:4px 0 0">Every meal has a fixed protein core. Light, Standard and Loaded only change the carbs and fat (rice, pasta, cheese, oil), so you change the size of a meal without changing what you cook.</p></div>`;
+  h+=`<div class="panel stack"><div class="eyebrow">Batch prep · cook once, eat all week</div>${BATCHES.map(b=>`<button class="pick" data-act="batch" data-v="${b.id}"><span><b>${esc(b.name)}</b><br><span class="small muted">${esc(b.makes)}</span></span><span class="small muted">Recipe</span></button>`).join("")}</div>`;
   h+=`<div class="chips">${[["all","All"],["breakfast","Breakfast"],["main","Lunch & dinner"],["snack","Snacks"],["remake","Ready-meal remakes"]].map(([k,l])=>`<button class="chip" aria-pressed="${f===k}" data-act="mf" data-v="${k}">${l}</button>`).join("")}</div>`;
   h+=MEALS.filter(filt).map(m=>mealCard(m,false)).join("");
   h+=`<div class="flat small muted">Costs use ${STORE_NAME[store()]} prices (switch store on the Shop tab); macros come from typical labels. Your brands will differ a little, and the weekly weigh-in average corrects for that.</div>`;
@@ -858,6 +754,26 @@ function renderMeals(){
 const STARTER={toasty:2,tenderwrap:2,burritobowl:2,buffalomac:2};
 function picks(){const t=S().trial;if(Array.isArray(t)){const o={};t.forEach(m=>o[m]=2);return o}return t||{}}
 function fmtAmt(v,u){if(u==="g"&&v>=1000)return (v/1000).toFixed(v%1000?1:0)+"kg";if(u==="mL"&&v>=1000)return (v/1000).toFixed(1)+"L";return (Math.round(v*10)/10)+(u||"")}
+const FRACTION={0.25:"¼",0.5:"½",0.75:"¾"};
+const oneUnit=u=>u.replace(/(ch|sh|x)es$/,"$1").replace(/s$/,"");
+function amountText(v,unit){if(/^(g|mL)$/.test(unit))return fmtAmt(v,unit);return (FRACTION[v]||String(Math.round(v*100)/100))+" "+(v<=1?oneUnit(unit):unit)}
+/* One line per item the portion uses (batch items show as the batch), then that portion's extras */
+function recipeLines(m,tier){
+  const per=CAT.AMOUNTS[m.id]||{},st=store(),bs=(m.batch||[]).map(id=>BATCH[id]).filter(Boolean);
+  const items=Object.keys(per).map(id=>{
+    const v=CAT.amountFor(m.id,id,tier),it=CAT.item(id);if(!(v>0)||!it)return "";
+    const b=bs.find(x=>x.item===id);
+    if(b)return `<li><b>${esc(amountText(v*b.ratio,it.unit))}</b> ${esc(b.as)}</li>`;
+    const p=it[st]||it[other(st)];
+    return `<li><b>${esc(amountText(v,it.unit))}</b> ${esc(it.name)}${p?` <span class="muted">${esc(p.name)}</span>`:""}</li>`;
+  }).join("");
+  const ex=(m.extras||[]).filter(e=>typeof e==="string"||e.tiers.includes(tier)).map(e=>`<li>${esc(typeof e==="string"?e:e.text)}</li>`).join("");
+  return items+ex;
+}
+function batchCard(b){
+  const users=MEALS.filter(m=>(m.batch||[]).includes(b.id));
+  return `<div class="card"><div class="row" style="gap:6px;margin-bottom:4px"><span class="tag">Batch prep</span></div><h3>${esc(b.name)}</h3><div class="small muted">${esc(b.makes)}</div><div class="hint"><span>Keeps ${esc(b.keeps)}.</span></div><div class="stack" style="gap:8px"><div class="eyebrow">Method</div><ol class="steps">${b.steps.map(s=>`<li>${esc(s)}</li>`).join("")}</ol>${users.length?`<div class="eyebrow">Used in</div><div class="chips">${users.map(m=>`<button class="chip" data-act="recipe" data-v="${m.id}">${esc(m.name)}</button>`).join("")}</div>`:""}</div></div>`;
+}
 const needLabel=r=>/^(g|mL)$/.test(r.unit)?fmtAmt(r.need,r.unit):(Math.round(r.need*10)/10)+" "+r.unit;
 function macroLine(id){const m=MACROS[id];if(!m)return "";return `<span class="mac num">Per ${m[4]}: ${m[0]} kcal · ${m[1]}g P · ${m[2]}g C · ${m[3]}g F <span class="src">${m[5]==="label"?"from the label":"typical, check the pack"}</span>${m[6]?`<br>${esc(m[6])}`:""}</span>`}
 function storePrice(s,price){return price!=null?`<span class="sp ${s}">${STORE_NAME[s]} ${money(price)}</span>`:`<span class="sp ${s} none">Not at ${STORE_NAME[s]}</span>`}
@@ -1054,8 +970,10 @@ function renderTargets(){
 function renderSheet(){
   const root=$("#sheetroot");
   if(!state.sheet){root.innerHTML="";return}
-  const m=MEAL[state.sheet];
-  root.innerHTML=`<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(m.name)}"><div class="row between" style="margin-bottom:10px"><span class="eyebrow">Recipe</span><button class="ghost" data-act="close">Close</button></div>${mealCard(m,true)}</div></div>`;
+  const isBatch=state.sheet.startsWith("batch:"),b=isBatch?BATCH[state.sheet.slice(6)]:null,m=isBatch?null:MEAL[state.sheet];
+  if(!b&&!m){state.sheet=null;root.innerHTML="";return}
+  const name=b?b.name:m.name;
+  root.innerHTML=`<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(name)}"><div class="row between" style="margin-bottom:10px"><span class="eyebrow">${b?"Batch prep":"Recipe"}</span><button class="ghost" data-act="close">Close</button></div>${b?batchCard(b):mealCard(m,true,state.sheetTier)}</div></div>`;
 }
 function render(){
   renderTabs();
@@ -1096,7 +1014,9 @@ document.addEventListener("click",e=>{
     case "add":{const d=ensureDay(date);d.meals=d.meals||[];d.meals.push({id:v,slot:state.adding,t:"S"});state.adding=null;saveDay(date);break}
     case "addto":{const d=ensureDay(date);d.meals=d.meals||[];d.meals.push({id:v,slot:el.dataset.s,t:"S"});saveDay(date);state.sheet=null;state.tab="today";break}
     case "rmx":{const d=ensureDay(date);d.extras.splice(i,1);saveDay(date);break}
-    case "recipe":state.sheet=v;break;
+    case "recipe":state.sheet=v;state.sheetTier=TIERS.some(([k])=>k===el.dataset.t)?el.dataset.t:"S";break;
+    case "sheettier":state.sheetTier=v;break;
+    case "batch":state.sheet="batch:"+v;break;
     case "close":state.sheet=null;break;
     case "mf":state.mealFilter=v;break;
     case "mode":state.settings.mode=v;saveSettings();break;
