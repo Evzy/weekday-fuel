@@ -261,3 +261,15 @@ test("when the chosen pack and an alternate were both sent, the chosen line has 
     item("Coles Chicken Breast Large", "1 pack", 15.4, "coles", "not in this shop", ""),
   ]);
 });
+
+test("opts.covered adds fully covered shop rows to had; omitting covered is unchanged", () => {
+  const cov = [{ id: "milk", name: "Milk 2L", unit: "mL", need: 500, have: 500, used: ["toasty"], days: [] }];
+  const withCov = O.snapshot([bread], {}, {}, { ...OPTS, covered: cov });
+  assert.deepEqual(withCov.groups.had, [
+    item("Milk 2L", "", null, null, "covered by what you have", "For toasty"),
+  ]);
+  const without = O.snapshot([bread, ham, milk, rice, breast, evap], { milk: true }, { 100: 1, 175734: 0.2 }, OPTS);
+  assert.equal(without.groups.had.length, 1);
+  assert.equal(without.groups.had[0].name, "Milk 2L");
+  assert.notEqual(without.groups.had[0].note, "covered by what you have");
+});

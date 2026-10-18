@@ -129,6 +129,18 @@
         groups.buy.push(it);
       }
     });
+    (Array.isArray(o.covered) ? o.covered : []).forEach(function (row) {
+      if (!row || typeof row !== "object") return;
+      var f = String(forText(row) || "");
+      groups.had.push({
+        name: String(row.name),
+        buy: "",
+        cost: null,
+        store: null,
+        note: "covered by what you have",
+        for: f,
+      });
+    });
     Object.keys(sent).forEach(function (code) {
       if (used[code] || !isQty(sent[code])) return;
       var p = typeof o.product === "function" ? o.product(Number(code)) : null;
