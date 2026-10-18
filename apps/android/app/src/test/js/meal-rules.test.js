@@ -20,13 +20,13 @@ test("every meal has the full shape", () => {
     ids.add(m.id);
     for (const k of ["name", "cuisine", "core"]) assert.ok(str(m[k]), m.id + " " + k);
     assert.ok(Array.isArray(m.slots) && m.slots.length > 0 && m.slots.every((s) => s in SLOT_MIN), m.id + " slots");
-    assert.ok(m.mins > 0, m.id + " mins");
+    assert.ok(typeof m.mins === "number" && m.mins > 0, m.id + " mins");
     assert.ok(PREP.includes(m.prep), m.id + " prep");
     for (const t of TIERS) {
       const v = m.t && m.t[t];
       assert.ok(v, m.id + " " + t);
       for (const k of ["k", "p", "c", "f"]) assert.ok(typeof v[k] === "number" && v[k] >= 0, m.id + " " + t + "." + k);
-      assert.ok(v.cost > 0, m.id + " " + t + " cost");
+      assert.ok(typeof v.cost === "number" && v.cost > 0, m.id + " " + t + " cost");
       assert.ok(str(v.what), m.id + " " + t + " what");
     }
     assert.ok(Array.isArray(m.extras), m.id + " extras");

@@ -32,7 +32,7 @@
         "Heat a non-stick pan on medium with oil spray. Crack in the eggs and fry 3 min (break the yolks if you like them firm).",
         "Toast the muffins while the eggs cook, and butter them on Loaded.",
         "Warm the ham in the pan for the last 30 sec.",
-        "Stack muffin, cheese, ham, spinach and egg. Add sauce to taste.",
+        "Stack muffin, cheese (if your portion has it), ham, spinach and egg. Add sauce to taste.",
       ],
     },
     {
@@ -63,7 +63,7 @@
         "Whisk the eggs with salt and pepper.",
         "Heat a non-stick pan on medium with oil spray. Scramble the eggs for 2 min, stirring, until just set.",
         "Fold in the torn ham and the spinach for the last 30 sec.",
-        "Warm the wraps for 15 sec in the microwave. Fill with the eggs, cheese and salsa, and roll.",
+        "Warm the wraps for 15 sec in the microwave. Fill with the eggs, salsa and cheese (if your portion has it), and roll.",
       ],
     },
     {
@@ -96,7 +96,7 @@
         "Toss a portion of Sunday chicken with the taco seasoning and a splash of water. Microwave for 90 sec.",
         "Microwave the rice pouch for 90 sec and the drained corn for 2 min.",
         "Dice the capsicum.",
-        "Bowl it: rice, chicken, corn, capsicum, salsa and a dollop of yoghurt as sour cream, then the cheese (and avocado on Loaded).",
+        "Bowl it: rice, chicken, corn, capsicum, salsa and a dollop of yoghurt as sour cream, then the cheese and avocado if your portion has them.",
       ],
     },
     {
@@ -123,7 +123,7 @@
         S: { k: 700, p: 71, c: 69, f: 14, cost: 4.1, what: "75g macaroni, 40g light cheese" },
         X: { k: 870, p: 74, c: 87, f: 21, cost: 4.5, what: "100g macaroni, 50g full-fat tasty" },
       },
-      extras: ["Oil spray", "½ tsp garlic powder", "½ tsp paprika", { tiers: "X", text: "50g full-fat tasty cheese, grated (instead of the light cheese)" }],
+      extras: ["Oil spray", "½ tsp garlic powder", "½ tsp paprika", { tiers: "X", text: "50g full-fat tasty cheese, grated, instead of the light cheese (buy separately)" }],
       steps: [
         "Boil the macaroni in salted water for 9 min.",
         "Meanwhile dice the chicken. Pan-fry it on medium-high with oil spray, garlic powder and paprika for 6 min until cooked through.",
@@ -146,8 +146,8 @@
         "Slice the breast in half horizontally, or bash it to about 1 cm thick.",
         "Beat the egg in one bowl and mix the panko with the paprika and salt in another. Dip the chicken in the egg, then press it into the crumbs.",
         "Pan-fry in the oil and spray on medium-high for 3 min each side until golden and cooked through (air fryer: 200 °C for 12 min).",
-        "Meanwhile prick the potato and microwave it for 6–8 min until soft, then mash it with a fork and the milk (and butter on Loaded).",
-        "Microwave the peas for 3 min. Make up the gravy with boiling water.",
+        "Meanwhile prick the potato and microwave it until soft (about 4 min on Light, 6–8 min on Standard and Loaded), then mash it with a fork and the milk (and butter on Loaded).",
+        "Microwave the peas for 3 min. On Standard and Loaded, make up the gravy with boiling water.",
       ],
       note: "Crumb 2–3 breasts at once and freeze them raw between baking paper. They go straight from freezer to pan.",
     },
@@ -208,7 +208,7 @@
       t: {
         L: { k: 608, p: 52, c: 64, f: 16, cost: 5.3, what: "½ rice pouch, spray oil" },
         S: { k: 785, p: 54, c: 86, f: 21, cost: 6.0, what: "¾ pouch + sesame oil" },
-        X: { k: 940, p: 56, c: 108, f: 27, cost: 6.8, what: "Whole pouch, 2 tsp oil" },
+        X: { k: 940, p: 56, c: 108, f: 27, cost: 6.8, what: "Whole pouch, 2 tsp oil + sesame oil" },
       },
       extras: [{ tiers: "LS", text: "Oil spray" }, { tiers: "X", text: "2 tsp vegetable oil" }],
       steps: [
