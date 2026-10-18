@@ -3,7 +3,12 @@
   "use strict";
   var SLOTS = ["breakfast", "lunch", "dinner"];
   /* Relaxed in order when kept meals make the rules impossible. */
-  var LEVELS = [{ max: 2, apart: true }, { max: 2, apart: false }, { max: Infinity, apart: false }];
+  var LEVELS = [
+    { max: 2, apart: true, unique: true },
+    { max: 2, apart: false, unique: true },
+    { max: Infinity, apart: false, unique: true },
+    { max: Infinity, apart: false, unique: false },
+  ];
 
   function parse(s) {
     var p = s.split("-");
@@ -76,6 +81,20 @@
         note(d, m.id);
       });
     });
+    function dayKey(meals) {
+      return meals.map(function (m) { return m.id; }).sort().join("+");
+    }
+    var seen = {};
+    Object.keys(o.before || {}).forEach(function (d) {
+      seen[dayKey(o.before[d] || [])] = true;
+    });
+    o.dates.forEach(function (d) {
+      var kept = (o.kept || {})[d] || [];
+      var full = SLOTS.every(function (s) {
+        return kept.some(function (m) { return m.slot === s; });
+      });
+      if (full) seen[dayKey(kept)] = true;
+    });
     var days = {};
     var dayMeals = [];
     for (var i = 0; i < o.dates.length; i++) {
@@ -101,7 +120,12 @@
         added.push({ id: id, slot: slot, t: "S" });
       }
       var meals = kept.concat(added);
-      if (added.length) o.fit(d, meals, kept.length);
+      if (added.length) {
+        var key = dayKey(meals);
+        if (level.unique && seen[key]) return null;
+        seen[key] = true;
+        o.fit(d, meals, kept.length);
+      }
       days[d] = meals;
       meals.forEach(function (m) {
         dayMeals.push({ day: d, meal: m.id, t: m.t });

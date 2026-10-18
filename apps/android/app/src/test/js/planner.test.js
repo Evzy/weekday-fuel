@@ -61,6 +61,12 @@ function checkRules(res, o) {
     const gap = (Date.parse(ds[i]) - Date.parse(ds[i - 1])) / 864e5;
     if (gap === 1) for (const id of on[ds[i]]) assert.ok(!on[ds[i - 1]].has(id), id + " on " + ds[i - 1] + " and " + ds[i]);
   }
+  const seen = {};
+  for (const d of ds) {
+    const key = [...on[d]].sort().join("+");
+    assert.ok(!seen[key], d + " repeats " + seen[key]);
+    seen[key] = d;
+  }
 }
 
 test("weekDays plans the viewed week from today on, or the next week when none are left", () => {
@@ -116,6 +122,15 @@ test("earlier days of the week count towards the twice-a-week limit", () => {
   }
 });
 
+test("a day doesn't repeat another day's meals, even when the twice-a-week limit is relaxed", () => {
+  const pools = { breakfast: ["b1"], lunch: ["l1", "l2"], dinner: ["d1", "d2"] };
+  const kept = { "2026-10-19": [{ id: "b1", slot: "breakfast", t: "S" }, { id: "l1", slot: "lunch", t: "S" }, { id: "d1", slot: "dinner", t: "S" }] };
+  const o = opts({ dates: WEEK.slice(0, 3), pools, kept, rng: seeded(2) });
+  const res = planWeek(o);
+  const key = (d) => res.days[d].map((m) => m.id).sort().join("+");
+  assert.notEqual(key("2026-10-21"), key("2026-10-19"));
+});
+
 test("when the rules can't be met they are relaxed instead of failing", () => {
   const res = planWeek(opts({ pools: { breakfast: ["b1", "b2", "b3"], lunch: ["l1"], dinner: ["d1", "d2", "d3", "d4"] }, rng: seeded(5) }));
   for (const d of WEEK) assert.equal(res.days[d].find((m) => m.slot === "lunch").id, "l1");
@@ -146,6 +161,7 @@ test("on the real meals, a planned week follows the rules and its shop is no dea
   const o = { dates: WEEK, before: {}, kept: {}, pools, fit: fitS(), score: (dm) => shopScore(real, dm, "coles"), rng: seeded(21), tries: 300 };
   const res = planWeek(o);
   checkRules(res, o);
+  for (let seed = 1; seed <= 15; seed++) checkRules(planWeek(Object.assign({}, o, { rng: seeded(seed) })), o);
   const random = [];
   for (let seed = 200; seed < 250; seed++) random.push(planWeek(Object.assign({}, o, { rng: seeded(seed), tries: 1 })).score);
   random.sort((a, b) => a - b);
