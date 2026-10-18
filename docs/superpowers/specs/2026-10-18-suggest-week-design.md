@@ -1,6 +1,6 @@
 # Suggest my week: design
 
-**Status:** approved 2026-10-18
+**Status:** approved 2026-10-18; v0.10.0 released 2026-10-18, owner phone checks pending
 
 ## Goal
 
@@ -22,7 +22,7 @@ Single user (the owner). Everything stays on the phone.
 | Choosing the week | Generate about 2,000 random weeks that satisfy the rules, fit portions, and score each by its real shop: whole-pack cost at the chosen store plus a penalty for fresh food left over. Pick at random among the weeks within 3% of the best score, so repeated taps give different good weeks. |
 | When rules can't be met | Relax "not two days in a row" first, then "at most twice"; the pools never run dry, so a plan always comes back. |
 | Shop | All planned days are added to the shop (as the In shop toggle does). |
-| Feedback | A one-line note under the button: "Planned Mon 19–Fri 23: 8 different meals, shop about $74 at Coles." It clears on the next action. If every day to plan already has a breakfast, lunch and dinner, nothing changes and the note says to remove the meals to replace, then tap again. |
+| Feedback | "Planning your week…" while it runs, then a one-line note under the button: "Planned Mon 19–Fri 23: 8 different meals, about $170 of groceries at Coles. The days are in your shop." (the week's meals only, not fixtures or other shop items). It clears on the next action. If every day to plan already has a breakfast, lunch and dinner, nothing changes and the note says to remove the meals to replace, then tap again. |
 
 ## Components
 
