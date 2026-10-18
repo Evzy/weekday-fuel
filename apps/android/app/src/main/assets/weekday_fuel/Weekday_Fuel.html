@@ -745,7 +745,7 @@ function renderMeals(){
   const f=state.mealFilter;
   const filt=m=>f==="all"||(f==="breakfast"&&m.slots.includes("breakfast"))||(f==="main"&&m.slots.includes("main"))||(f==="snack"&&m.slots.includes("snack"))||(f==="remake"&&m.remake);
   let h=`<div><div class="eyebrow">${MEALS.length} meals · each one under 20 min</div><h2>Meal library</h2><p class="small muted" style="margin:4px 0 0">Every meal has a fixed protein core. Light, Standard and Loaded only change the carbs and fat (rice, pasta, cheese, oil), so you change the size of a meal without changing what you cook.</p></div>`;
-  h+=`<div class="panel stack"><div class="eyebrow">Batch prep · cook once, eat all week</div>${BATCHES.map(b=>`<button class="pick" data-act="batch" data-v="${b.id}"><span><b>${esc(b.name)}</b><br><span class="small muted">${esc(b.makes)}</span></span><span class="small muted">Recipe</span></button>`).join("")}</div>`;
+  h+=`<div class="panel stack"><div class="eyebrow">Batch prep · cook once, eat all week</div>${BATCHES.map(b=>`<button class="pick" data-act="batch" data-v="${b.id}"><span><b>${esc(b.name)}</b><br><span class="small muted">${esc(b.makes)}. Keeps ${esc(b.keeps)}.</span></span><span class="small muted">Recipe</span></button>`).join("")}</div>`;
   h+=`<div class="chips">${[["all","All"],["breakfast","Breakfast"],["main","Lunch & dinner"],["snack","Snacks"],["remake","Ready-meal remakes"]].map(([k,l])=>`<button class="chip" aria-pressed="${f===k}" data-act="mf" data-v="${k}">${l}</button>`).join("")}</div>`;
   h+=MEALS.filter(filt).map(m=>mealCard(m,false)).join("");
   h+=`<div class="flat small muted">Costs use ${STORE_NAME[store()]} prices (switch store on the Shop tab); macros come from typical labels. Your brands will differ a little, and the weekly weigh-in average corrects for that.</div>`;
@@ -879,7 +879,7 @@ function trySaveOrder(){
   if(WeekdayFuelOrders.isEmpty(rows,lines,colesLines))return true;
   const r=(state.checkout&&state.checkout.result)||state.coLast,pk=picks();
   const meals=Object.keys(pk).filter(id=>pk[id]>0&&MEAL[id]).map(id=>({name:MEAL[id].name,serves:pk[id]}))
-    .concat(dayMeals().filter(dm=>MEAL[dm.meal]).map(dm=>({name:MEAL[dm.meal].name+" ("+dayShort(dm.day)+")",serves:1})));
+    .concat(dayMeals().filter(dm=>MEAL[dm.meal]).map(dm=>({name:MEAL[dm.meal].name+(dm.t==="L"?", Light":dm.t==="X"?", Loaded":"")+" ("+dayShort(dm.day)+")",serves:1})));
   const order=WeekdayFuelOrders.snapshot(rows,lsTicks(),lines,{
     at:new Date().toISOString(),store:store(),days:shopDays(),meals,
     delivery:r&&r.booked&&r.booked.start?WeekdayFuelCheckoutView.bookedLabel(r.booked).when:null,
@@ -917,7 +917,7 @@ function renderShop(){
   let h=`<div><div class="eyebrow">Coles or Woolworths</div><h2>${build?"Build a shop":"Full shopping list"}</h2></div>`;
   h+=`<div class="dial" role="group" aria-label="List type" style="align-self:flex-start"><button aria-pressed="${build}" data-act="shopmode" data-v="build">Build a shop</button><button aria-pressed="${!build}" data-act="shopmode" data-v="all">Full list</button></div>`;
   if(build){
-    const pk=picks();const nMeals=Object.values(pk).reduce((a,b)=>a+(b||0),0);
+    const pk=picks();const nMeals=Object.keys(pk).filter(id=>MEAL[id]).reduce((a,id)=>a+(pk[id]||0),0);
     const sdays=shopDays(),dm=dayMeals();
     if(sdays.length)h+=`<div class="panel stack"><h3>Days in this shop</h3>${sdays.map(d=>{const ms=((state.days[d]&&state.days[d].meals)||[]).filter(m=>m.shop!==false&&MEAL[m.id]);return `<div class="row between"><button class="pname" data-act="openday" data-v="${d}"><b>${fmtDay(d)}</b><span class="small muted">${ms.length?ms.map(m=>esc(MEAL[m.id].name)).join(", "):"no meals planned"}</span></button><button class="ghost" data-act="unshopday" data-v="${d}">Remove</button></div>`}).join("")}</div>`;
     else h+=`<div class="small muted">Planning days on Today? Tap <b>Add day to shop</b> there and that day's meals join this list.</div>`;

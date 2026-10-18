@@ -6,7 +6,7 @@ alwaysApply: false
 
 # Meals for Evan's Weekday Fuel plan
 
-You design the meals: what goes in them, macros, portions, ingredients, recipes. The app handles weight tracking, daily totals, day plans and the shopping list, and depends on the structure below. The 14 current meals are liked: keep, refine or extend them; don't throw them out.
+You design the meals: what goes in them, macros, portions, ingredients, recipes. The app handles weight tracking, daily totals, day plans and the shopping list, and depends on the structure below. The current meals are liked: keep, refine or extend them; don't throw them out.
 
 ## Who it's for
 
@@ -49,7 +49,8 @@ Evan, 30, Melbourne, 183 cm, ~83.5 kg. Push/pull/legs 5 days a week at lunch, pl
 
 - A fixed protein core: the protein amount is the same at every portion.
 - Three portions that change only carbs and fat (rice, pasta, bread, cheese, oil, sauce): L Light, S Standard, X Loaded, each with kcal, protein, carbs, fat, AUD cost per serve and a one-line `what`.
-- **Hard rules (CI fails a meal that breaks them; `test/js/meal-rules.test.js`):** kcal within 5% of 4P + 4C + 9F for every portion; Standard protein ≥ the lowest slot minimum (breakfast 30 g, main 45 g, snack 15 g); no banned food anywhere; complete shape (id, slots, prep, mins, all three portions, extras, at least 3 steps); every shopping amount a positive number or `{L, S, X}` with a portion > 0; steps never contain a gram or mL amount when the meal's amounts change by portion; batches complete and used only by meals that buy their item.
+- Fields: `id` (lowercase letters and digits, starting with a letter, e.g. `koreanbeef`), `name`, `slots` (`breakfast`, `main`, `snack`), `cuisine`, `mins`, `prep`, `core`, `t: {L, S, X}` each `{k, p, c, f, cost, what}`, `extras`, `steps`, and optional `batch`, `note` and `remake` (the ready meal it copies, e.g. `"YES-style chicken schnitzel"`; it puts the meal under the Remakes filter and in the ready-meal price comparison).
+- **Hard rules (CI fails a meal that breaks them; `apps/android/app/src/test/js/meal-rules.test.js`):** kcal within 5% of 4P + 4C + 9F for every portion; Standard protein ≥ the lowest slot minimum (breakfast 30 g, main 45 g, snack 15 g); no banned food anywhere; complete shape (id, slots, prep, mins, all three portions, extras, at least 3 steps); every shopping amount a positive number or `{L, S, X}` with a portion > 0; steps never contain a gram or mL amount when the meal's amounts change by portion; batches complete and used only by meals that buy their item.
 - **Guidelines (report them when proposing; never block):** kcal bands L 400–600, S 550–750, X 750–950; protein maximum breakfast 45 g, main 65 g, snack 25 g; cost over $7; prep over 20 min; beans; a product at only one store; ingredient reuse (products added that no meal uses yet — aim for at most one, never a perishable that would be left half-used — and which meals share its protein, carb and veg).
 
 ## Recipe standard
@@ -58,12 +59,14 @@ Evan, 30, Melbourne, 183 cm, ~83.5 kg. Push/pull/legs 5 days a week at lunch, pl
 - Non-shop ingredients go in the meal's `extras` with amounts: a string for every portion, or `{tiers: "SX", text}`.
 - Steps are numbered, give heat and times, and say "the macaroni" rather than an amount that changes by portion.
 - A meal that uses a batch lists `batch: ["chicken"]` and buys the raw item (150 g cooked chicken = 200 g raw breast at ratio 0.75).
+- A batch in `BATCHES` has `id`, `name`, `item` (the catalogue item it's made from), `ratio` (cooked weight per raw weight, up to 1), `as` (how it reads in a recipe, e.g. `"Sunday chicken, cooked"`), `makes`, `keeps` (lowercase, reads after "Keeps") and `steps`.
 
 ## Products
 
 - Name real products stocked at Coles or Woolworths and look them up on the live sites. Give exact product-page URLs, never search URLs; if there's no exact page, say so.
 - Use label values where you can. Mark every price checked or estimate.
-- Record products in `catalogue.js` `ITEMS` like the existing ones: item `id`, `sec`, `name`, `unit`, `note`, `same`, and per store `name`, `url`, `price`, `size`, `checked` date (Woolworths also `stockcode`, which matches the URL; Coles URLs end with the product id).
+- Record products in `catalogue.js` `ITEMS` like the existing ones: item `id`, `sec` (0 daily fixtures, 1 fresh, 2 pantry and freezer), `name`, `unit`, `note`, `same`, and per store `name`, `url`, `price`, `size`, `checked` date (Woolworths also `stockcode`, which matches the URL; Coles URLs end with the product id).
+- Add a new product's label macros to `MACROS` in `Weekday_Fuel.html`, or its shop row shows no macro line.
 - Label facts worth knowing: Chobani Natural Light per 100 g 56 kcal, 9.3 g P, 4 g C, 0.2 g F; Woolworths Light Tasty Shredded Cheese per 100 g 337 kcal, 29.7 g P, 24.2 g F; SunRice microwave pouch 250 g, 209 kcal per half pouch; Ayam Light Coconut Milk 172 kcal per 100 mL (use ~70 mL topped up with water).
 
 ## Where things go
@@ -78,7 +81,7 @@ Evan, 30, Melbourne, 183 cm, ~83.5 kg. Push/pull/legs 5 days a week at lunch, pl
 2. Any needed food not in the food decisions list gets a yes/no question first, one food per question.
 3. Propose each meal: cuisine, prep label and hands-on minutes, batch components, protein core, the L/S/X table (kcal, P, C, F, cost), ingredients with both stores' product links (checked/estimate), method, the ingredient-reuse report, guideline misses, assumptions and values you couldn't verify.
 4. Evan approves, tweaks or rejects each meal.
-5. Add approved meals to `meals.js` and `catalogue.js`, run `node --test "apps/android/app/src/test/js/*.test.js"`, check the Meals and Shop tabs in a browser, commit to `main`, wait for green CI, bump the version in `apps/android/app/build.gradle.kts` and release.
+5. Add approved meals to `meals.js` and `catalogue.js`, run `node --test "apps/android/app/src/test/js/*.test.js"`, check the Meals and Shop tabs in a browser, commit to `main`, wait for green CI, bump `versionCode` and `versionName` in `apps/android/app/build.gradle.kts`, commit and wait for the release.
 6. Record food answers in the food decisions table.
 
-Removing a meal: delete it from `MEALS` and `AMOUNTS` (the app ignores saved picks and day plans for unknown meals).
+Removing a meal: delete it from `MEALS` and `AMOUNTS`, and delete products no other meal uses from `ITEMS` and `MACROS` (`catalogue-data.test.js` fails on unused products). Check `Weekday_Fuel.html` for the id by name: `STARTER` (the starter Build a shop) and the `yogbowl` special cases in Suggest a day and the snack picker. The app ignores saved picks and day plans for unknown meals.

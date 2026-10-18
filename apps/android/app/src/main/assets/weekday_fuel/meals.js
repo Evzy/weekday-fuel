@@ -2,6 +2,7 @@
 (function (root) {
   "use strict";
   /* k=kcal p=protein c=carbs f=fat (g), cost=AUD per serve (estimate). prep: assemble | quick | cook. extras: non-shop ingredients, a string (every portion) or {tiers, text}. */
+  var RICE_REST = { tiers: "LS", text: "Fridge the rest of the rice pouch for another rice meal within 2 days" };
   var MEALS = [
     {
       id: "toasty", name: "Loaded ham & cheese toasty", slots: ["breakfast"], cuisine: "Aussie", mins: 6, prep: "quick",
@@ -91,7 +92,7 @@
         S: { k: 755, p: 61, c: 91, f: 15, cost: 4.4, what: "¾ pouch + 30g light cheese" },
         X: { k: 975, p: 64, c: 114, f: 27, cost: 5.8, what: "Whole pouch, cheese, ½ avocado" },
       },
-      extras: ["Splash of water", { tiers: "X", text: "½ avocado (buy separately)" }],
+      extras: ["Splash of water", { tiers: "X", text: "½ avocado (buy separately)" }, RICE_REST],
       steps: [
         "Toss a portion of Sunday chicken with the taco seasoning and a splash of water. Microwave for 90 sec.",
         "Microwave the rice pouch for 90 sec and the drained corn for 2 min.",
@@ -107,7 +108,7 @@
         S: { k: 735, p: 51, c: 87, f: 17, cost: 5.55, what: "¾ pouch + sesame seeds" },
         X: { k: 940, p: 53, c: 109, f: 29, cost: 6.3, what: "Whole pouch + Kewpie drizzle" },
       },
-      extras: ["Oil spray", { tiers: "SX", text: "1 tsp sesame seeds" }, { tiers: "X", text: "1 tbsp Kewpie mayo" }],
+      extras: ["Oil spray", { tiers: "SX", text: "1 tsp sesame seeds" }, { tiers: "X", text: "1 tbsp Kewpie mayo" }, RICE_REST],
       steps: [
         "Slice the thigh into strips.",
         "Heat a frying pan on high with oil spray. Fry the chicken for 6–7 min until browned and cooked through.",
@@ -159,7 +160,7 @@
         S: { k: 710, p: 59, c: 67, f: 21, cost: 6.85, what: "+ fried egg on top" },
         X: { k: 920, p: 63, c: 111, f: 22, cost: 8.3, what: "Whole pouch + fried egg" },
       },
-      extras: ["Oil spray"],
+      extras: ["Oil spray", RICE_REST],
       steps: [
         "Brown the mince in a hot pan for 5 min, breaking it up.",
         "Add the garlic and ginger paste, soy, honey and sesame oil. Cook for 2 min until glossy.",
@@ -193,7 +194,7 @@
         S: { k: 710, p: 52, c: 81, f: 18, cost: 6.1, what: "¾ rice pouch" },
         X: { k: 860, p: 54, c: 103, f: 23, cost: 6.85, what: "Whole pouch, extra coconut milk" },
       },
-      extras: ["Oil spray", "Water, the same amount as the coconut milk", "Splash of fish sauce (optional)"],
+      extras: ["Oil spray", "Water, the same amount as the coconut milk", "Splash of fish sauce (optional)", RICE_REST],
       steps: [
         "Slice the chicken thinly.",
         "Fry the curry paste in oil spray on medium-high for 30 sec until fragrant. Add the chicken and cook for 4 min.",
@@ -210,7 +211,7 @@
         S: { k: 785, p: 54, c: 86, f: 21, cost: 6.0, what: "¾ pouch + sesame oil" },
         X: { k: 940, p: 56, c: 108, f: 27, cost: 6.8, what: "Whole pouch, 2 tsp oil + sesame oil" },
       },
-      extras: [{ tiers: "LS", text: "Oil spray" }, { tiers: "X", text: "2 tsp vegetable oil" }],
+      extras: [{ tiers: "LS", text: "Oil spray" }, { tiers: "X", text: "2 tsp vegetable oil" }, RICE_REST],
       steps: [
         "Heat a large frying pan or wok on high with the oil. Scramble the eggs for 1 min and push them to the side.",
         "Add the frozen peas and the drained corn for 2 min.",
@@ -252,7 +253,7 @@
     {
       id: "eggs", name: "Boiled eggs", item: "eggs", ratio: 1, as: "hard-boiled, from your batch",
       makes: "6 hard-boiled eggs",
-      keeps: "Up to 5 days in the fridge, unpeeled",
+      keeps: "up to 5 days in the fridge, unpeeled",
       steps: [
         "Bring a saucepan of water to the boil.",
         "Lower in 6 eggs and boil for 9 min.",
