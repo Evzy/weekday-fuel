@@ -24,6 +24,11 @@ test("every item is well formed", () => {
     ids.add(it.id);
     assert.ok([0, 1, 2].includes(it.sec), it.id + " sec");
     assert.ok(it.name && it.unit, it.id + " name/unit");
+    if (it.sec === 1) {
+      assert.ok(Number.isInteger(it.keeps) && it.keeps > 0, it.id + " keeps");
+    } else {
+      assert.equal(it.keeps, undefined, it.id + " keeps only on fresh items");
+    }
     assert.ok(it.coles || it.woolies, it.id + " has at least one store");
     if (it.same) assert.ok(it.coles && it.woolies, it.id + " same needs both");
     for (const store of ["coles", "woolies"]) {
