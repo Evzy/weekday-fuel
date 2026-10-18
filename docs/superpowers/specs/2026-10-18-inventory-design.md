@@ -83,7 +83,7 @@ Deleting a saved order in Past orders removes its `buy` events.
 - `shopList` takes an optional `have` map `{ item: amount }`. Each row keeps `need` (what the meals and fixtures need) and gains `have` (`min(have, need)`). Store lines are worked out for `need − have`.
 - A row where `need − have ≤ 0` is `covered`: it has no store lines. Covered rows are left out of totals, trolley lines, Missed lists and the planner's `shopScore`, and are shown under "Covered by what you have".
 - `have` is the stock minus what's reserved:
-  - meals planned on days from the start date up to the day before the first shop day that aren't ticked or skipped (and aren't in the shop's days);
+  - meals planned on days after the start date up to the day before the first shop day that aren't ticked or skipped (and aren't in the shop's days), plus shop-day meals left out of the shop ("shop: false"), which are eaten from what's at home;
   - one Dare and one Grenade per day whose toggle is on (weekdays by default) from tomorrow to the day before the first shop day.
 
   With no shop days, nothing is reserved beyond pending past meals.
