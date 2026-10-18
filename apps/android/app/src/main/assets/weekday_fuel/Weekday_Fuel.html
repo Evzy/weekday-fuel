@@ -221,6 +221,7 @@ a.link{text-decoration:none;display:inline-block;color:var(--accent);border-colo
 <div id="sheetroot"></div>
 
 <script src="meals.js"></script>
+<script src="planner.js"></script>
 <script src="catalogue.js"></script>
 <script src="cart.js"></script>
 <script src="checkoutview.js"></script>
@@ -456,7 +457,7 @@ const clone=o=>JSON.parse(JSON.stringify(o));
 function deepMerge(base,over){const out=clone(base);if(!over)return out;for(const k in over){if(k==="trial"){out[k]=clone(over[k]);continue}if(over[k]&&typeof over[k]==="object"&&!Array.isArray(over[k])&&out[k]&&typeof out[k]==="object")out[k]=deepMerge(out[k],over[k]);else out[k]=over[k];}return out}
 
 /* ---------- state + storage ---------- */
-const state={tab:"today",date:iso(new Date()),settings:clone(DEFAULT_SETTINGS),days:{},weights:{},adding:null,mealFilter:"all",sheet:null,armed:null,openItem:null,trolley:null,prices:null,colesPrices:null,pricesTried:0,checkout:null,coLast:null,openOrder:null,orderError:false};
+const state={tab:"today",date:iso(new Date()),settings:clone(DEFAULT_SETTINGS),days:{},weights:{},adding:null,mealFilter:"all",sheet:null,armed:null,openItem:null,trolley:null,prices:null,colesPrices:null,pricesTried:0,checkout:null,coLast:null,openOrder:null,orderError:false,weekNote:null};
 let db=null;
 const LS="weekdayfuel.v1";
 function lsGet(){try{return JSON.parse(localStorage.getItem(LS)||"null")}catch(e){return null}}
@@ -549,10 +550,11 @@ function totals(day){
   return t;
 }
 function tracked(date){const d=state.days[date];return !isWeekend(date)||(d&&d.track)}
-/* choose L/S/X for each meal so the day lands closest to target, protein first */
-function fitTiers(day){
-  const ms=(day.meals||[]).filter(m=>MEAL[m.id]);if(!ms.length)return;
-  const base=totals({fx:day.fx,meals:[],extras:day.extras});
+/* choose L/S/X for each meal so the day lands closest to target, protein first; the first `locked` meals keep their portions */
+function fitTiers(day,locked){
+  const all=day.meals||[];const lk=locked||0;
+  const ms=all.slice(lk).filter(m=>MEAL[m.id]);if(!ms.length)return;
+  const base=totals({fx:day.fx,meals:all.slice(0,lk),extras:day.extras});
   const tg=target();let best=null;
   const keys=["L","S","X"];const n=ms.length;const combos=Math.pow(3,n);
   for(let i=0;i<combos;i++){
@@ -581,6 +583,30 @@ function swapMeal(date,idx){
   const avoid=new Set(day.meals.map(x=>x.id));recentIds(date,1).forEach(x=>avoid.add(x));
   const n=randomPick(MEALS.filter(x=>x.slots.includes(kind)),avoid);
   day.meals[idx]=Object.assign({},m,{id:n.id});saveDay(date);
+}
+function suggestWeek(){
+  const P=WeekdayFuelPlanner,w=P.weekDays(state.date,iso(new Date())),s=store();
+  const mealsOf=d=>(state.days[d]&&state.days[d].meals)||[];
+  const before={},kept={};
+  w.before.forEach(d=>{before[d]=mealsOf(d)});
+  w.dates.forEach(d=>{kept[d]=mealsOf(d)});
+  if(w.dates.every(d=>["breakfast","lunch","dinner"].every(sl=>kept[d].some(m=>m.slot===sl)))){state.weekNote="Every day already has a breakfast, lunch and dinner. Remove the meals you want replaced, then tap again.";return}
+  const chicken=m=>(m.batch||[]).includes("chicken");
+  const pools={
+    breakfast:MEALS.filter(m=>m.slots.includes("breakfast")&&m.id!=="yogbowl").map(m=>m.id),
+    lunch:MEALS.filter(m=>m.slots.includes("main")&&chicken(m)).map(m=>m.id),
+    dinner:MEALS.filter(m=>m.slots.includes("main")&&!chicken(m)).map(m=>m.id)
+  };
+  const fit=(d,meals,locked)=>{const day=dayOf(d);fitTiers({fx:day.fx,meals,extras:day.extras},locked)};
+  const r=P.planWeek({dates:w.dates,before,kept,pools,fit,score:dm=>P.shopScore(CAT,dm,s)});
+  if(!r){state.weekNote="Couldn't plan this week. Try Suggest a day for each day instead.";return}
+  const sd=state.settings.shopDays=Object.assign({},S().shopDays);
+  w.dates.forEach(d=>{const day=ensureDay(d);day.meals=r.days[d];day.meals.forEach(m=>delete m.shop);saveDay(d);sd[d]=true});
+  saveSettings();
+  const first=w.dates[0],last=w.dates[w.dates.length-1];
+  const total=CAT.storeTotals(shopRows(),s,{}).total;
+  state.weekNote=`Planned ${dayShort(first)}${last!==first?"–"+dayShort(last):""}: ${r.distinct} different meals, shop about ${money(total)} at ${STORE_NAME[s]}.`;
+  state.date=first;state.adding=null;
 }
 
 /* weight analytics */
@@ -636,6 +662,9 @@ function renderToday(){
   const isToday=date===iso(new Date());
   let h=`<div class="row between"><div class="daynav"><button class="iconbtn" data-act="shift" data-v="-7" aria-label="Previous week">${ICON.left}</button><button class="iconbtn" data-act="shift" data-v="7" aria-label="Next week">${ICON.right}</button>${isToday?"":`<button class="ghost" data-act="goto" data-v="${iso(new Date())}">Today</button>`}</div><div class="grow" style="text-align:right"><div class="eyebrow">${isToday?"Today":"Planning"}</div><h2>${fmtDay(date)}</h2></div></div>`;
   h+=`<div class="panel">${weekStrip()}</div>`;
+  const wk=WeekdayFuelPlanner.weekDays(date,iso(new Date()));
+  h+=`<div class="row between" style="gap:8px"><span class="small muted">Plans ${wk.dates.length===1?"the day":"the weekdays"} so meals share ingredients and lunches use the Sunday chicken. Planned meals stay.</span><button class="btn alt" data-act="suggestweek">${esc(wk.label)}</button></div>`;
+  if(state.weekNote)h+=`<div class="hint"><span>${esc(state.weekNote)}</span></div>`;
   if(we&&!on){
     h+=`<div class="panel stack"><h2>Weekend: off the books</h2><p class="muted" style="margin:0">Eat how you like. Keep weighing in each morning, and Monday's plan will adjust from the trend.</p><div><button class="btn alt" data-act="track">Plan this day anyway</button></div></div>`;
     return h;
@@ -992,6 +1021,7 @@ document.addEventListener("click",e=>{
   if(act==="close"&&el.classList.contains("scrim")&&e.target!==el)return;
   if(act!=="rm"&&act!=="rmw"&&act!=="nextshop"&&act!=="delorder")state.armed=null;
   state.orderError=false;
+  state.weekNote=null;
   const date=state.date;
   switch(act){
     case "tab":state.tab=v;state.adding=null;window.scrollTo(0,0);if(v==="shop"&&!coBusy())maybeRefreshPrices();break;
@@ -1001,6 +1031,7 @@ document.addEventListener("click",e=>{
     case "untrack":{const d=ensureDay(date);d.track=false;saveDay(date);break}
     case "fx":{const d=ensureDay(date);d.fx=d.fx||{};d.fx[v]=!d.fx[v];saveDay(date);break}
     case "suggest":suggestDay(date);state.adding=null;break;
+    case "suggestweek":suggestWeek();break;
     case "fit":{const d=ensureDay(date);fitTiers(d);saveDay(date);break}
     case "tier":{const d=ensureDay(date);d.meals[i].t=v;saveDay(date);break}
     case "swap":swapMeal(date,i);break;
