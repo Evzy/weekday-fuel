@@ -10,6 +10,8 @@ The page started from the frozen v0 [`Weekday_Fuel.html`](docs/seed/Weekday_Fuel
 | --- | --- |
 | `apps/android/` | Android app (`dev.weekdayfuel.app`) |
 | `apps/android/app/src/main/assets/weekday_fuel/Weekday_Fuel.html` | The shipped UI |
+| `apps/android/app/src/main/assets/weekday_fuel/catalogue.js` | Grocery products, prices and per-meal shopping amounts |
+| `apps/android/app/src/main/assets/weekday_fuel/meals.js` | Evan's meals (portions, recipes) and batch-prep recipes |
 | `apps/android/app/src/main/java/dev/weekdayfuel/app/MainActivity.kt` | WebView host: JS + DOM storage on; Woolworths and Coles links open in in-app store screens, other links externally |
 | `apps/android/app/src/main/java/dev/weekdayfuel/app/StoreScreen.kt` | ← Weekday Fuel bar over a store's page (Woolworths or Coles screen) |
 | `apps/android/app/src/main/java/dev/weekdayfuel/app/update/` | GitHub Releases updater |

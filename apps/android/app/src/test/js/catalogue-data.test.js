@@ -2,7 +2,7 @@ const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const cat = require("../../main/assets/weekday_fuel/catalogue.js");
 
-const MEALS = ["toasty", "eggmuffin", "yogbowl", "brekwrap", "tenderwrap", "burritobowl", "teriyaki", "buffalomac", "schnitzel", "koreanbeef", "bolognese", "redcurry", "friedrice", "snackplate"];
+const MEALS = require("../../main/assets/weekday_fuel/meals.js").MEALS.map((m) => m.id);
 const WOOLIES = /^https:\/\/www\.woolworths\.com\.au\/shop\/productdetails\/(\d+)/;
 const COLES = /^https:\/\/www\.coles\.com\.au\/product\//;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -40,7 +40,7 @@ test("every meal's items exist and every non-fixture item is used by a meal", ()
   for (const meal of MEALS) {
     for (const [id, amount] of Object.entries(cat.AMOUNTS[meal])) {
       assert.ok(cat.item(id), meal + " uses unknown item " + id);
-      assert.ok(amount > 0, meal + "." + id + " amount");
+      assert.ok(typeof amount === "number" ? amount > 0 : ["L", "S", "X"].some((t) => amount[t] > 0), meal + "." + id + " amount");
     }
   }
   for (const it of cat.ITEMS) if (it.sec !== 0) assert.ok(cat.usedIn(it.id).length, it.id + " is never used");
