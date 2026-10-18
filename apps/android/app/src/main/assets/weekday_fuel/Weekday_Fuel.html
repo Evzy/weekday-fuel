@@ -478,7 +478,7 @@ const ORDERS=LS+".orders";
 function lsOrders(){try{return WeekdayFuelOrders.parseOrders(localStorage.getItem(ORDERS)||"[]")}catch(e){return []}}
 function lsSetOrders(list){try{localStorage.setItem(ORDERS,JSON.stringify(list));return true}catch(e){return false}}
 /* state.prices / state.colesPrices: null, "busy" or "error" */
-function colesIds(){const W=WeekdayFuelCatalogue,ids=[];W.ITEMS.forEach(i=>{if(!i.coles)return;[i.coles,i.coles.small].forEach(p=>{const id=p&&W.colesId(p);if(id&&ids.indexOf(id)<0)ids.push(id)})});return ids}
+function colesIds(){const W=WeekdayFuelCatalogue,ids=[];W.ITEMS.forEach(i=>{if(!i.coles)return;[i.coles].concat(i.coles.packs||[]).forEach(p=>{const id=p&&W.colesId(p);if(id&&ids.indexOf(id)<0)ids.push(id)})});return ids}
 function refreshPrices(){
   if(!window.WeekdayFuelHost||state.prices==="busy"||state.colesPrices==="busy")return;
   state.prices="busy";state.colesPrices="busy";state.pricesTried=Date.now();
@@ -837,8 +837,8 @@ function itemRow(it,prices,extra,products){
 }
 const MANUAL_WHY={coles:"Coles only",woolies:"Woolworths only",nostore:"no online store page",unavailable:"unavailable online now"};
 function sentWhen(at){const t=new Date(at);if(isNaN(t))return "earlier";const tm=t.toLocaleTimeString("en-AU",{hour:"numeric",minute:"2-digit"});return iso(t)===iso(new Date())?tm:fmtShort(iso(t))+" "+tm}
-function wooliesProduct(code){const it=WeekdayFuelCatalogue.ITEMS.find(i=>i.woolies&&i.woolies.stockcode===+code);return it?it.woolies:null}
-function colesProduct(id){const W=WeekdayFuelCatalogue;for(const i of W.ITEMS){if(!i.coles)continue;for(const p of [i.coles,i.coles.small])if(p&&W.colesId(p)===String(id))return p}return null}
+function wooliesProduct(code){const W=WeekdayFuelCatalogue;for(const i of W.ITEMS){if(!i.woolies)continue;for(const p of [i.woolies].concat(i.woolies.packs||[]))if(p&&p.stockcode===+code)return p}return null}
+function colesProduct(id){const W=WeekdayFuelCatalogue;for(const i of W.ITEMS){if(!i.coles)continue;for(const p of [i.coles].concat(i.coles.packs||[]))if(p&&W.colesId(p)===String(id))return p}return null}
 const pantryRows=(rows,ticks)=>rows.filter(r=>r.sec===2&&!ticks[r.id]);
 /* A send: what's left to buy minus "I have it", plus quantity 0 for products the last send put in that the shop no longer needs */
 function trolleySend(rows,haveIt,s){

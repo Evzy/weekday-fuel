@@ -10,7 +10,7 @@ const ITEMS = [
     woolies: { name: "Dare Double Espresso 500mL", url: W + "72280", stockcode: 72280, size: 1, price: 5, checked: "2026-10-15" } },
   { id: "breast", sec: 1, name: "Chicken breast", unit: "g", note: "", same: false,
     coles: { name: "Coles Chicken Breast Large", url: C + "breast-large-2263179", size: 1400, price: 16.8, checked: "2026-10-12",
-      small: { name: "Coles Chicken Breast Small", url: C + "breast-small-2263168", size: 600, price: 7.2, checked: "2026-10-12" } },
+      packs: [{ name: "Coles Chicken Breast Small", url: C + "breast-small-2263168", size: 600, price: 7.2, checked: "2026-10-12" }] },
     woolies: { name: "Woolworths Chicken Breast 1kg", url: W + "123456", stockcode: 123456, size: 1000, price: 13, checked: "2026-10-15" } },
   { id: "ham", sec: 1, name: "Shaved ham", unit: "g", note: "", same: false,
     coles: null,
@@ -59,22 +59,50 @@ test("whole packs per store, from each store's own pack size", () => {
   const r = byId(cat.shopList({ buffalomac: 13 }, 0));
   assert.deepEqual([r.cheese.coles.quantity, r.cheese.coles.cost, r.cheese.coles.buy], [2, 15, "2 × 500g"]);
   assert.equal(r.cheese.woolies.cost, 18);
-  assert.deepEqual([r.breast.coles.product.name, r.breast.coles.quantity, r.breast.coles.cost], ["Coles Chicken Breast Large", 2, 33.6]);
+  assert.deepEqual([r.breast.coles.product.name, r.breast.coles.quantity, r.breast.coles.cost], ["Coles Chicken Breast Small", 4, 28.8]);
   assert.deepEqual([r.breast.woolies.quantity, r.breast.woolies.cost, r.breast.woolies.buy], [3, 39, "3 × 1000g"]);
   assert.deepEqual([r.evap.coles.quantity, r.evap.coles.buy], [3, "3 × 375mL"]);
   assert.equal(r.evap.woolies, null);
 });
 
-test("the small chicken pack is used while the need fits it (plus 50 g)", () => {
+test("the cheapest chicken pack for the week wins on cost plus waste", () => {
   const small = byId(cat.shopList({ tenderwrap: 3 }, 0)).breast.coles;
   assert.deepEqual([small.product.name, small.quantity, small.cost, small.buy], ["Coles Chicken Breast Small", 1, 7.2, "1 × 600g"]);
-  const large = byId(cat.shopList({ tenderwrap: 4 }, 0)).breast.coles;
-  assert.deepEqual([large.product.name, large.quantity, large.cost], ["Coles Chicken Breast Large", 1, 16.8]);
+  const twoSmall = byId(cat.shopList({ tenderwrap: 4 }, 0)).breast.coles;
+  assert.deepEqual([twoSmall.product.name, twoSmall.quantity, twoSmall.cost], ["Coles Chicken Breast Small", 2, 14.4]);
   const slackCat = create(ITEMS, { m650: { breast: 650 }, m651: { breast: 651 } });
   const at650 = byId(slackCat.shopList({ m650: 1 }, 0)).breast.coles;
   assert.deepEqual([at650.product.name, at650.quantity, at650.cost, at650.buy], ["Coles Chicken Breast Small", 1, 7.2, "1 × 600g"]);
   const at651 = byId(slackCat.shopList({ m651: 1 }, 0)).breast.coles;
-  assert.deepEqual([at651.product.name, at651.quantity, at651.cost], ["Coles Chicken Breast Large", 1, 16.8]);
+  assert.deepEqual([at651.product.name, at651.quantity, at651.cost], ["Coles Chicken Breast Small", 2, 14.4]);
+});
+
+test("a Woolworths tray is chosen when it beats fixed packs on cost plus waste", () => {
+  const trayItems = [
+    {
+      id: "breast",
+      sec: 1,
+      name: "Chicken breast",
+      unit: "g",
+      note: "",
+      same: false,
+      coles: null,
+      woolies: {
+        name: "Woolworths Chicken Breast 650g",
+        url: W + "6078624",
+        stockcode: 6078624,
+        size: 650,
+        price: 9.4,
+        checked: "2026-10-15",
+        packs: [{ name: "Woolworths Breast tray", url: W + "969723", stockcode: 969723, size: 1500, sizeLabel: "1.5–2.2kg tray", price: 24.2, checked: "2026-10-18" }],
+      },
+    },
+  ];
+  const trayCat = create(trayItems, { big: { breast: 1400 }, mid: { breast: 1000 } });
+  const tray = byId(trayCat.shopList({ big: 1 }, 0)).breast.woolies;
+  assert.deepEqual([tray.product.name, tray.quantity, tray.cost, tray.buy], ["Woolworths Breast tray", 1, 24.2, "1 × 1.5–2.2kg tray"]);
+  const packs = byId(trayCat.shopList({ mid: 1 }, 0)).breast.woolies;
+  assert.deepEqual([packs.product.name, packs.quantity, packs.cost], ["Woolworths Chicken Breast 650g", 2, 18.8]);
 });
 
 test("deli ham is bought by weight, rounded up to 100 g", () => {
@@ -95,6 +123,20 @@ test("storeTotals counts each store's packs, leaves out ticked items from Left t
 });
 
 test("mealCost prices a Standard serve at the chosen store, using the other store where it has nothing", () => {
+  const cheapPack = create(
+    [
+      {
+        ...ITEMS[1],
+        coles: {
+          ...ITEMS[1].coles,
+          packs: [{ ...ITEMS[1].coles.packs[0], price: 7 }],
+        },
+      },
+      ...ITEMS.slice(2),
+    ],
+    AMOUNTS,
+  );
+  assert.equal(cheapPack.mealCost("buffalomac", "coles"), 3.23);
   assert.equal(cat.mealCost("buffalomac", "coles"), 3.29);
   assert.equal(cat.mealCost("buffalomac", "woolies"), 3.59);
   assert.equal(cat.mealCost("toasty", "woolies"), 3.34);
@@ -244,14 +286,14 @@ test("when both chicken packs are unavailable online the item is missed with the
   assert.equal(row.colesUnavailable, ITEMS[1].coles);
 });
 
-test("a live small pack price leaves the large pack at its catalogue price", () => {
+test("a live alternate pack price leaves the main pack at its catalogue price", () => {
   const live = applyColesPrices(ITEMS, { 2263168: { price: 5, was: 6, special: true, available: true } });
   const breast = live.find((i) => i.id === "breast");
   assert.equal(breast.coles.price, ITEMS[1].coles.price);
   assert.equal(breast.coles.live, undefined);
-  assert.equal(breast.coles.small.price, 5);
-  assert.equal(breast.coles.small.was, 6);
-  assert.equal(breast.coles.small.live, true);
+  assert.equal(breast.coles.packs[0].price, 5);
+  assert.equal(breast.coles.packs[0].was, 6);
+  assert.equal(breast.coles.packs[0].live, true);
 });
 
 test("applyColesPrices does not mutate frozen catalogue items", () => {
@@ -273,30 +315,76 @@ test("applyColesPrices does not mutate frozen catalogue items", () => {
   assert.equal(JSON.stringify(frozen), snap);
 });
 
-test("an unavailable large Coles pack falls back to the small pack, and an unavailable small pack is dropped", () => {
+test("an unavailable main Coles pack falls back to the first alternate pack, and an unavailable alternate pack is dropped", () => {
   const large = applyColesPrices(ITEMS, { 2263179: { price: 16.8, was: null, special: false, available: false } });
   const b1 = large.find((i) => i.id === "breast");
   assert.equal(b1.coles.name, "Coles Chicken Breast Small");
-  assert.equal(b1.coles.price, ITEMS[1].coles.small.price);
+  assert.equal(b1.coles.price, ITEMS[1].coles.packs[0].price);
   assert.equal(b1.coles.live, undefined);
-  assert.equal(b1.coles.small, undefined);
+  assert.equal(b1.coles.packs, undefined);
   assert.equal(b1.colesUnavailable, undefined);
   const row1 = byId(create(large, AMOUNTS).shopList({ tenderwrap: 4 }, 0)).breast;
   assert.deepEqual([row1.coles.product.name, row1.coles.quantity], ["Coles Chicken Breast Small", 2]);
 
-  const small = applyColesPrices(ITEMS, { 2263168: { price: 7.2, was: null, special: false, available: false } });
-  const b2 = small.find((i) => i.id === "breast");
+  const alt = applyColesPrices(ITEMS, { 2263168: { price: 7.2, was: null, special: false, available: false } });
+  const b2 = alt.find((i) => i.id === "breast");
   assert.equal(b2.coles.name, "Coles Chicken Breast Large");
-  assert.equal(b2.coles.small, undefined);
-  assert.equal(ITEMS[1].coles.small.name, "Coles Chicken Breast Small");
-  assert.equal(byId(create(small, AMOUNTS).shopList({ tenderwrap: 1 }, 0)).breast.coles.product.name, "Coles Chicken Breast Large");
+  assert.equal(b2.coles.packs, undefined);
+  assert.equal(ITEMS[1].coles.packs[0].name, "Coles Chicken Breast Small");
+  assert.equal(byId(create(alt, AMOUNTS).shopList({ tenderwrap: 1 }, 0)).breast.coles.product.name, "Coles Chicken Breast Large");
 
   const both = applyColesPrices(ITEMS, {
     2263179: { price: 15, was: null, special: false, available: true },
     2263168: { price: 7, was: 8, special: true, available: true },
   });
   const b3 = both.find((i) => i.id === "breast");
-  assert.deepEqual([b3.coles.price, b3.coles.live, b3.coles.small.price, b3.coles.small.was, b3.coles.small.live], [15, true, 7, 8, true]);
+  assert.deepEqual([b3.coles.price, b3.coles.live, b3.coles.packs[0].price, b3.coles.packs[0].was, b3.coles.packs[0].live], [15, true, 7, 8, true]);
+});
+
+test("checked includes alternate pack dates", () => {
+  const withTray = create(
+    [
+      {
+        id: "breast",
+        sec: 1,
+        name: "Chicken breast",
+        unit: "g",
+        note: "",
+        same: false,
+        coles: { name: "Coles Breast", url: C + "breast-2263179", size: 1400, price: 16.8, checked: "2026-10-20", packs: [{ name: "Small", url: C + "breast-small-2263168", size: 600, price: 7.2, checked: "2026-10-12" }] },
+        woolies: null,
+      },
+    ],
+    {},
+  );
+  assert.equal(withTray.checked("coles"), "2026-10-12");
+});
+
+test("a Woolworths live price leaves alternate packs untouched", () => {
+  const withTray = [
+    {
+      id: "breast",
+      sec: 1,
+      name: "Chicken breast",
+      unit: "g",
+      note: "",
+      same: false,
+      coles: null,
+      woolies: {
+        name: "Woolworths Chicken Breast 650g",
+        url: W + "6078624",
+        stockcode: 6078624,
+        size: 650,
+        price: 9.4,
+        checked: "2026-10-15",
+        packs: [{ name: "Tray", url: W + "969723", stockcode: 969723, size: 1500, sizeLabel: "1.5–2.2kg tray", price: 24.2, checked: "2026-10-18" }],
+      },
+    },
+  ];
+  const live = applyLivePrices(withTray, { 6078624: { price: 8, was: 9.4, special: true, available: true } });
+  assert.equal(live[0].woolies.price, 8);
+  assert.equal(live[0].woolies.packs[0].price, 24.2);
+  assert.equal(live[0].woolies.packs[0].live, undefined);
 });
 
 const TIERED = create(ITEMS, { mac: { breast: 180, cheese: { L: 25, S: 40, X: 0 }, evap: { L: 0, S: 0, X: 80 } } });

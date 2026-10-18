@@ -1,7 +1,7 @@
 /* Coles and Woolworths products for every Shop item, and the shopping maths. Pure: no DOM, no storage. */
 (function (root) {
   "use strict";
-  /* A small pack is used while the need is at most this much over its size (in the item's unit). */
+  /* Slack (in the item's unit) for approximate pack weights when an item has packs. */
   var SMALL_PACK_SLACK = 50;
 
   /* From docs/catalogue-research.md (approved 2026-10-15). */
@@ -17,12 +17,15 @@
       woolies: { name: "Grenade Salted Caramel Protein Bar 60g", url: "https://www.woolworths.com.au/shop/productdetails/6027807/grenade-salted-caramel-protein-bar", stockcode: 6027807, size: 1, price: 5, checked: "2026-10-15" },
     },
     {
-      id: "breast", sec: 1, name: "Chicken breast fillets", unit: "g", note: "Woolworths has no ~1.4kg pack (only 650g, or a 1.5–2.2kg bulk pack at $24.20), so it buys 650g packs", same: false,
+      id: "breast", sec: 1, name: "Chicken breast fillets", unit: "g", note: "Woolworths buys 650g packs, or the 1.5–2.2kg tray when it's cheaper for the week (charged at 2.2kg, the difference refunded)", same: false,
       coles: {
         name: "Coles RSPCA Approved Chicken Breast Fillets Large Pack approx. 1.4kg", url: "https://www.coles.com.au/product/coles-rspca-approved-chicken-breast-fillets-large-pack-approx.-1.4kg-2263179", size: 1400, price: 15.4, checked: "2026-10-15",
-        small: { name: "Coles RSPCA Approved Chicken Breast Fillets Small Pack approx. 600g", url: "https://www.coles.com.au/product/coles-rspca-approved-chicken-breast-fillets-small-pack-approx.-600g-2263168", size: 600, price: 8.7, checked: "2026-10-15" },
+        packs: [{ name: "Coles RSPCA Approved Chicken Breast Fillets Small Pack approx. 600g", url: "https://www.coles.com.au/product/coles-rspca-approved-chicken-breast-fillets-small-pack-approx.-600g-2263168", size: 600, price: 8.7, checked: "2026-10-15" }],
       },
-      woolies: { name: "Woolworths RSPCA Approved Chicken Breast Fillets 650g", url: "https://www.woolworths.com.au/shop/productdetails/6078624/woolworths-rspca-approved-chicken-breast-fillets", stockcode: 6078624, size: 650, price: 9.4, checked: "2026-10-15" },
+      woolies: {
+        name: "Woolworths RSPCA Approved Chicken Breast Fillets 650g", url: "https://www.woolworths.com.au/shop/productdetails/6078624/woolworths-rspca-approved-chicken-breast-fillets", stockcode: 6078624, size: 650, price: 9.4, checked: "2026-10-15",
+        packs: [{ name: "Woolworths RSPCA Approved Chicken Breast Fillet 1.5kg - 2.2kg", url: "https://www.woolworths.com.au/shop/productdetails/969723/woolworths-rspca-approved-chicken-breast-fillet", stockcode: 969723, size: 1500, sizeLabel: "1.5–2.2kg tray", price: 24.2, checked: "2026-10-18" }],
+      },
     },
     {
       id: "mince", sec: 1, name: "Extra lean beef mince", unit: "g", note: "Woolworths special (usually $10.00)", same: false,
@@ -33,9 +36,12 @@
       id: "thigh", sec: 1, name: "Chicken thigh fillets", unit: "g", note: "Teriyaki week only", same: false,
       coles: {
         name: "Coles RSPCA Approved Chicken Thigh Fillets Large Pack approx. 1.2kg", url: "https://www.coles.com.au/product/coles-rspca-approved-chicken-thigh-fillets-large-pack-approx.-1.2kg-2263328", size: 1200, price: 17.4, checked: "2026-10-15",
-        small: { name: "Coles RSPCA Chicken Thigh Fillets Small Pack approx. 700g", url: "https://www.coles.com.au/product/coles-rspca-chicken-thigh-fillets-small-pack-approx.-700g-2263317", size: 700, price: 12.6, checked: "2026-10-15" },
+        packs: [{ name: "Coles RSPCA Chicken Thigh Fillets Small Pack approx. 700g", url: "https://www.coles.com.au/product/coles-rspca-chicken-thigh-fillets-small-pack-approx.-700g-2263317", size: 700, price: 12.6, checked: "2026-10-15" }],
       },
-      woolies: { name: "Woolworths RSPCA Approved Chicken Thigh Fillets 550g", url: "https://www.woolworths.com.au/shop/productdetails/6078660/woolworths-rspca-approved-chicken-thigh-fillets", stockcode: 6078660, size: 550, price: 9.9, checked: "2026-10-15" },
+      woolies: {
+        name: "Woolworths RSPCA Approved Chicken Thigh Fillets 550g", url: "https://www.woolworths.com.au/shop/productdetails/6078660/woolworths-rspca-approved-chicken-thigh-fillets", stockcode: 6078660, size: 550, price: 9.9, checked: "2026-10-15",
+        packs: [{ name: "Woolworths RSPCA Approved Chicken Thigh Fillets Skinless 1.2kg - 1.8kg", url: "https://www.woolworths.com.au/shop/productdetails/727622/woolworths-rspca-approved-chicken-thigh-fillets-skinless", stockcode: 727622, size: 1200, sizeLabel: "1.2–1.8kg tray", price: 26.1, checked: "2026-10-18" }],
+      },
     },
     {
       id: "eggs", sec: 1, name: "Free range eggs, 12 pack", unit: "eggs", note: "The old Woolworths link (582362) is unavailable; 6013278 replaces it", same: false,
@@ -43,8 +49,8 @@
       woolies: { name: "Woolworths 12 Pack Extra Large Free Range Eggs 700g", url: "https://www.woolworths.com.au/shop/productdetails/6013278/woolworths-12-pack-extra-large-free-range-eggs", stockcode: 6013278, size: 12, price: 6.7, checked: "2026-10-15" },
     },
     {
-      id: "ham", sec: 1, name: "Shaved ham", unit: "g", note: "Coles doesn't sell deli ham by weight online, so a 200g pack instead (on special at $5.00 on 2026-10-15)", same: false,
-      coles: { name: "Don Leg Ham Shaved 200g", url: "https://www.coles.com.au/product/don-leg-ham-shaved-200g-6284567", size: 200, price: 6.6, checked: "2026-10-15" },
+      id: "ham", sec: 1, name: "Shaved ham", unit: "g", note: "Coles doesn't sell deli ham by weight online, so a 250g pack instead", same: false,
+      coles: { name: "The Deli Shaved Leg Ham 250g", url: "https://www.coles.com.au/product/the-deli-shaved-leg-ham-250g-1476946", size: 250, price: 6, checked: "2026-10-18" },
       woolies: { name: "D'Orsogna Ham Leg Triple Smoked 97% Fat Free Shaved From The Deli", url: "https://www.woolworths.com.au/shop/productdetails/175734/d-orsogna-ham-leg-triple-smoked-97-fat-free-shaved-from-the-deli", stockcode: 175734, perKg: true, size: 1, price: 28, checked: "2026-10-15" },
     },
     {
@@ -265,6 +271,7 @@
   }
 
   function packLabel(product, unit) {
+    if (product.sizeLabel) return product.sizeLabel;
     return product.size + (/^(g|mL)$/.test(unit) ? unit : " " + unit);
   }
 
@@ -277,14 +284,34 @@
       var grams = deliGrams(need);
       return { product: product, quantity: grams / 1000, cost: round2((grams / 1000) * product.price), buy: grams + "g from the deli" };
     }
-    var useSmall = product.small && need <= product.small.size + SMALL_PACK_SLACK;
-    var chosen = useSmall ? product.small : product;
-    var packs = useSmall ? 1 : Math.max(1, Math.ceil(need / chosen.size - 1e-9));
+    var candidates = product.packs && product.packs.length ? [product].concat(product.packs) : null;
+    var chosen;
+    var n;
+    if (candidates) {
+      var bestScore = Infinity;
+      chosen = product;
+      n = 1;
+      for (var i = 0; i < candidates.length; i++) {
+        var c = candidates[i];
+        var q = Math.max(1, Math.ceil((need - SMALL_PACK_SLACK) / c.size - 1e-9));
+        var cost = q * c.price;
+        var waste = Math.max(0, q * c.size - need) / c.size * c.price;
+        var score = cost + waste;
+        if (score < bestScore) {
+          bestScore = score;
+          chosen = c;
+          n = q;
+        }
+      }
+    } else {
+      chosen = product;
+      n = Math.max(1, Math.ceil(need / chosen.size - 1e-9));
+    }
     return {
       product: chosen,
-      quantity: packs,
-      cost: round2(packs * chosen.price),
-      buy: chosen.size === 1 ? packs + " " + (packs === 1 ? singular(item.unit) : item.unit) : packs + " × " + packLabel(chosen, item.unit),
+      quantity: n,
+      cost: round2(n * chosen.price),
+      buy: chosen.size === 1 ? n + " " + (n === 1 ? singular(item.unit) : item.unit) : n + " × " + packLabel(chosen, item.unit),
     };
   }
 
@@ -314,26 +341,51 @@
   }
 
   /* prices: { [Coles product id]: { price, was, special, available } } read live from Coles. */
+  function colesWithPacks(main, packs) {
+    if (!packs.length) {
+      if (!main.packs) return main;
+      var bare = Object.assign({}, main);
+      delete bare.packs;
+      return bare;
+    }
+    return Object.assign({}, main, { packs: packs });
+  }
+
   function applyColesPrices(items, prices) {
     if (!prices) return items;
     return items.map(function (it) {
       var p = it.coles;
       if (!p) return it;
+      var hadPacks = p.packs && p.packs.length;
       var live = prices[colesId(p)];
-      var small = p.small || null;
-      var liveSmall = small && prices[colesId(small)];
-      if (small && liveSmall) small = liveSmall.available === false ? null : liveColes(small, liveSmall);
+      if (!hadPacks) {
+        if (live && live.available === false) return Object.assign({}, it, { coles: null, colesUnavailable: p });
+        var mainOnly = live ? liveColes(p, live) : p;
+        return mainOnly === p ? it : Object.assign({}, it, { coles: mainOnly });
+      }
+      var packs = p.packs.slice();
+      var packsMut = false;
+      packs = packs.map(function (pk) {
+        var livePk = prices[colesId(pk)];
+        if (!livePk) return pk;
+        if (livePk.available === false) {
+          packsMut = true;
+          return null;
+        }
+        var next = liveColes(pk, livePk);
+        if (next !== pk) packsMut = true;
+        return next;
+      }).filter(Boolean);
+      if (packs.length !== p.packs.length) packsMut = true;
       if (live && live.available === false) {
-        if (small) return Object.assign({}, it, { coles: small });
+        if (packs.length) return Object.assign({}, it, { coles: colesWithPacks(packs[0], packs.slice(1)) });
         return Object.assign({}, it, { coles: null, colesUnavailable: p });
       }
       var main = live ? liveColes(p, live) : p;
-      if (small !== (p.small || null)) {
-        main = Object.assign({}, main);
-        if (small) main.small = small;
-        else delete main.small;
-      }
-      return main === p ? it : Object.assign({}, it, { coles: main });
+      if (main === p && !packsMut) return it;
+      var next = colesWithPacks(main, packs);
+      if (next.packs && !next.packs.length) delete next.packs;
+      return Object.assign({}, it, { coles: next });
     });
   }
 
@@ -430,7 +482,17 @@
         var it = byId[id];
         var p = it && (it[store] || it[other]);
         if (!(q > 0) || !p) return;
-        sum += p.perKg ? (q / 1000) * p.price : (q / p.size) * p.price;
+        if (p.perKg) sum += (q / 1000) * p.price;
+        else {
+          var unit = p.price / p.size;
+          if (p.packs) {
+            p.packs.forEach(function (pk) {
+              var u = pk.price / pk.size;
+              if (u < unit) unit = u;
+            });
+          }
+          sum += q * unit;
+        }
       });
       return round2(sum);
     }
@@ -450,7 +512,9 @@
         var p = it[store];
         if (!p) return;
         dates.push(p.checked);
-        if (p.small) dates.push(p.small.checked);
+        if (p.packs) p.packs.forEach(function (pk) {
+          dates.push(pk.checked);
+        });
       });
       return dates.sort()[0] || null;
     }

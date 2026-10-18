@@ -30,7 +30,13 @@ test("every item is well formed", () => {
       const p = it[store];
       if (!p) continue;
       checkProduct(it.id + "." + store, p, store);
-      if (p.small) checkProduct(it.id + "." + store + ".small", p.small, store);
+      if (p.packs) {
+        assert.ok(Array.isArray(p.packs) && p.packs.length, it.id + "." + store + " packs");
+        for (let i = 0; i < p.packs.length; i++) {
+          checkProduct(it.id + "." + store + ".packs[" + i + "]", p.packs[i], store);
+          if (p.packs[i].sizeLabel) assert.ok(p.packs[i].sizeLabel.length, it.id + "." + store + ".packs[" + i + "] sizeLabel");
+        }
+      }
     }
   }
 });
@@ -46,13 +52,23 @@ test("every meal's items exist and every non-fixture item is used by a meal", ()
   for (const it of cat.ITEMS) if (it.sec !== 0) assert.ok(cat.usedIn(it.id).length, it.id + " is never used");
 });
 
+test("only meat items use alternate packs", () => {
+  const meat = new Set(["breast", "thigh", "mince", "ham"]);
+  for (const it of cat.ITEMS) {
+    for (const store of ["coles", "woolies"]) {
+      const p = it[store];
+      if (!p || !p.packs) continue;
+      assert.ok(meat.has(it.id), it.id + " has " + store + " packs");
+    }
+  }
+});
+
 test("every Coles product URL ends with its id and all Coles ids are unique", () => {
   const ids = [];
   for (const it of cat.ITEMS) {
     const p = it.coles;
     if (!p) continue;
-    for (const prod of [p, p.small]) {
-      if (!prod) continue;
+    for (const prod of [p].concat(p.packs || [])) {
       const id = cat.colesId(prod);
       assert.ok(id, it.id + " Coles id");
       assert.ok(prod.url.endsWith("-" + id), it.id + " url ends with id");
