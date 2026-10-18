@@ -452,31 +452,78 @@ test("checked includes alternate pack dates", () => {
   assert.equal(withTray.checked("coles"), "2026-10-12");
 });
 
-test("a Woolworths live price leaves alternate packs untouched", () => {
-  const withTray = [
-    {
-      id: "breast",
-      sec: 1,
-      name: "Chicken breast",
-      unit: "g",
-      note: "",
-      same: false,
-      coles: null,
-      woolies: {
-        name: "Woolworths Chicken Breast 650g",
-        url: W + "6078624",
-        stockcode: 6078624,
-        size: 650,
-        price: 9.4,
-        checked: "2026-10-15",
-        packs: [{ name: "Tray", url: W + "969723", stockcode: 969723, size: 1500, sizeLabel: "1.5–2.2kg tray", price: 24.2, checked: "2026-10-18" }],
-      },
-    },
-  ];
-  const live = applyLivePrices(withTray, { 6078624: { price: 8, was: 9.4, special: true, available: true } });
+const WOOLIES_TRAY_ITEM = {
+  id: "breast",
+  sec: 1,
+  name: "Chicken breast",
+  unit: "g",
+  note: "",
+  same: false,
+  coles: null,
+  woolies: {
+    name: "Woolworths Chicken Breast 650g",
+    url: W + "6078624",
+    stockcode: 6078624,
+    size: 650,
+    price: 9.4,
+    checked: "2026-10-15",
+    packs: [{ name: "Tray", url: W + "969723", stockcode: 969723, size: 1500, sizeLabel: "1.5–2.2kg tray", price: 24.2, checked: "2026-10-18" }],
+  },
+};
+
+test("a Woolworths live main price leaves tray packs at their catalogue price", () => {
+  const live = applyLivePrices([WOOLIES_TRAY_ITEM], { 6078624: { price: 8, was: 9.4, special: true, available: true } });
   assert.equal(live[0].woolies.price, 8);
   assert.equal(live[0].woolies.packs[0].price, 24.2);
   assert.equal(live[0].woolies.packs[0].live, undefined);
+});
+
+test("Woolworths tray availability from live data", () => {
+  const items = [WOOLIES_TRAY_ITEM];
+  const dropped = applyLivePrices(items, { 969723: { price: 11, was: null, special: false, available: false } });
+  assert.equal(dropped[0].woolies.packs, undefined);
+  assert.equal(dropped[0].woolies.stockcode, 6078624);
+
+  const trayPrice = applyLivePrices(items, { 969723: { price: 99, was: 50, special: true, available: true } });
+  assert.equal(trayPrice[0].woolies.packs[0].price, 24.2);
+  assert.equal(trayPrice[0].woolies.packs[0].live, undefined);
+
+  const promoted = applyLivePrices(items, {
+    6078624: { price: 8, was: null, special: false, available: false },
+    969723: { price: 99, was: null, special: false, available: true },
+  });
+  assert.equal(promoted[0].woolies.name, "Tray");
+  assert.equal(promoted[0].woolies.stockcode, 969723);
+  assert.equal(promoted[0].woolies.packs, undefined);
+  assert.equal(promoted[0].wooliesUnavailable, undefined);
+  const row = byId(create(promoted, { week: { breast: 1000 } }).shopList({ week: 1 }, 0)).breast;
+  assert.deepEqual([row.woolies.product.name, row.woolies.quantity, row.woolies.buy], ["Tray", 1, "1 × 1.5–2.2kg tray"]);
+
+  const bothOut = applyLivePrices(items, {
+    6078624: { price: 9.4, was: null, special: false, available: false },
+    969723: { price: 24.2, was: null, special: false, available: false },
+  });
+  assert.equal(bothOut[0].woolies, null);
+  assert.equal(bothOut[0].wooliesUnavailable, items[0].woolies);
+});
+
+test("applyLivePrices does not mutate frozen Woolworths catalogue items", () => {
+  const frozen = structuredClone([WOOLIES_TRAY_ITEM]);
+  const snap = JSON.stringify(frozen);
+  function freezeDeep(o) {
+    if (o && typeof o === "object") {
+      Object.freeze(o);
+      for (const v of Object.values(o)) freezeDeep(v);
+    }
+  }
+  frozen.forEach(freezeDeep);
+  assert.doesNotThrow(() =>
+    applyLivePrices(frozen, {
+      6078624: { price: 8, was: null, special: false, available: false },
+      969723: { price: 99, was: null, special: false, available: true },
+    }),
+  );
+  assert.equal(JSON.stringify(frozen), snap);
 });
 
 const TIERED = create(ITEMS, { mac: { breast: 180, cheese: { L: 25, S: 40, X: 0 }, evap: { L: 0, S: 0, X: 80 } } });

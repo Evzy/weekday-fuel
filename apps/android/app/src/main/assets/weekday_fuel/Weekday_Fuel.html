@@ -479,10 +479,11 @@ function lsOrders(){try{return WeekdayFuelOrders.parseOrders(localStorage.getIte
 function lsSetOrders(list){try{localStorage.setItem(ORDERS,JSON.stringify(list));return true}catch(e){return false}}
 /* state.prices / state.colesPrices: null, "busy" or "error" */
 function colesIds(){const W=WeekdayFuelCatalogue,ids=[];W.ITEMS.forEach(i=>{if(!i.coles)return;[i.coles].concat(i.coles.packs||[]).forEach(p=>{const id=p&&W.colesId(p);if(id&&ids.indexOf(id)<0)ids.push(id)})});return ids}
+function wooliesStockcodes(){const W=WeekdayFuelCatalogue,codes=[];W.ITEMS.forEach(i=>{if(!i.woolies)return;[i.woolies].concat(i.woolies.packs||[]).forEach(p=>{const c=p&&p.stockcode;if(c&&codes.indexOf(c)<0)codes.push(c)})});return codes}
 function refreshPrices(){
   if(!window.WeekdayFuelHost||state.prices==="busy"||state.colesPrices==="busy")return;
   state.prices="busy";state.colesPrices="busy";state.pricesTried=Date.now();
-  WeekdayFuelHost.postMessage(JSON.stringify({type:"refreshPrices",stockcodes:WeekdayFuelCatalogue.ITEMS.filter(i=>i.woolies).map(i=>i.woolies.stockcode),colesIds:colesIds()}));
+  WeekdayFuelHost.postMessage(JSON.stringify({type:"refreshPrices",stockcodes:wooliesStockcodes(),colesIds:colesIds()}));
 }
 function maybeRefreshPrices(){
   const fresh=c=>{if(!c)return false;const a=Date.now()-Date.parse(c.at);return a>=-3600e3&&a<=LIVE_MAX_AGE};

@@ -315,17 +315,57 @@
     };
   }
 
+  function wooliesWithPacks(main, packs) {
+    if (!packs.length) {
+      if (!main.packs) return main;
+      var bare = Object.assign({}, main);
+      delete bare.packs;
+      return bare;
+    }
+    return Object.assign({}, main, { packs: packs });
+  }
+
   /* prices: { [stockcode]: { price, was, special, available } } read live from Woolworths. */
   function applyLivePrices(items, prices) {
     if (!prices) return items;
     return items.map(function (it) {
       var p = it.woolies;
-      var live = p && prices[p.stockcode];
-      if (!live) return it;
-      if (live.available === false) return Object.assign({}, it, { woolies: null, wooliesUnavailable: p });
-      if (!(typeof live.price === "number" && live.price > 0)) return it;
-      var was = typeof live.was === "number" && live.was > live.price ? live.was : null;
-      return Object.assign({}, it, { woolies: Object.assign({}, p, { price: live.price, was: was, live: true }) });
+      if (!p) return it;
+      var hadPacks = p.packs && p.packs.length;
+      var live = prices[p.stockcode];
+      if (!hadPacks) {
+        if (!live) return it;
+        if (live.available === false) return Object.assign({}, it, { woolies: null, wooliesUnavailable: p });
+        if (!(typeof live.price === "number" && live.price > 0)) return it;
+        var wasOnly = typeof live.was === "number" && live.was > live.price ? live.was : null;
+        var nextOnly = Object.assign({}, p, { price: live.price, was: wasOnly, live: true });
+        return nextOnly === p ? it : Object.assign({}, it, { woolies: nextOnly });
+      }
+      var packs = p.packs.slice();
+      var packsMut = false;
+      packs = packs.map(function (pk) {
+        var livePk = prices[pk.stockcode];
+        if (!livePk) return pk;
+        if (livePk.available === false) {
+          packsMut = true;
+          return null;
+        }
+        return pk;
+      }).filter(Boolean);
+      if (packs.length !== p.packs.length) packsMut = true;
+      if (live && live.available === false) {
+        if (packs.length) return Object.assign({}, it, { woolies: wooliesWithPacks(packs[0], packs.slice(1)) });
+        return Object.assign({}, it, { woolies: null, wooliesUnavailable: p });
+      }
+      var main = p;
+      var mainMut = false;
+      if (live && typeof live.price === "number" && live.price > 0) {
+        var wasMain = typeof live.was === "number" && live.was > live.price ? live.was : null;
+        main = Object.assign({}, p, { price: live.price, was: wasMain, live: true });
+        mainMut = main !== p;
+      }
+      if (!mainMut && !packsMut) return it;
+      return Object.assign({}, it, { woolies: wooliesWithPacks(main, packs) });
     });
   }
 
