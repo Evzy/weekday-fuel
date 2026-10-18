@@ -262,6 +262,23 @@ test("when the chosen pack and an alternate were both sent, the chosen line has 
   ]);
 });
 
+test("rowHasSentLine matches woolies, alts, unavailable and coles ids", () => {
+  const cid = (p) => String(p.id || p.name);
+  assert.equal(O.rowHasSentLine(bread, { 100: 1 }, {}, null), true);
+  assert.equal(O.rowHasSentLine(bread, {}, { x: 1 }, cid), false);
+  assert.equal(O.rowHasSentLine(yog, { 400: 1 }, {}, null), true);
+  assert.equal(O.rowHasSentLine(ham, {}, {}, null), false);
+  const cBreast = ROW("breast", 1, null, LINE({ name: "Coles breast", id: "2263179", price: 12 }, 1, 12, "1 pack"));
+  assert.equal(O.rowHasSentLine(cBreast, {}, { 2263179: 1 }, cid), true);
+});
+
+test("summaryLine counts covered-only orders", () => {
+  const cov = [{ id: "milk", name: "Milk 2L", unit: "mL", need: 500, have: 500, used: ["toasty"], days: [] }];
+  const o = O.snapshot([], {}, {}, { ...OPTS, covered: [cov[0], cov[0], cov[0]] });
+  assert.match(O.summaryLine(o), /3 covered/);
+  assert.doesNotMatch(O.summaryLine(o), /nothing ordered/);
+});
+
 test("opts.covered adds fully covered shop rows to had; omitting covered is unchanged", () => {
   const cov = [{ id: "milk", name: "Milk 2L", unit: "mL", need: 500, have: 500, used: ["toasty"], days: [] }];
   const withCov = O.snapshot([bread], {}, {}, { ...OPTS, covered: cov });

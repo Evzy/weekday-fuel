@@ -362,8 +362,26 @@ test("reserved fixtures honour fixtureOn per item and skip today and first shop 
   const r = I.reserved(base, {}, cat, "2026-10-19", ["2026-10-21"], (d, k) => k === "dare" && d === "2026-10-20");
   assert.equal(r.dare, 1);
   assert.equal(r.grenade, undefined);
+  const grenadeOnly = I.reserved(base, {}, cat, "2026-10-19", ["2026-10-21"], (d, k) => k === "grenade" && d === "2026-10-20");
+  assert.equal(grenadeOnly.grenade, 1);
+  assert.equal(grenadeOnly.dare, undefined);
   const onFirst = I.reserved(base, {}, cat, "2026-10-20", ["2026-10-21"], () => true);
   assert.equal(onFirst.dare, undefined);
+});
+
+test("reserved fixture loop stops at today plus 366 days before a far first shop day", () => {
+  const base = inv([]);
+  const r = I.reserved(base, {}, cat, "2026-10-20", ["2028-06-01"], (d, k) => k === "dare");
+  assert.equal(r.dare, 366);
+  assert.equal(r.grenade, undefined);
+});
+
+test("reserved with unsorted shop days reserves a past meal between two shop days", () => {
+  const base = inv([]);
+  const days = { "2026-10-22": { meals: [{ id: "bowl", name: "B", t: "S" }] } };
+  const r = I.reserved(base, days, cat, "2026-10-24", ["2026-10-25", "2026-10-21"], () => false);
+  assert.equal(r.breast, 150);
+  assert.equal(r.rice, 1);
 });
 
 test("reserved uses the earliest shop day when shopDays is unsorted", () => {

@@ -285,6 +285,21 @@ function shopCovered(){
   if(shopHave()===null)return [];
   return CAT.coveredList(picks(),fxDays(),dayMeals(),shopHave());
 }
+function shopListNoHave(){return CAT.shopList(picks(),fxDays(),dayMeals())}
+function shopSentCtx(){
+  const sent=lsSent(),lines=(sent&&sent.lines)||{},colesLines=(lsColesSent()||{}).lines||{};
+  const byId=Object.fromEntries(shopListNoHave().map(r=>[r.id,r]));
+  return {lines,colesLines,colesId:WeekdayFuelCatalogue.colesId,byId};
+}
+function shopOrderRows(){
+  const rows=shopRows(),{lines,colesLines,colesId,byId}=shopSentCtx();
+  const extra=shopCovered().filter(c=>{const full=byId[c.id];return full&&WeekdayFuelOrders.rowHasSentLine(full,lines,colesLines,colesId)}).map(c=>byId[c.id]);
+  return rows.concat(extra);
+}
+function shopSnapshotCovered(){
+  const {lines,colesLines,colesId,byId}=shopSentCtx();
+  return shopCovered().filter(c=>{const full=byId[c.id];return !full||!WeekdayFuelOrders.rowHasSentLine(full,lines,colesLines,colesId)});
+}
 function shopOrderEmpty(){
   try{
     if(shopCovered().length)return false;
@@ -695,16 +710,18 @@ function suggestWeek(){
     dinner:MEALS.filter(m=>m.slots.includes("main")&&!chicken(m)).map(m=>m.id)
   };
   const fit=(d,meals,locked)=>{const day=dayOf(d);fitTiers({fx:day.fx,meals,extras:day.extras},locked)};
-  const have=shopHave();
-  const r=P.planWeek({dates:w.dates,before,kept,pools,fit,score:dm=>P.shopScore(CAT,dm,s,have)});
+  const havePlan=shopHave();
+  const r=P.planWeek({dates:w.dates,before,kept,pools,fit,score:dm=>P.shopScore(CAT,dm,s,havePlan)});
   if(!r){state.weekNote="Couldn't plan this week. Try Suggest a day for each day instead.";return}
   const sd=state.settings.shopDays=Object.assign({},S().shopDays);
   const changed=w.dates.filter(d=>r.days[d].length!==kept[d].length);
   changed.forEach(d=>{const day=ensureDay(d);day.meals=r.days[d].concat(unknown[d]).sort((a,b)=>SLOT_ORDER.indexOf(a.slot)-SLOT_ORDER.indexOf(b.slot));if(!sd[d])day.meals.forEach(m=>delete m.shop);saveDay(d);sd[d]=true});
   saveSettings();
+  shopCtx=null;
+  const haveCost=shopHave();
   const first=changed[0],last=changed[changed.length-1];
   const wdm=w.dates.flatMap(d=>r.days[d].map(m=>({day:d,meal:m.id,t:m.t})));
-  const weekCost=CAT.storeTotals(CAT.shopList({},0,wdm,have),s,{}).total;
+  const weekCost=CAT.storeTotals(CAT.shopList({},0,wdm,haveCost),s,{}).total;
   state.weekNote=`Planned ${dayShort(first)}${last!==first?"–"+dayShort(last):""}: ${r.distinct} different meals, about ${money(weekCost)} of groceries at ${STORE_NAME[s]}. The days are in your shop.`;
   state.date=first;state.adding=null;
 }
@@ -914,8 +931,8 @@ function batchCard(b){
   const users=MEALS.filter(m=>(m.batch||[]).includes(b.id));
   return `<div class="card"><div class="row" style="gap:6px;margin-bottom:4px"><span class="tag">Batch prep</span></div><h3>${esc(b.name)}</h3><div class="small muted">${esc(b.makes)}</div><div class="hint"><span>Keeps ${esc(b.keeps)}.</span></div><div class="stack" style="gap:8px"><div class="eyebrow">Method</div><ol class="steps">${b.steps.map(s=>`<li>${esc(s)}</li>`).join("")}</ol>${users.length?`<div class="eyebrow">Used in</div><div class="chips">${users.map(m=>`<button class="chip" data-act="recipe" data-v="${m.id}">${esc(m.name)}</button>`).join("")}</div>`:""}</div></div>`;
 }
-const needLabel=r=>/^(g|mL)$/.test(r.unit)?fmtAmt(r.need,r.unit):(Math.round(r.need*10)/10)+" "+r.unit;
-const needHaveLabel=r=>{const n=needLabel(r);if(!(r.have>0))return n;const h=/^(g|mL)$/.test(r.unit)?fmtAmt(r.have,r.unit):(Math.round(r.have*10)/10)+" "+r.unit;return n+" · have "+h};
+const shopAmountFmt=(v,unit)=>/^(g|mL)$/.test(unit)?kitchenAmountText(v,unit):amountText(v,unit);
+const shopNeedText=r=>WeekdayFuelCatalogue.shopNeedLabel(r,shopAmountFmt);
 function macroLine(id){const m=MACROS[id];if(!m)return "";return `<span class="mac num">Per ${m[4]}: ${m[0]} kcal · ${m[1]}g P · ${m[2]}g C · ${m[3]}g F <span class="src">${m[5]==="label"?"from the label":"typical, check the pack"}</span>${m[6]?`<br>${esc(m[6])}`:""}</span>`}
 function storePrice(s,price){return price!=null?`<span class="sp ${s}">${STORE_NAME[s]} ${money(price)}</span>`:`<span class="sp ${s} none">Not at ${STORE_NAME[s]}</span>`}
 const wasNote=p=>p&&p.was?`<span class="was">Special, was ${money(p.was)}${p.perKg?"/kg":""}</span>`:"";
@@ -1015,8 +1032,8 @@ function renderTrolley(rows,ticks,s){
   return h+`</div>`;
 }
 function trySaveOrder(){
-  const rows=shopRows(),sent=lsSent(),lines=(sent&&sent.lines)||{},colesLines=(lsColesSent()||{}).lines||{};
-  const covered=shopCovered();
+  const rows=shopOrderRows(),sent=lsSent(),lines=(sent&&sent.lines)||{},colesLines=(lsColesSent()||{}).lines||{};
+  const covered=shopSnapshotCovered();
   if(WeekdayFuelOrders.isEmpty(rows,lines,colesLines)&&!covered.length)return true;
   const r=(state.checkout&&state.checkout.result)||state.coLast,pk=picks();
   const meals=Object.keys(pk).filter(id=>pk[id]>0&&MEAL[id]).map(id=>({name:MEAL[id].name,serves:pk[id]}))
@@ -1081,9 +1098,9 @@ function renderShop(){
     h+=`<div class="small muted">${nMeals+dm.length} serve${nMeals+dm.length===1?"":"s"} · ${rows.length} items. Tick things off as they go in the trolley, or tick pantry items you already have at home. Prices use whole packs, so the first shop costs more than the per-serve cost. ${priceLabel()}</div>`;
     [["Fixtures",0],["Fresh",1],["Pantry & freezer (check what you already have)",2]].forEach(([t,sec])=>{
       const rs=rows.filter(r=>r.sec===sec&&r[st]);if(!rs.length)return;
-      h+=`<div class="panel shopsec"><h3 style="margin-bottom:4px">${t}</h3>${rs.map(r=>{const line=r[st],p=line&&line.product;const tray=p&&p.sizeLabel&&!p.live?` <span class="muted">· price checked ${esc(fmtShort(p.checked))}; charged at the heaviest weight, the difference refunded</span>`:"";return itemRow(CAT.item(r.id),{coles:r.coles&&r.coles.cost,woolies:r.woolies&&r.woolies.cost},`<span class="buy small"><b>Buy:</b> ${esc(line.buy)}${tray} <span class="muted">· ${esc(needHaveLabel(r))}</span></span>${forLine(r)}`,{coles:r.coles&&r.coles.product,woolies:r.woolies&&r.woolies.product})}).join("")}</div>`;
+      h+=`<div class="panel shopsec"><h3 style="margin-bottom:4px">${t}</h3>${rs.map(r=>{const line=r[st],p=line&&line.product;const tray=p&&p.sizeLabel&&!p.live?` <span class="muted">· price checked ${esc(fmtShort(p.checked))}; charged at the heaviest weight, the difference refunded</span>`:"";return itemRow(CAT.item(r.id),{coles:r.coles&&r.coles.cost,woolies:r.woolies&&r.woolies.cost},`<span class="buy small"><b>Buy:</b> ${esc(line.buy)}${tray} <span class="muted">· ${esc(shopNeedText(r))}</span></span>${forLine(r)}`,{coles:r.coles&&r.coles.product,woolies:r.woolies&&r.woolies.product})}).join("")}</div>`;
     });
-    if(covered.length)h+=`<div class="panel shopsec"><h3 style="margin-bottom:4px">Covered by what you have</h3>${covered.map(r=>`<div class="small"><b>${esc(r.name)}</b> <span class="muted">· ${esc(needHaveLabel(r))}</span>${forLine(r)}</div>`).join("")}</div>`;
+    if(covered.length)h+=`<div class="panel shopsec"><h3 style="margin-bottom:4px">Covered by what you have</h3>${covered.map(r=>`<div class="si"><div class="grow"><span class="grow">${esc(r.name)}</span><span class="small muted" style="display:block">${esc(shopNeedText(r))}</span>${forLine(r)}</div></div>`).join("")}</div>`;
     const miss=rows.filter(r=>!r[st]);
     if(miss.length)h+=`<div class="panel stack"><h3>Missed at ${STORE_NAME[st]}</h3><div class="small muted">${STORE_NAME[st]} doesn't ${miss.some(r=>unavailable(r,st))?"have these online right now":"sell these"}. Get them at ${STORE_NAME[ot]}.</div>${miss.map(r=>{const o=r[ot];return `<div class="row between"><span class="small">${esc(o?o.product.name:r.name)}${unavailable(r,st)?` <span class="muted">· instead of ${esc(unavailable(r,st).name)}, unavailable online now</span>`:""}${o?` <span class="muted">· ${esc(o.buy)}</span>`:""}${forLine(r)}</span>${o?`<span class="num small" style="color:var(--${ot})">${money(o.cost)}</span>`:""}</div>`}).join("")}</div>`;
     h+=renderTrolley(rows,ticks,st);
@@ -1166,7 +1183,7 @@ document.addEventListener("click",e=>{
     case "mealshop":{const d=ensureDay(date);const m=d.meals[i];if(m.shop===false)delete m.shop;else m.shop=false;saveDay(date);break}
     case "unshopday":{const sd=state.settings.shopDays=Object.assign({},S().shopDays);delete sd[v];saveSettings();break}
     case "openday":state.tab="today";state.date=v;state.adding=null;window.scrollTo(0,0);break;
-    case "nextshop":if(trolleyBusy())break;if(state.armed!=="nextshop"){state.armed="nextshop";break}state.armed=null;{let saved;try{saved=trySaveOrder()}catch(e){saved=false}if(!saved){state.orderError={where:el.dataset.w,msg:"Couldn't save the order. Nothing was cleared."};break}if(saved!==true){const orderId=saved;try{const st=store(),haveIt=WeekdayFuelInventory.shopHaveIt(state.trolley,sentFor(st)),buys=WeekdayFuelInventory.buysFromRows(shopRows(),st,lsTicks(),haveIt,{sent:(lsSent()||{}).lines||{},colesSent:(lsColesSent()||{}).lines||{},colesId:WeekdayFuelCatalogue.colesId});if(buys.length){const events=buys.map(b=>({k:"buy",item:b.item,amount:b.amount,order:orderId})),inv=WeekdayFuelInventory.addEvents(lsInv(),events,new Date().toISOString());if(!lsSetInv(inv))state.orderError={where:"kitchen",msg:"Saved the order, but couldn't update the kitchen stock."}}}catch(e){state.orderError={where:"kitchen",msg:"Saved the order, but couldn't update the kitchen stock."}}}state.settings.shopDays={};state.settings.trial={};saveSettings();lsSetTicks({});lsSetSent(null);lsSetColesSent(null);state.trolley=null;state.checkout=null;state.coLast=null;break}
+    case "nextshop":if(trolleyBusy())break;if(state.armed!=="nextshop"){state.armed="nextshop";break}state.armed=null;{let saved;try{saved=trySaveOrder()}catch(e){saved=false}if(!saved){state.orderError={where:el.dataset.w,msg:"Couldn't save the order. Nothing was cleared."};break}if(saved!==true){const orderId=saved;try{const st=store(),haveIt=WeekdayFuelInventory.shopHaveIt(state.trolley,sentFor(st)),buys=WeekdayFuelInventory.buysFromRows(shopOrderRows(),st,lsTicks(),haveIt,{sent:(lsSent()||{}).lines||{},colesSent:(lsColesSent()||{}).lines||{},colesId:WeekdayFuelCatalogue.colesId});if(buys.length){const events=buys.map(b=>({k:"buy",item:b.item,amount:b.amount,order:orderId})),inv=WeekdayFuelInventory.addEvents(lsInv(),events,new Date().toISOString());if(!lsSetInv(inv))state.orderError={where:"kitchen",msg:"Saved the order, but couldn't update the kitchen stock."}}}catch(e){state.orderError={where:"kitchen",msg:"Saved the order, but couldn't update the kitchen stock."}}}state.settings.shopDays={};state.settings.trial={};saveSettings();lsSetTicks({});lsSetSent(null);lsSetColesSent(null);state.trolley=null;state.checkout=null;state.coLast=null;break}
     case "openorder":state.openOrder=state.openOrder===v?null:v;break;
     case "delorder":{if(state.armed!=="order"+v){state.armed="order"+v;break}state.armed=null;if(!lsSetOrders(WeekdayFuelOrders.removeOrder(lsOrders(),v))){state.orderError={where:"del"+v,msg:"Couldn't delete the order."};break}const inv=lsInv();if(inv&&!lsSetInv(WeekdayFuelInventory.removeOrder(inv,v)))state.orderError={where:"kitchen",msg:"Deleted the order, but couldn't update the kitchen stock."};if(state.openOrder===v)state.openOrder=null;break}
     case "rm":{if(state.armed==="rm"+i){const d=ensureDay(date);d.meals.splice(i,1);saveDay(date);state.armed=null}else state.armed="rm"+i;break}

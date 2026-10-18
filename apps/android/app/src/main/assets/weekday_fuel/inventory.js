@@ -1,6 +1,7 @@
 /* Kitchen stock: event history, stock maths, shop stock-in. Pure: no DOM, no storage. */
 (function (root) {
   "use strict";
+  var ord = typeof module === "object" && module.exports ? require("./orders.js") : root.WeekdayFuelOrders;
   var KEY = "weekdayfuel.inventory";
   var KEEP_DAYS = 120;
   var DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -471,32 +472,10 @@
     return qty * product.size;
   }
 
-  /* Same sent-line checks as orders.snapshot: if the trolley sent this row, stock that amount. */
   function amountFromSent(row, sent, colesSent, colesId) {
-    var w = row.woolies;
-    var gone = row.wooliesUnavailable;
-    var c = row.coles;
-    var cGone = row.colesUnavailable;
-    var cId = c ? colesId(c.product) : null;
-    var cGoneId = cGone ? colesId(cGone) : null;
-    if (w && isQty(sent[w.product.stockcode])) return buyAmount(w.product, sent[w.product.stockcode]);
-    if (w && w.alts) {
-      for (var ai = 0; ai < w.alts.length; ai++) {
-        var wAlt = w.alts[ai];
-        if (isQty(sent[wAlt.stockcode])) return buyAmount(wAlt, sent[wAlt.stockcode]);
-      }
-    }
-    if (gone && isQty(sent[gone.stockcode])) return buyAmount(gone, sent[gone.stockcode]);
-    if (cId && isQty(colesSent[cId])) return buyAmount(c.product, colesSent[cId]);
-    if (c && c.alts) {
-      for (var ci = 0; ci < c.alts.length; ci++) {
-        var cAlt = c.alts[ci];
-        var altId = colesId(cAlt);
-        if (altId && isQty(colesSent[altId])) return buyAmount(cAlt, colesSent[altId]);
-      }
-    }
-    if (cGoneId && isQty(colesSent[cGoneId])) return buyAmount(cGone, colesSent[cGoneId]);
-    return null;
+    if (!ord || !ord.sentLineQty) return null;
+    var m = ord.sentLineQty(row, sent, colesSent, colesId);
+    return m ? buyAmount(m.product, m.qty) : null;
   }
 
   function buysFromRows(rows, store, ticks, haveIt, opts) {

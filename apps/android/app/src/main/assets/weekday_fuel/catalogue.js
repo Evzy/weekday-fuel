@@ -641,7 +641,16 @@
     };
   }
 
+  function shopNeedLabel(row, fmt) {
+    if (!row || typeof row !== "object" || typeof fmt !== "function") return "";
+    var needText = fmt(row.need, row.unit);
+    var out = "need " + needText;
+    if (!(row.have > 0)) return out;
+    return out + " · have " + fmt(row.have, row.unit);
+  }
+
   var api = create(ITEMS, AMOUNTS);
+  api.shopNeedLabel = shopNeedLabel;
   api.create = create;
   api.applyLivePrices = applyLivePrices;
   api.applyColesPrices = applyColesPrices;

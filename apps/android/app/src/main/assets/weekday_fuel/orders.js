@@ -20,6 +20,42 @@
     return typeof q === "number" && isFinite(q) && q > 0;
   }
 
+  /* Same sent-line checks as snapshot / inventory stock-in. Returns { product, qty } or null. */
+  function sentLineQty(row, sent, colesSent, colesId) {
+    if (!row || typeof row !== "object") return null;
+    var w = row.woolies;
+    var gone = row.wooliesUnavailable;
+    var c = row.coles;
+    var cGone = row.colesUnavailable;
+    var idFn = typeof colesId === "function" ? colesId : function () { return null; };
+    var cId = c ? idFn(c.product) : null;
+    var cGoneId = cGone ? idFn(cGone) : null;
+    var s = sent || {};
+    var cs = colesSent || {};
+    if (w && isQty(s[w.product.stockcode])) return { product: w.product, qty: s[w.product.stockcode] };
+    if (w && w.alts) {
+      for (var ai = 0; ai < w.alts.length; ai++) {
+        var wAlt = w.alts[ai];
+        if (isQty(s[wAlt.stockcode])) return { product: wAlt, qty: s[wAlt.stockcode] };
+      }
+    }
+    if (gone && isQty(s[gone.stockcode])) return { product: gone, qty: s[gone.stockcode] };
+    if (cId && isQty(cs[cId])) return { product: c.product, qty: cs[cId] };
+    if (c && c.alts) {
+      for (var ci = 0; ci < c.alts.length; ci++) {
+        var cAlt = c.alts[ci];
+        var altId = idFn(cAlt);
+        if (altId && isQty(cs[altId])) return { product: cAlt, qty: cs[altId] };
+      }
+    }
+    if (cGoneId && isQty(cs[cGoneId])) return { product: cGone, qty: cs[cGoneId] };
+    return null;
+  }
+
+  function rowHasSentLine(row, sent, colesSent, colesId) {
+    return sentLineQty(row, sent, colesSent, colesId) !== null;
+  }
+
   function isDate(d) {
     return typeof d === "string" && DATE.test(d);
   }
@@ -237,8 +273,14 @@
   function summaryLine(order) {
     var d = new Date(order.at);
     var items = order.groups.ordered;
+    var covered = (order.groups.had || []).filter(function (i) {
+      return i && i.note === "covered by what you have";
+    });
     var parts = [DAYS[d.getDay()] + " " + d.getDate() + " " + MONTHS[d.getMonth()]];
-    if (!items.length) return parts.concat("nothing ordered").join(" · ");
+    if (!items.length) {
+      if (covered.length) return parts.concat(covered.length + " covered").join(" · ");
+      return parts.concat("nothing ordered").join(" · ");
+    }
     parts.push(items.length + " ordered");
     if (order.wooliesTotal !== null) parts.push(money(order.wooliesTotal));
     else parts.push("about " + money(round2(items.reduce(function (a, i) { return a + (i.cost || 0); }, 0))));
@@ -250,6 +292,8 @@
     GROUP_TITLES: GROUP_TITLES,
     KEEP: KEEP,
     snapshot: snapshot,
+    sentLineQty: sentLineQty,
+    rowHasSentLine: rowHasSentLine,
     isEmpty: isEmpty,
     parseOrders: parseOrders,
     addOrder: addOrder,

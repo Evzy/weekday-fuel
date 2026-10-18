@@ -1,6 +1,6 @@
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
-const { create } = require("../../main/assets/weekday_fuel/catalogue.js");
+const { create, shopNeedLabel } = require("../../main/assets/weekday_fuel/catalogue.js");
 const { shopScore } = require("../../main/assets/weekday_fuel/planner.js");
 
 const W = "https://www.woolworths.com.au/shop/productdetails/";
@@ -76,6 +76,14 @@ function slim(rows) {
     return o;
   });
 }
+
+const testFmt = (v, u) => (/^(g|mL)$/.test(u) ? v + u : v + " " + u);
+
+test("shopNeedLabel keeps need prefix and adds have only when partly covered", () => {
+  assert.equal(shopNeedLabel({ need: 3, unit: "bottles" }, testFmt), "need 3 bottles");
+  assert.equal(shopNeedLabel({ need: 400, have: 250, unit: "g" }, testFmt), "need 400g · have 250g");
+  assert.equal(shopNeedLabel({ need: 1, have: 1, unit: "pouches" }, testFmt), "need 1 pouches · have 1 pouches");
+});
 
 test("no have, empty have and unrelated keys match literal pre-change shopList", () => {
   const picks = { wrap: 2 };
@@ -159,7 +167,17 @@ test("bad have values are ignored", () => {
 test("epsilon boundary treats need minus 1e-10 as covered", () => {
   const need = 200;
   assert.equal(cat.shopList({ wrap: 1 }, 0, [], { breast: need - 1e-10 }).length, 0);
+  assert.equal(cat.coveredList({ wrap: 1 }, 0, [], { breast: need - 1e-10 }).length, 1);
   assert.equal(cat.shopList({ wrap: 1 }, 0, [], { breast: need - 2e-9 }).length, 1);
+  assert.equal(cat.coveredList({ wrap: 1 }, 0, [], { breast: need - 2e-9 }).length, 0);
+});
+
+test("coles store lines size for partial cover remainder", () => {
+  const r = cat.shopList({ wrap: 1 }, 0, [], { breast: 100 })[0];
+  assert.equal(r.need, 200);
+  assert.equal(r.have, 100);
+  assert.equal(r.coles.quantity, 1);
+  assert.equal(r.coles.product.size, 650);
 });
 
 test("shopScore drops covered rows and uses the remainder for fresh leftovers", () => {
