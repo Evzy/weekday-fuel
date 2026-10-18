@@ -398,7 +398,7 @@
     var c = row.coles;
     var cGone = row.colesUnavailable;
     var cId = c ? colesId(c.product) : null;
-    var cGoneId = cGone ? colesId(cGone.product) : null;
+    var cGoneId = cGone ? colesId(cGone) : null;
     if (w && isQty(sent[w.product.stockcode])) return buyAmount(w.product, sent[w.product.stockcode]);
     if (w && w.alts) {
       for (var ai = 0; ai < w.alts.length; ai++) {
@@ -430,12 +430,12 @@
     var out = [];
     (Array.isArray(rows) ? rows : []).forEach(function (row) {
       if (!row || typeof row !== "object") return;
-      if (hi[row.id]) return;
       var fromSent = amountFromSent(row, sent, colesSent, colesId);
       if (fromSent != null) {
         out.push({ item: row.id, amount: fromSent });
         return;
       }
+      if (hi[row.id]) return;
       if (t[row.id]) return;
       if (row.sec === 2) return;
       var line = row[store] || row[other];

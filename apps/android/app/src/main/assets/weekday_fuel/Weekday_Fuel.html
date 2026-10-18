@@ -636,16 +636,17 @@ function recentIds(date,back){const s=new Set();for(let i=1;i<=back;i++){const d
 function randomPick(list,avoid){const pool=list.filter(m=>!avoid.has(m.id));const src=pool.length?pool:list;return src[Math.floor(Math.random()*src.length)]}
 function suggestDay(date){
   const day=ensureDay(date);
-  const avoid=recentIds(date,1);
-  const used=new Set(avoid);
-  const keep=slot=>{const m=(day.meals||[]).find(x=>x.slot===slot);return m&&typeof m.ate==="string"?m:null};
+  const used=new Set(recentIds(date,1));
+  const ticked=(day.meals||[]).filter(m=>typeof m.ate==="string");
+  ticked.forEach(m=>used.add(m.id));
+  const tickedSlots=new Set(ticked.map(m=>m.slot));
   const pick=(slot,kind)=>{
-    const kept=keep(slot);
-    if(kept){used.add(kept.id);return kept}
+    if(tickedSlots.has(slot))return [];
     const m=randomPick(MEALS.filter(x=>x.slots.includes(kind)),used);used.add(m.id);
-    return {id:m.id,slot,t:"S"};
+    return [{id:m.id,slot,t:"S"}];
   };
-  day.meals=[pick("breakfast","breakfast"),pick("lunch","main"),pick("dinner","main")];
+  const added=[...pick("breakfast","breakfast"),...pick("lunch","main"),...pick("dinner","main")];
+  day.meals=ticked.concat(added).sort((a,b)=>SLOT_ORDER.indexOf(a.slot)-SLOT_ORDER.indexOf(b.slot));
   fitTiers(day);saveDay(date);
 }
 function swapMeal(date,idx){

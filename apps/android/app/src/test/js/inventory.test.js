@@ -2,7 +2,7 @@ const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const { execFileSync } = require("node:child_process");
 const path = require("node:path");
-const { create } = require("../../main/assets/weekday_fuel/catalogue.js");
+const { create, colesId: catalogueColesId } = require("../../main/assets/weekday_fuel/catalogue.js");
 const I = require("../../main/assets/weekday_fuel/inventory.js");
 
 const ASSETS = path.join(__dirname, "../../main/assets/weekday_fuel");
@@ -326,10 +326,20 @@ test("buysFromRows matches Past orders pantry and sent lines", () => {
     woolies: { product: { stockcode: 753976, size: 375 }, quantity: 1, cost: 5, buy: "1 jar" },
     coles: { product: { url: "https://www.coles.com.au/product/honey-1", size: 400 }, quantity: 1, cost: 4, buy: "1 jar" },
   };
-  const colesId = cat.colesId;
-  assert.deepEqual(I.buysFromRows([pantry], "woolies", {}, {}, { sent: {}, colesSent: {}, colesId }), []);
-  assert.deepEqual(I.buysFromRows([pantry], "woolies", {}, {}, { sent: { 753976: 2 }, colesSent: {}, colesId }), [{ item: "honey", amount: 750 }]);
-  assert.deepEqual(I.buysFromRows([pantry], "woolies", {}, { honey: true }, { sent: { 753976: 1 }, colesSent: {}, colesId }), []);
+  assert.deepEqual(I.buysFromRows([pantry], "woolies", {}, {}, { sent: {}, colesSent: {}, colesId: catalogueColesId }), []);
+  assert.deepEqual(I.buysFromRows([pantry], "woolies", {}, {}, { sent: { 753976: 2 }, colesSent: {}, colesId: catalogueColesId }), [{ item: "honey", amount: 750 }]);
+  assert.deepEqual(I.buysFromRows([pantry], "woolies", {}, { honey: true }, { sent: { 753976: 1 }, colesSent: {}, colesId: catalogueColesId }), [{ item: "honey", amount: 375 }]);
+});
+
+test("buysFromRows stocks colesUnavailable from colesSent", () => {
+  const gone = {
+    id: "yog",
+    coles: null,
+    colesUnavailable: { url: "https://www.coles.com.au/product/yog-1234567", size: 907, name: "Yog" },
+    woolies: { product: { stockcode: 717518, size: 907 }, quantity: 1, cost: 8, buy: "1 tub" },
+  };
+  assert.deepEqual(I.buysFromRows([gone], "coles", {}, {}, { sent: {}, colesSent: { 1234567: 2 }, colesId: catalogueColesId }), [{ item: "yog", amount: 1814 }]);
+  assert.deepEqual(I.buysFromRows([gone], "coles", { yog: true }, {}, { sent: {}, colesSent: { 1234567: 1 }, colesId: catalogueColesId }), [{ item: "yog", amount: 907 }]);
 });
 
 test("prune matches stock with post-cutoff buys and meal ticks (amounts and flags)", () => {
