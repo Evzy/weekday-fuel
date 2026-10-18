@@ -154,7 +154,7 @@ test("with near 0 the chosen week is the best-scoring one found", () => {
 test("on the real meals, a planned week follows the rules and its shop is no dearer than the median of single random weeks", () => {
   const chicken = (m) => (m.batch || []).includes("chicken");
   const pools = {
-    breakfast: MEALS.filter((m) => m.slots.includes("breakfast") && m.id !== "yogbowl").map((m) => m.id),
+    breakfast: MEALS.filter((m) => m.slots.includes("breakfast")).map((m) => m.id),
     lunch: MEALS.filter((m) => m.slots.includes("main") && chicken(m)).map((m) => m.id),
     dinner: MEALS.filter((m) => m.slots.includes("main") && !chicken(m)).map((m) => m.id),
   };

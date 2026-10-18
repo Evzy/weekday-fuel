@@ -88,7 +88,7 @@
       id: "burritobowl", name: "Chicken burrito bowl", slots: ["main"], cuisine: "Mexican", mins: 5, prep: "assemble", batch: ["chicken"],
       core: "150g cooked chicken breast (Sunday batch)",
       t: {
-        L: { k: 565, p: 58, c: 65, f: 6, cost: 6.6, what: "½ rice pouch, no cheese" },
+        L: { k: 495, p: 57, c: 50, f: 6, cost: 6.1, what: "⅓ rice pouch, no cheese" },
         S: { k: 770, p: 69, c: 87, f: 15, cost: 7.85, what: "¾ pouch + 30g light cheese" },
         X: { k: 995, p: 72, c: 110, f: 27, cost: 10.35, what: "Whole pouch, cheese, ½ avocado" },
       },
@@ -104,7 +104,7 @@
       id: "teriyaki", name: "Teriyaki chicken rice bowl", slots: ["main"], cuisine: "Japanese", mins: 12, prep: "quick",
       core: "200g chicken thigh fillet",
       t: {
-        L: { k: 615, p: 47, c: 66, f: 16, cost: 6.6, what: "½ rice pouch, stir-fry veg" },
+        L: { k: 545, p: 46, c: 52, f: 15, cost: 6.1, what: "⅓ rice pouch, stir-fry veg" },
         S: { k: 740, p: 50, c: 89, f: 18, cost: 7.2, what: "¾ pouch + sesame seeds" },
         X: { k: 940, p: 52, c: 112, f: 30, cost: 8.05, what: "Whole pouch + Kewpie drizzle" },
       },
@@ -120,7 +120,7 @@
       id: "buffalomac", name: "Buffalo chicken mac & cheese", slots: ["main"], cuisine: "American", mins: 15, prep: "cook", remake: "YES-style buffalo chicken mac",
       core: "180g chicken breast",
       t: {
-        L: { k: 585, p: 64, c: 49, f: 12, cost: 5.9, what: "50g dry macaroni, 25g light cheese" },
+        L: { k: 530, p: 62, c: 39, f: 12, cost: 5.85, what: "35g dry macaroni, 25g light cheese" },
         S: { k: 725, p: 72, c: 67, f: 16, cost: 6.2, what: "75g macaroni, 40g light cheese" },
         X: { k: 880, p: 75, c: 85, f: 23, cost: 6.8, what: "100g macaroni, 50g full-fat tasty" },
       },
@@ -138,7 +138,7 @@
       id: "schnitzel", name: "Chicken schnitzel, mash & peas", slots: ["main"], cuisine: "Pub classic", mins: 18, prep: "cook", remake: "YES-style chicken schnitzel",
       core: "180g chicken breast, crumbed",
       t: {
-        L: { k: 610, p: 61, c: 49, f: 16, fib: 8, cost: 4.1, what: "100g potato mash" },
+        L: { k: 575, p: 60, c: 42, f: 16, fib: 8, cost: 3.95, what: "50g potato mash" },
         S: { k: 710, p: 64, c: 68, f: 16, fib: 10, cost: 4.45, what: "200g mash + gravy" },
         X: { k: 850, p: 66, c: 82, f: 24, fib: 12, cost: 4.95, what: "300g mash with butter + gravy" },
       },
@@ -147,7 +147,7 @@
         "Slice the breast in half horizontally, or bash it to about 1 cm thick.",
         "Beat the egg in one bowl and mix the panko with the paprika and salt in another. Dip the chicken in the egg, then press it into the crumbs.",
         "Pan-fry in the oil and spray on medium-high for 3 min each side until golden and cooked through (air fryer: 200 °C for 12 min).",
-        "Meanwhile prick the potato and microwave it until soft (about 4 min on Light, 6–8 min on Standard and Loaded), then mash it with a fork and the milk (and butter on Loaded).",
+        "Meanwhile prick the potato and microwave it until soft (about 3 min on Light, 6–8 min on Standard and Loaded), then mash it with a fork and the milk (and butter on Loaded).",
         "Microwave the peas for 3 min. On Standard and Loaded, make up the gravy with boiling water.",
       ],
       note: "Crumb 2–3 breasts at once and freeze them raw between baking paper. They go straight from freezer to pan.",
@@ -156,7 +156,7 @@
       id: "koreanbeef", name: "Korean beef mince bowl", slots: ["main"], cuisine: "Korean", mins: 10, prep: "quick",
       core: "200g lean beef mince",
       t: {
-        L: { k: 635, p: 53, c: 64, f: 18, cost: 7.8, what: "½ rice pouch, less honey" },
+        L: { k: 565, p: 52, c: 49, f: 17, cost: 7.3, what: "⅓ rice pouch, less honey" },
         S: { k: 740, p: 61, c: 70, f: 24, cost: 8.45, what: "+ fried egg on top" },
         X: { k: 945, p: 64, c: 113, f: 25, cost: 10.25, what: "Whole pouch + fried egg" },
       },
@@ -173,7 +173,7 @@
       id: "bolognese", name: "15-minute bolognese", slots: ["main"], cuisine: "Italian", mins: 15, prep: "cook",
       core: "200g lean beef mince",
       t: {
-        L: { k: 625, p: 59, c: 62, f: 14, cost: 6.65, what: "60g spaghetti, 10g parmesan" },
+        L: { k: 555, p: 57, c: 47, f: 13, cost: 6.55, what: "40g spaghetti, 10g parmesan" },
         S: { k: 715, p: 62, c: 79, f: 14, cost: 6.7, what: "85g spaghetti" },
         X: { k: 885, p: 69, c: 97, f: 22, cost: 7.2, what: "110g spaghetti, 20g parmesan, olive oil" },
       },
@@ -190,7 +190,7 @@
       id: "redcurry", name: "Thai red curry chicken", slots: ["main"], cuisine: "Thai", mins: 12, prep: "quick",
       core: "180g chicken breast",
       t: {
-        L: { k: 610, p: 50, c: 55, f: 19, cost: 6, what: "½ rice pouch" },
+        L: { k: 540, p: 49, c: 40, f: 18, cost: 5.5, what: "⅓ rice pouch" },
         S: { k: 710, p: 52, c: 77, f: 20, cost: 6.8, what: "¾ rice pouch" },
         X: { k: 870, p: 54, c: 100, f: 26, cost: 7.65, what: "Whole pouch, extra coconut milk" },
       },
@@ -207,14 +207,14 @@
       id: "friedrice", name: "No-chop chicken fried rice", slots: ["main"], cuisine: "Chinese", mins: 8, prep: "quick", batch: ["chicken"],
       core: "120g cooked chicken breast + 2 eggs",
       t: {
-        L: { k: 695, p: 63, c: 65, f: 18, cost: 6, what: "½ rice pouch, spray oil" },
+        L: { k: 580, p: 60, c: 43, f: 17, cost: 5.2, what: "⅓ rice pouch, no corn, spray oil" },
         S: { k: 840, p: 65, c: 87, f: 24, cost: 6.8, what: "¾ pouch + sesame oil" },
         X: { k: 1015, p: 67, c: 109, f: 33, cost: 7.6, what: "Whole pouch, 2 tsp oil + sesame oil" },
       },
       extras: [{ tiers: "LS", text: "Oil spray" }, { tiers: "X", text: "2 tsp vegetable oil" }, RICE_REST],
       steps: [
         "Heat a large frying pan or wok on high with the oil. Scramble the eggs for 1 min and push them to the side.",
-        "Add the frozen peas and the drained corn for 2 min.",
+        "Add the frozen peas, and the drained corn if your portion has it, for 2 min.",
         "Add the rice straight from the pouch and a portion of Sunday chicken, torn up. Break the rice up as it heats.",
         "Add the soy, the oyster sauce and (on Standard and Loaded) the sesame oil. Toss on high for 2 min.",
       ],
