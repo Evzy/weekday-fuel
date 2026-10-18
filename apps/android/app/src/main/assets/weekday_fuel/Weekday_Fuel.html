@@ -446,6 +446,7 @@ const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"
 const pad=n=>String(n).padStart(2,"0");
 const iso=d=>d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
 const parse=s=>{const [y,m,d]=s.split("-").map(Number);return new Date(y,m-1,d)};
+const endOfDayIso=date=>{const p=parse(date);return new Date(p.getFullYear(),p.getMonth(),p.getDate(),23,59,59).toISOString()};
 const addDays=(s,n)=>{const d=parse(s);d.setDate(d.getDate()+n);return iso(d)};
 const dow=s=>parse(s).getDay();
 const isWeekend=s=>{const g=dow(s);return g===0||g===6};
@@ -478,6 +479,9 @@ const TROLLEY={woolies:{key:"stockcode",send:"sendTrolley",open:"openwoolies"},c
 const ORDERS=LS+".orders";
 function lsOrders(){try{return WeekdayFuelOrders.parseOrders(localStorage.getItem(ORDERS)||"[]")}catch(e){return []}}
 function lsSetOrders(list){try{localStorage.setItem(ORDERS,JSON.stringify(list));return true}catch(e){return false}}
+function invFixtureOn(d,k){const day=dayOf(d);return !!(day.fx&&day.fx[k])}
+function lsInv(){try{const raw=localStorage.getItem(WeekdayFuelInventory.KEY);return raw?WeekdayFuelInventory.parse(raw):null}catch(e){return null}}
+function lsSetInv(inv){try{const pruned=WeekdayFuelInventory.prune(inv,new Date(),state.days,CAT,invFixtureOn);localStorage.setItem(WeekdayFuelInventory.KEY,JSON.stringify(pruned));return true}catch(e){return false}}
 /* state.prices / state.colesPrices: null, "busy" or "error" */
 function colesIds(){const W=WeekdayFuelCatalogue,ids=[];W.ITEMS.forEach(i=>{if(!i.coles)return;[i.coles].concat(i.coles.packs||[]).forEach(p=>{const id=p&&W.colesId(p);if(id&&ids.indexOf(id)<0)ids.push(id)})});return ids}
 function wooliesStockcodes(){const W=WeekdayFuelCatalogue,codes=[];W.ITEMS.forEach(i=>{if(!i.woolies)return;[i.woolies].concat(i.woolies.packs||[]).forEach(p=>{const c=p&&p.stockcode;if(c&&codes.indexOf(c)<0)codes.push(c)})});return codes}
@@ -666,6 +670,12 @@ function renderToday(){
   const date=state.date;const day=dayOf(date);const tg=target();const t=totals(day);const we=isWeekend(date);const on=tracked(date);
   const isToday=date===iso(new Date());
   let h=`<div class="row between"><div class="daynav"><button class="iconbtn" data-act="shift" data-v="-7" aria-label="Previous week">${ICON.left}</button><button class="iconbtn" data-act="shift" data-v="7" aria-label="Next week">${ICON.right}</button>${isToday?"":`<button class="ghost" data-act="goto" data-v="${iso(new Date())}">Today</button>`}</div><div class="grow" style="text-align:right"><div class="eyebrow">${isToday?"Today":"Planning"}</div><h2>${fmtDay(date)}</h2></div></div>`;
+  const pending=WeekdayFuelInventory.pending(lsInv(),state.days,iso(new Date()));
+  if(pending.length){
+    h+=`<div class="panel stack"><h3>Did you eat these?</h3>`;
+    pending.forEach(p=>{const meal=MEAL[p.id];const name=meal?meal.name:"Unknown meal";h+=`<div class="row between" style="gap:8px"><span class="small grow">${esc(dayShort(p.date))} · ${esc(name)}</span><div class="row" style="gap:6px;flex-shrink:0"><button class="ghost" data-act="pendate" data-d="${esc(p.date)}" data-i="${p.i}">Ate it</button><button class="ghost" data-act="pendskip" data-d="${esc(p.date)}" data-i="${p.i}">Skipped</button></div></div>`});
+    h+=`<div><button class="btn alt" data-act="pendall">Yes, all</button></div></div>`;
+  }
   h+=`<div class="panel">${weekStrip()}</div>`;
   const wk=WeekdayFuelPlanner.weekDays(date,iso(new Date()));
   h+=`<div class="row between" style="gap:8px"><span class="small muted">Plans ${wk.dates.length===1?"the day":"the weekdays"} so meals share ingredients and lunches use the Sunday chicken. Planned meals stay.</span><button class="btn alt" data-act="suggestweek">${esc(wk.label)}</button></div>`;
@@ -689,7 +699,7 @@ function renderToday(){
     h+=`<div>`+day.meals.map((m,i)=>{const meal=MEAL[m.id];if(!meal)return"";const v=meal.t[m.t];
       return `<div class="meal"><div class="grow"><div class="slot">${esc(m.slot)}${meal.remake?` · <span class="tag remake">Remake</span>`:""}</div><button class="name" data-act="recipe" data-v="${meal.id}" data-t="${esc(m.t)}">${esc(meal.name)}</button><div class="what">${esc(meal.core)} · ${esc(v.what)}</div></div>
       <div class="kp">${v.k} kcal<br><span style="color:var(--yolk)">${v.p}g P</span></div>
-      <div class="acts"><div class="dial" role="group" aria-label="Portion">${TIERS.map(([k,l])=>`<button aria-pressed="${m.t===k}" data-act="tier" data-i="${i}" data-v="${k}">${l}</button>`).join("")}</div><button class="ghost" data-act="swap" data-i="${i}">Swap</button>${inShop?`<button class="ghost" aria-pressed="${m.shop!==false}" data-act="mealshop" data-i="${i}">${m.shop!==false?"In shop":"Not in shop"}</button>`:""}<button class="ghost ${state.armed==="rm"+i?"warn":""}" data-act="rm" data-i="${i}">${state.armed==="rm"+i?"Tap to remove":"Remove"}</button></div></div>`}).join("")+`</div>`;
+      <div class="acts"><div class="dial" role="group" aria-label="Portion">${TIERS.map(([k,l])=>`<button aria-pressed="${m.t===k}" data-act="tier" data-i="${i}" data-v="${k}">${l}</button>`).join("")}</div><button class="ghost" aria-pressed="${typeof m.ate==="string"}" data-act="ate" data-i="${i}">Ate it</button><button class="ghost" data-act="swap" data-i="${i}">Swap</button>${inShop?`<button class="ghost" aria-pressed="${m.shop!==false}" data-act="mealshop" data-i="${i}">${m.shop!==false?"In shop":"Not in shop"}</button>`:""}<button class="ghost ${state.armed==="rm"+i?"warn":""}" data-act="rm" data-i="${i}">${state.armed==="rm"+i?"Tap to remove":"Remove"}</button></div></div>`}).join("")+`</div>`;
   }
   // add
   h+=`<div class="row" style="margin-top:12px;gap:6px">${["breakfast","lunch","dinner","snack"].map(s=>`<button class="chip" aria-pressed="${state.adding===s}" data-act="adding" data-v="${s}">+ ${s}</button>`).join("")}</div>`;
@@ -907,7 +917,7 @@ function renderTrolley(rows,ticks,s){
   return h+`</div>`;
 }
 /* Saves the current shop as an order. True when saved or when there was nothing to save. */
-function saveOrder(){try{return trySaveOrder()}catch(e){return false}}
+function saveOrder(){try{return !!trySaveOrder()}catch(e){return false}}
 function trySaveOrder(){
   const rows=shopRows(),sent=lsSent(),lines=(sent&&sent.lines)||{},colesLines=(lsColesSent()||{}).lines||{};
   if(WeekdayFuelOrders.isEmpty(rows,lines,colesLines))return true;
@@ -921,7 +931,8 @@ function trySaveOrder(){
     forText:forLabel,product:wooliesProduct,
     colesSent:colesLines,colesId:WeekdayFuelCatalogue.colesId,colesProduct:colesProduct,
   });
-  return lsSetOrders(WeekdayFuelOrders.addOrder(lsOrders(),order));
+  if(!lsSetOrders(WeekdayFuelOrders.addOrder(lsOrders(),order)))return false;
+  return order.id;
 }
 function renderPastOrders(){
   const O=WeekdayFuelOrders,list=lsOrders();
@@ -1039,14 +1050,18 @@ document.addEventListener("click",e=>{
     case "suggestweek":if(state.planning)break;state.planning=true;state.weekNote="Planning your week…";setTimeout(()=>{try{suggestWeek()}finally{state.planning=false;render()}},30);break;
     case "fit":{const d=ensureDay(date);fitTiers(d);saveDay(date);break}
     case "tier":{const d=ensureDay(date);d.meals[i].t=v;saveDay(date);break}
+    case "ate":{const d=ensureDay(date);const m=d.meals[i];if(typeof m.ate==="string")delete m.ate;else m.ate=new Date().toISOString();saveDay(date);break}
+    case "pendate":{const dd=el.dataset.d,di=+el.dataset.i,d=ensureDay(dd),m=d.meals[di];if(m){m.ate=endOfDayIso(dd);saveDay(dd)}break}
+    case "pendskip":{const dd=el.dataset.d,di=+el.dataset.i,d=ensureDay(dd),m=d.meals[di];if(m){m.ate=false;saveDay(dd)}break}
+    case "pendall":WeekdayFuelInventory.pending(lsInv(),state.days,iso(new Date())).forEach(p=>{const d=ensureDay(p.date),m=d.meals[p.i];if(m){m.ate=endOfDayIso(p.date);saveDay(p.date)}});break
     case "swap":swapMeal(date,i);break;
     case "shopday":{const sd=state.settings.shopDays=Object.assign({},S().shopDays);if(sd[date])delete sd[date];else{sd[date]=true;const d=ensureDay(date);(d.meals||[]).forEach(m=>delete m.shop);saveDay(date)}saveSettings();break}
     case "mealshop":{const d=ensureDay(date);const m=d.meals[i];if(m.shop===false)delete m.shop;else m.shop=false;saveDay(date);break}
     case "unshopday":{const sd=state.settings.shopDays=Object.assign({},S().shopDays);delete sd[v];saveSettings();break}
     case "openday":state.tab="today";state.date=v;state.adding=null;window.scrollTo(0,0);break;
-    case "nextshop":if(trolleyBusy())break;if(state.armed!=="nextshop"){state.armed="nextshop";break}state.armed=null;if(!saveOrder()){state.orderError={where:el.dataset.w,msg:"Couldn't save the order. Nothing was cleared."};break}state.settings.shopDays={};state.settings.trial={};saveSettings();lsSetTicks({});lsSetSent(null);lsSetColesSent(null);state.trolley=null;state.checkout=null;state.coLast=null;break;
+    case "nextshop":if(trolleyBusy())break;if(state.armed!=="nextshop"){state.armed="nextshop";break}state.armed=null;{const saved=trySaveOrder();if(!saved){state.orderError={where:el.dataset.w,msg:"Couldn't save the order. Nothing was cleared."};break}if(saved!==true){const orderId=saved,buys=WeekdayFuelInventory.buysFromRows(shopRows(),store(),lsTicks(),(state.trolley&&state.trolley.haveIt)||{}),events=buys.map(b=>({k:"buy",item:b.item,amount:b.amount,order:orderId})),inv=WeekdayFuelInventory.addEvents(lsInv(),events,new Date().toISOString());if(!lsSetInv(inv))state.orderError={where:el.dataset.w,msg:"Saved the order, but couldn't update the kitchen stock."}}state.settings.shopDays={};state.settings.trial={};saveSettings();lsSetTicks({});lsSetSent(null);lsSetColesSent(null);state.trolley=null;state.checkout=null;state.coLast=null;break}
     case "openorder":state.openOrder=state.openOrder===v?null:v;break;
-    case "delorder":{if(state.armed!=="order"+v){state.armed="order"+v;break}state.armed=null;if(!lsSetOrders(WeekdayFuelOrders.removeOrder(lsOrders(),v))){state.orderError={where:"del"+v,msg:"Couldn't delete the order."};break}if(state.openOrder===v)state.openOrder=null;break}
+    case "delorder":{if(state.armed!=="order"+v){state.armed="order"+v;break}state.armed=null;if(!lsSetOrders(WeekdayFuelOrders.removeOrder(lsOrders(),v))){state.orderError={where:"del"+v,msg:"Couldn't delete the order."};break}const inv=lsInv();if(inv)lsSetInv(WeekdayFuelInventory.removeOrder(inv,v));if(state.openOrder===v)state.openOrder=null;break}
     case "rm":{if(state.armed==="rm"+i){const d=ensureDay(date);d.meals.splice(i,1);saveDay(date);state.armed=null}else state.armed="rm"+i;break}
     case "adding":state.adding=state.adding===v?null:v;break;
     case "add":{const d=ensureDay(date);d.meals=d.meals||[];d.meals.push({id:v,slot:state.adding,t:"S"});state.adding=null;saveDay(date);break}
