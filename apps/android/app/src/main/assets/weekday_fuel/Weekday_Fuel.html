@@ -588,7 +588,7 @@ function swapMeal(date,idx){
   const kind=m.slot==="breakfast"?"breakfast":m.slot==="snack"?"snack":"main";
   const avoid=new Set(day.meals.map(x=>x.id));recentIds(date,1).forEach(x=>avoid.add(x));
   const n=randomPick(MEALS.filter(x=>x.slots.includes(kind)),avoid);
-  day.meals[idx]=Object.assign({},m,{id:n.id});saveDay(date);
+  const next=Object.assign({},m,{id:n.id});delete next.ate;day.meals[idx]=next;saveDay(date);
 }
 const SLOT_ORDER=["breakfast","lunch","snack","dinner"];
 function suggestWeek(){
@@ -865,8 +865,9 @@ function trolleySend(rows,haveIt,s){
   return {lines:c.lines.concat(rm),manual:c.manual};
 }
 function sendTrolley(haveIt){
-  const s=store(),t=trolleySend(shopRows(),haveIt,s);if(!t.lines.length)return;
-  state.trolley={store:s,phase:"adding",completed:0,total:t.lines.length,lines:t.lines,manual:t.manual,fingerprint:WeekdayFuelCart.shopFingerprint(picks(),dayMeals(),fxDays())};
+  const hi=Object.assign({},haveIt||{});
+  const s=store(),t=trolleySend(shopRows(),hi,s);if(!t.lines.length)return;
+  state.trolley={store:s,phase:"adding",completed:0,total:t.lines.length,lines:t.lines,manual:t.manual,fingerprint:WeekdayFuelCart.shopFingerprint(picks(),dayMeals(),fxDays()),haveIt:hi};
   WeekdayFuelHost.postMessage(JSON.stringify({type:TROLLEY[s].send,lines:t.lines}));
 }
 function renderTrolley(rows,ticks,s){
@@ -916,8 +917,6 @@ function renderTrolley(rows,ticks,s){
   }
   return h+`</div>`;
 }
-/* Saves the current shop as an order. True when saved or when there was nothing to save. */
-function saveOrder(){try{return !!trySaveOrder()}catch(e){return false}}
 function trySaveOrder(){
   const rows=shopRows(),sent=lsSent(),lines=(sent&&sent.lines)||{},colesLines=(lsColesSent()||{}).lines||{};
   if(WeekdayFuelOrders.isEmpty(rows,lines,colesLines))return true;
@@ -935,9 +934,10 @@ function trySaveOrder(){
   return order.id;
 }
 function renderPastOrders(){
+  const kitchenHint=orderHint("kitchen");
   const O=WeekdayFuelOrders,list=lsOrders();
-  if(!list.length)return "";
-  let h=`<div class="panel stack"><h3>Past orders</h3>`;
+  if(!list.length)return kitchenHint;
+  let h=kitchenHint+`<div class="panel stack"><h3>Past orders</h3>`;
   list.forEach(o=>{
     const open=state.openOrder===o.id;
     h+=`<button class="pname" data-act="openorder" data-v="${esc(o.id)}" aria-expanded="${open}"><b>${esc(O.summaryLine(o))}</b></button>`;
@@ -1051,17 +1051,17 @@ document.addEventListener("click",e=>{
     case "fit":{const d=ensureDay(date);fitTiers(d);saveDay(date);break}
     case "tier":{const d=ensureDay(date);d.meals[i].t=v;saveDay(date);break}
     case "ate":{const d=ensureDay(date);const m=d.meals[i];if(typeof m.ate==="string")delete m.ate;else m.ate=new Date().toISOString();saveDay(date);break}
-    case "pendate":{const dd=el.dataset.d,di=+el.dataset.i,d=ensureDay(dd),m=d.meals[di];if(m){m.ate=endOfDayIso(dd);saveDay(dd)}break}
-    case "pendskip":{const dd=el.dataset.d,di=+el.dataset.i,d=ensureDay(dd),m=d.meals[di];if(m){m.ate=false;saveDay(dd)}break}
+    case "pendate":{const dd=el.dataset.d,di=+el.dataset.i,ex=state.days[dd];if(!ex||!ex.meals||!ex.meals[di])break;const d=ensureDay(dd),m=d.meals[di];m.ate=endOfDayIso(dd);saveDay(dd);break}
+    case "pendskip":{const dd=el.dataset.d,di=+el.dataset.i,ex=state.days[dd];if(!ex||!ex.meals||!ex.meals[di])break;const d=ensureDay(dd),m=d.meals[di];m.ate=false;saveDay(dd);break}
     case "pendall":WeekdayFuelInventory.pending(lsInv(),state.days,iso(new Date())).forEach(p=>{const d=ensureDay(p.date),m=d.meals[p.i];if(m){m.ate=endOfDayIso(p.date);saveDay(p.date)}});break
     case "swap":swapMeal(date,i);break;
     case "shopday":{const sd=state.settings.shopDays=Object.assign({},S().shopDays);if(sd[date])delete sd[date];else{sd[date]=true;const d=ensureDay(date);(d.meals||[]).forEach(m=>delete m.shop);saveDay(date)}saveSettings();break}
     case "mealshop":{const d=ensureDay(date);const m=d.meals[i];if(m.shop===false)delete m.shop;else m.shop=false;saveDay(date);break}
     case "unshopday":{const sd=state.settings.shopDays=Object.assign({},S().shopDays);delete sd[v];saveSettings();break}
     case "openday":state.tab="today";state.date=v;state.adding=null;window.scrollTo(0,0);break;
-    case "nextshop":if(trolleyBusy())break;if(state.armed!=="nextshop"){state.armed="nextshop";break}state.armed=null;{const saved=trySaveOrder();if(!saved){state.orderError={where:el.dataset.w,msg:"Couldn't save the order. Nothing was cleared."};break}if(saved!==true){const orderId=saved,buys=WeekdayFuelInventory.buysFromRows(shopRows(),store(),lsTicks(),(state.trolley&&state.trolley.haveIt)||{}),events=buys.map(b=>({k:"buy",item:b.item,amount:b.amount,order:orderId})),inv=WeekdayFuelInventory.addEvents(lsInv(),events,new Date().toISOString());if(!lsSetInv(inv))state.orderError={where:el.dataset.w,msg:"Saved the order, but couldn't update the kitchen stock."}}state.settings.shopDays={};state.settings.trial={};saveSettings();lsSetTicks({});lsSetSent(null);lsSetColesSent(null);state.trolley=null;state.checkout=null;state.coLast=null;break}
+    case "nextshop":if(trolleyBusy())break;if(state.armed!=="nextshop"){state.armed="nextshop";break}state.armed=null;{const saved=trySaveOrder();if(!saved){state.orderError={where:el.dataset.w,msg:"Couldn't save the order. Nothing was cleared."};break}if(saved!==true){const orderId=saved,st=store(),haveIt=WeekdayFuelInventory.shopHaveIt(state.trolley,sentFor(st)),buys=WeekdayFuelInventory.buysFromRows(shopRows(),st,lsTicks(),haveIt);if(buys.length){const events=buys.map(b=>({k:"buy",item:b.item,amount:b.amount,order:orderId})),inv=WeekdayFuelInventory.addEvents(lsInv(),events,new Date().toISOString());if(!lsSetInv(inv))state.orderError={where:"kitchen",msg:"Saved the order, but couldn't update the kitchen stock."}}}state.settings.shopDays={};state.settings.trial={};saveSettings();lsSetTicks({});lsSetSent(null);lsSetColesSent(null);state.trolley=null;state.checkout=null;state.coLast=null;break}
     case "openorder":state.openOrder=state.openOrder===v?null:v;break;
-    case "delorder":{if(state.armed!=="order"+v){state.armed="order"+v;break}state.armed=null;if(!lsSetOrders(WeekdayFuelOrders.removeOrder(lsOrders(),v))){state.orderError={where:"del"+v,msg:"Couldn't delete the order."};break}const inv=lsInv();if(inv)lsSetInv(WeekdayFuelInventory.removeOrder(inv,v));if(state.openOrder===v)state.openOrder=null;break}
+    case "delorder":{if(state.armed!=="order"+v){state.armed="order"+v;break}state.armed=null;if(!lsSetOrders(WeekdayFuelOrders.removeOrder(lsOrders(),v))){state.orderError={where:"del"+v,msg:"Couldn't delete the order."};break}const inv=lsInv();if(inv&&!lsSetInv(WeekdayFuelInventory.removeOrder(inv,v)))state.orderError={where:"kitchen",msg:"Deleted the order, but couldn't update the kitchen stock."};if(state.openOrder===v)state.openOrder=null;break}
     case "rm":{if(state.armed==="rm"+i){const d=ensureDay(date);d.meals.splice(i,1);saveDay(date);state.armed=null}else state.armed="rm"+i;break}
     case "adding":state.adding=state.adding===v?null:v;break;
     case "add":{const d=ensureDay(date);d.meals=d.meals||[];d.meals.push({id:v,slot:state.adding,t:"S"});state.adding=null;saveDay(date);break}
@@ -1084,7 +1084,7 @@ document.addEventListener("click",e=>{
     case "serve":{const pk=picks();const n=Math.max(0,Math.min(10,(pk[v]||0)+i));if(n)pk[v]=n;else delete pk[v];state.settings.trial=pk;saveSettings();break}
     case "starter":state.settings.trial=clone(STARTER);saveSettings();break;
     case "clearpicks":state.settings.trial={};saveSettings();break;
-    case "pantrycheck":{const rows=shopRows(),s=store();if(pantryRows(rows,lsTicks()).length||trolleySend(rows,{},s).lines.some(l=>l.quantity===0))state.trolley={store:s,phase:"pantry",haveIt:{}};else sendTrolley({});break}
+    case "pantrycheck":{const rows=shopRows(),s=store(),sent=sentFor(s);if(pantryRows(rows,lsTicks()).length||trolleySend(rows,{},s).lines.some(l=>l.quantity===0))state.trolley={store:s,phase:"pantry",haveIt:Object.assign({},WeekdayFuelInventory.shopHaveIt(null,sent))};else sendTrolley(Object.assign({},WeekdayFuelInventory.shopHaveIt(null,sent)));break}
     case "haveit":if(state.trolley&&state.trolley.phase==="pantry")state.trolley.haveIt[v]=el.checked;break;
     case "sendtrolley":sendTrolley(state.trolley&&state.trolley.haveIt||{});break;
     case "trolleyreset":state.trolley=null;break;
@@ -1151,7 +1151,7 @@ if(window.WeekdayFuelHost){
     const ty=m.type.slice(pre.length);
     if(ty==="Login"){if(!live)return;t.phase="login"}
     else if(ty==="Progress"){if(t.phase!=="adding"&&t.phase!=="login")return;t.phase="adding";t.completed=m.completed;t.total=m.total}
-    else if(ty==="Done"){if(!live)return;t.phase="done";t.results=Array.isArray(m.results)?m.results:[];const old=sentFor(s);setSentFor(s,{at:new Date().toISOString(),fingerprint:t.fingerprint,lines:WeekdayFuelCart.sentAfter(old&&old.lines,t.lines,t.results,TROLLEY[s].key)})}
+    else if(ty==="Done"){if(!live)return;t.phase="done";t.results=Array.isArray(m.results)?m.results:[];const old=sentFor(s),rec={at:new Date().toISOString(),fingerprint:t.fingerprint,lines:WeekdayFuelCart.sentAfter(old&&old.lines,t.lines,t.results,TROLLEY[s].key)};if(t.haveIt&&typeof t.haveIt==="object")rec.haveIt=Object.assign({},t.haveIt);setSentFor(s,rec)}
     else if(ty==="Error"){if(!live)return;t.phase="error";t.message=m.message||(s==="coles"?"Couldn't send to the Coles trolley.":"Something went wrong sending to Woolworths. Try again.")}
     else return;
     if(state.tab==="shop")render();

@@ -376,6 +376,12 @@
     return out;
   }
 
+  function shopHaveIt(trolley, sent) {
+    if (trolley && trolley.haveIt && typeof trolley.haveIt === "object") return trolley.haveIt;
+    if (sent && sent.haveIt && typeof sent.haveIt === "object") return sent.haveIt;
+    return {};
+  }
+
   function buysFromRows(rows, store, ticks, haveIt) {
     var other = store === "coles" ? "woolies" : "coles";
     var t = ticks || {};
@@ -405,6 +411,7 @@
     stock: stock,
     pending: pending,
     buysFromRows: buysFromRows,
+    shopHaveIt: shopHaveIt,
   };
   if (typeof module === "object" && module.exports) module.exports = api;
   else root.WeekdayFuelInventory = api;

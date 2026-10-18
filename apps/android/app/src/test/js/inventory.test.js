@@ -302,6 +302,12 @@ test("pending lists unanswered past meals since start", () => {
   ]);
 });
 
+test("shopHaveIt prefers trolley haveIt, then the sent record", () => {
+  assert.deepEqual(I.shopHaveIt({ haveIt: { rice: true } }, { haveIt: { ham: true } }), { rice: true });
+  assert.deepEqual(I.shopHaveIt(null, { haveIt: { ham: true } }), { ham: true });
+  assert.deepEqual(I.shopHaveIt({}, null), {});
+});
+
 test("buysFromRows handles deli, packs, missed store, ticks and haveIt", () => {
   const deli = { id: "ham", woolies: { product: { perKg: true, size: 1 }, quantity: 0.25, cost: 7, buy: "250g" }, coles: null };
   const pack = { id: "cheese", woolies: { product: { size: 500 }, quantity: 2, cost: 18, buy: "2 packs" }, coles: { product: { size: 500 }, quantity: 2, cost: 14, buy: "2 packs" } };
