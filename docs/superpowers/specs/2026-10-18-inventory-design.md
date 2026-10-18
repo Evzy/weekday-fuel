@@ -82,11 +82,16 @@ Deleting a saved order in Past orders removes its `buy` events.
 
 - `shopList` takes an optional `have` map `{ item: amount }`. Each row keeps `need` (what the meals and fixtures need) and gains `have` (`min(have, need)`). Store lines are worked out for `need − have`.
 - A row where `need − have ≤ 0` is `covered`: it has no store lines. Covered rows are left out of totals, trolley lines, Missed lists and the planner's `shopScore`, and are shown under "Covered by what you have".
-- `have` is the stock minus what's reserved:
-  - meals planned on days after the start date up to the day before the first shop day that aren't ticked or skipped (and aren't in the shop's days), plus shop-day meals left out of the shop ("shop: false"), which are eaten from what's at home;
-  - one Dare and one Grenade per day whose toggle is on (weekdays by default) from tomorrow to the day before the first shop day.
+- `have` is what's left after reserved amounts are taken out of stock. For items with a `keeps` value, reserved uses oldest lots first (like meals will), then only lots that will still be good on the first shop day (or today when there are no shop days) count toward `have` — probably-off stock does not cover the shop. Items without `keeps` use plain amount minus reserved.
+- Reserved meals:
+  - past unticked meals after the start date;
+  - unticked meals before the first shop day;
+  - unticked meals on non-shop days from the first shop day through the **last** shop day (meals on shop days themselves are on the list, except `shop: false`, which are eaten from home);
+  - one Dare and one Grenade per toggled day from tomorrow to the day before the first shop day.
 
   With no shop days, nothing is reserved beyond pending past meals.
+- When there is inventory, shop-day meals already ticked (`ate` is a string) are left out of `dayMeals()` — they've already used stock. Without inventory, behaviour is unchanged.
+- The trolley fingerprint matches the plan as before when there is no inventory; with inventory it also includes each shop row's `have` and covered item ids so stock changes mark the trolley out of date.
 - Partly covered rows show "need 400g · have 250g · buy 1 × 500g".
 - A saved order lists covered rows under "Already had" with the note "covered by what you have". They are not stocked in again.
 - **Ticks and pantry check:** they stay for things the inventory doesn't know about. Covered rows don't appear in either.

@@ -388,6 +388,7 @@
       })
       .sort();
     var first = shopArr.length ? shopArr[0] : null;
+    var last = shopArr.length ? shopArr[shopArr.length - 1] : null;
     var shopDaySet = nullMap();
     shopArr.forEach(function (d) {
       shopDaySet[d] = true;
@@ -396,16 +397,17 @@
       if (d === "__proto__" || !DATE.test(d) || compareDate(d, startDate) <= 0) return;
       var day = days[d];
       if (!day || !Array.isArray(day.meals)) return;
-      var inPendingWindow = compareDate(d, today) < 0 || (first && compareDate(d, first) < 0);
       day.meals.forEach(function (m) {
         if (shopDaySet[d] && m && m.shop === false) {
           reserveMeal(out, cat, m);
           return;
         }
-        if (!inPendingWindow) return;
-        /* Other meals on shop days are on the shop list, not reserved from stock. */
+        /* Meals on shop days are on the shop list, not reserved from stock. */
         if (shopDaySet[d]) return;
-        reserveMeal(out, cat, m);
+        var past = compareDate(d, today) < 0;
+        var beforeFirst = first && compareDate(d, first) < 0;
+        var betweenShops = first && last && compareDate(d, first) >= 0 && compareDate(d, last) <= 0;
+        if (past || beforeFirst || betweenShops) reserveMeal(out, cat, m);
       });
     });
     if (first && typeof fixtureOn === "function") {
@@ -433,6 +435,48 @@
       res = typeof res === "number" && isFinite(res) ? Math.max(0, res) : 0;
       var f = amount - res;
       if (f > 1e-9) out[item] = f;
+    });
+    return out;
+  }
+
+  function targetDayDate(targetDate) {
+    if (typeof targetDate === "string" && DATE.test(targetDate)) return parseLocalDate(targetDate);
+    if (targetDate instanceof Date && !isNaN(targetDate.getTime())) {
+      return new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate());
+    }
+    return null;
+  }
+
+  /* Shop have: subtract reserved oldest-first, then drop lots that will be off by targetDate (first shop day, or today). */
+  function freeForShop(stockMap, reservedMap, cat, targetDate) {
+    var out = nullMap();
+    if (!stockMap || typeof stockMap !== "object") return out;
+    var when = targetDayDate(targetDate);
+    if (!when) return free(stockMap, reservedMap);
+    Object.keys(stockMap).forEach(function (item) {
+      if (item === "__proto__") return;
+      var st = stockMap[item];
+      var amount = st && typeof st.amount === "number" ? st.amount : 0;
+      var res = reservedMap && reservedMap[item];
+      res = typeof res === "number" && isFinite(res) ? Math.max(0, res) : 0;
+      var it = cat && typeof cat.item === "function" ? cat.item(item) : null;
+      if (!it || typeof it.keeps !== "number" || !(it.keeps > 0) || !st.lots || !st.lots.length) {
+        var plain = amount - res;
+        if (plain > 1e-9) out[item] = plain;
+        return;
+      }
+      var lots = st.lots.map(function (l) {
+        return { at: l.at, amount: l.amount };
+      });
+      sortLotsAsc(lots);
+      if (res > 1e-9) consumeLots(lots, res);
+      var keeps = it.keeps;
+      var sum = 0;
+      lots.forEach(function (l) {
+        if (l.amount <= 1e-9) return;
+        if (ageDays(l.at, when) <= keeps) sum += l.amount;
+      });
+      if (sum > 1e-9) out[item] = sum;
     });
     return out;
   }
@@ -517,6 +561,7 @@
     pending: pending,
     reserved: reserved,
     free: free,
+    freeForShop: freeForShop,
     buysFromRows: buysFromRows,
     shopHaveIt: shopHaveIt,
   };

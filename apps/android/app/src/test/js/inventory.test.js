@@ -393,6 +393,37 @@ test("reserved uses the earliest shop day when shopDays is unsorted", () => {
   assert.equal(sorted.breast, 150);
 });
 
+test("freeForShop drops perishable lots that will be off by the first shop day", () => {
+  const buyAt = localMid(2026, 9, 4);
+  const base = inv([{ id: "a", at: buyAt, k: "buy", item: "breast", amount: 600, order: "o1" }]);
+  const stMap = I.stock(base, {}, cat, new Date(2026, 9, 4, 12, 0, 0), () => false);
+  assert.equal(I.freeForShop(stMap, {}, cat, "2026-10-13").breast, undefined);
+  assert.equal(I.freeForShop(stMap, {}, cat, "2026-10-06").breast, 600);
+});
+
+test("freeForShop consumes reserved stock from oldest lots first", () => {
+  const base = inv([
+    { id: "a", at: localMid(2026, 9, 1), k: "buy", item: "breast", amount: 500, order: "o1" },
+    { id: "b", at: localMid(2026, 9, 10), k: "buy", item: "breast", amount: 500, order: "o2" },
+  ]);
+  const stMap = I.stock(base, {}, cat, new Date(2026, 9, 11, 12, 0, 0), () => false);
+  assert.equal(I.freeForShop(stMap, { breast: 600 }, cat, "2026-10-12").breast, 400);
+});
+
+test("freeForShop leaves items without keeps on plain free maths", () => {
+  const base = inv([{ id: "a", at: START, k: "buy", item: "rice", amount: 2, order: "o1" }]);
+  const stMap = I.stock(base, {}, cat, NOW, () => false);
+  assert.equal(I.freeForShop(stMap, { rice: 1 }, cat, "2026-10-25").rice, 1);
+});
+
+test("reserved includes unticked meals on non-shop days between shop days", () => {
+  const base = inv([]);
+  const days = { "2026-10-23": { meals: [{ id: "bowl", name: "B", t: "S" }] } };
+  const r = I.reserved(base, days, cat, "2026-10-20", ["2026-10-25", "2026-10-21"], () => false);
+  assert.equal(r.breast, 150);
+  assert.equal(r.rice, 1);
+});
+
 test("free subtracts reserved stock and drops zero items", () => {
   const stock = Object.assign(Object.create(null), {
     breast: { amount: 600, lots: [] },

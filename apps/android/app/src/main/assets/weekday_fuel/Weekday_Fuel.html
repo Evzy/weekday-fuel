@@ -265,16 +265,26 @@ const other=s=>s==="coles"?"woolies":"coles";
 const fxDays=()=>S().fixtureDays==null?5:S().fixtureDays;
 /* Planned days in the shop: settings.shopDays {date:true}; a day's meal with shop:false is left out */
 const shopDays=()=>{const sd=S().shopDays||{};return Object.keys(sd).filter(d=>sd[d]).sort()};
-function dayMeals(){return shopDays().flatMap(d=>((state.days[d]&&state.days[d].meals)||[]).filter(m=>m.shop!==false).map(m=>({day:d,meal:m.id,t:m.t})))}
+function dayMeals(){
+  const inv=lsInv();
+  return shopDays().flatMap(d=>((state.days[d]&&state.days[d].meals)||[]).filter(m=>{
+    if(m.shop===false)return false;
+    if(inv&&typeof m.ate==="string")return false;
+    return true;
+  }).map(m=>({day:d,meal:m.id,t:m.t})));
+}
+function shopHaveTargetDate(){const sd=shopDays();return sd.length?sd[0]:iso(new Date())}
 let shopCtx=null;
 function shopHave(){
   if(shopCtx)return shopCtx.have;
   const inv=lsInv();
   let have=null;
   if(inv){
-    have=WeekdayFuelInventory.free(
+    have=WeekdayFuelInventory.freeForShop(
       WeekdayFuelInventory.stock(inv,state.days,CAT,new Date(),invFixtureOn),
-      WeekdayFuelInventory.reserved(inv,state.days,CAT,iso(new Date()),shopDays(),invFixtureOn)
+      WeekdayFuelInventory.reserved(inv,state.days,CAT,iso(new Date()),shopDays(),invFixtureOn),
+      CAT,
+      shopHaveTargetDate()
     );
   }
   shopCtx={have};
@@ -299,6 +309,12 @@ function shopOrderRows(){
 function shopSnapshotCovered(){
   const {lines,colesLines,colesId,byId}=shopSentCtx();
   return shopCovered().filter(c=>{const full=byId[c.id];return !full||!WeekdayFuelOrders.rowHasSentLine(full,lines,colesLines,colesId)});
+}
+function shopFingerprint(){
+  const base=WeekdayFuelCart.shopFingerprint(picks(),dayMeals(),fxDays());
+  if(shopHave()===null)return base;
+  const rows=shopRows(),cov=shopCovered();
+  return base+"|"+JSON.stringify(rows.map(r=>[r.id,r.have||0]))+"|"+JSON.stringify(cov.map(c=>c.id));
 }
 function shopOrderEmpty(){
   try{
@@ -931,7 +947,7 @@ function batchCard(b){
   const users=MEALS.filter(m=>(m.batch||[]).includes(b.id));
   return `<div class="card"><div class="row" style="gap:6px;margin-bottom:4px"><span class="tag">Batch prep</span></div><h3>${esc(b.name)}</h3><div class="small muted">${esc(b.makes)}</div><div class="hint"><span>Keeps ${esc(b.keeps)}.</span></div><div class="stack" style="gap:8px"><div class="eyebrow">Method</div><ol class="steps">${b.steps.map(s=>`<li>${esc(s)}</li>`).join("")}</ol>${users.length?`<div class="eyebrow">Used in</div><div class="chips">${users.map(m=>`<button class="chip" data-act="recipe" data-v="${m.id}">${esc(m.name)}</button>`).join("")}</div>`:""}</div></div>`;
 }
-const shopAmountFmt=(v,unit)=>/^(g|mL)$/.test(unit)?kitchenAmountText(v,unit):amountText(v,unit);
+const shopAmountFmt=(v,u)=>/^(g|mL)$/.test(u)?fmtAmt(v,u):(Math.round(v*10)/10)+" "+(v<=1?oneUnit(u):u);
 const shopNeedText=r=>WeekdayFuelCatalogue.shopNeedLabel(r,shopAmountFmt);
 function macroLine(id){const m=MACROS[id];if(!m)return "";return `<span class="mac num">Per ${m[4]}: ${m[0]} kcal · ${m[1]}g P · ${m[2]}g C · ${m[3]}g F <span class="src">${m[5]==="label"?"from the label":"typical, check the pack"}</span>${m[6]?`<br>${esc(m[6])}`:""}</span>`}
 function storePrice(s,price){return price!=null?`<span class="sp ${s}">${STORE_NAME[s]} ${money(price)}</span>`:`<span class="sp ${s} none">Not at ${STORE_NAME[s]}</span>`}
@@ -981,7 +997,7 @@ function trolleySend(rows,haveIt,s){
 function sendTrolley(haveIt){
   const hi=Object.assign({},haveIt||{});
   const s=store(),t=trolleySend(shopRows(),hi,s);if(!t.lines.length)return;
-  state.trolley={store:s,phase:"adding",completed:0,total:t.lines.length,lines:t.lines,manual:t.manual,fingerprint:WeekdayFuelCart.shopFingerprint(picks(),dayMeals(),fxDays()),haveIt:hi};
+  state.trolley={store:s,phase:"adding",completed:0,total:t.lines.length,lines:t.lines,manual:t.manual,fingerprint:shopFingerprint(),haveIt:hi};
   WeekdayFuelHost.postMessage(JSON.stringify({type:TROLLEY[s].send,lines:t.lines}));
 }
 function renderTrolley(rows,ticks,s){
@@ -990,7 +1006,7 @@ function renderTrolley(rows,ticks,s){
   let h=`<div class="panel stack"><h3>${N} trolley</h3>`;
   if(!t){
     const ts=trolleySend(rows,{},s);const rms=ts.lines.filter(l=>l.quantity===0).length,adds=ts.lines.length-rms;
-    if(sent&&sent.fingerprint!==WeekdayFuelCart.shopFingerprint(picks(),dayMeals(),fxDays()))h+=`<div class="hint"><span>Trolley out of date: your shop changed since you sent it at ${esc(sentWhen(sent.at))}.</span></div>`;
+    if(sent&&sent.fingerprint!==shopFingerprint())h+=`<div class="hint"><span>Trolley out of date: your shop changed since you sent it at ${esc(sentWhen(sent.at))}.</span></div>`;
     else if(sent)h+=`<div class="small muted">Sent at ${esc(sentWhen(sent.at))}.</div>`;
     h+=`<div class="small muted">Puts the ${adds} ${N} product${adds===1?"":"s"} still left to buy into your online trolley${rms?` and takes out ${rms} the shop no longer needs`:""}. Anything already there is set to these amounts, not doubled. First you tick off the pantry items you already have.</div>`;
     h+=`<div class="row"><button class="btn" data-act="pantrycheck" ${ts.lines.length?"":"disabled"}>${sent?"Send again":"Send to "+N+" trolley"}</button></div>`;
@@ -1208,7 +1224,7 @@ document.addEventListener("click",e=>{
     case "serve":{const pk=picks();const n=Math.max(0,Math.min(10,(pk[v]||0)+i));if(n)pk[v]=n;else delete pk[v];state.settings.trial=pk;saveSettings();break}
     case "starter":state.settings.trial=clone(STARTER);saveSettings();break;
     case "clearpicks":state.settings.trial={};saveSettings();break;
-    case "pantrycheck":{const rows=shopRows(),s=store(),last=sentFor(s),sent=last&&last.fingerprint===WeekdayFuelCart.shopFingerprint(picks(),dayMeals(),fxDays())?last:null;if(pantryRows(rows,lsTicks()).length||trolleySend(rows,{},s).lines.some(l=>l.quantity===0))state.trolley={store:s,phase:"pantry",haveIt:Object.assign({},WeekdayFuelInventory.shopHaveIt(null,sent))};else sendTrolley(Object.assign({},WeekdayFuelInventory.shopHaveIt(null,sent)));break}
+    case "pantrycheck":{const rows=shopRows(),s=store(),last=sentFor(s),sent=last&&last.fingerprint===shopFingerprint()?last:null;if(pantryRows(rows,lsTicks()).length||trolleySend(rows,{},s).lines.some(l=>l.quantity===0))state.trolley={store:s,phase:"pantry",haveIt:Object.assign({},WeekdayFuelInventory.shopHaveIt(null,sent))};else sendTrolley(Object.assign({},WeekdayFuelInventory.shopHaveIt(null,sent)));break}
     case "haveit":if(state.trolley&&state.trolley.phase==="pantry")state.trolley.haveIt[v]=el.checked;break;
     case "sendtrolley":sendTrolley(state.trolley&&state.trolley.haveIt||{});break;
     case "trolleyreset":state.trolley=null;break;

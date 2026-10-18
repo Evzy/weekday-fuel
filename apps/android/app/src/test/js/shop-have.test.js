@@ -77,12 +77,17 @@ function slim(rows) {
   });
 }
 
-const testFmt = (v, u) => (/^(g|mL)$/.test(u) ? v + u : v + " " + u);
+const oneUnit = (u) => u.replace(/(ch|sh|x)es$/, "$1").replace(/s$/, "");
+const shopFmt = (v, u) =>
+  /^(g|mL)$/.test(u)
+    ? (v >= 1000 && u === "g" ? v / 1000 + "kg" : Math.round(v * 10) / 10 + u)
+    : Math.round(v * 10) / 10 + " " + (v <= 1 ? oneUnit(u) : u);
 
 test("shopNeedLabel keeps need prefix and adds have only when partly covered", () => {
-  assert.equal(shopNeedLabel({ need: 3, unit: "bottles" }, testFmt), "need 3 bottles");
-  assert.equal(shopNeedLabel({ need: 400, have: 250, unit: "g" }, testFmt), "need 400g · have 250g");
-  assert.equal(shopNeedLabel({ need: 1, have: 1, unit: "pouches" }, testFmt), "need 1 pouches · have 1 pouches");
+  assert.equal(shopNeedLabel({ need: 3, unit: "bottles" }, shopFmt), "need 3 bottles");
+  assert.equal(shopNeedLabel({ need: 400, have: 250, unit: "g" }, shopFmt), "need 400g · have 250g");
+  assert.equal(shopNeedLabel({ need: 1, have: 1, unit: "pouches" }, shopFmt), "need 1 pouch · have 1 pouch");
+  assert.equal(shopNeedLabel({ need: 1, have: 1, unit: "bars" }, shopFmt), "need 1 bar · have 1 bar");
 });
 
 test("no have, empty have and unrelated keys match literal pre-change shopList", () => {
