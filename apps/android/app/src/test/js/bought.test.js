@@ -89,6 +89,25 @@ test("backfillBought applies orders oldest first and skips bad orders", () => {
   assert.equal(r.days["2026-10-20"].meals[1].bought, "o1");
 });
 
+test("clearUnbought skips entire dates in skipDates", () => {
+  const days = {
+    "2026-10-20": day([meal("bowl"), meal("wrap")]),
+    "2026-10-21": day([meal("toasty")]),
+  };
+  const r = B.clearUnbought(days, ["2026-10-20"]);
+  assert.equal(r.cleared, 1);
+  assert.deepEqual(r.changed, ["2026-10-21"]);
+  assert.equal(r.days["2026-10-20"].meals.length, 2);
+  assert.equal(r.days["2026-10-21"].meals.length, 0);
+});
+
+test("clearUnbought skipDates as a set-like object", () => {
+  const days = { "2026-10-20": day([meal("bowl")]) };
+  const r = B.clearUnbought(days, { "2026-10-20": true });
+  assert.equal(r.cleared, 0);
+  assert.deepEqual(r.changed, []);
+});
+
 test("clearUnbought removes uneaten unbought meals and counts them", () => {
   const days = {
     "2026-10-20": day([

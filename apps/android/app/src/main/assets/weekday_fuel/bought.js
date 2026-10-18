@@ -100,13 +100,30 @@
     return { days: cur, changed: changed };
   }
 
-  function clearUnbought(days) {
+  function skipDateSet(skipDates) {
+    if (!skipDates) return null;
+    var set = Object.create(null);
+    if (Array.isArray(skipDates)) {
+      skipDates.forEach(function (d) {
+        if (typeof d === "string" && d) set[d] = true;
+      });
+    } else if (typeof skipDates === "object") {
+      Object.keys(skipDates).forEach(function (d) {
+        if (d !== "__proto__" && skipDates[d]) set[d] = true;
+      });
+    }
+    return Object.keys(set).length ? set : null;
+  }
+
+  function clearUnbought(days, skipDates) {
     if (!days || typeof days !== "object") return { days: days, changed: [], cleared: 0 };
+    var skip = skipDateSet(skipDates);
     var out = days;
     var changed = [];
     var cleared = 0;
     Object.keys(days).forEach(function (date) {
       if (date === "__proto__") return;
+      if (skip && skip[date]) return;
       var day = days[date];
       if (!day || !Array.isArray(day.meals)) return;
       var kept = [];
