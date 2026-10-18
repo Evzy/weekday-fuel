@@ -45,16 +45,17 @@
   }
 
   /* Whole-pack cost at the store (the other store's product when it lacks one) plus the unused part of fresh (sec 1) packs. */
-  function shopScore(cat, dayMeals, store) {
+  function shopScore(cat, dayMeals, store, have) {
     var other = store === "coles" ? "woolies" : "coles";
     var total = 0;
-    cat.shopList({}, 0, dayMeals).forEach(function (r) {
+    cat.shopList({}, 0, dayMeals, have).forEach(function (r) {
       var line = r[store] || r[other];
       if (!line) return;
       total += line.cost;
       var p = line.product;
       if (r.sec === 1 && !p.perKg) {
-        var left = line.quantity * p.size - r.need;
+        var buyNeed = r.need - (r.have || 0);
+        var left = line.quantity * p.size - buyNeed;
         if (left > 0) total += (left / p.size) * p.price;
       }
     });

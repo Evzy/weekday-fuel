@@ -461,7 +461,7 @@
       return per && Object.prototype.hasOwnProperty.call(per, id) ? tierAmount(per[id], tier) : 0;
     }
 
-    function shopList(picks, fixtureDays, dayMeals) {
+    function buildShopNeed(picks, fixtureDays, dayMeals) {
       var need = {};
       var used = {};
       var days = {};
@@ -488,26 +488,74 @@
           if (it.sec === 0) need[it.id] = fixtureDays;
         });
       }
-      return items
-        .filter(function (it) {
-          return need[it.id] > 0;
-        })
-        .map(function (it) {
-          var n = need[it.id];
-          return {
-            id: it.id,
-            sec: it.sec,
-            name: it.name,
-            unit: it.unit,
-            need: n,
-            used: used[it.id] || [],
-            days: Object.keys(days[it.id] || {}).sort(),
-            coles: it.coles ? storeLine(it, it.coles, n) : null,
-            woolies: it.woolies ? storeLine(it, it.woolies, n) : null,
-            wooliesUnavailable: it.wooliesUnavailable || null,
-            colesUnavailable: it.colesUnavailable || null,
-          };
+      return { need: need, used: used, days: days };
+    }
+
+    function haveForRow(have, id, need) {
+      if (!have || !Object.prototype.hasOwnProperty.call(have, id)) return 0;
+      var v = have[id];
+      if (typeof v !== "number" || !isFinite(v) || v <= 0) return 0;
+      return Math.min(v, need);
+    }
+
+    function shopRow(it, n, used, days, buy, h) {
+      var row = {
+        id: it.id,
+        sec: it.sec,
+        name: it.name,
+        unit: it.unit,
+        need: n,
+        used: used[it.id] || [],
+        days: Object.keys(days[it.id] || {}).sort(),
+        coles: it.coles ? storeLine(it, it.coles, buy) : null,
+        woolies: it.woolies ? storeLine(it, it.woolies, buy) : null,
+        wooliesUnavailable: it.wooliesUnavailable || null,
+        colesUnavailable: it.colesUnavailable || null,
+      };
+      if (h > 0) row.have = h;
+      return row;
+    }
+
+    function shopList(picks, fixtureDays, dayMeals, have) {
+      var built = buildShopNeed(picks, fixtureDays, dayMeals);
+      var need = built.need;
+      var used = built.used;
+      var days = built.days;
+      var out = [];
+      items.forEach(function (it) {
+        var n = need[it.id];
+        if (!(n > 0)) return;
+        var h = haveForRow(have, it.id, n);
+        if (n - h <= 1e-9) return;
+        out.push(shopRow(it, n, used, days, n - h, h));
+      });
+      return out;
+    }
+
+    function coveredList(picks, fixtureDays, dayMeals, have) {
+      var built = buildShopNeed(picks, fixtureDays, dayMeals);
+      var need = built.need;
+      var used = built.used;
+      var days = built.days;
+      var out = [];
+      items.forEach(function (it) {
+        var n = need[it.id];
+        if (!(n > 0)) return;
+        var h = haveForRow(have, it.id, n);
+        if (n - h > 1e-9) return;
+        out.push({
+          id: it.id,
+          sec: it.sec,
+          name: it.name,
+          unit: it.unit,
+          need: n,
+          have: n,
+          used: used[it.id] || [],
+          days: Object.keys(days[it.id] || {}).sort(),
+          covered: true,
         });
+      });
+      return out;
     }
 
     function storeTotals(rows, store, ticks) {
@@ -582,6 +630,7 @@
       deliGrams: deliGrams,
       amountFor: amountFor,
       shopList: shopList,
+      coveredList: coveredList,
       storeTotals: storeTotals,
       mealCost: mealCost,
       usedIn: usedIn,
