@@ -13,6 +13,7 @@ Make adding, changing or removing meals a repeatable chat with an agent: the age
 - Checks block only hard rules; kcal bands, protein maximums, cost, prep time, beans and single-store products are guidelines the agent reports when proposing a meal.
 - Meals move into their own file, `assets/weekday_fuel/meals.js`; products and shopping amounts stay in `catalogue.js`.
 - Two kcal figures that miss the 5% maths rule are corrected; the protein minimum is checked on the Standard portion.
+- Shared ingredients stay the point: new meals are built mainly from products already in the app, and every proposal reports what it adds and what it shares. Making "Suggest a day" and Build a shop prefer overlapping meals is the next feature, brainstormed separately.
 
 ## Current state (2026-10-18)
 
@@ -45,7 +46,8 @@ Guidelines (never fail CI; the agent reports them per meal when proposing):
 
 - kcal bands: Light 400–600, Standard 550–750, Loaded 750–950;
 - protein maximum per slot: breakfast 45, main 65, snack 25;
-- cost over $7 a serve; prep over 20 min; beans; a product stocked at only one store.
+- cost over $7 a serve; prep over 20 min; beans; a product stocked at only one store;
+- ingredient reuse: how many products the meal adds that no existing meal uses (aim for at most one, and never a new perishable that would be left half-used), and which existing meals share its protein, carb and veg.
 
 The agent works out guideline misses itself when proposing; no helper code for them (YAGNI).
 
@@ -56,13 +58,14 @@ A Cursor rule, applied when `meals.js` or `catalogue.js` is in context or when m
 - Who it's for: Evan, 30, Melbourne, 183 cm, ~83.5 kg; PPL 5 days at lunch + 2 runs; shops at Coles and Woolworths; desk job; cheap, low-effort meals.
 - Targets: 170 g protein every weekday (fixed, first); kcal by phase (mini-cut ~2,150, current; recomp ~2,500; lean bulk ~2,800); weekends untracked; weekday kcal nudged ±150 from the 7-day trend; he picks meals and portions, the app adds them up.
 - Daily fixtures (Dare 500 mL, Grenade bar; ~540 kcal, ~50 g protein); meals cover ~120 g protein; typical day one breakfast, two mains, maybe a snack.
+- Shared ingredients (the plan's founding idea): build new meals mainly from products already in `catalogue.js`, so a week's shop stays small and prep overlaps (Sunday chicken batch, rice pouches, light cheese, wraps, eggs, frozen veg). Take the protein, carb and veg from the existing pool; get new flavour from cheap jars, pastes and spice mixes rather than new fresh items.
 - Food rules: banned (tuna, tinned salmon, cottage cheese); avoid beans unless minor; the approved proteins, carbs and veg; ask Evan yes/no before any new core ingredient; variety across cuisines, no variations of the same dish; flavour from cheap jars, pastes and spice mixes; ready-meal remakes are a big win.
 - A **food decisions** list (approved/rejected, with dates), seeded with the handover's approved lists, updated whenever Evan answers.
 - Practical limits: ≤20 min, one pan plus microwave; small fridge (frozen veg, long-life cans, pantry jars, single-portion frozen meat, no half-used perishables); Sunday chicken batch (1 kg breast → ~750 g cooked, 5 × 150 g); cost under $7 a serve with realistic Coles/Woolworths AUD prices.
 - Meal structure: fixed protein core; L/S/X change only carbs and fat; the hard rules and guidelines exactly as in component 2; protein per meal ranges.
 - Products: real Coles and Woolworths products with exact product-page URLs (never search URLs; say so if none found), looked up on the live sites, label values where possible, each price marked checked or estimate; record them in `catalogue.js` the way existing items are recorded (name, url, price, size, `checked` date, Woolworths stockcode, Coles id at the end of the URL).
 - Where things go: meal object in `meals.js`; shopping amounts (the handover's `amt`) in `catalogue.js` `AMOUNTS`, keyed by item id; new products as `ITEMS`. Meal ids never change.
-- Workflow (component 4) and the proposal format: per meal, cuisine, mins, core, the L/S/X table with costs, ingredients with both stores' links, method, guideline misses, assumptions and unverified values.
+- Workflow (component 4) and the proposal format: per meal, cuisine, mins, core, the L/S/X table with costs, ingredients with both stores' links, method, the ingredient-reuse report (new products added; existing meals it shares ingredients with), guideline misses, assumptions and unverified values.
 
 ### 4. Workflow (documented in the rule)
 
@@ -99,3 +102,4 @@ Removing a meal: the agent confirms the page and `catalogue.shopList` ignore pic
 - An in-app meal editor.
 - Enforcing guidelines in CI.
 - Changing kcal bands or protein ranges.
+- Overlap-aware "Suggest a day" and Build a shop (next feature, own brainstorm).
