@@ -1,7 +1,11 @@
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
+const { execFileSync } = require("node:child_process");
+const path = require("node:path");
 const { create } = require("../../main/assets/weekday_fuel/catalogue.js");
 const I = require("../../main/assets/weekday_fuel/inventory.js");
+
+const ASSETS = path.join(__dirname, "../../main/assets/weekday_fuel");
 
 const W = "https://www.woolworths.com.au/shop/productdetails/";
 const C = "https://www.coles.com.au/product/";
@@ -398,19 +402,67 @@ test("a set higher than stock dates its lot at the set time for FIFO and flags",
   assert.equal(flags.yog.off, false);
 });
 
-test("ageDays uses whole calendar days across DST in Sydney", { skip: process.env.TZ !== "Australia/Sydney" ? "not Sydney TZ" : false }, () => {
-  const buy = iso(new Date(2027, 2, 21, 10, 0, 0));
-  const base = { v: 1, start: buy, events: [{ id: "1", at: buy, k: "buy", item: "yog", amount: 907, order: "o1" }] };
-  const now = new Date(2027, 3, 4, 12, 0, 0);
-  const s = I.stock(base, {}, cat, now, () => false);
-  assert.equal(s.yog.off, false);
-  assert.equal(s.yog.useSoon, true);
+test("ageDays uses whole calendar days across DST in Sydney (CI subprocess)", () => {
+  const script = `
+    const { create } = require(${JSON.stringify(path.join(ASSETS, "catalogue.js"))});
+    const I = require(${JSON.stringify(path.join(ASSETS, "inventory.js"))});
+    const W = "https://www.woolworths.com.au/shop/productdetails/";
+    const C = "https://www.coles.com.au/product/";
+    const cat = create(
+      [{
+        id: "yog", sec: 1, keeps: 14, name: "Yoghurt", unit: "g", note: "", same: true,
+        coles: { name: "Yog", url: C + "yog-1", size: 907, price: 8, checked: "2026-10-15" },
+        woolies: { name: "Yog", url: W + "717518", stockcode: 717518, size: 907, price: 8, checked: "2026-10-15" },
+      }],
+      {},
+    );
+    const buy = new Date(2027, 2, 25, 10, 0, 0).toISOString();
+    const base = { v: 1, start: buy, events: [{ id: "1", at: buy, k: "buy", item: "yog", amount: 907, order: "o1" }] };
+    const s = I.stock(base, {}, cat, new Date(2027, 3, 8, 12, 0, 0), () => false);
+    process.stdout.write(JSON.stringify({ off: s.yog.off, useSoon: s.yog.useSoon }));
+  `;
+  const out = execFileSync(process.execPath, ["-e", script], {
+    env: { ...process.env, TZ: "Australia/Sydney" },
+    encoding: "utf8",
+  });
+  assert.deepEqual(JSON.parse(out), { off: false, useSoon: true });
 });
 
 test("invalid now or start returns {} without hanging", () => {
   const base = inv([{ id: "1", at: START, k: "buy", item: "breast", amount: 100, order: "o1" }]);
   assert.deepEqual(I.stock(base, {}, cat, "not-a-date", () => false), {});
   assert.deepEqual(I.stock({ v: 1, start: "nope", events: [] }, {}, cat, NOW, () => false), {});
+});
+
+test("at the same instant a set runs before a buy", () => {
+  const at = iso(new Date(2026, 9, 15, 12, 0, 0));
+  const base = {
+    v: 1,
+    start: START,
+    events: [
+      { id: "1", at, k: "buy", item: "breast", amount: 100, order: "o1" },
+      { id: "2", at, k: "set", item: "breast", amount: 50, why: "count" },
+    ],
+  };
+  assert.equal(I.stock(base, {}, cat, NOW, () => false).breast.amount, 150);
+});
+
+test("mixed-offset set and buy at the same instant order by time, not string", () => {
+  const prior = iso(new Date(2026, 9, 10, 8, 0, 0));
+  const setAt = "2026-10-15T22:00:00.000+11:00";
+  const buyAt = "2026-10-15T11:00:00.000Z";
+  assert.equal(Date.parse(setAt), Date.parse(buyAt));
+  assert.ok(setAt > buyAt);
+  const base = {
+    v: 1,
+    start: START,
+    events: [
+      { id: "0", at: prior, k: "buy", item: "breast", amount: 100, order: "o0" },
+      { id: "2", at: buyAt, k: "buy", item: "breast", amount: 25, order: "o1" },
+      { id: "1", at: setAt, k: "set", item: "breast", amount: 50, why: "count" },
+    ],
+  };
+  assert.equal(I.stock(base, {}, cat, NOW, () => false).breast.amount, 75);
 });
 
 test("events order by instant, not string", () => {
