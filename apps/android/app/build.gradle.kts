@@ -69,8 +69,8 @@ android {
         applicationId = "dev.weekdayfuel.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 19
-        versionName = "0.11.0"
+        versionCode = 20
+        versionName = "0.11.1"
         // GitHub Releases updater (checked on cold start). CI / downloaded APKs have no local.properties,
         // so default to the public releases repo. Forks: set UPDATE_GITHUB_* in local.properties or env.
         val updateOwner = escapeForBuildConfigString(
