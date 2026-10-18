@@ -338,6 +338,43 @@ test("reserved with no shop days only reserves pending past meals", () => {
   assert.equal(r.dare, undefined);
 });
 
+test("reserved excludes meals on the start date and on today without shop days", () => {
+  const base = inv([]);
+  const days = {
+    "2026-10-10": { meals: [{ id: "bowl", name: "B", t: "S" }] },
+    "2026-10-20": { meals: [{ id: "toasty", name: "T", t: "S" }] },
+  };
+  const r = I.reserved(base, days, cat, "2026-10-20", [], () => true);
+  assert.equal(r.breast, undefined);
+  assert.equal(r.ham, undefined);
+});
+
+test("reserved after a stale first shop day still counts past meals", () => {
+  const base = inv([]);
+  const days = { "2026-10-15": { meals: [{ id: "bowl", name: "B", t: "S" }] } };
+  const r = I.reserved(base, days, cat, "2026-10-20", ["2026-10-10"], () => false);
+  assert.equal(r.breast, 150);
+  assert.equal(r.rice, 1);
+});
+
+test("reserved fixtures honour fixtureOn per item and skip today and first shop day", () => {
+  const base = inv([]);
+  const r = I.reserved(base, {}, cat, "2026-10-19", ["2026-10-21"], (d, k) => k === "dare" && d === "2026-10-20");
+  assert.equal(r.dare, 1);
+  assert.equal(r.grenade, undefined);
+  const onFirst = I.reserved(base, {}, cat, "2026-10-20", ["2026-10-21"], () => true);
+  assert.equal(onFirst.dare, undefined);
+});
+
+test("reserved uses the earliest shop day when shopDays is unsorted", () => {
+  const base = inv([]);
+  const days = { "2026-10-20": { meals: [{ id: "bowl", name: "B", t: "S" }] } };
+  const sorted = I.reserved(base, days, cat, "2026-10-23", ["2026-10-21", "2026-10-25"], () => false);
+  const unsorted = I.reserved(base, days, cat, "2026-10-23", ["2026-10-25", "2026-10-21"], () => false);
+  assert.equal(sorted.breast, unsorted.breast);
+  assert.equal(sorted.breast, 150);
+});
+
 test("free subtracts reserved stock and drops zero items", () => {
   const stock = Object.assign(Object.create(null), {
     breast: { amount: 600, lots: [] },
@@ -349,6 +386,7 @@ test("free subtracts reserved stock and drops zero items", () => {
   assert.equal(I.free(stock, { breast: 800 }).rice, 1);
   assert.equal(I.free(stock, null).breast, 600);
   assert.equal(I.free(stock, null).rice, 1);
+  assert.equal(I.free(stock, { breast: -50 }).breast, 600);
 });
 
 test("pending lists unanswered past meals after start", () => {

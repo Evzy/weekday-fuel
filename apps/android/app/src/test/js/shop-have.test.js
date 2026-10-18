@@ -27,8 +27,16 @@ const ITEMS = [
     sec: 1,
     name: "Breast",
     unit: "g",
-    coles: { name: "Breast", url: C + "breast-1", size: 600, price: 8, checked: "2026-10-15" },
+    coles: { name: "Breast", url: C + "breast-1", size: 650, price: 8, checked: "2026-10-15" },
     woolies: { name: "Breast", url: W + "6078624", stockcode: 6078624, size: 650, price: 9, checked: "2026-10-15" },
+  },
+  {
+    id: "ham",
+    sec: 1,
+    name: "Ham",
+    unit: "g",
+    coles: null,
+    woolies: { name: "Ham deli", url: W + "175734", stockcode: 175734, perKg: true, size: 1, price: 28, checked: "2026-10-15" },
   },
   {
     id: "rice",
@@ -39,17 +47,45 @@ const ITEMS = [
     woolies: { name: "Rice", url: W + "123", stockcode: 123, size: 1, price: 2, checked: "2026-10-15" },
   },
 ];
-const AMOUNTS = { wrap: { breast: 200 }, bowl: { breast: 150, rice: 1 } };
+const AMOUNTS = { wrap: { breast: 200 }, bowl: { breast: 150, rice: 1 }, bulk: { breast: 1000 }, one: { breast: 650 }, toast: { ham: 100 } };
 const cat = create(ITEMS, AMOUNTS);
-const byId = (rows) => Object.fromEntries(rows.map((r) => [r.id, r]));
 
-test("no have, empty have and unrelated keys match today's shopList", () => {
+const NO_HAVE_LITERAL = [
+  { id: "dare", need: 3, used: [], days: [], woolies: { quantity: 3, buy: "3 bottles" } },
+  { id: "grenade", need: 3, used: [], days: [], woolies: { quantity: 3, buy: "3 bars" } },
+  {
+    id: "breast",
+    need: 550,
+    used: ["wrap", "bowl"],
+    days: ["2026-10-20"],
+    woolies: { quantity: 1, buy: "1 × 650g" },
+  },
+  { id: "rice", need: 1, used: ["bowl"], days: ["2026-10-20"], woolies: { quantity: 1, buy: "1 pouch" } },
+];
+
+function slim(rows) {
+  return rows.map((r) => {
+    const o = {
+      id: r.id,
+      need: r.need,
+      used: r.used,
+      days: r.days,
+      woolies: r.woolies ? { quantity: r.woolies.quantity, buy: r.woolies.buy } : null,
+    };
+    if (r.have > 0) o.have = r.have;
+    return o;
+  });
+}
+
+test("no have, empty have and unrelated keys match literal pre-change shopList", () => {
   const picks = { wrap: 2 };
   const dayMeals = [{ day: "2026-10-20", meal: "bowl" }];
   const baseline = cat.shopList(picks, 3, dayMeals);
-  assert.deepEqual(cat.shopList(picks, 3, dayMeals, undefined), baseline);
-  assert.deepEqual(cat.shopList(picks, 3, dayMeals, {}), baseline);
-  assert.deepEqual(cat.shopList(picks, 3, dayMeals, { honey: 500, __proto__: 1 }), baseline);
+  assert.deepEqual(slim(baseline), NO_HAVE_LITERAL);
+  baseline.forEach((r) => assert.equal("have" in r, false));
+  assert.deepEqual(slim(cat.shopList(picks, 3, dayMeals, undefined)), NO_HAVE_LITERAL);
+  assert.deepEqual(slim(cat.shopList(picks, 3, dayMeals, {})), NO_HAVE_LITERAL);
+  assert.deepEqual(slim(cat.shopList(picks, 3, dayMeals, { honey: 500, __proto__: 1 })), NO_HAVE_LITERAL);
   assert.deepEqual(cat.coveredList(picks, 3, dayMeals, {}), []);
 });
 
@@ -59,8 +95,21 @@ test("partly covered rows keep need, set have, and size store lines for the rema
   const r = rows[0];
   assert.equal(r.need, 400);
   assert.equal(r.have, 250);
-  assert.equal(r.woolies.quantity * r.woolies.product.size, 650);
-  assert.ok(r.woolies.buy.includes("650") || r.woolies.buy.includes("g"));
+  assert.equal(r.woolies.quantity, 1);
+  assert.equal(r.woolies.product.size, 650);
+});
+
+test("pack count drops when have covers part of a multi-pack need", () => {
+  const full = cat.shopList({ bulk: 1 }, 0, []);
+  const part = cat.shopList({ bulk: 1 }, 0, [], { breast: 400 });
+  assert.equal(full[0].woolies.quantity, 2);
+  assert.equal(part[0].woolies.quantity, 1);
+});
+
+test("deli lines show the rounded remainder grams", () => {
+  const r = cat.shopList({ toast: 1 }, 0, [], { ham: 40 })[0];
+  assert.equal(r.have, 40);
+  assert.equal(r.woolies.buy, "100g from the deli");
 });
 
 test("fully covered and over-covered rows appear only in coveredList", () => {
@@ -102,6 +151,15 @@ test("bad have values are ignored", () => {
   assert.deepEqual(cat.shopList({ wrap: 1 }, 0, [], { breast: -1 }), baseline);
   assert.deepEqual(cat.shopList({ wrap: 1 }, 0, [], { breast: NaN }), baseline);
   assert.deepEqual(cat.shopList({ wrap: 1 }, 0, [], { breast: "250" }), baseline);
+  const atPack = cat.shopList({ one: 1 }, 0);
+  assert.deepEqual(cat.shopList({ one: 1 }, 0, [], { breast: -1 }), atPack);
+  assert.equal(atPack[0].need, 650);
+});
+
+test("epsilon boundary treats need minus 1e-10 as covered", () => {
+  const need = 200;
+  assert.equal(cat.shopList({ wrap: 1 }, 0, [], { breast: need - 1e-10 }).length, 0);
+  assert.equal(cat.shopList({ wrap: 1 }, 0, [], { breast: need - 2e-9 }).length, 1);
 });
 
 test("shopScore drops covered rows and uses the remainder for fresh leftovers", () => {

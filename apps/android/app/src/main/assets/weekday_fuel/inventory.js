@@ -395,20 +395,24 @@
       if (d === "__proto__" || !DATE.test(d) || compareDate(d, startDate) <= 0) return;
       var day = days[d];
       if (!day || !Array.isArray(day.meals)) return;
-      var inPendingWindow = first ? compareDate(d, first) < 0 : compareDate(d, today) < 0;
+      var inPendingWindow = compareDate(d, today) < 0 || (first && compareDate(d, first) < 0);
       day.meals.forEach(function (m) {
         if (shopDaySet[d] && m && m.shop === false) {
           reserveMeal(out, cat, m);
           return;
         }
         if (!inPendingWindow) return;
+        /* Other meals on shop days are on the shop list, not reserved from stock. */
         if (shopDaySet[d]) return;
         reserveMeal(out, cat, m);
       });
     });
     if (first && typeof fixtureOn === "function") {
+      var capD = parseLocalDate(today);
+      capD.setDate(capD.getDate() + 366);
+      var capDate = toLocalDate(capD);
       var fd = nextDate(today);
-      while (compareDate(fd, first) < 0) {
+      while (compareDate(fd, first) < 0 && compareDate(fd, capDate) <= 0) {
         if (fixtureOn(fd, "dare")) addReserve(out, "dare", 1);
         if (fixtureOn(fd, "grenade")) addReserve(out, "grenade", 1);
         fd = nextDate(fd);
@@ -425,7 +429,7 @@
       var st = stockMap[item];
       var amount = st && typeof st.amount === "number" ? st.amount : 0;
       var res = reservedMap && reservedMap[item];
-      res = typeof res === "number" && isFinite(res) ? res : 0;
+      res = typeof res === "number" && isFinite(res) ? Math.max(0, res) : 0;
       var f = amount - res;
       if (f > 1e-9) out[item] = f;
     });
