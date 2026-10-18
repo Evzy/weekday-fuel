@@ -498,6 +498,12 @@
       return Math.min(v, need);
     }
 
+    function rowCovered(need, h) {
+      if (!(need > 0) || !(h > 0)) return false;
+      var shortfall = need - h;
+      return shortfall <= Math.max(1e-9, 0.05 * need);
+    }
+
     function shopRow(it, n, used, days, buy, h) {
       var row = {
         id: it.id,
@@ -526,7 +532,7 @@
         var n = need[it.id];
         if (!(n > 0)) return;
         var h = haveForRow(have, it.id, n);
-        if (n - h <= 1e-9) return;
+        if (rowCovered(n, h)) return;
         out.push(shopRow(it, n, used, days, n - h, h));
       });
       return out;
@@ -542,14 +548,14 @@
         var n = need[it.id];
         if (!(n > 0)) return;
         var h = haveForRow(have, it.id, n);
-        if (n - h > 1e-9) return;
+        if (!rowCovered(n, h)) return;
         out.push({
           id: it.id,
           sec: it.sec,
           name: it.name,
           unit: it.unit,
           need: n,
-          have: n,
+          have: h,
           used: used[it.id] || [],
           days: Object.keys(days[it.id] || {}).sort(),
           covered: true,

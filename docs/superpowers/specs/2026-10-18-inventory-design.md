@@ -81,7 +81,7 @@ Deleting a saved order in Past orders removes its `buy` events.
 ## Release 2 (v0.14.0): the shop uses the stock
 
 - `shopList` takes an optional `have` map `{ item: amount }`. Each row keeps `need` (what the meals and fixtures need) and gains `have` (`min(have, need)`). Store lines are worked out for `need − have`.
-- A row where `need − have ≤ 0` is `covered`: it has no store lines. Covered rows are left out of totals, trolley lines, Missed lists and the planner's `shopScore`, and are shown under "Covered by what you have".
+- A row is `covered` when `have > 0` and the shortfall `need − have` is within 5% of `need` (and still within the tiny epsilon for rounding): it has no store lines. The covered row keeps the real `have`, which may be a little less than `need`. Rows with no `have` are never covered by this rule. Covered rows are left out of totals, trolley lines, Missed lists and the planner's `shopScore`, and are shown under "Covered by what you have".
 - `have` is what's left after reserved amounts are taken out of stock. For items with a `keeps` value, reserved uses oldest lots first (like meals will), then only lots that will still be good on the first shop day (or today when there are no shop days) count toward `have` — probably-off stock does not cover the shop. Items without `keeps` use plain amount minus reserved.
 - Reserved meals:
   - past unticked meals after the start date;

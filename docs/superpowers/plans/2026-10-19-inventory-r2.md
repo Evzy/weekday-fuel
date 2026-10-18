@@ -16,8 +16,8 @@ Fully covered rows are **not** in `shopList`'s result, so every existing consume
 
 ## Task 1: shop maths (`catalogue.js`, `planner.js`)
 
-1. `shopList(picks, fixtureDays, dayMeals, have)`: `have` optional `{ item: amount }`. For each row, `h = min(max(have[id], 0), need)` when `have[id]` is a finite number > 0, else 0. When `need − h ≤ 0` (use a small epsilon, 1e-9) the row is dropped. Otherwise the row keeps `need`, gains `have: h` (only when `h > 0`; keep the row object identical to today when `h` is 0), and its `coles`/`woolies` lines are `storeLine(it, product, need − h)`.
-2. `coveredList(picks, fixtureDays, dayMeals, have)`: the dropped rows, each `{ id, sec, name, unit, need, have: need, used, days, covered: true }` (no store lines), in catalogue order.
+1. `shopList(picks, fixtureDays, dayMeals, have)`: `have` optional `{ item: amount }`. For each row, `h = min(max(have[id], 0), need)` when `have[id]` is a finite number > 0, else 0. When `h > 0` and `need − h ≤ max(1e-9, 0.05 × need)` the row is dropped (covered). Otherwise the row keeps `need`, gains `have: h` (only when `h > 0`; keep the row object identical to today when `h` is 0), and its `coles`/`woolies` lines are `storeLine(it, product, need − h)`.
+2. `coveredList(picks, fixtureDays, dayMeals, have)`: rows covered by the same rule as `shopList` (shortfall within 5% of `need`, and `have > 0`), each `{ id, sec, name, unit, need, have, used, days, covered: true }` with the actual `have` (no store lines), in catalogue order.
 3. Share the need-building code between the two (no copy-paste).
 4. `planner.shopScore(cat, dayMeals, store, have)`: passes `have` to `shopList`; the sec 1 leftover uses `need − (r.have || 0)`.
 5. Tests (`catalogue.test.js` / `planner.test.js` or a new `shop-have.test.js` added to the CI list in `.github/workflows/release-android.yml`):

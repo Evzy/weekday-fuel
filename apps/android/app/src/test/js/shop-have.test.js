@@ -169,12 +169,26 @@ test("bad have values are ignored", () => {
   assert.equal(atPack[0].need, 650);
 });
 
-test("epsilon boundary treats need minus 1e-10 as covered", () => {
+test("a shortfall within 5% of need counts as covered with the real have amount", () => {
+  assert.equal(cat.shopList({ one: 1 }, 0, [], { breast: 640 }).length, 0);
+  const cov = cat.coveredList({ one: 1 }, 0, [], { breast: 640 })[0];
+  assert.equal(cov.need, 650);
+  assert.equal(cov.have, 640);
+  const partial = cat.shopList({ one: 1 }, 0, [], { breast: 600 })[0];
+  assert.equal(partial.need, 650);
+  assert.equal(partial.have, 600);
+  const boundary = 650 - 650 * 0.05;
+  assert.equal(cat.shopList({ one: 1 }, 0, [], { breast: boundary }).length, 0);
+  assert.equal(cat.coveredList({ one: 1 }, 0, [], { breast: boundary })[0].have, boundary);
+});
+
+test("tiny shortfalls and h zero stay on the no-have invariant", () => {
   const need = 200;
   assert.equal(cat.shopList({ wrap: 1 }, 0, [], { breast: need - 1e-10 }).length, 0);
   assert.equal(cat.coveredList({ wrap: 1 }, 0, [], { breast: need - 1e-10 }).length, 1);
-  assert.equal(cat.shopList({ wrap: 1 }, 0, [], { breast: need - 2e-9 }).length, 1);
-  assert.equal(cat.coveredList({ wrap: 1 }, 0, [], { breast: need - 2e-9 }).length, 0);
+  assert.equal(cat.shopList({ wrap: 1 }, 0, [], { breast: need - 11 }).length, 1);
+  assert.equal(cat.coveredList({ wrap: 1 }, 0, [], { breast: need - 11 }).length, 0);
+  assert.deepEqual(cat.shopList({ wrap: 1 }, 0, [], { breast: 0 }), cat.shopList({ wrap: 1 }, 0));
 });
 
 test("coles store lines size for partial cover remainder", () => {
