@@ -34,7 +34,9 @@ test("every item is well formed", () => {
         assert.ok(Array.isArray(p.packs) && p.packs.length, it.id + "." + store + " packs");
         for (let i = 0; i < p.packs.length; i++) {
           checkProduct(it.id + "." + store + ".packs[" + i + "]", p.packs[i], store);
-          if (p.packs[i].sizeLabel) assert.ok(p.packs[i].sizeLabel.length, it.id + "." + store + ".packs[" + i + "] sizeLabel");
+          if (p.packs[i].sizeLabel) {
+            assert.ok(typeof p.packs[i].sizeLabel === "string" && p.packs[i].sizeLabel.length > 0, it.id + "." + store + ".packs[" + i + "] sizeLabel");
+          }
         }
       }
     }
@@ -76,6 +78,19 @@ test("every Coles product URL ends with its id and all Coles ids are unique", ()
     }
   }
   assert.equal(new Set(ids).size, ids.length);
+});
+
+test("every Woolworths stockcode is unique across main products and packs", () => {
+  const codes = [];
+  for (const it of cat.ITEMS) {
+    const p = it.woolies;
+    if (!p) continue;
+    for (const prod of [p].concat(p.packs || [])) {
+      assert.ok(prod.stockcode, it.id + " Woolworths stockcode");
+      codes.push(prod.stockcode);
+    }
+  }
+  assert.equal(new Set(codes).size, codes.length);
 });
 
 test("the starter shop prices at both stores", () => {

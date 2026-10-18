@@ -2,7 +2,7 @@
 (function (root) {
   "use strict";
   /* Slack (in the item's unit) for approximate pack weights when an item has packs. */
-  var SMALL_PACK_SLACK = 50;
+  var PACK_SLACK = 50;
 
   /* From docs/catalogue-research.md (approved 2026-10-15). */
   var ITEMS = [
@@ -293,7 +293,7 @@
       n = 1;
       for (var i = 0; i < candidates.length; i++) {
         var c = candidates[i];
-        var q = Math.max(1, Math.ceil((need - SMALL_PACK_SLACK) / c.size - 1e-9));
+        var q = Math.max(1, Math.ceil((need - PACK_SLACK) / c.size - 1e-9));
         var cost = q * c.price;
         var waste = Math.max(0, q * c.size - need) / c.size * c.price;
         var score = cost + waste;
@@ -383,9 +383,7 @@
       }
       var main = live ? liveColes(p, live) : p;
       if (main === p && !packsMut) return it;
-      var next = colesWithPacks(main, packs);
-      if (next.packs && !next.packs.length) delete next.packs;
-      return Object.assign({}, it, { coles: next });
+      return Object.assign({}, it, { coles: colesWithPacks(main, packs) });
     });
   }
 

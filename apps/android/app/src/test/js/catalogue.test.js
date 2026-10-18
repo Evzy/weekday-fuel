@@ -105,6 +105,62 @@ test("a Woolworths tray is chosen when it beats fixed packs on cost plus waste",
   assert.deepEqual([packs.product.name, packs.quantity, packs.cost], ["Woolworths Chicken Breast 650g", 2, 18.8]);
 });
 
+test("pack choice uses cost plus waste, not cost alone", () => {
+  const pin = create(
+    [
+      {
+        id: "pin",
+        sec: 1,
+        name: "Pinned item",
+        unit: "g",
+        note: "",
+        same: false,
+        coles: {
+          name: "Main 1kg",
+          url: C + "main-1000001",
+          size: 1000,
+          price: 10,
+          checked: "2026-10-15",
+          packs: [{ name: "Alt 650g", url: C + "alt-1000002", size: 650, price: 12, checked: "2026-10-15" }],
+        },
+        woolies: null,
+      },
+    ],
+    { one: { pin: 650 } },
+  );
+  const line = byId(pin.shopList({ one: 1 }, 0)).pin.coles;
+  assert.equal(line.product.name, "Alt 650g");
+  assert.equal(line.cost, 12);
+  assert.ok(10 < 12, "cost alone would pick the 1kg main ($10 vs $12)");
+});
+
+test("identical cost plus waste ties go to the main product", () => {
+  const tie = create(
+    [
+      {
+        id: "tie",
+        sec: 1,
+        name: "Tie item",
+        unit: "g",
+        note: "",
+        same: false,
+        coles: {
+          name: "Main twin",
+          url: C + "main-2000001",
+          size: 600,
+          price: 6,
+          checked: "2026-10-15",
+          packs: [{ name: "Alt twin", url: C + "alt-2000002", size: 600, price: 6, checked: "2026-10-15" }],
+        },
+        woolies: null,
+      },
+    ],
+    { one: { tie: 550 } },
+  );
+  const line = byId(tie.shopList({ one: 1 }, 0)).tie.coles;
+  assert.equal(line.product.name, "Main twin");
+});
+
 test("deli ham is bought by weight, rounded up to 100 g", () => {
   const ham = byId(cat.shopList({ toasty: 2, eggmuffin: 1 }, 0)).ham;
   assert.equal(ham.need, 250);
@@ -247,6 +303,13 @@ test("live Coles prices replace catalogue prices, with was-prices for specials",
   assert.equal(live.find((i) => i.id === "evap"), ITEMS[4]);
   assert.equal(live.find((i) => i.id === "ham"), ITEMS[2]);
   assert.equal(byId(create(live, AMOUNTS).shopList({ toasty: 1 }, 0)).cheese.coles.cost, 6);
+  assert.equal("packs" in cheese.coles, false);
+});
+
+test("live Woolworths prices never add a packs key to products that had none", () => {
+  const live = applyLivePrices(ITEMS, { 729008: { price: 7.5, was: 9, special: true, available: true } });
+  const cheese = live.find((i) => i.id === "cheese");
+  assert.equal("packs" in cheese.woolies, false);
 });
 
 test("no Coles prices, a product left out, or no price keeps the catalogue item", () => {
@@ -339,6 +402,35 @@ test("an unavailable main Coles pack falls back to the first alternate pack, and
   });
   const b3 = both.find((i) => i.id === "breast");
   assert.deepEqual([b3.coles.price, b3.coles.live, b3.coles.packs[0].price, b3.coles.packs[0].was, b3.coles.packs[0].live], [15, true, 7, 8, true]);
+});
+
+test("when the main Coles pack is unavailable, the first alternate becomes main and the rest stay in packs", () => {
+  const items = [
+    {
+      id: "tri",
+      sec: 1,
+      name: "Three packs",
+      unit: "g",
+      note: "",
+      same: false,
+      coles: {
+        name: "Main pack",
+        url: C + "main-3000001",
+        size: 1000,
+        price: 10,
+        checked: "2026-10-15",
+        packs: [
+          { name: "First alt", url: C + "alt1-3000002", size: 500, price: 5, checked: "2026-10-15" },
+          { name: "Second alt", url: C + "alt2-3000003", size: 400, price: 4, checked: "2026-10-15" },
+        ],
+      },
+      woolies: null,
+    },
+  ];
+  const live = applyColesPrices(items, { 3000001: { price: 10, was: null, special: false, available: false } });
+  assert.equal(live[0].coles.name, "First alt");
+  assert.equal(live[0].coles.packs.length, 1);
+  assert.equal(live[0].coles.packs[0].name, "Second alt");
 });
 
 test("checked includes alternate pack dates", () => {

@@ -8,6 +8,9 @@ const HAM = { name: "D'Orsogna Ham Shaved From The Deli", url: W + "175734", sto
 const COLES_BREAST = { name: "Coles Chicken Breast Large", url: "https://www.coles.com.au/product/breast-1", size: 1400, price: 16.8 };
 const row = (id, woolies, coles = null) => ({ id, name: "Plain " + id, woolies, coles });
 
+const TRAY = { name: "Woolworths Breast tray", url: W + "969723", stockcode: 969723, size: 1500, sizeLabel: "1.5–2.2kg tray", price: 24.2 };
+const COLES_SMALL = { name: "Coles Chicken Breast Small", url: "https://www.coles.com.au/product/coles-breast-small-2263168", size: 600, price: 7.2 };
+
 test("a Woolworths line becomes a trolley line with its pack count", () => {
   const { lines, manual } = cartLines([row("yog", { product: YOG, quantity: 2 })], {});
   assert.deepEqual(lines, [{ itemId: "yog", stockcode: 717518, quantity: 2, name: "Chobani Greek Yoghurt 907g", url: YOG.url }]);
@@ -46,6 +49,18 @@ test("items answered 'I have it' are left out of the trolley and the do-it-yours
   const { lines, manual } = cartLines(rows, {}, { yog: true, breast: true });
   assert.deepEqual(lines.map((l) => l.stockcode), [175734]);
   assert.deepEqual(manual, []);
+});
+
+test("a Woolworths tray line sends the tray stockcode and removal drops a previously sent main", () => {
+  const rows = [row("breast", { product: TRAY, quantity: 1 })];
+  const { lines } = cartLines(rows, {});
+  assert.deepEqual(lines, [{ itemId: "breast", stockcode: 969723, quantity: 1, name: TRAY.name, url: TRAY.url }]);
+  assert.deepEqual(removalLines({ 6078624: 2, 969723: 1 }, rows), [{ stockcode: 6078624, quantity: 0 }]);
+});
+
+test("a Coles line chosen from an alternate pack uses that pack's product id", () => {
+  const { lines } = colesCartLines([row("breast", null, { product: COLES_SMALL, quantity: 2 })], {}, {}, idOf);
+  assert.deepEqual(lines, [{ itemId: "breast", productId: "2263168", quantity: 2, name: COLES_SMALL.name, url: COLES_SMALL.url }]);
 });
 
 test("removalLines sets to 0 only products the shop no longer needs", () => {
