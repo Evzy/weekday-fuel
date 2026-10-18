@@ -322,6 +322,7 @@ class MainActivity : ComponentActivity() {
             if (!colesScreen.isShowing) showColes(ColesUrls.HOME_URL)
             loginShownForColesSend = true
             colesScreen.setStatus(getString(R.string.coles_login_status))
+            colesScreen.setAction(getString(R.string.coles_send_now)) { coles.retryNow() }
             replyToPage(HostMessages.colesTrolleyLogin())
         }
 

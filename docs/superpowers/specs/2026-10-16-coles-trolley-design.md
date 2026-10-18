@@ -1,6 +1,6 @@
 # Send the shop to the Coles trolley — design
 
-**Status:** approved 2026-10-16; v0.8.0 released 2026-10-16, owner phone checks pending
+**Status:** approved 2026-10-16; v0.8.0 released 2026-10-16; v0.8.1 (no login polling: re-check on Coles page load or a Send now button) released 2026-10-16, owner phone checks pending
 **Scope:** fill the owner's Coles trolley from Build a shop when Coles is the picked store, then check out on Coles' own pages in an in-app Coles screen. Mirrors the Woolworths trolley (`2026-10-14-woolworths-trolley-design.md`) and its removal and past-orders behaviour.
 **Release:** v0.8.0
 

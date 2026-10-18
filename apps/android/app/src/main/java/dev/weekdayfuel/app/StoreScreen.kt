@@ -27,6 +27,13 @@ class StoreScreen(
             setPadding(0, 0, 32, 0)
         }
 
+    private val action =
+        Button(context, null, android.R.attr.borderlessButtonStyle).apply {
+            setTextColor(context.getColor(R.color.ink))
+            isAllCaps = false
+            visibility = View.GONE
+        }
+
     val view: LinearLayout =
         LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
@@ -47,6 +54,7 @@ class StoreScreen(
                         },
                     )
                     addView(status, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f))
+                    addView(action)
                 }
             addView(bar, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
             addView(sessionView, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
@@ -66,6 +74,7 @@ class StoreScreen(
     fun hide() {
         isShowing = false
         setStatus(null)
+        setAction(null, null)
         view.findFocus()?.clearFocus()
         view.descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
         appView.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_AUTO
@@ -75,5 +84,12 @@ class StoreScreen(
 
     fun setStatus(text: String?) {
         status.text = text.orEmpty()
+    }
+
+    /** A button at the end of the bar; null hides it. */
+    fun setAction(label: String?, onClick: (() -> Unit)?) {
+        action.text = label.orEmpty()
+        action.setOnClickListener(onClick?.let { f -> View.OnClickListener { f() } })
+        action.visibility = if (label != null && onClick != null) View.VISIBLE else View.GONE
     }
 }

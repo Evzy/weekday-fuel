@@ -208,13 +208,16 @@ class ColesSession(private val context: Context) {
     }
 
     private fun retrySend() {
-        if (pendingSend == null) return
-        if (pageLoading || !onColesPage()) {
-            handler.postDelayed(sendRetry, LOGIN_RETRY_MS)
-            return
-        }
+        // Off the shop site (e.g. on the login pages), the next Coles page load restarts the send.
+        if (pendingSend == null || pageLoading || !onColesPage()) return
         if (loginNotified) armSendWatchdog()
         startSend()
+    }
+
+    /** The owner says they've logged in: re-check now, from the shop site if they're elsewhere. */
+    fun retryNow() {
+        if (destroyed || pendingSend == null || sendPolling) return
+        if (pageLoading || !onColesPage()) webView.loadUrl(ColesUrls.HOME_URL) else retrySend()
     }
 
     private fun pollSend() {
@@ -235,9 +238,9 @@ class ColesSession(private val context: Context) {
                 }
                 ColesTrolleyPhase.NEEDS_LOGIN -> {
                     sendPolling = false
-                    // No time limit while the owner logs in; re-check until it works or the screen is closed.
+                    // No time limit and no timer while the owner logs in: Coles is asked again only when a Coles page
+                    // loads or the owner taps Send now, so the trolley isn't hit repeatedly while logged out.
                     handler.removeCallbacks(sendWatchdog)
-                    handler.postDelayed(sendRetry, LOGIN_RETRY_MS)
                     if (!loginNotified) listener?.onColesTrolleyNeedsLogin()
                     loginNotified = true
                 }
@@ -315,7 +318,6 @@ class ColesSession(private val context: Context) {
         const val TROLLEY_STATE_EXPRESSION = "window.__weekdayFuelColesTrolley ? window.__weekdayFuelColesTrolley.state() : null"
         const val POLL_MS = 300L
         const val RETRY_MS = 1_000L
-        const val LOGIN_RETRY_MS = 2_000L
         const val TIMEOUT_MS = 30_000L
         const val SEND_TIMEOUT_MS = 60_000L
     }

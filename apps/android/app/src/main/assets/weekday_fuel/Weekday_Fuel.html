@@ -927,7 +927,7 @@ function renderTrolley(rows,ticks,s){
     if(rm.length)h+=`<div class="eyebrow">Taking out, no longer needed</div>${rm.map(l=>`<div class="small">${esc(l.name)}</div>`).join("")}`;
     h+=`<div class="row"><button class="btn" data-act="sendtrolley" ${ts.lines.length?"":"disabled"}>Send</button><button class="ghost" data-act="trolleyreset">Cancel</button></div>`;
   }else if(t.phase==="login"){
-    h+=`<div class="small">Log in to ${N} in the window that opened. Sending carries on by itself once you're in.</div>`;
+    h+=`<div class="small">Log in to ${N} in the window that opened. ${s==="coles"?"Once you're in, sending carries on when the next Coles page loads, or tap Send now at the top.":"Sending carries on by itself once you're in."}</div>`;
   }else if(t.phase==="adding"){
     h+=s==="coles"?`<div class="small">Sending to Coles…</div>`:`<div class="small num">Adding ${t.completed} of ${t.total}…</div>`;
   }else if(t.phase==="error"){
