@@ -356,6 +356,82 @@
     return out;
   }
 
+  function nullMap() {
+    return Object.create(null);
+  }
+
+  function addReserve(out, item, amount) {
+    if (!(amount > 0)) return;
+    out[item] = (out[item] || 0) + amount;
+  }
+
+  function reserveMeal(out, cat, m) {
+    if (!m || m.ate !== undefined) return;
+    var per = cat.AMOUNTS && cat.AMOUNTS[m.id];
+    if (!per) return;
+    var tier = m.t === "L" || m.t === "X" ? m.t : "S";
+    Object.keys(per).forEach(function (item) {
+      var a = cat.amountFor(m.id, item, tier);
+      if (a > 0) addReserve(out, item, a);
+    });
+  }
+
+  function reserved(inv, days, cat, today, shopDays, fixtureOn) {
+    var out = nullMap();
+    if (!inv) return out;
+    if (typeof today !== "string" || !DATE.test(today)) return out;
+    var startDate = toLocalDate(new Date(inv.start));
+    var shopArr = (Array.isArray(shopDays) ? shopDays.slice() : [])
+      .filter(function (d) {
+        return DATE.test(d);
+      })
+      .sort();
+    var first = shopArr.length ? shopArr[0] : null;
+    var shopDaySet = nullMap();
+    shopArr.forEach(function (d) {
+      shopDaySet[d] = true;
+    });
+    Object.keys(days || {}).forEach(function (d) {
+      if (d === "__proto__" || !DATE.test(d) || compareDate(d, startDate) <= 0) return;
+      var day = days[d];
+      if (!day || !Array.isArray(day.meals)) return;
+      var inPendingWindow = first ? compareDate(d, first) < 0 : compareDate(d, today) < 0;
+      day.meals.forEach(function (m) {
+        if (shopDaySet[d] && m && m.shop === false) {
+          reserveMeal(out, cat, m);
+          return;
+        }
+        if (!inPendingWindow) return;
+        if (shopDaySet[d]) return;
+        reserveMeal(out, cat, m);
+      });
+    });
+    if (first && typeof fixtureOn === "function") {
+      var fd = nextDate(today);
+      while (compareDate(fd, first) < 0) {
+        if (fixtureOn(fd, "dare")) addReserve(out, "dare", 1);
+        if (fixtureOn(fd, "grenade")) addReserve(out, "grenade", 1);
+        fd = nextDate(fd);
+      }
+    }
+    return out;
+  }
+
+  function free(stockMap, reservedMap) {
+    var out = nullMap();
+    if (!stockMap || typeof stockMap !== "object") return out;
+    Object.keys(stockMap).forEach(function (item) {
+      if (item === "__proto__") return;
+      var st = stockMap[item];
+      var amount = st && typeof st.amount === "number" ? st.amount : 0;
+      var res = reservedMap && reservedMap[item];
+      res = typeof res === "number" && isFinite(res) ? res : 0;
+      var f = amount - res;
+      if (f > 1e-9) out[item] = f;
+    });
+    return out;
+  }
+
   function pending(inv, days, today) {
     if (!inv || typeof today !== "string" || !DATE.test(today)) return [];
     var startDate = toLocalDate(new Date(inv.start));
@@ -456,6 +532,8 @@
     prune: prune,
     stock: stock,
     pending: pending,
+    reserved: reserved,
+    free: free,
     buysFromRows: buysFromRows,
     shopHaveIt: shopHaveIt,
   };

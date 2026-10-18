@@ -287,6 +287,70 @@ test("useSoon and off boundaries for keeps 3 and 14", () => {
   assert.equal(s.rice, undefined);
 });
 
+test("reserved is empty without inventory", () => {
+  const empty = I.reserved(null, {}, cat, "2026-10-20", [], () => true);
+  assert.equal(Object.getPrototypeOf(empty), null);
+  assert.equal(Object.keys(empty).length, 0);
+  const base = inv([]);
+  const r = I.reserved(base, {}, cat, "2026-10-20", ["2026-10-21"], () => true);
+  assert.equal(Object.getPrototypeOf(r), null);
+});
+
+test("reserved sums pending past meals and fixtures before the first shop day", () => {
+  const base = inv([]);
+  const days = {
+    "2026-10-11": { meals: [{ id: "tenderwrap", name: "W", t: "S" }] },
+    "2026-10-19": { meals: [{ id: "bowl", name: "B", t: "S", ate: "2026-10-19T12:00:00.000Z" }, { id: "toasty", name: "T", t: "S" }] },
+  };
+  const r = I.reserved(base, days, cat, "2026-10-18", ["2026-10-21"], (d) => d === "2026-10-19" || d === "2026-10-20");
+  assert.equal(r.breast, 200);
+  assert.equal(r.ham, 100);
+  assert.equal(r.cheese, 60);
+  assert.equal(r.dare, 2);
+  assert.equal(r.grenade, 2);
+});
+
+test("reserved skips ticked, skipped, pre-start and shop-day meals except shop false", () => {
+  const base = inv([]);
+  const days = {
+    "2026-10-09": { meals: [{ id: "toasty", name: "T", t: "S" }] },
+    "2026-10-12": { meals: [{ id: "bowl", name: "B", t: "S", ate: false }, { id: "tenderwrap", name: "W", t: "S" }] },
+    "2026-10-21": {
+      meals: [
+        { id: "toasty", name: "T", t: "S" },
+        { id: "bowl", name: "B", t: "S", shop: false },
+      ],
+    },
+    "2026-10-22": { meals: [{ id: "tenderwrap", name: "W", t: "S" }] },
+  };
+  const r = I.reserved(base, days, cat, "2026-10-23", ["2026-10-21", "2026-10-22"], () => false);
+  assert.equal(r.breast, 350);
+  assert.equal(r.cheese, 30);
+  assert.equal(r.rice, 1);
+});
+
+test("reserved with no shop days only reserves pending past meals", () => {
+  const base = inv([]);
+  const days = { "2026-10-15": { meals: [{ id: "bowl", name: "B", t: "S" }] } };
+  const r = I.reserved(base, days, cat, "2026-10-20", [], () => true);
+  assert.equal(r.breast, 150);
+  assert.equal(r.rice, 1);
+  assert.equal(r.dare, undefined);
+});
+
+test("free subtracts reserved stock and drops zero items", () => {
+  const stock = Object.assign(Object.create(null), {
+    breast: { amount: 600, lots: [] },
+    rice: { amount: 1, lots: [] },
+  });
+  assert.equal(Object.getPrototypeOf(I.free(stock, { breast: 200 })), null);
+  assert.equal(I.free(stock, { breast: 200, rice: 1 }).breast, 400);
+  assert.equal(I.free(stock, { breast: 800 }).breast, undefined);
+  assert.equal(I.free(stock, { breast: 800 }).rice, 1);
+  assert.equal(I.free(stock, null).breast, 600);
+  assert.equal(I.free(stock, null).rice, 1);
+});
+
 test("pending lists unanswered past meals after start", () => {
   assert.deepEqual(I.pending(null, {}, "2026-10-20"), []);
   const base = inv([]);
