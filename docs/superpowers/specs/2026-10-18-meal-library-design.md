@@ -37,23 +37,23 @@ Make adding, changing or removing meals a repeatable chat with an agent: the age
 - Each meal gains:
   - `prep`: `"assemble"`, `"quick"` or `"cook"`, with `mins` its hands-on time;
   - `batch`: ids of batch components it uses (e.g. `["chicken"]`), omitted when none;
-  - `extras`: non-shop ingredients with amounts, e.g. `"Oil spray"`, `"½ tsp garlic powder"`, `"Salt and pepper"`;
+  - `extras`: non-shop ingredients with amounts, e.g. `"Oil spray"`, `"½ tsp garlic powder"`, `"Salt and pepper"`; an entry is a string (every portion) or `{tiers: "SX", text}` (only those portions, e.g. butter on Standard and Loaded, avocado on Loaded);
   - rewritten `steps`: numbered, with heat and times, never hard-coding an amount that changes by portion (they say "the macaroni"; the ingredient list carries the amount).
 - The free-text `ing` list is removed; the recipe's ingredient list is built from `catalogue.js` amounts (component 1a) plus `extras`, so the recipe and the shop list can't drift apart.
-- `BATCHES`: `chicken` (Sunday chicken: 1 kg breast, 200 °C 20–25 min, rest, slice, 5 × 150 g; cooked chicken keeps 3–4 days in the fridge, so freeze the Thursday and Friday portions after cooking and thaw overnight) and `eggs` (boil 6, 9 min, cold water; keep unpeeled in the fridge up to 5 days). Each has `id, name, makes, keeps, steps` and its shopping amounts in `catalogue.js`.
+- `BATCHES`: `chicken` (Sunday chicken: 1 kg breast, 200 °C 20–25 min, rest, slice, 5 × 150 g; cooked chicken keeps 3–4 days in the fridge, so freeze the Thursday and Friday portions after cooking and thaw overnight) and `eggs` (boil 6, 9 min, cold water; keep unpeeled in the fridge up to 5 days). Each has `id, name, item, ratio, makes, keeps, steps`: `item` is the catalogue item it's made from and `ratio` the cooked-to-raw weight (chicken 0.75, eggs 1). Batches have no shopping amounts of their own; the meals that use them already buy the raw item, so the recipe shows the meal's raw amount × `ratio` as the batch ingredient (e.g. 200 g raw breast → "150g Sunday chicken, cooked").
 
 ### 1a. Amounts per portion (`catalogue.js`)
 
-- `AMOUNTS[meal][item]` is either a number (the same for every portion, e.g. the 180 g chicken) or `{L, S, X}` (e.g. macaroni `{L: 50, S: 75, X: 100}`), matching each portion's `what` and macros.
+- `AMOUNTS[meal][item]` is either a number (the same for every portion, e.g. the 180 g chicken) or `{L, S, X}` (e.g. macaroni `{L: 50, S: 75, X: 100}`), matching each portion's `what` and macros. A portion amount of 0 means that portion doesn't use the item (e.g. peanut butter only on a Loaded yoghurt bowl; today's Standard amounts wrongly buy it for Standard).
 - Batch-component meals list the batch's cooked amount against the raw item (e.g. 150 g batch chicken → the breast item at the raw-equivalent weight already used today), so the shop still buys raw breast.
 - New helper `amountFor(meal, item, tier)` (tier defaults to `"S"`), used by `shopList`, `mealCost` and the recipe.
-- `shopList(picks, fixtureDays, dayMeals)`: `dayMeals` entries gain `t` (`"L" | "S" | "X"`); each planned meal is bought at its planned portion. Build a shop picks (meal × serves, not tied to a day) stay at Standard. `mealCost(meal, store, tier)` gains the tier argument (default `"S"`).
-- `Weekday_Fuel.html` `dayMeals()` passes each planned meal's `t`.
+- `shopList(picks, fixtureDays, dayMeals)`: `dayMeals` entries gain `t` (`"L" | "S" | "X"`); each planned meal is bought at its planned portion; an item whose amount is 0 for that portion isn't added and the meal isn't listed in its "used". Build a shop picks (meal × serves, not tied to a day) stay at Standard. `mealCost` prices Standard via `amountFor`; the page's Light and Loaded costs keep scaling from Standard by the typed cost ratio as now (the typed costs include extras like avocado that the shop doesn't buy). `usedIn(item)` counts a meal when any portion uses the item.
+- `Weekday_Fuel.html` `dayMeals()` passes each planned meal's `t`; `cart.js` `shopFingerprint` appends `:L`/`:X` to a planned meal's key when its portion isn't Standard (Standard keys stay as they are, so existing sent records don't go out of date), so changing a planned portion marks the trolley out of date.
 
 ### 1b. Recipe view and Batch prep (`Weekday_Fuel.html`)
 
 - The recipe sheet gets a Light / Standard / Loaded switch. It opens on the planned portion when opened from a meal on Today, otherwise on Standard. The switch only changes what the recipe shows; it never changes the day's plan (portions on Today are changed with the existing portion dial).
-- Ingredients: one line per `amountFor` entry, formatted with the existing `fmtAmt` ("100g", "½ pouch", "2"), the item's name, and the product for the picked store in muted text, then the `extras`. Then the method and note as now.
+- Ingredients: one line per item the portion uses (amount > 0): the amount ("100g", "½ pouch", "2 slices"), the item's name, and the product for the picked store in muted text; a batch item shows as the batch ("150g Sunday chicken, cooked") instead. Then the `extras` for that portion. Then the method and note as now.
 - A meal with `batch` shows "Uses Sunday chicken · Batch prep" (a link that opens that batch's recipe in the same sheet).
 - Meals tab: a Batch prep card at the top listing each batch (name, makes, keeps), each opening its recipe.
 - The meal card's tags show the prep label ("Assemble", "Quick cook", "Full cook") next to the minutes.
@@ -66,7 +66,7 @@ Make adding, changing or removing meals a repeatable chat with an agent: the age
 Hard rules (a failing meal fails CI):
 
 - **Shape:** unique `id` matching `^[a-z][a-z0-9]*$`; `name`, `cuisine`, `core` non-empty strings; `slots` a non-empty subset of `breakfast`, `main`, `snack`; `mins` a positive number; `prep` one of `assemble`, `quick`, `cook`; `L`, `S`, `X` each with numeric `k, p, c, f`, a positive `cost` and a non-empty `what`; `extras` a string array; at least 3 `steps`.
-- **Recipe:** every `AMOUNTS` entry is a positive number or has positive `L`, `S` and `X`; every `batch` id is a `BATCHES` id; every batch has `name, makes, keeps`, at least 2 steps and an `AMOUNTS` entry; no step of a meal contains a number followed by `g` or `mL` (`/\d\s*(g|mL)\b/`) when that meal has any per-portion amount.
+- **Recipe:** every `AMOUNTS` entry is a positive number or `{L, S, X}` of numbers ≥ 0 with at least one > 0; every `extras` entry is a non-empty string or `{tiers, text}` with `tiers` a non-empty combination of `L`, `S`, `X`; every `batch` id is a `BATCHES` id whose `item` the meal's `AMOUNTS` uses; every batch has `name, makes, keeps`, a catalogue `item`, a `ratio` in (0, 1] and at least 2 steps; no step of a meal contains a number followed by `g` or `mL` (`/\d\s*(g|mL)\b/`) when that meal has any per-portion amount.
 - **Maths:** for every portion, `|k − (4p + 4c + 9f)| ≤ 5%` of `4p + 4c + 9f`.
 - **Protein minimum:** Standard `p` ≥ the lowest minimum among the meal's slots (breakfast 30, main 45, snack 15).
 - **Banned foods:** no match for `/tuna|salmon|cottage cheese/i` in the meal's name, core, `what`, extras, steps or note, nor in the names of the items and products its `AMOUNTS` use.
