@@ -98,3 +98,24 @@ test("the starter shop prices at both stores", () => {
   for (const store of ["coles", "woolies"]) assert.ok(cat.storeTotals(rows, store, {}).total > 0, store);
   for (const meal of MEALS) for (const store of ["coles", "woolies"]) assert.ok(cat.mealCost(meal, store) > 0, meal + " " + store);
 });
+
+test("RETIRED keys are not current product ids and every entry has a name and url", () => {
+  const colesIds = new Set();
+  const wooliesCodes = new Set();
+  for (const it of cat.ITEMS) {
+    if (it.coles) {
+      for (const p of [it.coles].concat(it.coles.packs || [])) colesIds.add(cat.colesId(p));
+    }
+    if (it.woolies) {
+      for (const p of [it.woolies].concat(it.woolies.packs || [])) wooliesCodes.add(String(p.stockcode));
+    }
+  }
+  for (const [id, entry] of Object.entries(cat.RETIRED.coles)) {
+    assert.ok(!colesIds.has(id), "retired Coles id still in catalogue: " + id);
+    assert.ok(entry.name && entry.url, "retired Coles " + id);
+  }
+  for (const [code, entry] of Object.entries(cat.RETIRED.woolies)) {
+    assert.ok(!wooliesCodes.has(code), "retired Woolworths code still in catalogue: " + code);
+    assert.ok(entry.name && entry.url, "retired Woolworths " + code);
+  }
+});

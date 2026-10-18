@@ -554,3 +554,15 @@ test("mealCost prices Standard and usedIn counts a meal when any portion uses th
   assert.deepEqual(TIERED.usedIn("evap"), ["mac"]);
   assert.deepEqual(TIERED.usedIn("ham"), []);
 });
+
+test("storeLine lists unchosen pack candidates in alts, and items without packs omit alts", () => {
+  const coles = byId(cat.shopList({ tenderwrap: 3 }, 0)).breast.coles;
+  assert.deepEqual(coles.alts.map((p) => p.name), ["Coles Chicken Breast Large"]);
+  assert.ok(!byId(cat.shopList({ toasty: 2 }, 0)).cheese.coles.alts);
+});
+
+test("RETIRED is exported with name and url for removed products", () => {
+  const { RETIRED } = require("../../main/assets/weekday_fuel/catalogue.js");
+  assert.equal(RETIRED.coles["6284567"].name, "Don Leg Ham Shaved 200g");
+  assert.match(RETIRED.coles["6284567"].url, /6284567$/);
+});

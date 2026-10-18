@@ -201,3 +201,33 @@ test("a sent colesUnavailable product is ordered at Coles with an unavailable no
   const o = O.snapshot([gone], {}, {}, { ...COPTS, colesSent: { 2263179: 1 } });
   assert.deepEqual(o.groups.ordered, [item("Coles chicken breast", "1 pack", 12, "coles", "was unavailable online")]);
 });
+
+const TRAY = { name: "Woolworths Breast tray", url: "https://www.woolworths.com.au/shop/productdetails/969723/x", stockcode: 969723, size: 1500, sizeLabel: "1.5–2.2kg tray", price: 24.2, checked: "2026-10-18" };
+const PACK650 = { name: "Woolworths Chicken Breast 650g", url: "https://www.woolworths.com.au/shop/productdetails/6078624/x", stockcode: 6078624, size: 650, price: 9.4, checked: "2026-10-15" };
+const wBreast = ROW(
+  "breast",
+  1,
+  { product: PACK650, quantity: 2, cost: 18.8, buy: "2 × 650g", alts: [TRAY] },
+  null,
+);
+
+test("a sent alternate Woolworths pack is ordered when the shop now chose a different size", () => {
+  const o = O.snapshot([wBreast], {}, { 969723: 1 }, OPTS);
+  assert.deepEqual(o.groups.ordered, [item("Woolworths Breast tray", "1 pack", 24.2, "woolies", "pack size changed since sending")]);
+  assert.deepEqual(o.groups.buy, []);
+});
+
+const COLES_SMALL = { name: "Coles Chicken Breast Small", url: "https://www.coles.com.au/product/coles-breast-small-2263168", price: 8.7, size: 600, checked: "2026-10-12" };
+const COLES_LARGE = { name: "Coles Chicken Breast Large", url: "https://www.coles.com.au/product/coles-breast-large-2263179", price: 15.4, size: 1400, checked: "2026-10-12" };
+const cBreastPack = ROW(
+  "breast",
+  1,
+  null,
+  { product: COLES_SMALL, quantity: 2, cost: 17.4, buy: "2 × 600g", alts: [COLES_LARGE] },
+);
+
+test("a sent alternate Coles pack is ordered when the shop now chose a different size", () => {
+  const o = O.snapshot([cBreastPack], {}, {}, { ...COPTS, colesSent: { 2263179: 1 }, colesId: cid });
+  assert.deepEqual(o.groups.ordered, [item("Coles Chicken Breast Large", "1 pack", 15.4, "coles", "pack size changed since sending")]);
+  assert.deepEqual(o.groups.buy, []);
+});

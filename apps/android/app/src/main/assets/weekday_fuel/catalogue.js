@@ -4,6 +4,14 @@
   /* Slack (in the item's unit) for approximate pack weights when an item has packs. */
   var PACK_SLACK = 50;
 
+  /* Old products no longer in ITEMS; keys are Coles ids / Woolworths stockcodes as strings. */
+  var RETIRED = {
+    coles: {
+      "6284567": { name: "Don Leg Ham Shaved 200g", url: "https://www.coles.com.au/product/don-leg-ham-shaved-200g-6284567" },
+    },
+    woolies: {},
+  };
+
   /* From docs/catalogue-research.md (approved 2026-10-15). */
   var ITEMS = [
     {
@@ -307,12 +315,20 @@
       chosen = product;
       n = Math.max(1, Math.ceil(need / chosen.size - 1e-9));
     }
-    return {
+    var line = {
       product: chosen,
       quantity: n,
       cost: round2(n * chosen.price),
       buy: chosen.size === 1 ? n + " " + (n === 1 ? singular(item.unit) : item.unit) : n + " × " + packLabel(chosen, item.unit),
     };
+    if (candidates) {
+      var alts = [];
+      for (var j = 0; j < candidates.length; j++) {
+        if (candidates[j] !== chosen) alts.push(candidates[j]);
+      }
+      if (alts.length) line.alts = alts;
+    }
+    return line;
   }
 
   function wooliesWithPacks(main, packs) {
@@ -581,6 +597,7 @@
   api.applyLivePrices = applyLivePrices;
   api.applyColesPrices = applyColesPrices;
   api.colesId = colesId;
+  api.RETIRED = RETIRED;
   if (typeof module === "object" && module.exports) module.exports = api;
   else root.WeekdayFuelCatalogue = api;
 })(this);

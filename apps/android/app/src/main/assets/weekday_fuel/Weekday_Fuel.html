@@ -838,8 +838,8 @@ function itemRow(it,prices,extra,products){
 }
 const MANUAL_WHY={coles:"Coles only",woolies:"Woolworths only",nostore:"no online store page",unavailable:"unavailable online now"};
 function sentWhen(at){const t=new Date(at);if(isNaN(t))return "earlier";const tm=t.toLocaleTimeString("en-AU",{hour:"numeric",minute:"2-digit"});return iso(t)===iso(new Date())?tm:fmtShort(iso(t))+" "+tm}
-function wooliesProduct(code){const W=WeekdayFuelCatalogue;for(const i of W.ITEMS){if(!i.woolies)continue;for(const p of [i.woolies].concat(i.woolies.packs||[]))if(p&&p.stockcode===+code)return p}return null}
-function colesProduct(id){const W=WeekdayFuelCatalogue;for(const i of W.ITEMS){if(!i.coles)continue;for(const p of [i.coles].concat(i.coles.packs||[]))if(p&&W.colesId(p)===String(id))return p}return null}
+function wooliesProduct(code){const W=WeekdayFuelCatalogue;for(const i of W.ITEMS){if(!i.woolies)continue;for(const p of [i.woolies].concat(i.woolies.packs||[]))if(p&&p.stockcode===+code)return p}const r=W.RETIRED&&W.RETIRED.woolies;return r&&r[String(code)]||null}
+function colesProduct(id){const W=WeekdayFuelCatalogue;for(const i of W.ITEMS){if(!i.coles)continue;for(const p of [i.coles].concat(i.coles.packs||[]))if(p&&W.colesId(p)===String(id))return p}const r=W.RETIRED&&W.RETIRED.coles;return r&&r[String(id)]||null}
 const pantryRows=(rows,ticks)=>rows.filter(r=>r.sec===2&&!ticks[r.id]);
 /* A send: what's left to buy minus "I have it", plus quantity 0 for products the last send put in that the shop no longer needs */
 function trolleySend(rows,haveIt,s){
@@ -970,7 +970,7 @@ function renderShop(){
     h+=`<div class="small muted">${nMeals+dm.length} serve${nMeals+dm.length===1?"":"s"} · ${rows.length} items. Tick things off as they go in the trolley, or tick pantry items you already have at home. Prices use whole packs, so the first shop costs more than the per-serve cost. ${priceLabel()}</div>`;
     [["Fixtures",0],["Fresh",1],["Pantry & freezer (check what you already have)",2]].forEach(([t,sec])=>{
       const rs=rows.filter(r=>r.sec===sec&&r[st]);if(!rs.length)return;
-      h+=`<div class="panel shopsec"><h3 style="margin-bottom:4px">${t}</h3>${rs.map(r=>itemRow(CAT.item(r.id),{coles:r.coles&&r.coles.cost,woolies:r.woolies&&r.woolies.cost},`<span class="buy small"><b>Buy:</b> ${esc(r[st].buy)} <span class="muted">· need ${esc(needLabel(r))}</span></span>${forLine(r)}`,{coles:r.coles&&r.coles.product,woolies:r.woolies&&r.woolies.product})).join("")}</div>`;
+      h+=`<div class="panel shopsec"><h3 style="margin-bottom:4px">${t}</h3>${rs.map(r=>{const line=r[st],p=line&&line.product;const tray=p&&p.sizeLabel&&!p.live?` <span class="muted">· price checked ${esc(fmtShort(p.checked))}; charged at the heaviest weight, the difference refunded</span>`:"";return itemRow(CAT.item(r.id),{coles:r.coles&&r.coles.cost,woolies:r.woolies&&r.woolies.cost},`<span class="buy small"><b>Buy:</b> ${esc(line.buy)}${tray} <span class="muted">· need ${esc(needLabel(r))}</span></span>${forLine(r)}`,{coles:r.coles&&r.coles.product,woolies:r.woolies&&r.woolies.product})}).join("")}</div>`;
     });
     const miss=rows.filter(r=>!r[st]);
     if(miss.length)h+=`<div class="panel stack"><h3>Missed at ${STORE_NAME[st]}</h3><div class="small muted">${STORE_NAME[st]} doesn't ${miss.some(r=>unavailable(r,st))?"have these online right now":"sell these"}. Get them at ${STORE_NAME[ot]}.</div>${miss.map(r=>{const o=r[ot];return `<div class="row between"><span class="small">${esc(o?o.product.name:r.name)}${unavailable(r,st)?` <span class="muted">· instead of ${esc(unavailable(r,st).name)}, unavailable online now</span>`:""}${o?` <span class="muted">· ${esc(o.buy)}</span>`:""}${forLine(r)}</span>${o?`<span class="num small" style="color:var(--${ot})">${money(o.cost)}</span>`:""}</div>`}).join("")}</div>`;

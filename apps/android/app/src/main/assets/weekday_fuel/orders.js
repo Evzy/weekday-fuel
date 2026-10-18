@@ -77,6 +77,16 @@
         groups.ordered.push(orderedItem(w, w.product, sent[w.product.stockcode], null, f));
         return;
       }
+      if (w && w.alts) {
+        for (var ai = 0; ai < w.alts.length; ai++) {
+          var wAlt = w.alts[ai];
+          if (isQty(sent[wAlt.stockcode])) {
+            used[wAlt.stockcode] = true;
+            groups.ordered.push(orderedItem(null, wAlt, sent[wAlt.stockcode], "pack size changed since sending", f));
+            return;
+          }
+        }
+      }
       if (gone && isQty(sent[gone.stockcode])) {
         groups.ordered.push(orderedItem(null, gone, sent[gone.stockcode], "was unavailable online", f));
         return;
@@ -86,6 +96,19 @@
         colesOrdered[cId] = true;
         groups.ordered.push(orderedItem(c, c.product, colesSent[cId], null, f, "coles"));
         return;
+      }
+      if (c && c.alts) {
+        for (var ci = 0; ci < c.alts.length; ci++) {
+          var cAlt = c.alts[ci];
+          var altId = colesId(cAlt);
+          if (altId && isQty(colesSent[altId])) {
+            if (colesOrdered[altId]) return;
+            colesOrdered[altId] = true;
+            usedColes[altId] = true;
+            groups.ordered.push(orderedItem(null, cAlt, colesSent[altId], "pack size changed since sending", f, "coles"));
+            return;
+          }
+        }
       }
       if (cGoneId && isQty(colesSent[cGoneId])) {
         if (colesOrdered[cGoneId]) return;
