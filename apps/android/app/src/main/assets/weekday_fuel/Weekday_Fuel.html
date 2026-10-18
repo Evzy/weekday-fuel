@@ -584,6 +584,7 @@ function swapMeal(date,idx){
   const n=randomPick(MEALS.filter(x=>x.slots.includes(kind)),avoid);
   day.meals[idx]=Object.assign({},m,{id:n.id});saveDay(date);
 }
+const SLOT_ORDER=["breakfast","lunch","snack","dinner"];
 function suggestWeek(){
   const P=WeekdayFuelPlanner,w=P.weekDays(state.date,iso(new Date())),s=store();
   const mealsOf=d=>(state.days[d]&&state.days[d].meals)||[];
@@ -601,7 +602,7 @@ function suggestWeek(){
   const r=P.planWeek({dates:w.dates,before,kept,pools,fit,score:dm=>P.shopScore(CAT,dm,s)});
   if(!r){state.weekNote="Couldn't plan this week. Try Suggest a day for each day instead.";return}
   const sd=state.settings.shopDays=Object.assign({},S().shopDays);
-  w.dates.forEach(d=>{const day=ensureDay(d);day.meals=r.days[d];day.meals.forEach(m=>delete m.shop);saveDay(d);sd[d]=true});
+  w.dates.forEach(d=>{const day=ensureDay(d);day.meals=r.days[d].slice().sort((a,b)=>SLOT_ORDER.indexOf(a.slot)-SLOT_ORDER.indexOf(b.slot));day.meals.forEach(m=>delete m.shop);saveDay(d);sd[d]=true});
   saveSettings();
   const first=w.dates[0],last=w.dates[w.dates.length-1];
   const total=CAT.storeTotals(shopRows(),s,{}).total;
