@@ -54,8 +54,8 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 /* tabs */
 .tabs{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--surface);border-top:1px solid var(--line);
   padding:6px 8px calc(6px + env(safe-area-inset-bottom,0px));display:flex;justify-content:center}
-.tabs-in{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;width:100%;max-width:680px}
-.tab{background:none;border:0;border-radius:10px;padding:8px 4px;font-size:.8rem;font-weight:600;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:3px}
+.tabs-in{display:grid;grid-template-columns:repeat(6,1fr);gap:2px;width:100%;max-width:680px}
+.tab{background:none;border:0;border-radius:10px;padding:8px 2px;font-size:.72rem;font-weight:600;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:3px}
 .tab svg{width:20px;height:20px}
 .tab[aria-selected="true"]{color:var(--accent);background:var(--accent-soft)}
 
@@ -237,12 +237,13 @@ const ICON = {
   weigh:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M8 10a4 4 0 0 1 8 0"/><path d="M12 10l1.5-2"/></svg>',
   meals:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11h16a8 8 0 0 1-16 0z"/><path d="M8 7c0-1.5 1-2 1-3M12 7c0-1.5 1-2 1-3M16 7c0-1.5 1-2 1-3"/></svg>',
   shop:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h2l2.4 11h10.2L20 8H6.2"/><circle cx="9" cy="19" r="1.4"/><circle cx="17" cy="19" r="1.4"/></svg>',
+  kitchen:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M5 10h14"/><path d="M9 6v2"/><path d="M9 13v5"/></svg>',
   targets:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></svg>',
   left:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>',
   right:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>',
   check:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg>'
 };
-const TABS=[["today","Today"],["weigh","Weigh-in"],["meals","Meals"],["shop","Shop"],["targets","Targets"]];
+const TABS=[["today","Today"],["weigh","Weigh-in"],["meals","Meals"],["shop","Shop"],["kitchen","Kitchen"],["targets","Targets"]];
 const TIERS=[["L","Light"],["S","Standard"],["X","Loaded"]];
 
 const MEALS=WeekdayFuelMeals.MEALS,BATCHES=WeekdayFuelMeals.BATCHES;
@@ -459,7 +460,7 @@ const clone=o=>JSON.parse(JSON.stringify(o));
 function deepMerge(base,over){const out=clone(base);if(!over)return out;for(const k in over){if(k==="trial"){out[k]=clone(over[k]);continue}if(over[k]&&typeof over[k]==="object"&&!Array.isArray(over[k])&&out[k]&&typeof out[k]==="object")out[k]=deepMerge(out[k],over[k]);else out[k]=over[k];}return out}
 
 /* ---------- state + storage ---------- */
-const state={tab:"today",date:iso(new Date()),settings:clone(DEFAULT_SETTINGS),days:{},weights:{},adding:null,mealFilter:"all",sheet:null,armed:null,openItem:null,trolley:null,prices:null,colesPrices:null,pricesTried:0,checkout:null,coLast:null,openOrder:null,orderError:false,weekNote:null};
+const state={tab:"today",date:iso(new Date()),settings:clone(DEFAULT_SETTINGS),days:{},weights:{},adding:null,mealFilter:"all",sheet:null,armed:null,openItem:null,kOpen:null,kitchenError:null,trolley:null,prices:null,colesPrices:null,pricesTried:0,checkout:null,coLast:null,openOrder:null,orderError:false,weekNote:null};
 let db=null;
 const LS="weekdayfuel.v1";
 function lsGet(){try{return JSON.parse(localStorage.getItem(LS)||"null")}catch(e){return null}}
@@ -482,6 +483,46 @@ function lsSetOrders(list){try{localStorage.setItem(ORDERS,JSON.stringify(list))
 function invFixtureOn(d,k){const day=dayOf(d);return !!(day.fx&&day.fx[k])}
 function lsInv(){try{const raw=localStorage.getItem(WeekdayFuelInventory.KEY);return raw?WeekdayFuelInventory.parse(raw):null}catch(e){return null}}
 function lsSetInv(inv){try{const pruned=WeekdayFuelInventory.prune(inv,new Date(),state.days,CAT,invFixtureOn);localStorage.setItem(WeekdayFuelInventory.KEY,JSON.stringify(pruned));return true}catch(e){return false}}
+function kitchenSave(ev){
+  const it=CAT.item(ev.item);
+  if(!it)return false;
+  if(ev.k==="add"){if(!(ev.amount>0)||!isFinite(ev.amount))return false}
+  else if(ev.k==="set"){if(!(ev.amount>=0)||!isFinite(ev.amount)||!ev.why)return false}
+  else return false;
+  const inv=WeekdayFuelInventory.addEvents(lsInv(),[ev],new Date().toISOString());
+  if(!lsSetInv(inv)){state.kitchenError="Couldn't save";return false}
+  state.kitchenError=null;
+  return true;
+}
+const KITCHEN_FREEZE=new Set(["breast","mince","thigh"]);
+function kitchenLotDate(at){return iso(new Date(at))}
+function kitchenUseBy(lotAt,keeps){const d=parse(kitchenLotDate(lotAt));d.setDate(d.getDate()+keeps);return iso(d)}
+function kitchenRow(id,st,open){
+  const it=CAT.item(id);if(!it)return "";
+  const qty=esc(amountText(st.amount,it.unit));
+  let h=`<button class="si" type="button" data-act="kitem" data-v="${esc(id)}" aria-expanded="${open}"><span class="grow"><b>${esc(it.name)}</b></span><span class="num">${qty}</span></button>`;
+  if(open)h+=`<div class="stack" style="gap:6px;padding:0 0 8px 8px"><button class="ghost" data-act="kused" data-v="${esc(id)}">Used it all</button><button class="ghost" data-act="ktoss" data-v="${esc(id)}">Threw it out</button><div class="row" style="gap:6px;align-items:flex-end"><label class="f grow">Set amount<input id="kset-${esc(id)}" class="num" type="number" step="any" min="0" inputmode="decimal"></label><button class="btn alt" data-act="kset" data-v="${esc(id)}">Save</button></div></div>`;
+  return h;
+}
+function renderKitchen(){
+  const stock=WeekdayFuelInventory.stock(lsInv(),state.days,CAT,new Date(),(d,k)=>!!(dayOf(d).fx&&dayOf(d).fx[k]));
+  const ids=Object.keys(stock);
+  const order=CAT.ITEMS.map(i=>i.id);
+  const sortIds=arr=>arr.slice().sort((a,b)=>order.indexOf(a)-order.indexOf(b));
+  const useSoon=[],fridge=[],cupboard=[],daily=[];
+  ids.forEach(id=>{const it=CAT.item(id),st=stock[id];if(!it||!st)return;if(st.useSoon||st.off)useSoon.push(id);else if(it.sec===0)daily.push(id);else if(it.sec===2)cupboard.push(id);else if(it.sec===1)fridge.push(id);});
+  let h=`<div><div class="eyebrow">At home</div><h2>Kitchen</h2></div>`;
+  if(state.kitchenError)h+=`<div class="hint"><span>${esc(state.kitchenError)}</span></div>`;
+  if(!lsInv()||!ids.length)h+=`<div class="small muted">Stock starts with your next saved order, or add what's at home now.</div>`;
+  if(useSoon.length){
+    h+=`<div class="panel stack"><h3>Use soon</h3>`;
+    sortIds(useSoon).forEach(id=>{const st=stock[id],it=CAT.item(id),lot=st.lots[0],open=state.kOpen===id;let line=st.off?"probably off":`bought ${fmtShort(kitchenLotDate(lot.at))} · use by ${fmtShort(kitchenUseBy(lot.at,it.keeps))}`;if(!st.off&&KITCHEN_FREEZE.has(id))line+=" or freeze it";h+=`<div class="stack" style="gap:4px">${kitchenRow(id,st,open)}<span class="small muted">${esc(line)}</span></div>`;});
+    h+=`</div>`;
+  }
+  [["Fridge",fridge],["Cupboard and freezer",cupboard],["Daily",daily]].forEach(([title,list])=>{if(!list.length)return;h+=`<div class="panel stack"><h3>${title}</h3>`+sortIds(list).map(id=>kitchenRow(id,stock[id],state.kOpen===id)).join("")+`</div>`;});
+  h+=`<div class="panel stack"><h3>Add food</h3><div class="row" style="gap:6px;align-items:flex-end;flex-wrap:wrap"><label class="f grow" style="min-width:140px">Item<select id="kadd-item">${CAT.ITEMS.map(i=>`<option value="${esc(i.id)}">${esc(i.name)} (${esc(i.unit)})</option>`).join("")}</select></label><label class="f">Amount<input id="kadd-amt" class="num" type="number" step="any" min="0" inputmode="decimal" placeholder="0"></label><button class="btn alt" data-act="kadd">Add</button></div></div>`;
+  return h;
+}
 /* state.prices / state.colesPrices: null, "busy" or "error" */
 function colesIds(){const W=WeekdayFuelCatalogue,ids=[];W.ITEMS.forEach(i=>{if(!i.coles)return;[i.coles].concat(i.coles.packs||[]).forEach(p=>{const id=p&&W.colesId(p);if(id&&ids.indexOf(id)<0)ids.push(id)})});return ids}
 function wooliesStockcodes(){const W=WeekdayFuelCatalogue,codes=[];W.ITEMS.forEach(i=>{if(!i.woolies)return;[i.woolies].concat(i.woolies.packs||[]).forEach(p=>{const c=p&&p.stockcode;if(c&&codes.indexOf(c)<0)codes.push(c)})});return codes}
@@ -1025,7 +1066,7 @@ function renderSheet(){
 function render(){
   renderTabs();
   const v=$("#view");
-  const map={today:renderToday,weigh:renderWeigh,meals:renderMeals,shop:renderShop,targets:renderTargets};
+  const map={today:renderToday,weigh:renderWeigh,meals:renderMeals,shop:renderShop,kitchen:renderKitchen,targets:renderTargets};
   v.innerHTML=map[state.tab]();
   renderSheet();
 }
@@ -1037,10 +1078,16 @@ document.addEventListener("click",e=>{
   if(act==="close"&&el.classList.contains("scrim")&&e.target!==el)return;
   if(act!=="rm"&&act!=="rmw"&&act!=="nextshop"&&act!=="delorder")state.armed=null;
   state.orderError=false;
+  state.kitchenError=null;
   state.weekNote=null;
   const date=state.date;
   switch(act){
-    case "tab":state.tab=v;state.adding=null;window.scrollTo(0,0);if(v==="shop"&&!coBusy())maybeRefreshPrices();break;
+    case "tab":state.tab=v;state.adding=null;state.kOpen=null;window.scrollTo(0,0);if(v==="shop"&&!coBusy())maybeRefreshPrices();break;
+    case "kitem":state.kOpen=state.kOpen===v?null:v;break;
+    case "kused":if(CAT.item(v))kitchenSave({k:"set",item:v,amount:0,why:"used"});break;
+    case "ktoss":if(CAT.item(v))kitchenSave({k:"set",item:v,amount:0,why:"toss"});break;
+    case "kset":{const inp=document.getElementById("kset-"+v),amt=inp?parseFloat(inp.value):NaN;if(!CAT.item(v)||!isFinite(amt)||amt<0)break;kitchenSave({k:"set",item:v,amount:amt,why:"count"});break}
+    case "kadd":{const item=$("#kadd-item")&&$("#kadd-item").value,amt=parseFloat($("#kadd-amt")&&$("#kadd-amt").value);if(!CAT.item(item)||!isFinite(amt)||!(amt>0))break;kitchenSave({k:"add",item,amount:amt});break}
     case "shift":state.date=addDays(date,+v);state.adding=null;break;
     case "goto":state.date=v;state.adding=null;break;
     case "track":{const d=ensureDay(date);d.track=true;d.fx={dare:true,grenade:true};saveDay(date);break}
