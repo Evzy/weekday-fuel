@@ -35,7 +35,7 @@ A planned meal in `days` gets an optional `ate`: an ISO time when ticked, or `fa
 - Changes are applied in time order:
   - a `buy` or `add` adds a lot;
   - a ticked meal (`ate` time ≥ `start`) subtracts its amounts at its portion (`cat.amountFor`), oldest lots first;
-  - each weekday from the start date up to and including today uses one `dare` and one `grenade`, at the start of that day;
+  - each day from the start date up to and including today whose fixture toggle is on (weekdays default to on; the Today screen's Dare/Grenade buttons switch a day off) uses one `dare` / one `grenade` at the start of that day;
   - a `set` keeps the newest lots totalling the new amount (the oldest are assumed used) or, when it's higher than the stock, adds a lot dated now for the difference.
 - Amounts never go below 0; a use with nothing in stock is ignored.
 - Fresh items get `keeps` (days) in the catalogue:
@@ -82,7 +82,7 @@ The amount is what that row buys at the order's store (or the other store when t
 - A row where `need − have ≤ 0` is `covered`: it has no store lines. Covered rows are left out of totals, trolley lines, Missed lists and the planner's `shopScore`, and are shown under "Covered by what you have".
 - `have` is the stock minus what's reserved:
   - meals planned on days from the start date up to the day before the first shop day that aren't ticked or skipped (and aren't in the shop's days);
-  - one Dare and one Grenade per weekday from tomorrow to the day before the first shop day.
+  - one Dare and one Grenade per day whose toggle is on (weekdays by default) from tomorrow to the day before the first shop day.
 
   With no shop days, nothing is reserved beyond pending past meals.
 - Partly covered rows show "need 400g · have 250g · buy 1 × 500g".
