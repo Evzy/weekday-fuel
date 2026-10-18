@@ -111,25 +111,44 @@
     };
   }
 
-  function prune(inv, now) {
+  function prune(inv, now, days, cat, fixtureOn) {
     if (!inv) return inv;
     var when = now instanceof Date ? now : new Date(now);
     var cutoff = new Date(when.getFullYear(), when.getMonth(), when.getDate());
     cutoff.setDate(cutoff.getDate() - KEEP_DAYS);
     var cutoffTs = cutoff.getTime();
-    var latestSet = {};
-    inv.events.forEach(function (e) {
-      if (e.k !== "set") return;
-      if (!latestSet[e.item] || e.at > latestSet[e.item].at) latestSet[e.item] = e;
+    var cutoffIso = cutoff.toISOString();
+    var hasOld = inv.events.some(function (e) {
+      return Date.parse(e.at) < cutoffTs;
+    });
+    if (!hasOld) return inv;
+    var d = days || {};
+    var fx = typeof fixtureOn === "function" ? fixtureOn : function () {
+      return false;
+    };
+    var atCutoff = cat ? stock(inv, d, cat, cutoff, fx) : {};
+    var kept = inv.events.filter(function (e) {
+      return Date.parse(e.at) >= cutoffTs;
+    });
+    var sets = [];
+    var n = 0;
+    Object.keys(atCutoff).forEach(function (item) {
+      var amount = atCutoff[item].amount;
+      if (!(amount > 1e-9)) return;
+      sets.push({
+        id: cutoffIso + "#prune-" + n,
+        at: cutoffIso,
+        k: "set",
+        item: item,
+        amount: amount,
+        why: "count",
+      });
+      n += 1;
     });
     return {
       v: inv.v,
       start: inv.start,
-      events: inv.events.filter(function (e) {
-        if (e.k === "set" && latestSet[e.item] && e.id === latestSet[e.item].id) return true;
-        if ((e.k === "buy" || e.k === "add") && latestSet[e.item] && e.at >= latestSet[e.item].at) return true;
-        return Date.parse(e.at) >= cutoffTs;
-      }),
+      events: sets.concat(kept),
     };
   }
 
@@ -250,9 +269,18 @@
       d = nextDate(d);
     }
 
+    function kindRank(k) {
+      if (k === "set") return 0;
+      if (k === "buy" || k === "add") return 1;
+      return 2;
+    }
+
     actions.sort(function (a, b) {
       if (a.at < b.at) return -1;
       if (a.at > b.at) return 1;
+      var ra = kindRank(a.kind);
+      var rb = kindRank(b.kind);
+      if (ra !== rb) return ra - rb;
       if (a.kind === "use" && b.kind !== "use") return 1;
       if (a.kind !== "use" && b.kind === "use") return -1;
       return 0;

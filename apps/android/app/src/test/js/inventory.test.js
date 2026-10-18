@@ -27,6 +27,9 @@ const ITEMS = [
   { id: "rice", sec: 2, name: "Rice", unit: "pouches", note: "", same: true,
     coles: { name: "Rice", url: C + "rice-1", size: 1, price: 2, checked: "2026-10-15" },
     woolies: { name: "Rice", url: W + "123", stockcode: 123, size: 1, price: 2, checked: "2026-10-15" } },
+  { id: "honey", sec: 2, name: "Honey", unit: "g", note: "", same: false,
+    coles: { name: "Honey", url: C + "honey-1", size: 400, price: 4, checked: "2026-10-15" },
+    woolies: { name: "Honey", url: W + "753976", stockcode: 753976, size: 375, price: 5, checked: "2026-10-15" } },
 ];
 const AMOUNTS = {
   toasty: { ham: 100, cheese: 30 },
@@ -42,6 +45,10 @@ const NOW = new Date(2026, 9, 20, 12, 0, 0);
 
 function inv(events) {
   return { v: 1, start: START, events: events || [] };
+}
+
+function amounts(st) {
+  return Object.fromEntries(Object.entries(st).map(([k, v]) => [k, v.amount]));
 }
 
 test("parse keeps valid inventory and drops bad events", () => {
@@ -96,18 +103,41 @@ test("addEvents assigns ids and at; removeOrder strips buy events for that order
   assert.equal(I.removeOrder(null, "x"), null);
 });
 
-test("prune drops old events but keeps the latest set and newer buys per item", () => {
-  const old = localMid(2026, 4, 1);
-  const events = [
-    { id: "1", at: old, k: "buy", item: "breast", amount: 600, order: "o-old" },
-    { id: "2", at: old, k: "set", item: "breast", amount: 400, why: "count" },
-    { id: "3", at: START, k: "buy", item: "breast", amount: 200, order: "o-new" },
-    { id: "4", at: START, k: "set", item: "breast", amount: 500, why: "count" },
-    { id: "5", at: old, k: "add", item: "ham", amount: 100 },
-  ];
-  const pruned = I.prune(inv(events), new Date(2026, 9, 20));
-  const ids = pruned.events.map((e) => e.id).sort();
-  assert.deepEqual(ids, ["3", "4"]);
+test("prune is a no-op when nothing is older than KEEP_DAYS", () => {
+  const base = inv([{ id: "1", at: START, k: "buy", item: "breast", amount: 600, order: "o1" }]);
+  assert.equal(I.prune(base, NOW, {}, cat, () => false), base);
+});
+
+test("prune leaves stock amounts unchanged, including old honey with no set", () => {
+  const invStart = iso(new Date(2026, 0, 5, 8, 0, 0));
+  const honeyBuy = localMid(2026, 5, 1);
+  const oldBreastBuy = localMid(2026, 4, 10);
+  const oldMealAte = iso(new Date(2026, 4, 12, 13, 0, 0));
+  const recentSet = iso(new Date(2026, 9, 5, 10, 0, 0));
+  const recentBuy = iso(new Date(2026, 9, 8, 9, 0, 0));
+  const full = {
+    v: 1,
+    start: invStart,
+    events: [
+      { id: "h1", at: honeyBuy, k: "buy", item: "honey", amount: 400, order: "o-old" },
+      { id: "b1", at: oldBreastBuy, k: "buy", item: "breast", amount: 600, order: "o-old" },
+      { id: "d1", at: localMid(2026, 4, 11), k: "buy", item: "dare", amount: 10, order: "o-old" },
+      { id: "s1", at: recentSet, k: "set", item: "breast", amount: 300, why: "count" },
+      { id: "b2", at: recentBuy, k: "buy", item: "breast", amount: 650, order: "o-new" },
+    ],
+  };
+  const fxDays = new Set(["2026-04-11", "2026-04-12"]);
+  const fx = (d, k) => fxDays.has(d) && (k === "dare" || k === "grenade");
+  const days = {
+    "2026-04-12": { meals: [{ id: "tenderwrap", name: "Wrap", serves: 1, t: "S", ate: oldMealAte }] },
+    "2026-10-15": { meals: [{ id: "bowl", name: "Bowl", serves: 1, t: "S", ate: iso(new Date(2026, 9, 15, 12, 0, 0)) }] },
+  };
+  const pruned = I.prune(full, NOW, days, cat, fx);
+  assert.notEqual(pruned, full);
+  assert.deepEqual(amounts(I.stock(pruned, days, cat, NOW, fx)), amounts(I.stock(full, days, cat, NOW, fx)));
+  assert.ok(pruned.events.some((e) => e.k === "set" && e.item === "honey" && e.why === "count"));
+  assert.ok(!pruned.events.some((e) => e.id === "h1"));
+  assert.equal(pruned.events[0].k, "set");
 });
 
 test("stock from buys and ticked meals; skipped and unanswered meals do not use stock", () => {

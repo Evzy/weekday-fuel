@@ -24,7 +24,7 @@ New key `weekdayfuel.inventory`: `{ v: 1, start: ISO time, events: [...] }`, cre
 - `{ id, at, k: "add", item, amount }`: manual add.
 - `{ id, at, k: "set", item, amount, why: "count" | "used" | "toss" }`: Set amount, Used it all (0), Threw it out (0).
 
-`id` is unique (time plus a counter); `amount` is a positive number in the item's catalogue unit (g, mL, eggs, slices, pouches, wraps, …; `set` may be 0). Events are kept for 120 days after `at`, except that the latest `set` per item and every `buy`/`add` newer than it are always kept. Invalid events are dropped when read.
+`id` is unique (time plus a counter); `amount` is a positive number in the item's catalogue unit (g, mL, eggs, slices, pouches, wraps, …; `set` may be 0). On save, events older than 120 days are pruned: `stock()` is computed at that cutoff, pre-cutoff events are dropped, and one `set` per item with stock at the cutoff is added so today's stock stays the same (pantry items with no `set` are kept this way too). Invalid events are dropped when read.
 
 A planned meal in `days` gets an optional `ate`: an ISO time when ticked, or `false` when marked skipped. Absent means not answered. This is additive; existing fields keep their shape and old data simply has no `ate`.
 

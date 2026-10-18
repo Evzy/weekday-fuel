@@ -18,7 +18,7 @@ Files: new `apps/android/app/src/main/assets/weekday_fuel/inventory.js`; `catalo
    - `parse(json)`: returns `{ v: 1, start, events }` or `null` (bad JSON, wrong `v`, bad `start`). Drops invalid events (see the spec's event kinds; `amount` finite and > 0, or ≥ 0 for `set`; `why` one of count/used/toss; `order` a string for `buy`; `at` a parseable ISO time; `item` a non-empty string; `id` a non-empty string).
    - `addEvents(inv, events, now)`: returns a new inventory (creating `{ v: 1, start: now, events: [] }` when `inv` is null) with the events appended; each event gets `id` (`now` + "#" + a counter unique within the inventory) and `at` (`now` unless given). Never mutates its input.
    - `removeOrder(inv, orderId)`: new inventory without that order's `buy` events (returns `inv` unchanged when null).
-   - `prune(inv, now)`: drops events older than `KEEP_DAYS` except, per item, the latest `set` and every `buy`/`add` at or after it.
+   - `prune(inv, now, days, cat, fixtureOn)`: if no event is older than `now − KEEP_DAYS`, returns `inv` unchanged; otherwise computes `stock()` at that cutoff, drops every event with `at` before the cutoff, and prepends one `set` (`why: "count"`, `at` = cutoff ISO) per item that had stock at the cutoff so `stock(prune(...))` matches `stock(inv)` (lot ages before the cutoff are reset, which is fine past every `keeps`).
    - `stock(inv, days, cat, now, fixtureOn)`: `days` is `{ [date]: day }` (the app's `state.days`), `fixtureOn(date, key)` says whether that day's fixture toggle is on. Returns `{ [item]: { amount, lots: [{ at, amount }], useSoon, off } }` for items with amount > 0. Follow the spec's ordering rules exactly:
      - Changes are applied in time order.
      - A ticked meal (`ate` string ≥ `start`) uses `cat.amountFor(meal.id, item, meal.t)` for every item in `cat.AMOUNTS[meal.id]`, oldest lot first.
@@ -39,7 +39,7 @@ Files: new `apps/android/app/src/main/assets/weekday_fuel/inventory.js`; `catalo
 3. Tests (`inventory.test.js`), with a small fixture catalogue built with `catalogue.create`, must cover:
    - parse validation;
    - add/remove order;
-   - prune keeping the latest set;
+   - prune leaves stock amounts unchanged (including old buys with no `set`, e.g. honey);
    - stock from buys and ticked meals at their portion, with skipped (`ate: false`) and unanswered meals not using stock;
    - meals ticked before `start` ignored;
    - FIFO lots;
@@ -54,7 +54,7 @@ Files: new `apps/android/app/src/main/assets/weekday_fuel/inventory.js`; `catalo
 
 File: `Weekday_Fuel.html` (and any test helpers needed).
 
-1. Storage helpers next to the other `ls*` helpers: `lsInv()` (parse `WeekdayFuelInventory.KEY`, null on error) and `lsSetInv(inv)` (prune with now, then save; returns true/false like `lsSetOrders`).
+1. Storage helpers next to the other `ls*` helpers: `lsInv()` (parse `WeekdayFuelInventory.KEY`, null on error) and `lsSetInv(inv)` (prune with now, `state.days`, `CAT`, and `(d, k) => !!(dayOf(d).fx && dayOf(d).fx[k])`, then save; returns true/false like `lsSetOrders`).
 2. `trySaveOrder` returns the saved order's id (or `true` when there was nothing to save); keep `saveOrder()`'s truthy/falsy contract. In the `nextshop` case, after a successful save that produced an order id, add `buy` events from `WeekdayFuelInventory.buysFromRows(shopRows(), store(), lsTicks(), (state.trolley && state.trolley.haveIt) || {})` with `order` = that id, before the ticks and trolley are cleared. If saving the inventory fails, still continue (the order is saved) and set `state.orderError` to "Saved the order, but couldn't update the kitchen stock."
 3. `delorder`: after the order is removed, `lsSetInv(WeekdayFuelInventory.removeOrder(lsInv(), id))` when there's an inventory.
 4. Today meals (`renderToday`): add an "Ate it" toggle button to each planned meal's actions (`aria-pressed`, `data-act="ate"`, `data-i`). The `ate` case sets `m.ate = new Date().toISOString()` or deletes `m.ate` when it's already a string, and turns `false` (skipped) into a time. It then calls `saveDay(date)`.
