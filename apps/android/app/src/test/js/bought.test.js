@@ -10,6 +10,9 @@ test("isBought is true only for a non-empty bought string", () => {
   assert.equal(B.isBought({ bought: "" }), false);
   assert.equal(B.isBought({}), false);
   assert.equal(B.isBought(null), false);
+  assert.equal(B.isBought({ bought: true }), false);
+  assert.equal(B.isBought({ bought: 1 }), false);
+  assert.equal(B.isBought({ bought: {} }), false);
 });
 
 test("markBought sets bought on shop meals and skips shop false and already bought", () => {
@@ -31,6 +34,14 @@ test("markBought ignores unknown dates and bad order ids", () => {
   assert.equal(B.markBought(days, [], "ord1").days, days);
 });
 
+test("markBought omits days where nothing would be marked", () => {
+  const days = {
+    "2026-10-20": day([meal("bowl", { bought: "old" }), meal("wrap", { shop: false })]),
+    "2026-10-21": day([meal("toasty", { shop: false })]),
+  };
+  assert.deepEqual(B.markBought(days, ["2026-10-20", "2026-10-21"], "ord1").changed, []);
+});
+
 test("unmarkBought removes only matching order ids", () => {
   const days = {
     "2026-10-20": day([meal("bowl", { bought: "a" }), meal("wrap", { bought: "b" })]),
@@ -41,6 +52,27 @@ test("unmarkBought removes only matching order ids", () => {
   assert.equal(r.days["2026-10-20"].meals[0].bought, undefined);
   assert.equal(r.days["2026-10-20"].meals[1].bought, "b");
   assert.equal(days["2026-10-20"].meals[0].bought, "a");
+});
+
+test("backfillBought lists each changed day once when several orders touch it", () => {
+  const days = { "2026-10-20": day([meal("bowl"), meal("wrap")]) };
+  const orders = [
+    { id: "o1", at: "2026-10-21T10:00:00.000Z", days: ["2026-10-20"] },
+    { id: "o2", at: "2026-10-22T10:00:00.000Z", days: ["2026-10-20"] },
+  ];
+  const r = B.backfillBought(days, orders);
+  assert.deepEqual(r.changed, ["2026-10-20"]);
+  assert.equal(r.days["2026-10-20"].meals[0].bought, "o1");
+});
+
+test("backfillBought sorts valid dates before unparseable at values", () => {
+  const days = { "2026-10-20": day([meal("bowl")]) };
+  const orders = [
+    { id: "bad", at: "not-a-date", days: ["2026-10-20"] },
+    { id: "good", at: "2026-10-21T10:00:00.000Z", days: ["2026-10-20"] },
+  ];
+  const r = B.backfillBought(days, orders);
+  assert.equal(r.days["2026-10-20"].meals[0].bought, "good");
 });
 
 test("backfillBought applies orders oldest first and skips bad orders", () => {
@@ -59,13 +91,18 @@ test("backfillBought applies orders oldest first and skips bad orders", () => {
 
 test("clearUnbought removes uneaten unbought meals and counts them", () => {
   const days = {
-    "2026-10-20": day([meal("bowl", { bought: "o1" }), meal("wrap"), meal("toasty", { ate: "2026-10-20T08:00:00.000Z" })]),
+    "2026-10-20": day([
+      meal("bowl", { bought: "o1" }),
+      meal("wrap"),
+      meal("toasty", { ate: "2026-10-20T08:00:00.000Z" }),
+      meal("brekwrap", { ate: false }),
+    ]),
     "2026-10-21": day([meal("bowl")]),
   };
   const r = B.clearUnbought(days);
-  assert.equal(r.cleared, 2);
+  assert.equal(r.cleared, 3);
   assert.deepEqual(r.changed.sort(), ["2026-10-20", "2026-10-21"]);
   assert.equal(r.days["2026-10-20"].meals.length, 2);
   assert.equal(r.days["2026-10-21"].meals.length, 0);
-  assert.equal(days["2026-10-20"].meals.length, 3);
+  assert.equal(days["2026-10-20"].meals.length, 4);
 });

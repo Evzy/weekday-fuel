@@ -399,7 +399,11 @@
       if (!day || !Array.isArray(day.meals)) return;
       day.meals.forEach(function (m) {
         var bought = m && typeof m.bought === "string" && m.bought !== "";
-        if (shopDaySet[d] && m && (m.shop === false || bought)) {
+        if (bought) {
+          reserveMeal(out, cat, m);
+          return;
+        }
+        if (shopDaySet[d] && m && m.shop === false) {
           reserveMeal(out, cat, m);
           return;
         }

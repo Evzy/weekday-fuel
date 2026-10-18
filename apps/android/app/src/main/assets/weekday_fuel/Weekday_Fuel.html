@@ -824,7 +824,7 @@ function renderToday(){
   const clearPreview=WeekdayFuelBought.clearUnbought(state.days).cleared;
   if(clearPreview>0){
     const clearArmed=state.armed==="clearunbought";
-    h+=`<div class="row"><button class="ghost ${clearArmed?"warn":""}" data-act="clearunbought">${clearArmed?`Tap again to clear ${clearPreview} meals`:"Clear unbought meals"}</button></div>`;
+    h+=`<div class="row"><button class="ghost ${clearArmed?"warn":""}" data-act="clearunbought">${clearArmed?`Tap again to clear ${clearPreview} meal${clearPreview===1?"":"s"}`:"Clear unbought meals"}</button></div>`;
   }
   if(state.weekNote)h+=`<div class="hint"><span>${esc(state.weekNote)}</span></div>`;
   if(we&&!on){
@@ -838,11 +838,14 @@ function renderToday(){
   h+=`<div class="stack" style="gap:8px"><div class="eyebrow">Fixtures</div><div class="fx">${Object.keys(fx).map(k=>`<button class="fxb" aria-pressed="${!!(day.fx&&day.fx[k])}" data-act="fx" data-v="${k}"><span class="tick">${ICON.check}</span><span class="grow"><b>${esc(fx[k].name)}</b><span class="small muted num">${fx[k].p}g protein · ${fx[k].k} kcal</span></span></button>`).join("")}</div></div>`;
   // meals
   const hasBought=(day.meals||[]).some(WeekdayFuelBought.isBought);
-  h+=`<div class="panel"><div class="row between" style="margin-bottom:8px"><h2>Meals</h2><div class="row" style="gap:6px">${hasBought?`<button class="ghost" data-act="unlockday">${dayUnlocked(date)?"Lock":"Unlock to edit"}</button>`:""}${day.meals&&day.meals.length?`<button class="ghost" data-act="fit">Fit portions to target</button>`:""}<button class="ghost" data-act="suggest">${day.meals&&day.meals.length?"New suggestion":"Suggest a day"}</button></div></div>`;
-  if(state.dayNote&&state.dayNote.date===date)h+=`<div class="hint"><span>${esc(state.dayNote.msg)}</span></div>`;
-  const inShop=!!(S().shopDays&&S().shopDays[date]);
   const meals=day.meals||[];
   const allBought=meals.length&&meals.every(WeekdayFuelBought.isBought);
+  const boughtLocked=allBought&&!dayUnlocked(date);
+  const showFit=meals.length&&!boughtLocked;
+  h+=`<div class="panel"><div class="row between" style="margin-bottom:${hasBought?4:8}px"><h2>Meals</h2><div class="row" style="gap:6px;flex-wrap:wrap">${showFit?`<button class="ghost" data-act="fit">Fit portions to target</button>`:""}<button class="ghost" data-act="suggest">${meals.length?"New suggestion":"Suggest a day"}</button></div></div>`;
+  if(hasBought)h+=`<div class="row" style="margin-bottom:8px"><button class="ghost" data-act="unlockday">${dayUnlocked(date)?"Lock":"Unlock to edit"}</button></div>`;
+  if(state.dayNote&&state.dayNote.date===date)h+=`<div class="hint"><span>${esc(state.dayNote.msg)}</span></div>`;
+  const inShop=!!(S().shopDays&&S().shopDays[date]);
   if(allBought)h+=`<div class="row between" style="margin-bottom:8px"><span class="small"><b>${esc(boughtShopLabel(meals))}</b></span></div>`;
   else if(meals.length||inShop)h+=`<div class="row between" style="margin-bottom:8px">${inShop?`<span class="small"><b>In this shop.</b> Tap a meal's In shop to leave it out.</span><button class="ghost" data-act="shopday">Remove from shop</button>`:`<span class="small muted">Buy this day's meals with your next shop.</span><button class="btn alt" data-act="shopday">Add day to shop</button>`}</div>`;
   if(!day.meals||!day.meals.length){
@@ -863,7 +866,7 @@ function renderToday(){
   }
   h+=`</div>`;
   // fit hint
-  if(day.meals&&day.meals.length){
+  if(day.meals&&day.meals.length&&!boughtLocked){
     const gap=tg.k-t.k;
     if(Math.abs(gap)>150){
       h+=`<div class="hint ${gap<0?"bad":""}"><span>${gap>0?`You've got ${r0(gap)} kcal of room. Bump a meal up to Standard or Loaded, or tap "Fit portions to target".`:`You're ${r0(-gap)} kcal over. Drop a meal to Light, or tap "Fit portions to target". Protein stays put, only carbs and fat shrink.`}</span></div>`;
@@ -1125,7 +1128,7 @@ function renderShop(){
   if(build){
     const pk=picks();const nMeals=Object.keys(pk).filter(id=>MEAL[id]).reduce((a,id)=>a+(pk[id]||0),0);
     const sdays=shopDays(),dm=dayMeals();
-    if(sdays.length)h+=`<div class="panel stack"><h3>Days in this shop</h3>${sdays.map(d=>{const ms=((state.days[d]&&state.days[d].meals)||[]).filter(m=>m.shop!==false&&MEAL[m.id]);return `<div class="row between"><button class="pname" data-act="openday" data-v="${d}"><b>${fmtDay(d)}</b><span class="small muted">${ms.length?ms.map(m=>esc(MEAL[m.id].name)).join(", "):"no meals planned"}</span></button><button class="ghost" data-act="unshopday" data-v="${d}">Remove</button></div>`}).join("")}</div>`;
+    if(sdays.length)h+=`<div class="panel stack"><h3>Days in this shop</h3>${sdays.map(d=>{const ms=((state.days[d]&&state.days[d].meals)||[]).filter(m=>m.shop!==false&&!WeekdayFuelBought.isBought(m)&&MEAL[m.id]);return `<div class="row between"><button class="pname" data-act="openday" data-v="${d}"><b>${fmtDay(d)}</b><span class="small muted">${ms.length?ms.map(m=>esc(MEAL[m.id].name)).join(", "):"no meals planned"}</span></button><button class="ghost" data-act="unshopday" data-v="${d}">Remove</button></div>`}).join("")}</div>`;
     else h+=`<div class="small muted">Planning days on Today? Tap <b>Add day to shop</b> there and that day's meals join this list.</div>`;
     h+=`<div class="panel stack"><div class="row between"><h3>1. Pick meals and serves</h3>${nMeals?`<button class="ghost" data-act="clearpicks">Clear</button>`:""}</div>`;
     if(!nMeals&&!dm.length)h+=`<div class="hint"><span>Not sure where to start? The <b>starter shop</b> picks 4 meals that share most of their ingredients (toasty, chicken wraps, burrito bowl, buffalo mac), 2 serves each, so you buy fewer things.</span></div><div><button class="btn" data-act="starter">Use the starter shop</button></div>`;

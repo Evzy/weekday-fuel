@@ -310,6 +310,50 @@ test("reserved sums pending past meals and fixtures before the first shop day", 
   assert.equal(r.grenade, 2);
 });
 
+test("reserved includes bought meals on future days with no shop days", () => {
+  const base = inv([]);
+  const days = {
+    "2026-10-25": { meals: [{ id: "bowl", name: "B", t: "S", bought: "ord1" }] },
+  };
+  const r = I.reserved(base, days, cat, "2026-10-20", [], () => false);
+  assert.equal(r.breast, 150);
+  assert.equal(r.rice, 1);
+});
+
+test("reserved includes bought meals after the last shop day", () => {
+  const base = inv([]);
+  const days = {
+    "2026-10-23": { meals: [{ id: "bowl", name: "B", t: "S", bought: "ord1" }] },
+  };
+  const r = I.reserved(base, days, cat, "2026-10-20", ["2026-10-21"], () => false);
+  assert.equal(r.breast, 150);
+  assert.equal(r.rice, 1);
+});
+
+test("reserved skips ticked and skipped bought meals", () => {
+  const base = inv([]);
+  const days = {
+    "2026-10-21": {
+      meals: [
+        { id: "bowl", name: "B", t: "S", bought: "ord1", ate: "2026-10-21T12:00:00.000Z" },
+        { id: "toasty", name: "T", t: "S", bought: "ord1", ate: false },
+      ],
+    },
+  };
+  const r = I.reserved(base, days, cat, "2026-10-20", [], () => false);
+  assert.equal(r.breast, undefined);
+  assert.equal(r.ham, undefined);
+});
+
+test("reserved does not reserve bought meals on or before inventory start", () => {
+  const base = inv([]);
+  const days = {
+    "2026-10-10": { meals: [{ id: "bowl", name: "B", t: "S", bought: "ord1" }] },
+  };
+  const r = I.reserved(base, days, cat, "2026-10-20", [], () => false);
+  assert.equal(r.breast, undefined);
+});
+
 test("reserved treats bought shop-day meals like shop false", () => {
   const base = inv([]);
   const days = {
