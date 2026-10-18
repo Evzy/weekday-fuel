@@ -619,8 +619,9 @@ function tracked(date){const d=state.days[date];return !isWeekend(date)||(d&&d.t
 /* choose L/S/X for each meal so the day lands closest to target, protein first; the first `locked` meals keep their portions */
 function fitTiers(day,locked){
   const all=day.meals||[];const lk=locked||0;
-  const ms=all.slice(lk).filter(m=>MEAL[m.id]);if(!ms.length)return;
-  const base=totals({fx:day.fx,meals:all.slice(0,lk),extras:day.extras});
+  const fixed=(m,i)=>i<lk||typeof m.ate==="string";
+  const ms=all.filter((m,i)=>MEAL[m.id]&&!fixed(m,i));if(!ms.length)return;
+  const base=totals({fx:day.fx,meals:all.filter((m,i)=>fixed(m,i)),extras:day.extras});
   const tg=target();let best=null;
   const keys=["L","S","X"];const n=ms.length;const combos=Math.pow(3,n);
   for(let i=0;i<combos;i++){
@@ -637,10 +638,14 @@ function suggestDay(date){
   const day=ensureDay(date);
   const avoid=recentIds(date,1);
   const used=new Set(avoid);
-  const b=randomPick(MEALS.filter(m=>m.slots.includes("breakfast")),used);used.add(b.id);
-  const l=randomPick(MEALS.filter(m=>m.slots.includes("main")),used);used.add(l.id);
-  const d=randomPick(MEALS.filter(m=>m.slots.includes("main")),used);
-  day.meals=[{id:b.id,slot:"breakfast",t:"S"},{id:l.id,slot:"lunch",t:"S"},{id:d.id,slot:"dinner",t:"S"}];
+  const keep=slot=>{const m=(day.meals||[]).find(x=>x.slot===slot);return m&&typeof m.ate==="string"?m:null};
+  const pick=(slot,kind)=>{
+    const kept=keep(slot);
+    if(kept){used.add(kept.id);return kept}
+    const m=randomPick(MEALS.filter(x=>x.slots.includes(kind)),used);used.add(m.id);
+    return {id:m.id,slot,t:"S"};
+  };
+  day.meals=[pick("breakfast","breakfast"),pick("lunch","main"),pick("dinner","main")];
   fitTiers(day);saveDay(date);
 }
 function swapMeal(date,idx){
@@ -1130,7 +1135,7 @@ document.addEventListener("click",e=>{
     case "mealshop":{const d=ensureDay(date);const m=d.meals[i];if(m.shop===false)delete m.shop;else m.shop=false;saveDay(date);break}
     case "unshopday":{const sd=state.settings.shopDays=Object.assign({},S().shopDays);delete sd[v];saveSettings();break}
     case "openday":state.tab="today";state.date=v;state.adding=null;window.scrollTo(0,0);break;
-    case "nextshop":if(trolleyBusy())break;if(state.armed!=="nextshop"){state.armed="nextshop";break}state.armed=null;{const saved=trySaveOrder();if(!saved){state.orderError={where:el.dataset.w,msg:"Couldn't save the order. Nothing was cleared."};break}if(saved!==true){const orderId=saved,st=store(),haveIt=WeekdayFuelInventory.shopHaveIt(state.trolley,sentFor(st)),buys=WeekdayFuelInventory.buysFromRows(shopRows(),st,lsTicks(),haveIt);if(buys.length){const events=buys.map(b=>({k:"buy",item:b.item,amount:b.amount,order:orderId})),inv=WeekdayFuelInventory.addEvents(lsInv(),events,new Date().toISOString());if(!lsSetInv(inv))state.orderError={where:"kitchen",msg:"Saved the order, but couldn't update the kitchen stock."}}}state.settings.shopDays={};state.settings.trial={};saveSettings();lsSetTicks({});lsSetSent(null);lsSetColesSent(null);state.trolley=null;state.checkout=null;state.coLast=null;break}
+    case "nextshop":if(trolleyBusy())break;if(state.armed!=="nextshop"){state.armed="nextshop";break}state.armed=null;{let saved;try{saved=trySaveOrder()}catch(e){saved=false}if(!saved){state.orderError={where:el.dataset.w,msg:"Couldn't save the order. Nothing was cleared."};break}if(saved!==true){const orderId=saved;try{const st=store(),haveIt=WeekdayFuelInventory.shopHaveIt(state.trolley,sentFor(st)),buys=WeekdayFuelInventory.buysFromRows(shopRows(),st,lsTicks(),haveIt,{sent:(lsSent()||{}).lines||{},colesSent:(lsColesSent()||{}).lines||{},colesId:WeekdayFuelCatalogue.colesId});if(buys.length){const events=buys.map(b=>({k:"buy",item:b.item,amount:b.amount,order:orderId})),inv=WeekdayFuelInventory.addEvents(lsInv(),events,new Date().toISOString());if(!lsSetInv(inv))state.orderError={where:"kitchen",msg:"Saved the order, but couldn't update the kitchen stock."}}}catch(e){state.orderError={where:"kitchen",msg:"Saved the order, but couldn't update the kitchen stock."}}}state.settings.shopDays={};state.settings.trial={};saveSettings();lsSetTicks({});lsSetSent(null);lsSetColesSent(null);state.trolley=null;state.checkout=null;state.coLast=null;break}
     case "openorder":state.openOrder=state.openOrder===v?null:v;break;
     case "delorder":{if(state.armed!=="order"+v){state.armed="order"+v;break}state.armed=null;if(!lsSetOrders(WeekdayFuelOrders.removeOrder(lsOrders(),v))){state.orderError={where:"del"+v,msg:"Couldn't delete the order."};break}const inv=lsInv();if(inv&&!lsSetInv(WeekdayFuelInventory.removeOrder(inv,v)))state.orderError={where:"kitchen",msg:"Deleted the order, but couldn't update the kitchen stock."};if(state.openOrder===v)state.openOrder=null;break}
     case "rm":{if(state.armed==="rm"+i){const d=ensureDay(date);d.meals.splice(i,1);saveDay(date);state.armed=null}else state.armed="rm"+i;break}

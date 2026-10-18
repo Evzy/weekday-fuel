@@ -287,7 +287,7 @@ test("useSoon and off boundaries for keeps 3 and 14", () => {
   assert.equal(s.rice, undefined);
 });
 
-test("pending lists unanswered past meals since start", () => {
+test("pending lists unanswered past meals after start", () => {
   assert.deepEqual(I.pending(null, {}, "2026-10-20"), []);
   const base = inv([]);
   const days = {
@@ -296,10 +296,7 @@ test("pending lists unanswered past meals since start", () => {
     "2026-10-11": { meals: [{ id: "tenderwrap", name: "W" }] },
     "2026-10-20": { meals: [{ id: "bowl", name: "B2" }] },
   };
-  assert.deepEqual(I.pending(base, days, "2026-10-20"), [
-    { date: "2026-10-10", i: 0, id: "toasty" },
-    { date: "2026-10-11", i: 0, id: "tenderwrap" },
-  ]);
+  assert.deepEqual(I.pending(base, days, "2026-10-20"), [{ date: "2026-10-11", i: 0, id: "tenderwrap" }]);
 });
 
 test("shopHaveIt prefers trolley haveIt, then the sent record", () => {
@@ -320,6 +317,19 @@ test("buysFromRows handles deli, packs, missed store, ticks and haveIt", () => {
     { item: "breast", amount: 600 },
   ]);
   assert.deepEqual(I.buysFromRows(rows, "coles", { cheese: true }, { ham: true }), [{ item: "breast", amount: 600 }]);
+});
+
+test("buysFromRows matches Past orders pantry and sent lines", () => {
+  const pantry = {
+    id: "honey",
+    sec: 2,
+    woolies: { product: { stockcode: 753976, size: 375 }, quantity: 1, cost: 5, buy: "1 jar" },
+    coles: { product: { url: "https://www.coles.com.au/product/honey-1", size: 400 }, quantity: 1, cost: 4, buy: "1 jar" },
+  };
+  const colesId = cat.colesId;
+  assert.deepEqual(I.buysFromRows([pantry], "woolies", {}, {}, { sent: {}, colesSent: {}, colesId }), []);
+  assert.deepEqual(I.buysFromRows([pantry], "woolies", {}, {}, { sent: { 753976: 2 }, colesSent: {}, colesId }), [{ item: "honey", amount: 750 }]);
+  assert.deepEqual(I.buysFromRows([pantry], "woolies", {}, { honey: true }, { sent: { 753976: 1 }, colesSent: {}, colesId }), []);
 });
 
 test("prune matches stock with post-cutoff buys and meal ticks (amounts and flags)", () => {

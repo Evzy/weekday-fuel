@@ -31,11 +31,8 @@ Files: new `apps/android/app/src/main/assets/weekday_fuel/inventory.js`; `catalo
        - both false for items without `keeps`.
 
      Dates are local `YYYY-MM-DD` strings like the rest of the app.
-   - `pending(inv, days, today)`: `[{ date, i, id }]` for meals (with a known meal id is not required here) on dates ≥ the start date and < `today` whose `ate` is `undefined`, in date then index order. Empty when `inv` is null.
-   - `buysFromRows(rows, store, ticks, haveIt)`: `[{ item, amount }]` from shop rows, following the spec's stock-in rule:
-     - Skip ticked rows, rows in `haveIt`, and rows with no line at either store.
-     - Use `row[store]` or else the other store's line.
-     - The amount is `line.quantity * line.product.size`, or `line.quantity * 1000` when `product.perKg`.
+   - `pending(inv, days, today)`: `[{ date, i, id }]` for meals on dates strictly after the start's local date and < `today` whose `ate` is `undefined`, in date then index order. Empty when `inv` is null.
+   - `buysFromRows(rows, store, ticks, haveIt, opts)`: `[{ item, amount }]` from shop rows, matching Past orders (`orders.snapshot`): sent trolley lines first (opts `sent`, `colesSent`, `colesId`), then skip ticked and sec 2 pantry rows not sent, then shop lines for the rest; skip `haveIt` and rows with no line at either store.
 3. Tests (`inventory.test.js`), with a small fixture catalogue built with `catalogue.create`, must cover:
    - parse validation;
    - add/remove order;
@@ -48,7 +45,7 @@ Files: new `apps/android/app/src/main/assets/weekday_fuel/inventory.js`; `catalo
    - never negative;
    - `useSoon`/`off` boundaries for keeps 3 and 14;
    - `pending`;
-   - `buysFromRows` including a deli line, a pack/tray line, a missed-at-store row, ticked and haveIt rows.
+   - `buysFromRows` including a deli line, a pack/tray line, a missed-at-store row, ticked and haveIt rows, and pantry presumed-at-home vs sent.
 
 ## Task 2: stock in, undo, and "Ate it"
 

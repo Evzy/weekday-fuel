@@ -53,17 +53,19 @@ A planned meal in `days` gets an optional `ate`: an ISO time when ticked, or `fa
   | eggs | 28 |
 
   A lot is `useSoon` when it's within 1 day of `keeps` (or past half of it for keeps ≤ 3) and `off` once older than `keeps`. Items without `keeps` (pantry, frozen, fixtures) never get flagged.
-- `pending(inv, days, today)` lists planned meals on days from the start date to yesterday whose `ate` is absent.
+- `pending(inv, days, today)` lists planned meals on days strictly after the start's local date through yesterday whose `ate` is absent (meals on the start day itself are not pending).
 
 ### Stock in from orders
 
-When "Save order and start next shop" saves an order, every shop row is added as a `buy` except:
+When "Save order and start next shop" saves an order, stock-in follows the same grouping as the saved order snapshot in Past orders:
 
-- rows ticked "already had";
-- pantry rows marked "I have it";
-- rows with no product at either store.
+- **Ordered** (sent to the trolley): stock the sent quantity × pack size (or × 1000 g for deli), even if the row was ticked "already had".
+- **Already had** (ticked, not sent): skip.
+- **Pantry, presumed at home** (sec 2, not sent): skip.
+- **Buy yourself** (other rows with a store line): stock from the shop line at the order's store (or the other store when missed there).
+- Skip rows marked "I have it" on the pantry check, and rows with no product at either store.
 
-The amount is what that row buys at the order's store (or the other store when the row is missed there): `quantity × product.size`, or `quantity × 1000` g for a deli line. Deleting a saved order in Past orders removes its `buy` events.
+Deleting a saved order in Past orders removes its `buy` events.
 
 ### Screens
 

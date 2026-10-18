@@ -362,7 +362,7 @@
     var out = [];
     Object.keys(days || {})
       .filter(function (d) {
-        return DATE.test(d) && compareDate(d, startDate) >= 0 && compareDate(d, today) < 0;
+        return DATE.test(d) && compareDate(d, startDate) > 0 && compareDate(d, today) < 0;
       })
       .sort()
       .forEach(function (date) {
@@ -382,21 +382,67 @@
     return {};
   }
 
-  function buysFromRows(rows, store, ticks, haveIt) {
+  function isQty(q) {
+    return typeof q === "number" && isFinite(q) && q > 0;
+  }
+
+  function buyAmount(product, qty) {
+    if (product.perKg) return qty * 1000;
+    return qty * product.size;
+  }
+
+  /* Same sent-line checks as orders.snapshot: if the trolley sent this row, stock that amount. */
+  function amountFromSent(row, sent, colesSent, colesId) {
+    var w = row.woolies;
+    var gone = row.wooliesUnavailable;
+    var c = row.coles;
+    var cGone = row.colesUnavailable;
+    var cId = c ? colesId(c.product) : null;
+    var cGoneId = cGone ? colesId(cGone.product) : null;
+    if (w && isQty(sent[w.product.stockcode])) return buyAmount(w.product, sent[w.product.stockcode]);
+    if (w && w.alts) {
+      for (var ai = 0; ai < w.alts.length; ai++) {
+        var wAlt = w.alts[ai];
+        if (isQty(sent[wAlt.stockcode])) return buyAmount(wAlt, sent[wAlt.stockcode]);
+      }
+    }
+    if (gone && isQty(sent[gone.stockcode])) return buyAmount(gone, sent[gone.stockcode]);
+    if (cId && isQty(colesSent[cId])) return buyAmount(c.product, colesSent[cId]);
+    if (c && c.alts) {
+      for (var ci = 0; ci < c.alts.length; ci++) {
+        var cAlt = c.alts[ci];
+        var altId = colesId(cAlt);
+        if (altId && isQty(colesSent[altId])) return buyAmount(cAlt, colesSent[altId]);
+      }
+    }
+    if (cGoneId && isQty(colesSent[cGoneId])) return buyAmount(cGone, colesSent[cGoneId]);
+    return null;
+  }
+
+  function buysFromRows(rows, store, ticks, haveIt, opts) {
+    var o = opts || {};
+    var sent = o.sent && typeof o.sent === "object" ? o.sent : {};
+    var colesSent = o.colesSent && typeof o.colesSent === "object" ? o.colesSent : {};
+    var colesId = typeof o.colesId === "function" ? o.colesId : function () { return null; };
     var other = store === "coles" ? "woolies" : "coles";
     var t = ticks || {};
     var hi = haveIt || {};
     var out = [];
     (Array.isArray(rows) ? rows : []).forEach(function (row) {
       if (!row || typeof row !== "object") return;
-      if (t[row.id]) return;
       if (hi[row.id]) return;
+      var fromSent = amountFromSent(row, sent, colesSent, colesId);
+      if (fromSent != null) {
+        out.push({ item: row.id, amount: fromSent });
+        return;
+      }
+      if (t[row.id]) return;
+      if (row.sec === 2) return;
       var line = row[store] || row[other];
       if (!line || !line.product) return;
       var qty = line.quantity;
-      if (!(typeof qty === "number" && isFinite(qty) && qty > 0)) return;
-      var amount = line.product.perKg ? qty * 1000 : qty * line.product.size;
-      out.push({ item: row.id, amount: amount });
+      if (!isQty(qty)) return;
+      out.push({ item: row.id, amount: buyAmount(line.product, qty) });
     });
     return out;
   }
