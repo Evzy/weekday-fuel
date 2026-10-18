@@ -53,7 +53,7 @@ A planned meal in `days` gets an optional `ate`: an ISO time when ticked, or `fa
   | eggs | 28 |
 
   A lot is `useSoon` when it's within 1 day of `keeps` (or past half of it for keeps ≤ 3) and `off` once older than `keeps`. Items without `keeps` (pantry, frozen, fixtures) never get flagged.
-- `pending(days, inv, today)` lists planned meals on days from the start date to yesterday whose `ate` is absent.
+- `pending(inv, days, today)` lists planned meals on days from the start date to yesterday whose `ate` is absent.
 
 ### Stock in from orders
 

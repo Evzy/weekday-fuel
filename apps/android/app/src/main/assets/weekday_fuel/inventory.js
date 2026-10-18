@@ -19,9 +19,8 @@
     return new Date(+p[0], +p[1] - 1, +p[2]);
   }
 
-  function localMidnightFromIso(iso) {
-    var d = new Date(iso);
-    return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  function atMs(at) {
+    return Date.parse(at);
   }
 
   function nextDate(s) {
@@ -44,7 +43,7 @@
     if (typeof e.at !== "string" || isNaN(Date.parse(e.at))) return false;
     if (typeof e.item !== "string" || !e.item) return false;
     if (e.k === "buy") {
-      return typeof e.order === "string" && typeof e.amount === "number" && isFinite(e.amount) && e.amount > 0;
+      return typeof e.order === "string" && e.order && typeof e.amount === "number" && isFinite(e.amount) && e.amount > 0;
     }
     if (e.k === "add") {
       return typeof e.amount === "number" && isFinite(e.amount) && e.amount > 0;
@@ -53,6 +52,24 @@
       return typeof e.amount === "number" && isFinite(e.amount) && e.amount >= 0 && WHY[e.why];
     }
     return false;
+  }
+
+  function validIncoming(e) {
+    if (!e || typeof e !== "object") return false;
+    if (e.at != null && e.at !== "") {
+      if (typeof e.at !== "string" || isNaN(Date.parse(e.at))) return false;
+    }
+    var at =
+      typeof e.at === "string" && e.at && !isNaN(Date.parse(e.at)) ? e.at : "2020-01-01T00:00:00.000Z";
+    return validEvent({
+      id: "x",
+      at: at,
+      k: e.k,
+      item: e.item,
+      amount: e.amount,
+      order: e.order,
+      why: e.why,
+    });
   }
 
   function parse(json) {
@@ -87,7 +104,7 @@
     var n = nextCounter(base.events, at);
     var prefix = at + "#";
     (Array.isArray(events) ? events : []).forEach(function (ev) {
-      if (!ev || typeof ev !== "object") return;
+      if (!validIncoming(ev)) return;
       var copy = {};
       Object.keys(ev).forEach(function (k) {
         copy[k] = ev[k];
@@ -114,21 +131,22 @@
   function prune(inv, now, days, cat, fixtureOn) {
     if (!inv) return inv;
     var when = now instanceof Date ? now : new Date(now);
+    if (isNaN(when.getTime())) return inv;
     var cutoff = new Date(when.getFullYear(), when.getMonth(), when.getDate());
     cutoff.setDate(cutoff.getDate() - KEEP_DAYS);
     var cutoffTs = cutoff.getTime();
     var cutoffIso = cutoff.toISOString();
     var hasOld = inv.events.some(function (e) {
-      return Date.parse(e.at) < cutoffTs;
+      return atMs(e.at) < cutoffTs;
     });
     if (!hasOld) return inv;
     var d = days || {};
     var fx = typeof fixtureOn === "function" ? fixtureOn : function () {
       return false;
     };
-    var atCutoff = cat ? stock(inv, d, cat, cutoff, fx) : {};
+    var atCutoff = cat ? stock(inv, d, cat, new Date(cutoffTs - 1), fx) : {};
     var kept = inv.events.filter(function (e) {
-      return Date.parse(e.at) >= cutoffTs;
+      return atMs(e.at) >= cutoffTs;
     });
     var sets = [];
     var n = 0;
@@ -160,9 +178,7 @@
 
   function sortLotsAsc(lots) {
     lots.sort(function (a, b) {
-      if (a.at < b.at) return -1;
-      if (a.at > b.at) return 1;
-      return 0;
+      return atMs(a.at) - atMs(b.at);
     });
   }
 
@@ -182,10 +198,11 @@
     }
   }
 
-  function applySet(lots, target, now) {
+  function applySet(lots, target, atDate) {
+    var atIso = atDate instanceof Date ? atDate.toISOString() : atDate;
     var total = sumLots(lots);
     if (target > total + 1e-9) {
-      addLot(lots, now.toISOString(), target - total);
+      addLot(lots, atIso, target - total);
       return;
     }
     if (target <= 1e-9) {
@@ -193,9 +210,7 @@
       return;
     }
     var sorted = lots.slice().sort(function (a, b) {
-      if (a.at > b.at) return -1;
-      if (a.at < b.at) return 1;
-      return 0;
+      return atMs(b.at) - atMs(a.at);
     });
     var kept = [];
     var rem = target;
@@ -215,12 +230,14 @@
   }
 
   function ageDays(atIso, now) {
-    var lotDay = localMidnightFromIso(atIso);
+    var lot = new Date(atIso);
+    var lotDay = new Date(lot.getFullYear(), lot.getMonth(), lot.getDate());
     var nowDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    return (nowDay - lotDay) / 86400000;
+    return Math.round((nowDay - lotDay) / 86400000);
   }
 
   function flagsForItem(cat, item, oldestAt, now) {
+    if (!cat || typeof cat.item !== "function") return { useSoon: false, off: false };
     var it = cat.item(item);
     if (!it || typeof it.keeps !== "number" || !(it.keeps > 0)) return { useSoon: false, off: false };
     var age = ageDays(oldestAt, now);
@@ -230,33 +247,45 @@
     return { useSoon: useSoon, off: off };
   }
 
+  function mealTier(m) {
+    return m.t === "L" || m.t === "X" ? m.t : "S";
+  }
+
   function stock(inv, days, cat, now, fixtureOn) {
-    if (!inv) return {};
+    if (!inv || !isStart(inv.start)) return {};
+    var startMs = atMs(inv.start);
+    if (isNaN(startMs)) return {};
     var when = now instanceof Date ? now : new Date(now);
+    if (isNaN(when.getTime())) return {};
+    var nowTs = when.getTime();
     var fx = typeof fixtureOn === "function" ? fixtureOn : function () {
       return false;
     };
-    var startDate = toLocalDate(new Date(inv.start));
+    var startDate = toLocalDate(new Date(startMs));
     var endDate = toLocalDate(when);
     var actions = [];
 
     inv.events.forEach(function (e) {
-      actions.push({ at: e.at, kind: e.k, event: e });
+      var ts = atMs(e.at);
+      if (isNaN(ts) || ts > nowTs) return;
+      actions.push({ ts: ts, at: e.at, kind: e.k, event: e });
     });
 
     Object.keys(days || {}).forEach(function (date) {
       if (!DATE.test(date)) return;
       var day = days[date];
       if (!day || !Array.isArray(day.meals)) return;
-      day.meals.forEach(function (m, i) {
-        if (!m || typeof m.ate !== "string" || m.ate < inv.start) return;
+      day.meals.forEach(function (m) {
+        if (!m || typeof m.ate !== "string") return;
+        var ateMs = atMs(m.ate);
+        if (isNaN(ateMs) || ateMs > nowTs || ateMs < startMs) return;
         if (!m.id) return;
-        var tier = m.t || "S";
-        var per = cat.AMOUNTS[m.id];
+        var tier = mealTier(m);
+        var per = cat && cat.AMOUNTS ? cat.AMOUNTS[m.id] : null;
         if (!per) return;
         Object.keys(per).forEach(function (item) {
           var amt = cat.amountFor(m.id, item, tier);
-          if (amt > 0) actions.push({ at: m.ate, kind: "use", item: item, amount: amt, meal: true });
+          if (amt > 0) actions.push({ ts: ateMs, at: m.ate, kind: "use", item: item, amount: amt, meal: true });
         });
       });
     });
@@ -264,8 +293,11 @@
     var d = startDate;
     while (compareDate(d, endDate) <= 0) {
       var mid = parseLocalDate(d).toISOString();
-      if (fx(d, "dare")) actions.push({ at: mid, kind: "use", item: "dare", amount: 1 });
-      if (fx(d, "grenade")) actions.push({ at: mid, kind: "use", item: "grenade", amount: 1 });
+      var midTs = atMs(mid);
+      if (midTs <= nowTs) {
+        if (fx(d, "dare")) actions.push({ ts: midTs, at: mid, kind: "use", item: "dare", amount: 1 });
+        if (fx(d, "grenade")) actions.push({ ts: midTs, at: mid, kind: "use", item: "grenade", amount: 1 });
+      }
       d = nextDate(d);
     }
 
@@ -276,8 +308,7 @@
     }
 
     actions.sort(function (a, b) {
-      if (a.at < b.at) return -1;
-      if (a.at > b.at) return 1;
+      if (a.ts !== b.ts) return a.ts - b.ts;
       var ra = kindRank(a.kind);
       var rb = kindRank(b.kind);
       if (ra !== rb) return ra - rb;
@@ -286,7 +317,7 @@
       return 0;
     });
 
-    var lotsByItem = {};
+    var lotsByItem = Object.create(null);
     function lots(item) {
       if (!lotsByItem[item]) lotsByItem[item] = [];
       return lotsByItem[item];
@@ -298,7 +329,7 @@
         return;
       }
       if (a.kind === "set") {
-        applySet(lots(a.event.item), a.event.amount, when);
+        applySet(lots(a.event.item), a.event.amount, new Date(a.ts));
         return;
       }
       if (a.kind === "use") {
@@ -306,16 +337,21 @@
       }
     });
 
-    var out = {};
+    var out = Object.create(null);
     Object.keys(lotsByItem).forEach(function (item) {
-      var lots = lotsByItem[item];
-      var amount = sumLots(lots);
+      var itemLots = lotsByItem[item];
+      var amount = sumLots(itemLots);
       if (amount <= 1e-9) return;
-      var oldest = lots[0].at;
+      var oldest = itemLots[0].at;
       var fl = flagsForItem(cat, item, oldest, when);
-      out[item] = { amount: amount, lots: lots.map(function (l) {
-        return { at: l.at, amount: l.amount };
-      }), useSoon: fl.useSoon, off: fl.off };
+      out[item] = {
+        amount: amount,
+        lots: itemLots.map(function (l) {
+          return { at: l.at, amount: l.amount };
+        }),
+        useSoon: fl.useSoon,
+        off: fl.off,
+      };
     });
     return out;
   }

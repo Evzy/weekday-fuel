@@ -32,7 +32,7 @@ const ITEMS = [
     woolies: { name: "Honey", url: W + "753976", stockcode: 753976, size: 375, price: 5, checked: "2026-10-15" } },
 ];
 const AMOUNTS = {
-  toasty: { ham: 100, cheese: 30 },
+  toasty: { ham: 100, cheese: { L: 10, S: 30, X: 50 } },
   tenderwrap: { breast: 200, cheese: 30 },
   bowl: { breast: 150, rice: 1 },
 };
@@ -49,6 +49,22 @@ function inv(events) {
 
 function amounts(st) {
   return Object.fromEntries(Object.entries(st).map(([k, v]) => [k, v.amount]));
+}
+
+function stockFlags(st) {
+  return Object.fromEntries(
+    Object.entries(st).map(([k, v]) => [k, { amount: v.amount, useSoon: v.useSoon, off: v.off }]),
+  );
+}
+
+function mulberry32(seed) {
+  return function () {
+    seed |= 0;
+    seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
 }
 
 test("parse keeps valid inventory and drops bad events", () => {
@@ -77,6 +93,20 @@ test("parse keeps valid inventory and drops bad events", () => {
   assert.equal(I.parse(JSON.stringify(bad)), null);
   assert.equal(I.parse(JSON.stringify({ v: 1, start: START, events: bad.events })).events.length, 0);
   assert.equal(I.parse("not json"), null);
+  assert.equal(I.parse(JSON.stringify({ v: 1, start: "nope", events: [] })), null);
+  assert.deepEqual(
+    I.parse(
+      JSON.stringify({
+        v: 1,
+        start: START,
+        events: [
+          { id: "a", at: START, k: "add", item: "ham", amount: 0 },
+          { id: "b", at: START, k: "buy", item: "ham", amount: 1 },
+        ],
+      }),
+    ).events.length,
+    0,
+  );
 });
 
 test("addEvents assigns ids and at; removeOrder strips buy events for that order", () => {
@@ -101,6 +131,14 @@ test("addEvents assigns ids and at; removeOrder strips buy events for that order
     ],
   );
   assert.equal(I.removeOrder(null, "x"), null);
+  const d = I.addEvents(null, [
+    { k: "buy", item: "breast", amount: 100, order: "o1" },
+    { k: "buy", item: "breast", amount: 50 },
+    { k: "add", item: "ham", amount: 0 },
+    { k: "add", item: "ham", amount: 20, at: "not-a-time" },
+  ], START);
+  assert.equal(d.events.length, 1);
+  assert.equal(d.events[0].id, START + "#0");
 });
 
 test("prune is a no-op when nothing is older than KEEP_DAYS", () => {
@@ -197,7 +235,7 @@ test("set lower, higher, and to zero", () => {
   assert.equal(s.breast.amount, 80);
   assert.equal(s.breast.lots.length, 2);
   base = I.addEvents(base, [{ k: "set", item: "breast", amount: 0, why: "used", at: iso(new Date(2026, 9, 15, 9, 0, 0)) }], START);
-  assert.deepEqual(I.stock(base, {}, cat, NOW, () => false), {});
+  assert.equal(Object.keys(I.stock(base, {}, cat, NOW, () => false)).length, 0);
 });
 
 test("fixtures use one dare and grenade per toggled day from start through today", () => {
@@ -272,4 +310,204 @@ test("buysFromRows handles deli, packs, missed store, ticks and haveIt", () => {
     { item: "breast", amount: 600 },
   ]);
   assert.deepEqual(I.buysFromRows(rows, "coles", { cheese: true }, { ham: true }), [{ item: "breast", amount: 600 }]);
+});
+
+test("prune matches stock with post-cutoff buys and meal ticks (amounts and flags)", () => {
+  const invStart = iso(new Date(2026, 0, 5, 8, 0, 0));
+  const oldBuy = localMid(2026, 4, 1);
+  const postBuy = iso(new Date(2026, 9, 12, 14, 0, 0));
+  const postMeal = iso(new Date(2026, 9, 14, 13, 0, 0));
+  const full = {
+    v: 1,
+    start: invStart,
+    events: [
+      { id: "o1", at: oldBuy, k: "buy", item: "breast", amount: 800, order: "old" },
+      { id: "o2", at: oldBuy, k: "buy", item: "yog", amount: 907, order: "old" },
+      { id: "n1", at: postBuy, k: "buy", item: "breast", amount: 200, order: "new" },
+    ],
+  };
+  const days = { "2026-10-14": { meals: [{ id: "tenderwrap", name: "W", serves: 1, t: "S", ate: postMeal }] } };
+  const pruned = I.prune(full, NOW, days, cat, () => false);
+  assert.deepEqual(stockFlags(I.stock(pruned, days, cat, NOW, () => false)), stockFlags(I.stock(full, days, cat, NOW, () => false)));
+});
+
+test("prune matches stock across many random histories", () => {
+  const invStart = iso(new Date(2026, 0, 1, 8, 0, 0));
+  const rand = mulberry32(42);
+  const now = new Date(2026, 9, 25, 15, 0, 0);
+  for (let i = 0; i < 200; i++) {
+    const events = [];
+    let t = new Date(2026, 0, 2 + (i % 40), 8, 0, 0);
+    for (let j = 0; j < 8; j++) {
+      t = new Date(t.getTime() + Math.floor(rand() * 5) * 86400000 + Math.floor(rand() * 8) * 3600000);
+      const item = ["breast", "ham", "yog", "honey"][Math.floor(rand() * 4)];
+      if (rand() < 0.7) {
+        events.push({ id: "e" + j, at: iso(t), k: "buy", item, amount: 100 + Math.floor(rand() * 400), order: "o" + i });
+      } else {
+        events.push({ id: "e" + j, at: iso(t), k: "set", item, amount: Math.floor(rand() * 300), why: "count" });
+      }
+    }
+    const full = { v: 1, start: invStart, events };
+    const days = {};
+    if (rand() > 0.5) {
+      days["2026-10-16"] = { meals: [{ id: "tenderwrap", name: "W", serves: 1, t: "S", ate: iso(new Date(2026, 9, 16, 12, 0, 0)) }] };
+    }
+    const pruned = I.prune(full, now, days, cat, () => false);
+    assert.deepEqual(amounts(I.stock(pruned, days, cat, now, () => false)), amounts(I.stock(full, days, cat, now, () => false)));
+  }
+});
+
+test("prune does not double-deduct the cutoff-day fixture", () => {
+  const when = new Date(2026, 9, 20, 12, 0, 0);
+  const cutoff = new Date(when.getFullYear(), when.getMonth(), when.getDate());
+  cutoff.setDate(cutoff.getDate() - I.KEEP_DAYS);
+  const cutoffDate = `${cutoff.getFullYear()}-${String(cutoff.getMonth() + 1).padStart(2, "0")}-${String(cutoff.getDate()).padStart(2, "0")}`;
+  const invStart = iso(new Date(cutoff.getFullYear(), cutoff.getMonth(), cutoff.getDate() - 5, 8, 0, 0));
+  const oldBuy = iso(new Date(cutoff.getFullYear(), cutoff.getMonth(), cutoff.getDate() - 3, 10, 0, 0));
+  const full = {
+    v: 1,
+    start: invStart,
+    events: [{ id: "d1", at: oldBuy, k: "buy", item: "dare", amount: 10, order: "o1" }],
+  };
+  const fx = (d, k) => d === cutoffDate && k === "dare";
+  const pruned = I.prune(full, when, {}, cat, fx);
+  assert.equal(I.stock(full, {}, cat, when, fx).dare.amount, I.stock(pruned, {}, cat, when, fx).dare.amount);
+});
+
+test("a set higher than stock dates its lot at the set time for FIFO and flags", () => {
+  const t1 = iso(new Date(2026, 8, 1, 10, 0, 0));
+  const tSet = iso(new Date(2026, 8, 10, 11, 0, 0));
+  const tBuy = iso(new Date(2026, 8, 20, 11, 0, 0));
+  const base = {
+    v: 1,
+    start: t1,
+    events: [
+      { id: "1", at: t1, k: "buy", item: "yog", amount: 100, order: "o1" },
+      { id: "2", at: tSet, k: "set", item: "yog", amount: 150, why: "count" },
+      { id: "3", at: tBuy, k: "buy", item: "yog", amount: 50, order: "o2" },
+    ],
+  };
+  const yogCat = create(ITEMS, { ...AMOUNTS, yogsnack: { yog: 120 } });
+  const ate = iso(new Date(2026, 8, 25, 12, 0, 0));
+  const days = { "2026-09-25": { meals: [{ id: "yogsnack", name: "Y", serves: 1, t: "S", ate }] } };
+  const s = I.stock(base, days, yogCat, new Date(2026, 8, 25, 14, 0, 0), () => false);
+  assert.equal(s.yog.amount, 80);
+  assert.deepEqual(s.yog.lots.map((l) => [l.at, l.amount]), [[tSet, 30], [tBuy, 50]]);
+  const flags = I.stock(base, {}, cat, new Date(2026, 8, 14, 12, 0, 0), () => false);
+  assert.equal(flags.yog.useSoon, true);
+  assert.equal(flags.yog.off, false);
+});
+
+test("ageDays uses whole calendar days across DST in Sydney", { skip: process.env.TZ !== "Australia/Sydney" ? "not Sydney TZ" : false }, () => {
+  const buy = iso(new Date(2027, 2, 21, 10, 0, 0));
+  const base = { v: 1, start: buy, events: [{ id: "1", at: buy, k: "buy", item: "yog", amount: 907, order: "o1" }] };
+  const now = new Date(2027, 3, 4, 12, 0, 0);
+  const s = I.stock(base, {}, cat, now, () => false);
+  assert.equal(s.yog.off, false);
+  assert.equal(s.yog.useSoon, true);
+});
+
+test("invalid now or start returns {} without hanging", () => {
+  const base = inv([{ id: "1", at: START, k: "buy", item: "breast", amount: 100, order: "o1" }]);
+  assert.deepEqual(I.stock(base, {}, cat, "not-a-date", () => false), {});
+  assert.deepEqual(I.stock({ v: 1, start: "nope", events: [] }, {}, cat, NOW, () => false), {});
+});
+
+test("events order by instant, not string", () => {
+  const early = "2026-10-15T20:00:00.000+10:00";
+  const late = "2026-10-15T12:00:00.000Z";
+  assert.ok(Date.parse(early) < Date.parse(late));
+  assert.ok(early > late);
+  const base = {
+    v: 1,
+    start: START,
+    events: [
+      { id: "2", at: late, k: "buy", item: "breast", amount: 100, order: "o1" },
+      { id: "1", at: early, k: "buy", item: "breast", amount: 50, order: "o1" },
+    ],
+  };
+  const s = I.stock(base, {}, cat, NOW, () => false);
+  assert.deepEqual(s.breast.lots, [
+    { at: early, amount: 50 },
+    { at: late, amount: 100 },
+  ]);
+});
+
+test("meal tiers L, S, X and unknown tier fall back to S", () => {
+  const base = I.addEvents(null, [{ k: "buy", item: "cheese", amount: 500, order: "o1" }], START);
+  const ate = iso(new Date(2026, 9, 12, 12, 0, 0));
+  const mk = (t) => ({ id: "toasty", name: "T", serves: 1, t, ate });
+  assert.equal(I.stock(base, { "2026-10-12": { meals: [mk("L")] } }, cat, NOW, () => false).cheese.amount, 490);
+  assert.equal(I.stock(base, { "2026-10-12": { meals: [mk("S")] } }, cat, NOW, () => false).cheese.amount, 470);
+  assert.equal(I.stock(base, { "2026-10-12": { meals: [mk("X")] } }, cat, NOW, () => false).cheese.amount, 450);
+  assert.equal(I.stock(base, { "2026-10-12": { meals: [mk("Z")] } }, cat, NOW, () => false).cheese.amount, 470);
+});
+
+test("unknown meals and catalogue gaps do not crash", () => {
+  const base = I.addEvents(null, [{ k: "buy", item: "breast", amount: 100, order: "o1" }], START);
+  const ate = iso(new Date(2026, 9, 12, 12, 0, 0));
+  const days = {
+    "2026-10-12": {
+      meals: [
+        { id: "missing", name: "?", serves: 1, t: "S", ate },
+        { id: "bowl", name: "B", serves: 1, t: "S", ate },
+      ],
+    },
+  };
+  const weird = create(ITEMS, { ...AMOUNTS, ghost: { notInCat: 5 } });
+  assert.equal(I.stock(base, days, weird, NOW, () => false).breast, undefined);
+  const p = I.addEvents(null, [{ k: "buy", item: "__proto__", amount: 9, order: "o1" }], START);
+  const protoStock = I.stock(p, {}, { AMOUNTS: {}, item: () => null, amountFor: () => 0 }, NOW, () => false);
+  assert.equal(Object.getOwnPropertyDescriptor(protoStock, "__proto__").value.amount, 9);
+});
+
+test("useSoon and off follow the oldest lot", () => {
+  const old = iso(new Date(2026, 8, 1, 8, 0, 0));
+  const fresh = iso(new Date(2026, 9, 19, 8, 0, 0));
+  const base = {
+    v: 1,
+    start: old,
+    events: [
+      { id: "1", at: old, k: "buy", item: "yog", amount: 100, order: "o1" },
+      { id: "2", at: fresh, k: "buy", item: "yog", amount: 100, order: "o2" },
+    ],
+  };
+  const s = I.stock(base, {}, cat, NOW, () => false);
+  assert.equal(s.yog.off, true);
+  assert.equal(s.yog.useSoon, true);
+});
+
+test("meals before start are ignored even with pre-start buys in the log", () => {
+  const start = iso(new Date(2026, 9, 10, 8, 0, 0));
+  const pre = iso(new Date(2026, 9, 5, 10, 0, 0));
+  const base = {
+    v: 1,
+    start,
+    events: [{ id: "1", at: pre, k: "buy", item: "breast", amount: 600, order: "o1" }],
+  };
+  const days = {
+    "2026-10-09": { meals: [{ id: "tenderwrap", name: "W", serves: 1, t: "S", ate: iso(new Date(2026, 9, 9, 12, 0, 0)) }] },
+    "2026-10-15": { meals: [{ id: "tenderwrap", name: "W", serves: 1, t: "S", ate: iso(new Date(2026, 9, 15, 12, 0, 0)) }] },
+  };
+  assert.equal(I.stock(base, days, cat, NOW, () => false).breast.amount, 400);
+});
+
+test("prune keeps an event exactly at the cutoff and drops one millisecond before", () => {
+  const when = new Date(2026, 9, 20, 12, 0, 0);
+  const cutoff = new Date(when.getFullYear(), when.getMonth(), when.getDate());
+  cutoff.setDate(cutoff.getDate() - I.KEEP_DAYS);
+  const atCutoff = cutoff.toISOString();
+  const before = new Date(cutoff.getTime() - 1).toISOString();
+  const full = {
+    v: 1,
+    start: iso(new Date(2026, 0, 1, 8, 0, 0)),
+    events: [
+      { id: "old", at: before, k: "buy", item: "honey", amount: 400, order: "o1" },
+      { id: "edge", at: atCutoff, k: "buy", item: "breast", amount: 100, order: "o2" },
+    ],
+  };
+  const pruned = I.prune(full, when, {}, cat, () => false);
+  assert.ok(!pruned.events.some((e) => e.id === "old"));
+  assert.ok(pruned.events.some((e) => e.id === "edge"));
+  assert.ok(pruned.events.some((e) => e.k === "set" && e.item === "honey"));
 });
