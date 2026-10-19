@@ -121,7 +121,7 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .chip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:5px 11px;font-size:.8rem;font-weight:600;color:var(--muted)}
 .chip[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--bg)}
 .chipwrap{display:inline-flex;align-items:stretch;max-width:100%}
-.chipwrap .chip{border-top-right-radius:0;border-bottom-right-radius:0;max-width:calc(100% - 2.5rem);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chipwrap .chip{border-top-right-radius:0;border-bottom-right-radius:0;flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .chipedit{border:1px solid var(--line);border-left:0;background:var(--surface);border-radius:0 999px 999px 0;padding:5px 9px;font-size:.68rem;font-weight:700;color:var(--muted);flex:none}
 .tag{display:inline-block;font-size:.7rem;font-weight:700;letter-spacing:.04em;padding:2px 7px;border-radius:6px;background:var(--sunk);color:var(--muted)}
 .tag.remake{background:var(--yolk-soft);color:var(--warn)}
