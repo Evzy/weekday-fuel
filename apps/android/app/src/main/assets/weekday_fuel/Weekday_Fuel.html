@@ -774,6 +774,8 @@ function swapMeal(date,idx){
   const next=Object.assign({},m,{id:n.id});delete next.ate;day.meals[idx]=next;saveDay(date);
 }
 const SLOT_ORDER=["breakfast","lunch","snack","dinner"];
+function trolleySent(){return !!(lsSent()||lsColesSent())}
+const NEXT_SHOP_NOTE="Your trolley's already sent, so these days aren't in it. After you save that order, tap Add day to shop on each day.";
 function suggestWeek(){
   const P=WeekdayFuelPlanner,w=P.weekDays(state.date,iso(new Date())),s=store();
   const mealsOf=d=>(state.days[d]&&state.days[d].meals)||[];
@@ -792,15 +794,16 @@ function suggestWeek(){
   const r=P.planWeek({dates:w.dates,before,kept,pools,fit,score:dm=>P.shopScore(CAT,dm,s,havePlan)});
   if(!r){state.weekNote="Couldn't plan this week. Try Suggest a day for each day instead.";return}
   const sd=state.settings.shopDays=Object.assign({},S().shopDays);
+  const held=trolleySent();
   const changed=w.dates.filter(d=>r.days[d].length!==kept[d].length);
-  changed.forEach(d=>{const day=ensureDay(d);day.meals=r.days[d].concat(unknown[d]).sort((a,b)=>SLOT_ORDER.indexOf(a.slot)-SLOT_ORDER.indexOf(b.slot));if(!sd[d])day.meals.forEach(m=>delete m.shop);saveDay(d);sd[d]=true});
+  changed.forEach(d=>{const day=ensureDay(d);day.meals=r.days[d].concat(unknown[d]).sort((a,b)=>SLOT_ORDER.indexOf(a.slot)-SLOT_ORDER.indexOf(b.slot));if(!sd[d])day.meals.forEach(m=>delete m.shop);saveDay(d);if(!held)sd[d]=true});
   saveSettings();
   shopCtx=null;
   const haveCost=shopHave();
   const first=changed[0],last=changed[changed.length-1];
   const wdm=w.dates.flatMap(d=>r.days[d].map(m=>({day:d,meal:m.id,t:m.t})));
   const weekCost=CAT.storeTotals(CAT.shopList({},0,wdm,haveCost),s,{}).total;
-  state.weekNote=`Planned ${dayShort(first)}${last!==first?"–"+dayShort(last):""}: ${r.distinct} different meals, about ${money(weekCost)} of groceries at ${STORE_NAME[s]}. The days are in your shop.`;
+  state.weekNote=`Planned ${dayShort(first)}${last!==first?"–"+dayShort(last):""}: ${r.distinct} different meals, about ${money(weekCost)} of groceries at ${STORE_NAME[s]}. ${held?NEXT_SHOP_NOTE:"The days are in your shop."}`;
   state.date=first;state.adding=null;
 }
 function planSummary(plan){
@@ -815,6 +818,7 @@ function applyPlan(id,start){
   const changed=Object.keys(r.changes);
   if(!changed.length){state.weekNote="Those days are already planned. Nothing changed.";state.tab="today";state.date=r.dates[0];state.sheet=null;state.planStart=null;window.scrollTo(0,0);return}
   const sd=state.settings.shopDays=Object.assign({},S().shopDays);
+  const held=trolleySent();
   changed.forEach(d=>{
     const day=ensureDay(d);
     const old=day.meals||[];
@@ -824,11 +828,11 @@ function applyPlan(id,start){
     day.meals=locked.concat(fresh);
     fitTiers(day,locked.length,d);
     day.meals=meals;
-    saveDay(d);sd[d]=true;
+    saveDay(d);if(!held)sd[d]=true;
   });
   saveSettings();shopCtx=null;
   const first=changed[0],last=changed[changed.length-1];
-  state.weekNote=`Added ${r.added} meal${r.added===1?"":"s"}, ${dayShort(first)}${last!==first?" – "+dayShort(last):""}.${r.kept?` Kept ${r.kept} you'd already planned.`:""}`;
+  state.weekNote=`Added ${r.added} meal${r.added===1?"":"s"}, ${dayShort(first)}${last!==first?" – "+dayShort(last):""}.${r.kept?` Kept ${r.kept} you'd already planned.`:""}${held?" "+NEXT_SHOP_NOTE:""}`;
   state.tab="today";state.date=first;state.sheet=null;state.planStart=null;window.scrollTo(0,0);
 }
 
@@ -1299,7 +1303,7 @@ document.addEventListener("click",e=>{
   state.dayNote=null;
   const date=state.date;
   switch(act){
-    case "tab":state.tab=v;state.adding=null;state.kOpen=null;state.kitchenHint=null;state.kitchenHintWhere=null;window.scrollTo(0,0);if(v==="shop"&&!coBusy())maybeRefreshPrices();break;
+    case "tab":state.tab=v;state.adding=null;state.planStart=null;state.kOpen=null;state.kitchenHint=null;state.kitchenHintWhere=null;window.scrollTo(0,0);if(v==="shop"&&!coBusy())maybeRefreshPrices();break;
     case "kitem":state.kOpen=state.kOpen===v?null:v;state.kitchenHint=null;state.kitchenHintWhere=null;break;
     case "kused":if(CAT.item(v)&&kitchenSave({k:"set",item:v,amount:0,why:"used"})){state.kitchenHint=null;state.kitchenHintWhere=null}break;
     case "ktoss":if(CAT.item(v)&&kitchenSave({k:"set",item:v,amount:0,why:"toss"})){state.kitchenHint=null;state.kitchenHintWhere=null}break;
@@ -1340,10 +1344,10 @@ document.addEventListener("click",e=>{
     case "recipe":state.sheet=v;state.sheetTier=TIERS.some(([k])=>k===el.dataset.t)?el.dataset.t:"S";break;
     case "sheettier":state.sheetTier=v;break;
     case "batch":state.sheet="batch:"+v;break;
-    case "plan":state.sheet="plan:"+v;state.planStart=null;break;
+    case "plan":state.sheet="plan:"+v;break;
     case "planstart":state.planStart=v;break;
     case "planapply":applyPlan(v,state.planStart||WeekdayFuelPlans.defaultStart(iso(new Date()),state.days));break;
-    case "gomeals":state.tab="meals";window.scrollTo(0,0);break;
+    case "gomeals":{state.tab="meals";const t=iso(new Date());const lim=new Date(t+"T00:00:00");lim.setDate(lim.getDate()+13);state.planStart=state.date>=t&&state.date<=iso(lim)&&!WeekdayFuelPlans.isWeekend(state.date)?state.date:null;window.scrollTo(0,0);break}
     case "close":state.sheet=null;state.stapleSheetDraft=null;state.stapleSheetError=null;break;
     case "mf":state.mealFilter=v;break;
     case "mode":state.settings.mode=v;saveSettings();break;
