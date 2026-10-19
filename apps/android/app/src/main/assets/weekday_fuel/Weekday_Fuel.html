@@ -775,7 +775,7 @@ function swapMeal(date,idx){
 }
 const SLOT_ORDER=["breakfast","lunch","snack","dinner"];
 function trolleySent(){return !!(lsSent()||lsColesSent())}
-const NEXT_SHOP_NOTE="Your trolley's already sent, so these days aren't in it. After you save that order, tap Add day to shop on each day.";
+const NEXT_SHOP_NOTE="Your trolley's already sent, so the new meals aren't in it. After you save that order, tap Add day to shop on each day.";
 function suggestWeek(){
   const P=WeekdayFuelPlanner,w=P.weekDays(state.date,iso(new Date())),s=store();
   const mealsOf=d=>(state.days[d]&&state.days[d].meals)||[];
@@ -796,7 +796,7 @@ function suggestWeek(){
   const sd=state.settings.shopDays=Object.assign({},S().shopDays);
   const held=trolleySent();
   const changed=w.dates.filter(d=>r.days[d].length!==kept[d].length);
-  changed.forEach(d=>{const day=ensureDay(d);day.meals=r.days[d].concat(unknown[d]).sort((a,b)=>SLOT_ORDER.indexOf(a.slot)-SLOT_ORDER.indexOf(b.slot));if(!sd[d])day.meals.forEach(m=>delete m.shop);saveDay(d);if(!held)sd[d]=true});
+  changed.forEach(d=>{const day=ensureDay(d);day.meals=r.days[d].concat(unknown[d]).sort((a,b)=>SLOT_ORDER.indexOf(a.slot)-SLOT_ORDER.indexOf(b.slot));if(!sd[d])day.meals.forEach(m=>delete m.shop);else if(held)day.meals.forEach(m=>{if(!kept[d].includes(m)&&!unknown[d].includes(m))m.shop=false});saveDay(d);if(!held)sd[d]=true});
   saveSettings();
   shopCtx=null;
   const haveCost=shopHave();
@@ -828,6 +828,7 @@ function applyPlan(id,start){
     day.meals=locked.concat(fresh);
     fitTiers(day,locked.length,d);
     day.meals=meals;
+    if(held&&sd[d])fresh.forEach(m=>m.shop=false);
     saveDay(d);if(!held)sd[d]=true;
   });
   saveSettings();shopCtx=null;
@@ -1346,7 +1347,7 @@ document.addEventListener("click",e=>{
     case "batch":state.sheet="batch:"+v;break;
     case "plan":state.sheet="plan:"+v;break;
     case "planstart":state.planStart=v;break;
-    case "planapply":applyPlan(v,state.planStart||WeekdayFuelPlans.defaultStart(iso(new Date()),state.days));break;
+    case "planapply":{const t=iso(new Date());applyPlan(v,state.planStart&&state.planStart>=t?state.planStart:WeekdayFuelPlans.defaultStart(t,state.days));break}
     case "gomeals":{state.tab="meals";const t=iso(new Date());const lim=new Date(t+"T00:00:00");lim.setDate(lim.getDate()+13);state.planStart=state.date>=t&&state.date<=iso(lim)&&!WeekdayFuelPlans.isWeekend(state.date)?state.date:null;window.scrollTo(0,0);break}
     case "close":state.sheet=null;state.stapleSheetDraft=null;state.stapleSheetError=null;break;
     case "mf":state.mealFilter=v;break;
