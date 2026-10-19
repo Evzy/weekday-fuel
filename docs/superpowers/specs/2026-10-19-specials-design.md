@@ -68,3 +68,23 @@ alts: [{
 ## Owner checks
 
 When Rokeby (or another approved alternative) is on special, the Dare row offers it; Use it changes the trolley line; the saved order lists the alternative; the Kitchen shows Dare stock.
+
+## Approved alternatives (owner, 2026-10-19)
+
+All pass the loose macros guard. Figures per serve; W = Woolworths stockcode, C = Coles id.
+
+**Dare Protein Double Espresso 500mL (main):**
+- Dare Protein Mocha 500mL: 292 kcal / 30 g (W 6074551, C 1608570)
+- Pauls Plus+ Protein Double Espresso Caramel 400mL: 270 / 30 (W 6049883, C 1439928)
+- Rokeby Protein Smoothie Double Espresso 425mL: 292 / 30.2 (W 771267, C 6258498)
+- Oak Plus Protein Salted Caramel 500mL: 304 / 30 (W 6048422, C 1043778)
+- Ice Break Strong Espresso + Protein 500mL: 347 / 30 (C 7850783; W 805966 may be delisted, often out of stock)
+
+**Grenade Choc Chip Salted Caramel 60g (main):**
+- Grenade Oreo 60g: 253 / 20.9 (W 286090, C 6509780)
+- Grenade White Oreo 60g: 253 / 20.7 (W 6028961, C 9968718)
+- Grenade Choc Chip Cookie Dough 60g: ~208 / 21 (W 6043930 only; UK label, AU label unverified)
+- Musashi Protein Crisp Vanilla Caramel 60g: 239 / 20.1 (W 153264, C 4292429)
+- Musashi Protein Crisp White Choc Salted Caramel 60g: 256 / 21.3 (W 6014680, C 9958500)
+- Musashi Protein Crisp White Choc Cookies & Cream 60g: 256 / 20.7 (W 555158, C 7875897)
+- BSc High Protein Low Carb Cookies & Cream 60g: 207 / 19.2 (C 3125148 only)
