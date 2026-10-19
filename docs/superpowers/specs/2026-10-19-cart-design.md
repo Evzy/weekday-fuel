@@ -34,7 +34,16 @@ Everything that reads `shopDays()` keeps working with the derived list. That inc
 
 The order, top to bottom:
 1. **Heading** "Your cart", with a summary line: "Mon 19 – Fri 23 · 15 meals", or "Your cart is empty".
-2. **Cart days panel:** one row per cart day, showing the day label, its in-shop meal names, a tap target that opens the day on Today (existing `openday`), and a **Leave out** button. **Leave out** sets `shop:false` on that day's unbought meals, so the day drops from the derived cart; the meals stay planned.
+2. **Cart days panel:** meals bunched by day, so the shop's shape and anything odd show at a glance (owner request). For each cart day, in date order:
+   - **Header:** the day label (e.g. "Wed 21") and a **Leave out** button. Tapping the header opens the day on Today (existing `openday`).
+   - **Slots:** breakfast, lunch and dinner each on its own short line: "Breakfast · Loaded ham & cheese toasty". An empty slot shows "–". Snacks and extra meals in the cart are listed after dinner. Meals that are `shop:false` or bought aren't shown, since they're not being bought.
+   - **Flags,** small muted text next to the label:
+     - **"Only N meal(s)"** when the day has fewer than 3 cart meals and is a weekday, or a tracked weekend.
+     - **"In N days"** when the date is more than 7 days after today. Use "In 2 weeks" when N is 14, and "In N weeks" for whole weeks.
+   - **Gap marker:** between two consecutive cart days, when there's at least one weekday between them that isn't in the cart, insert a thin divider line "· N days later ·", where N is the calendar-day difference. Untracked weekends alone don't trigger it, so Fri → Mon has no marker.
+   - **Leave out** sets `shop:false` on that day's unbought meals, so the day drops from the derived cart; the meals stay planned.
+
+   `cartadd.js` provides the pure helpers `dayFlags(dateIso, cartMealCount, todayIso, isTrackedWeekend)` (returns `{few: n|null, ahead: label|null}`) and `gapLabel(prevIso, nextIso, isTrackedWeekend)` (returns a string or null), both tested.
 3. **Next cart** (only when a trolley is sent): days with unbought, in-shop meals ≥ today that aren't in the frozen set, under "Next cart". Copy: "Planned after your trolley was sent. They join the cart when you save that order."
 4. **Extra serves from before:** shown only while `picks()` has any serves. It lists them (meal name × serves) with a **Clear** button (existing `clearpicks`). Picks still feed the shopping list until cleared. There's no way to add new picks.
 5. **Empty state:** when there are no cart days, no picks and no sent lines, show: "Your cart is empty. Add meals from the Meals tab, or start with a plan." It has buttons for **Meals** (`gomeals`) and the past orders.
@@ -98,6 +107,13 @@ Remove the 0-serves picker, the `shopmode` dial and the Full list branch, along 
   - slot order is stable;
   - the input is not mutated;
   - the returned `added` is the same object that's in `meals`.
+- **`dayFlags`:**
+  - 1 or 2 meals on a weekday flag "few", 3 don't;
+  - an untracked weekend never flags few;
+  - more than 7 days ahead flags ahead, with labels "In 8 days", "In 2 weeks" and "In 3 weeks".
+- **`gapLabel`:**
+  - consecutive days give null, and so does Fri → Mon;
+  - Mon → Wed gives "2 days later", and Mon → the following Wed gives "9 days later".
 - **`cartDays`:**
   - excludes past dates;
   - excludes days whose meals are all bought, all `shop:false` or unknown;
