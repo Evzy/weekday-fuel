@@ -105,7 +105,7 @@ test("every Woolworths stockcode is unique across main products and packs", () =
   assert.equal(new Set(codes).size, codes.length);
 });
 
-test("the starter shop prices at both stores", () => {
+test("the Fewest items meals price at both stores", () => {
   const rows = cat.shopList({ toasty: 2, tenderwrap: 2, burritobowl: 2, buffalomac: 2 }, 5);
   for (const store of ["coles", "woolies"]) assert.ok(cat.storeTotals(rows, store, {}).total > 0, store);
   for (const meal of MEALS) for (const store of ["coles", "woolies"]) assert.ok(cat.mealCost(meal, store) > 0, meal + " " + store);

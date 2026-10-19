@@ -813,7 +813,7 @@ function applyPlan(id,start){
   const plan=WeekdayFuelPlans.byId(id);if(!plan)return;
   const r=WeekdayFuelPlans.fill(plan,start,state.days);
   const changed=Object.keys(r.changes);
-  if(!changed.length){state.weekNote="Those days are already planned. Nothing changed.";state.tab="today";state.date=start;return}
+  if(!changed.length){state.weekNote="Those days are already planned. Nothing changed.";state.tab="today";state.date=r.dates[0];state.sheet=null;state.planStart=null;window.scrollTo(0,0);return}
   const sd=state.settings.shopDays=Object.assign({},S().shopDays);
   changed.forEach(d=>{
     const day=ensureDay(d);
@@ -829,7 +829,7 @@ function applyPlan(id,start){
   saveSettings();shopCtx=null;
   const first=changed[0],last=changed[changed.length-1];
   state.weekNote=`Added ${r.added} meal${r.added===1?"":"s"}, ${dayShort(first)}${last!==first?" – "+dayShort(last):""}.${r.kept?` Kept ${r.kept} you'd already planned.`:""}`;
-  state.tab="today";state.date=first;state.sheet=null;state.planStart=null;
+  state.tab="today";state.date=first;state.sheet=null;state.planStart=null;window.scrollTo(0,0);
 }
 
 /* weight analytics */
@@ -1267,7 +1267,7 @@ function renderSheet(){
       <div class="stack" style="gap:6px">${plan.days.map((pd,i)=>`<div class="flat"><b>${esc(dayShort(dates[i]))}</b><br><span class="small muted">${esc(name(pd.breakfast))} · ${esc(name(pd.lunch))} · ${esc(name(pd.dinner))}</span></div>`).join("")}</div>
       <p class="small muted" style="margin:0">Fills empty breakfast, lunch and dinner slots. Meals you've already planned or bought stay.</p>
       <button class="btn" data-act="planapply" data-v="${esc(plan.id)}">Add to my days</button>`;
-    root.innerHTML=`<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(plan.name)}"><div class="row between" style="margin-bottom:10px"><span class="eyebrow">Plan</span><button class="ghost" data-act="close">Close</button></div>${body}</div></div>`;
+    root.innerHTML=`<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(plan.name)}"><div class="row between" style="margin-bottom:10px"><div><div class="eyebrow">Plan</div><h2>${esc(plan.name)}</h2></div><button class="ghost" data-act="close">Close</button></div><div class="stack" style="gap:10px">${body}</div></div></div>`;
     root.dataset.sheet=state.sheet;
     return;
   }
