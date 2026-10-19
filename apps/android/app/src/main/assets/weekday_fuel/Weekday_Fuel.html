@@ -349,12 +349,15 @@ function toggleStapleDay(id,date){
 }
 function renderStapleChips(date,day){
   const list=staplesActiveOn(date);
+  const live=new Set(staplesToday().map(s=>s.id));
   const chips=list.map(s=>{
     const it=CAT.item(s.id);if(!it)return "";
     const on=WeekdayFuelStaples.onDay(s,date,day);
     const chip=stapleChipText(s,it,on);
     const short=stapleShortName(it);
-    return `<span class="chipwrap"><button type="button" class="chip" aria-pressed="${on?"true":"false"}" data-act="stapletog" data-v="${esc(s.id)}" title="${esc(chip.tip)}" aria-label="${esc(chip.tip)}">${esc(chip.text)}</button><button type="button" class="chipedit" data-act="stapleedit" data-v="${esc(s.id)}" aria-label="Edit ${esc(short)}">Edit</button></span>`;
+    const tog=`<button type="button" class="chip" aria-pressed="${on?"true":"false"}" data-act="stapletog" data-v="${esc(s.id)}" title="${esc(chip.tip)}" aria-label="${esc(chip.tip)}">${esc(chip.text)}</button>`;
+    if(!live.has(s.id))return tog;
+    return `<span class="chipwrap">${tog}<button type="button" class="chipedit" data-act="stapleedit" data-v="${esc(s.id)}" aria-label="Edit ${esc(short)}">Edit</button></span>`;
   }).join("");
   return `<div class="stack" style="gap:8px"><div class="eyebrow">Staples</div><div class="chips">${chips}<button type="button" class="chip" data-act="stapleadd" aria-label="Add staple">+</button></div></div>`;
 }
