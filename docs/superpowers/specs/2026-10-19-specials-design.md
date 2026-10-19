@@ -17,10 +17,10 @@ Evan, 2026-10-19: keep a preferred product per item (e.g. Dare), plus a list of 
 
 ## Data (`catalogue.js`)
 
-On an item, optional `alts`:
+On an item, optional `swaps` (named `swaps` because store lines already use `alts` for unchosen pack sizes):
 
 ```js
-alts: [{
+swaps: [{
   id: "rokeby-espresso",          // unique within the item
   name: "Rokeby Protein Smoothie Espresso 2 × 375mL",
   serves: 2,                      // amount of the main item, in its unit, one pack replaces (2 bottles here)
@@ -30,12 +30,13 @@ alts: [{
 }]
 ```
 
-- The main item gets `per: { k, p }` too (per serve; for Dare 296/30, Grenade 244/20.5) so the guard can compare. Items with `alts` must have `per`.
+- Each swap store product has `size: serves` (so trolley quantity, stock-in `quantity � size` and orders work unchanged), plus `stockcode` (Woolworths) or a Coles URL ending in the id. Live data adds `special` and `available`.
+- The main item gets `per: { k, p }` too (per serve; for Dare 296/30, Grenade 244/20.5) so the guard can compare. Items with `swaps` must have `per`.
 - (The pack-size field `packs` from v0.11 is unrelated and unchanged.)
 
 ## Price checks
 
-- The Woolworths and Coles price requests include every alternative's stockcode / product id. Results land in the existing price caches; `applyLivePrices` / `applyColesPrices` also update `alts[].woolies` / `alts[].coles` (price, was, special, available), leaving the main product logic as it is.
+- The Woolworths and Coles price requests include every alternative's stockcode / product id. Results land in the existing price caches; `applyLivePrices` / `applyColesPrices` also update `swaps[].woolies` / `swaps[].coles` (price, was, special, available), leaving the main product logic as it is.
 
 ## Suggesting (pure, `specials.js`, ES5, tested)
 
@@ -61,8 +62,8 @@ alts: [{
 ## Testing
 
 - `specials.test.js` (CI list): guard boundaries (−5 g / +80 kcal pass, beyond fail), not on special, unavailable, muted, other store only, quantity rounding with `serves`, cheaper-only, tie order.
-- Catalogue tests: every `alts` entry has a unique id, `serves` ≥ 1, `per`, at least one store product with a valid id; items with `alts` have `per`.
-- Price tests: alternatives' ids requested and live data applied to `alts`.
+- Catalogue tests: every `swaps` entry has a unique id, `serves` ≥ 1, `per`, at least one store product with a valid id; items with `swaps` have `per`.
+- Price tests: alternatives' ids requested and live data applied to `swaps`.
 - Order/stock-in tests: a used alternative is ordered under its own product and stocked as the main item.
 
 ## Owner checks
