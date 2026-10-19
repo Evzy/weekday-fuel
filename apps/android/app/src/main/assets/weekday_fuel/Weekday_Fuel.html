@@ -603,10 +603,10 @@ function lsSetTicks(t){try{localStorage.setItem(LS+".shop",JSON.stringify(t))}ca
 /* Last trolley send: {at, fingerprint, lines: {stockcode: quantity now in the trolley}} */
 const SENT=LS+".sent";
 function lsSent(){try{const s=JSON.parse(localStorage.getItem(SENT)||"null");return s&&typeof s.fingerprint==="string"&&s.lines&&typeof s.lines==="object"?s:null}catch(e){return null}}
-function lsSetSent(s){try{s?localStorage.setItem(SENT,JSON.stringify(s)):localStorage.removeItem(SENT)}catch(e){}}
+function lsSetSent(s){invalidateShopDays();try{s?localStorage.setItem(SENT,JSON.stringify(s)):localStorage.removeItem(SENT)}catch(e){}}
 const COLES_SENT=LS+".colesSent";
 function lsColesSent(){try{const s=JSON.parse(localStorage.getItem(COLES_SENT)||"null");return s&&typeof s.fingerprint==="string"&&s.lines&&typeof s.lines==="object"?s:null}catch(e){return null}}
-function lsSetColesSent(s){try{s?localStorage.setItem(COLES_SENT,JSON.stringify(s)):localStorage.removeItem(COLES_SENT)}catch(e){}}
+function lsSetColesSent(s){invalidateShopDays();try{s?localStorage.setItem(COLES_SENT,JSON.stringify(s)):localStorage.removeItem(COLES_SENT)}catch(e){}}
 const sentFor=s=>s==="coles"?lsColesSent():lsSent();
 const setSentFor=(s,v)=>s==="coles"?lsSetColesSent(v):lsSetSent(v);
 const TROLLEY={woolies:{key:"stockcode",send:"sendTrolley",open:"openwoolies"},coles:{key:"productId",send:"sendColesTrolley",open:"opencoles"}};
