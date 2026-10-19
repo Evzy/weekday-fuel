@@ -543,7 +543,7 @@ function kitchenSection(title,list,stock,ageFor){
   return s+`</div>`;
 }
 function renderKitchen(){
-  const stock=WeekdayFuelInventory.stock(lsInv(),state.days,CAT,new Date(),(d,k)=>!!(dayOf(d).fx&&dayOf(d).fx[k]));
+  const stock=WeekdayFuelInventory.stock(lsInv(),state.days,CAT,new Date(),staplesOn);
   const ids=Object.keys(stock);
   const useSoon=[],fridge=[],cupboard=[],daily=[];
   ids.forEach(id=>{const it=CAT.item(id),st=stock[id];if(!it||!st)return;if(st.useSoon||st.off)useSoon.push(id);else if(it.sec===0)daily.push(id);else if(it.sec===2)cupboard.push(id);else if(it.sec===1)fridge.push(id);});
