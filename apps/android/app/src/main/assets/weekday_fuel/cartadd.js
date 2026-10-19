@@ -52,6 +52,10 @@
     return null;
   }
 
+  function defaultIsBought(m) {
+    return m && typeof m.bought === "string" && m.bought !== "";
+  }
+
   function isEaten(m) {
     return m && typeof m.ate === "string";
   }
@@ -70,12 +74,13 @@
     return { action: "ask", slot: slot, existing: existing };
   }
 
-  function apply(dayMeals, mealId, slot, mode) {
+  function apply(dayMeals, mealId, slot, mode, isBought) {
+    var boughtFn = isBought || defaultIsBought;
     var meals = (dayMeals || []).slice();
     if (mode === "replace") {
       for (var i = 0; i < meals.length; i++) {
         var m = meals[i];
-        if (m && m.slot === slot && !isLocked(m, function (x) { return typeof x.bought === "string" && x.bought !== ""; })) {
+        if (m && m.slot === slot && !isLocked(m, boughtFn)) {
           meals.splice(i, 1);
           break;
         }

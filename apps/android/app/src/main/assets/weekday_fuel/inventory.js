@@ -405,9 +405,11 @@
           reserveMeal(out, cat, m);
           return;
         }
-        if (shopDaySet[d] && m && m.shop === false) {
-          reserveMeal(out, cat, m);
-          return;
+        if (m && m.shop === false) {
+          if (compareDate(d, today) >= 0 || shopDaySet[d]) {
+            reserveMeal(out, cat, m);
+            return;
+          }
         }
         /* Meals on shop days are on the shop list, not reserved from stock. */
         if (shopDaySet[d]) return;

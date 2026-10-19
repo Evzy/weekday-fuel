@@ -50,6 +50,18 @@ test("apply extra keeps, replace removes first unbought uneaten, sorted and pure
   assert.deepEqual(r3.meals, [{ id: "toasty", slot: "breakfast", t: "S" }]);
 });
 
+test("apply replace skips an eaten meal in slot", () => {
+  const ate = m("old", "lunch", { ate: "2026-10-19" });
+  const r = C.apply([ate], "mac", "lunch", "replace");
+  assert.deepEqual(r.meals.map((x) => x.id), ["old", "mac"]);
+});
+
+test("apply unknown slot sorts last", () => {
+  const r = C.apply([m("a", "breakfast")], "x", "weird", "extra");
+  assert.deepEqual(r.meals.map((x) => x.id), ["a", "x"]);
+  assert.equal(r.meals[1].slot, "weird");
+});
+
 test("cartDays: today on, unbought, in shop, known meals, sorted", () => {
   const days = {
     "2026-10-18": { meals: [m("a", "lunch")] },

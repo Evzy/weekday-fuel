@@ -26,7 +26,7 @@ The Shop stops being a huge page of every meal at 0 serves. It becomes a cart: w
 Everything that reads `shopDays()` keeps working with the derived list. That includes `dayMeals`, staple needs, inventory reserved/free, the fingerprint, `markBought` on save, and the Clear unbought skip dates. With no trolley sent, saving the order marks every cart meal as bought. That's the meaning of "the cart is what you bought".
 
 **Consequences:**
-- `applyPlan` and `suggestWeek` no longer write `settings.shopDays`. The `held` guard stays: when a trolley is sent, meals they add to frozen days get `shop:false`, and new days stay out of the frozen set automatically.
+- `applyPlan` and `suggestWeek` no longer write `settings.shopDays`. The `held` guard stays: when a trolley is sent, meals they add to frozen days get `shop:false` and `held:true` (system-held for the next cart). User **Leave out** / **In shop** toggles set `shop:false` only, without `held`. **Save order and start next shop** clears `held` and the hold flags on those meals so they join the derived cart again; explicit user `shop:false` stays.
 - The `shopday` / `unshopday` actions and the Today "Add day to shop / Remove from shop" row are removed. The per-meal **In shop** toggle stays.
 - Existing stored `settings.shopDays` with no trolley sent are simply ignored; there's no migration. With a trolley sent they're the frozen set, as today.
 
@@ -72,7 +72,7 @@ Remove the 0-serves picker, the `shopmode` dial and the Full list branch, along 
   1. The new meal is `{id, slot, t:"S"}`.
   2. Run `fitTiers` on the day, with every other meal locked. The new meal goes last, as in `applyPlan`.
   3. Save the day and reset `shopCtx`.
-  4. If a trolley is sent and the date is in the frozen set, set `shop:false` on the new meal.
+  4. If a trolley is sent and the date is in the frozen set, set `shop:false` and `held:true` on the new meal.
   5. Close the sheet and show a toast note on the Meals tab: "Added to Wed 21 lunch. It's in your cart." When a trolley is sent, the note ends "…It'll be in your next cart." instead.
 
 **Natural slot** (`place`):
