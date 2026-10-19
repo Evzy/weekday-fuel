@@ -200,7 +200,7 @@ a.link{text-decoration:none;display:inline-block;color:var(--accent);border-colo
       <div class="eyebrow">Evan · weekday plan</div>
       <h1>Weekday Fuel</h1>
     </div>
-    <div class="sync"><span class="dot" id="syncdot"></span><span id="synctext">Loading…</span><button type="button" class="ghost" data-act="targets" aria-label="Targets" style="font-size:.75rem;padding:2px 6px;line-height:1">⚙</button></div>
+    <div class="sync"><span class="dot" id="syncdot"></span><span id="synctext">Loading…</span><button type="button" class="ghost" data-act="targets" aria-label="Targets" style="font-size:1.15rem;padding:6px 10px;line-height:1;margin-left:4px">⚙</button></div>
   </div>
   <div id="view" class="stack" style="margin-top:14px"></div>
 </div>
@@ -1077,7 +1077,7 @@ function renderMeals(){
   h+=`<div class="panel stack" style="gap:8px"><div class="eyebrow">Batch prep</div><div class="chips">${BATCHES.map(b=>`<button class="chip" data-act="batch" data-v="${b.id}">${esc(b.name)}</button>`).join("")}</div></div>`;
   h+=`<div class="chips">${[["all","All"],["breakfast","Breakfast"],["main","Lunch & dinner"],["snack","Snacks"]].map(([k,l])=>`<button class="chip" aria-pressed="${f===k}" data-act="mf" data-v="${k}">${l}</button>`).join("")}</div>`;
   h+=MEALS.filter(filt).map(m=>mealCard(m,false)).join("");
-  h+=`<div class="flat small muted">Costs use ${STORE_NAME[store()]} prices on the Shop tab.</div>`;
+  h+=`<div class="flat small muted">Costs use ${STORE_NAME[store()]} prices.</div>`;
   return h;
 }
 function picks(){const t=S().trial;if(Array.isArray(t)){const o={};t.forEach(m=>o[m]=2);return o}return t||{}}
@@ -1350,7 +1350,7 @@ function renderShop(){
   const serveCount=dm.length+pickServes;
   h+=`<div class="panel vs">${STORES.map(s=>`<div><span class="small" style="display:block;color:var(--${s});font-weight:700">${STORE_NAME[s]}${tot[s].missed.length?` · ${tot[s].missed.length} missed`:""}</span><b>${money(tot[s].total)}</b></div>`).join("")}</div>`;
   h+=`<div class="row between"><div class="dial" role="group" aria-label="Store" style="grid-template-columns:repeat(2,auto)">${STORES.map(s=>`<button aria-pressed="${st===s}" data-act="store" data-v="${s}">${STORE_NAME[s]}</button>`).join("")}</div><span class="small">Left to buy <b class="num" style="color:var(--good)">${money(tot[st].left)}</b></span></div>`;
-  h+=`<div class="small muted">${serveCount} serve${serveCount===1?"":"s"} · ${rows.length} items. Tick as you shop; pantry items you have stay out of the trolley. ${priceLabel()}</div>`;
+  h+=`<div class="small muted">${serveCount} serve${serveCount===1?"":"s"} · ${rows.length} items. Tick what you've got; ticked items stay out of the trolley. ${priceLabel()}</div>`;
   [["Staples",0],["Fresh",1],["Pantry & freezer (check what you already have)",2]].forEach(([t,sec])=>{
     const rs=rows.filter(r=>r.sec===sec&&r[st]);if(!rs.length)return;
     h+=`<div class="panel shopsec"><h3 style="margin-bottom:4px">${t}</h3>${rs.map(r=>{const line=r[st],p=line&&line.product;const tray=p&&p.sizeLabel&&!p.live?` <span class="muted">· price checked ${esc(fmtShort(p.checked))}; charged at the heaviest weight, the difference refunded</span>`:"";const spec=shopRowSpecialHtml(r,st);const swapped=!!(r.woolies&&r.woolies.swap)||!!(r.coles&&r.coles.swap);const rowIt=swapped?Object.assign({},CAT.item(r.id),{same:false}):CAT.item(r.id);return itemRow(rowIt,{coles:r.coles&&r.coles.cost,woolies:r.woolies&&r.woolies.cost},`<span class="buy small"><b>Buy:</b> ${esc(line.buy)}${tray} <span class="muted">· ${esc(shopNeedText(r))}</span></span>${spec}${forLine(r)}`,{coles:r.coles&&r.coles.product,woolies:r.woolies&&r.woolies.product})}).join("")}</div>`;
