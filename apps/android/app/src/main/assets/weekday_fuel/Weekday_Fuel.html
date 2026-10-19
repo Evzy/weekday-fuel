@@ -1254,49 +1254,94 @@ function renderPastOrders(){
   });
   return h+`</div>`;
 }
+function cartMeals(d){
+  return ((state.days[d]&&state.days[d].meals)||[]).filter(m=>MEAL[m.id]&&!WeekdayFuelBought.isBought(m)&&m.shop!==false);
+}
+function renderCartDays(sdays){
+  const today=iso(new Date());
+  const trackedWe=d=>isWeekend(d)&&!!(state.days[d]&&state.days[d].track);
+  const nm=m=>esc(MEAL[m.id].name);
+  let prev=null,h=`<div class="panel stack" style="gap:10px"><h3>Meals in this cart</h3>`;
+  sdays.forEach(d=>{
+    const ms=cartMeals(d);
+    if(prev){const g=WeekdayFuelCartAdd.gapLabel(prev,d,trackedWe);if(g)h+=`<div class="small muted" style="text-align:center">· ${esc(g)} ·</div>`}
+    prev=d;
+    const f=WeekdayFuelCartAdd.dayFlags(d,ms.length,today,trackedWe);
+    const flags=[f.few!=null?`Only ${f.few} meal${f.few===1?"":"s"}`:"",f.ahead||""].filter(Boolean).map(t=>`<span class="tag">${esc(t)}</span>`).join(" ");
+    const slot=s=>{const xs=ms.filter(m=>m.slot===s);return `<div class="small"><span class="muted">${s[0].toUpperCase()+s.slice(1)} ·</span> ${xs.length?xs.map(nm).join(", "):"–"}</div>`};
+    const extras=ms.filter(m=>!["breakfast","lunch","dinner"].includes(m.slot));
+    h+=`<div class="stack" style="gap:2px"><div class="row between"><button class="pname" data-act="openday" data-v="${d}"><b>${esc(fmtDay(d))}</b> ${flags}</button><button class="ghost" data-act="leaveout" data-v="${d}">Leave out</button></div>${slot("breakfast")}${slot("lunch")}${slot("dinner")}${extras.length?`<div class="small"><span class="muted">Also ·</span> ${extras.map(nm).join(", ")}</div>`:""}</div>`;
+  });
+  return h+`</div>`;
+}
+function nextCartDayList(){
+  const today=iso(new Date());
+  const frozenSet={};shopDays().forEach(d=>{frozenSet[d]=true});
+  const derived=WeekdayFuelCartAdd.cartDays(state.days,today,WeekdayFuelBought.isBought,id=>!!MEAL[id]);
+  const days={};
+  derived.forEach(d=>{if(!frozenSet[d])days[d]=true});
+  Object.keys(state.days).forEach(d=>{
+    if(d<today)return;
+    const ms=((state.days[d]&&state.days[d].meals)||[]).filter(m=>m&&m.held&&!WeekdayFuelBought.isBought(m)&&MEAL[m.id]);
+    if(ms.length)days[d]=true;
+  });
+  return Object.keys(days).sort();
+}
+function nextCartMealsForDay(d){
+  const inFrozen=shopDays().includes(d);
+  const meals=((state.days[d]&&state.days[d].meals)||[]).filter(m=>MEAL[m.id]&&!WeekdayFuelBought.isBought(m));
+  if(inFrozen)return meals.filter(m=>m.held);
+  return meals.filter(m=>m.shop!==false);
+}
+function renderNextCart(){
+  if(!trolleySent())return "";
+  const days=nextCartDayList();
+  if(!days.length)return "";
+  let h=`<div class="panel stack" style="gap:8px"><h3>Next cart</h3><p class="small muted">Planned after your trolley was sent. They join the cart when you save that order.</p>`;
+  days.forEach(d=>{
+    const ms=nextCartMealsForDay(d);
+    h+=`<button class="pname" data-act="openday" data-v="${d}"><b>${esc(fmtDay(d))}</b><span class="small muted">${ms.length?ms.map(m=>esc(MEAL[m.id].name)).join(", "):"–"}</span></button>`;
+  });
+  return h+`</div>`;
+}
+function renderExtraServes(pk){
+  const ids=Object.keys(pk).filter(id=>(pk[id]||0)>0&&MEAL[id]);
+  if(!ids.length)return "";
+  return `<div class="panel stack"><div class="row between"><h3>Extra serves from before</h3><button class="ghost" data-act="clearpicks">Clear</button></div>${ids.map(id=>`<div class="small">${esc(MEAL[id].name)} × ${pk[id]}</div>`).join("")}</div>`;
+}
 function renderShop(){
   if(state.checkout&&window.WeekdayFuelHost)return renderCheckout();
-  const ticks=lsTicks();const build=S().shopMode!=="all";
-  let h=`<div><div class="eyebrow">Coles or Woolworths</div><h2>${build?"Build a shop":"Full shopping list"}</h2></div>`;
-  h+=`<div class="dial" role="group" aria-label="List type" style="align-self:flex-start"><button aria-pressed="${build}" data-act="shopmode" data-v="build">Build a shop</button><button aria-pressed="${!build}" data-act="shopmode" data-v="all">Full list</button></div>`;
-  if(build){
-    const pk=picks();const nMeals=Object.keys(pk).filter(id=>MEAL[id]).reduce((a,id)=>a+(pk[id]||0),0);
-    const sdays=shopDays(),dm=dayMeals();
-    if(sdays.length)h+=`<div class="panel stack"><h3>Days in this shop</h3>${sdays.map(d=>{const ms=((state.days[d]&&state.days[d].meals)||[]).filter(m=>m.shop!==false&&!WeekdayFuelBought.isBought(m)&&MEAL[m.id]);return `<div class="row between"><button class="pname" data-act="openday" data-v="${d}"><b>${fmtDay(d)}</b><span class="small muted">${ms.length?ms.map(m=>esc(MEAL[m.id].name)).join(", "):"no meals planned"}</span></button></div>`}).join("")}</div>`;
-    else h+=`<div class="small muted">Plan meals on Today or apply a plan from Meals and they'll appear here automatically.</div>`;
-    h+=`<div class="panel stack"><div class="row between"><h3>1. Pick meals and serves</h3>${nMeals?`<button class="ghost" data-act="clearpicks">Clear</button>`:""}</div>`;
-    const groups=[["Breakfast",m=>m.slots.includes("breakfast")],["Lunch & dinner",m=>m.slots.includes("main")],["Snack",m=>m.slots.includes("snack")&&!m.slots.includes("breakfast")]];
-    groups.forEach(([g,f])=>{
-      h+=`<div class="eyebrow" style="margin-top:4px">${g}</div><div class="picks">${MEALS.filter(f).map(m=>{const n=pk[m.id]||0;return `<div class="pickrow ${n?"on":""}"><button class="pname" data-act="recipe" data-v="${m.id}"><b>${esc(m.name)}</b><span class="small muted num">${m.t.S.k} kcal · ${m.t.S.p}g P · ${money(mealCosts(m).S)}</span></button><div class="step" role="group" aria-label="Serves of ${esc(m.name)}"><button data-act="serve" data-v="${m.id}" data-i="-1" aria-label="Fewer" ${n?"":"disabled"}>−</button><span class="num">${n}</span><button data-act="serve" data-v="${m.id}" data-i="1" aria-label="More">+</button></div></div>`}).join("")}</div>`;
-    });
-    const st=store(),ot=other(st);const rows=shopRows(),covered=shopCovered();
-    if(!nMeals&&!dm.length&&!rows.length&&!covered.length&&!sdays.length&&!Object.keys((lsSent()||{lines:{}}).lines).length&&!Object.keys((lsColesSent()||{lines:{}}).lines).length){h+=`<div class="empty">Pick at least one meal and your list appears here.</div>`;return h+renderPastOrders();}
-    const tot={coles:CAT.storeTotals(rows,"coles",ticks),woolies:CAT.storeTotals(rows,"woolies",ticks)};
-    h+=`<div class="panel vs">${STORES.map(s=>`<div><span class="small" style="display:block;color:var(--${s});font-weight:700">${STORE_NAME[s]}${tot[s].missed.length?` · ${tot[s].missed.length} missed`:""}</span><b>${money(tot[s].total)}</b></div>`).join("")}</div>`;
-    h+=`<div class="row between"><div class="dial" role="group" aria-label="Store" style="grid-template-columns:repeat(2,auto)">${STORES.map(s=>`<button aria-pressed="${st===s}" data-act="store" data-v="${s}">${STORE_NAME[s]}</button>`).join("")}</div><span class="small">Left to buy <b class="num" style="color:var(--good)">${money(tot[st].left)}</b></span></div>`;
-    h+=`<div class="small muted">${nMeals+dm.length} serve${nMeals+dm.length===1?"":"s"} · ${rows.length} items. Tick things off as they go in the trolley, or tick pantry items you already have at home. Prices use whole packs, so the first shop costs more than the per-serve cost. ${priceLabel()}</div>`;
-    [["Fixtures",0],["Fresh",1],["Pantry & freezer (check what you already have)",2]].forEach(([t,sec])=>{
-      const rs=rows.filter(r=>r.sec===sec&&r[st]);if(!rs.length)return;
-      h+=`<div class="panel shopsec"><h3 style="margin-bottom:4px">${t}</h3>${rs.map(r=>{const line=r[st],p=line&&line.product;const tray=p&&p.sizeLabel&&!p.live?` <span class="muted">· price checked ${esc(fmtShort(p.checked))}; charged at the heaviest weight, the difference refunded</span>`:"";const spec=shopRowSpecialHtml(r,st);const swapped=!!(r.woolies&&r.woolies.swap)||!!(r.coles&&r.coles.swap);const rowIt=swapped?Object.assign({},CAT.item(r.id),{same:false}):CAT.item(r.id);return itemRow(rowIt,{coles:r.coles&&r.coles.cost,woolies:r.woolies&&r.woolies.cost},`<span class="buy small"><b>Buy:</b> ${esc(line.buy)}${tray} <span class="muted">· ${esc(shopNeedText(r))}</span></span>${spec}${forLine(r)}`,{coles:r.coles&&r.coles.product,woolies:r.woolies&&r.woolies.product})}).join("")}</div>`;
-    });
-    if(covered.length)h+=`<div class="panel shopsec"><h3 style="margin-bottom:4px">Covered by what you have</h3>${covered.map(r=>`<div class="si"><div class="grow"><span class="grow">${esc(r.name)}</span><span class="small muted" style="display:block">${esc(shopNeedText(r))}</span>${forLine(r)}</div></div>`).join("")}</div>`;
-    const miss=rows.filter(r=>!r[st]);
-    if(miss.length)h+=`<div class="panel stack"><h3>Missed at ${STORE_NAME[st]}</h3><div class="small muted">${STORE_NAME[st]} doesn't ${miss.some(r=>unavailable(r,st))?"have these online right now":"sell these"}. Get them at ${STORE_NAME[ot]}.</div>${miss.map(r=>{const o=r[ot];return `<div class="row between"><span class="small">${esc(o?o.product.name:r.name)}${unavailable(r,st)?` <span class="muted">· instead of ${esc(unavailable(r,st).name)}, unavailable online now</span>`:""}${o?` <span class="muted">· ${esc(o.buy)}</span>`:""}${forLine(r)}</span>${o?`<span class="num small" style="color:var(--${ot})">${money(o.cost)}</span>`:""}</div>`}).join("")}</div>`;
-    h+=renderTrolley(rows,ticks,st);
-    h+=`<div class="row"><button class="ghost" data-act="untickall">Clear ticks</button>${nextShopBtn("list")}</div>${orderHint("list")}`;
+  const ticks=lsTicks(),pk=picks(),sdays=shopDays();
+  const cartMealCount=sdays.reduce((a,d)=>a+cartMeals(d).length,0);
+  const summary=sdays.length?`${dayShort(sdays[0])}${sdays[sdays.length-1]!==sdays[0]?" – "+dayShort(sdays[sdays.length-1]):""} · ${cartMealCount} meal${cartMealCount===1?"":"s"}`:"Your cart is empty";
+  let h=`<div><div class="eyebrow">Coles or Woolworths</div><h2>Your cart</h2></div>`;
+  h+=`<p class="small muted" style="margin:0">${esc(summary)}</p>`;
+  const pickServes=Object.keys(pk).filter(id=>(pk[id]||0)>0&&MEAL[id]).reduce((a,id)=>a+(pk[id]||0),0);
+  const rows=shopRows(),covered=shopCovered(),dm=dayMeals();
+  const sentN=Object.keys((lsSent()||{lines:{}}).lines||{}).length+Object.keys((lsColesSent()||{lines:{}}).lines||{}).length;
+  if(!sdays.length&&!pickServes&&!rows.length&&!covered.length&&!sentN){
+    h+=`<div class="empty stack" style="gap:10px"><div>Your cart is empty. Add meals from the Meals tab, or start with a plan.</div><div><button class="btn" data-act="gomeals">Go to Meals</button></div></div>`;
     return h+renderPastOrders();
   }
-  const items=CAT.ITEMS;
-  const DELI_LIST_G=300;
-  const listPrice=p=>p.perKg?Math.round(p.price*DELI_LIST_G/10)/100:p.price;
-  const secTotal=(sec,s)=>items.filter(i=>i.sec===sec&&i[s]).reduce((a,i)=>a+listPrice(i[s]),0);
-  const secMissed=(secs,s)=>items.filter(i=>secs.includes(i.sec)&&!i[s]).length;
-  const missNote=n=>n?` · ${n} missed`:"";
-  h+=`<p class="small muted" style="margin:0">Everything for every meal, one pack each. Pack sizes differ between stores, so use <b>Build a shop</b> to compare what a week actually costs. Tap an item for macros, meals and both stores' product pages. ${priceLabel()}</p>`;
-  h+=`<div class="panel vs">${STORES.map(s=>`<div><span class="small" style="display:block;color:var(--${s});font-weight:700">${STORE_NAME[s]}${missNote(secMissed([0,1,2],s))}</span><span class="small muted" style="display:block">Weekly top-up + staples</span><b>${money(secTotal(0,s)+secTotal(1,s))}</b><span class="small muted" style="display:block">Pantry, first shop only ${money(secTotal(2,s))}</span></div>`).join("")}</div>`;
-  SECTIONS.forEach(([title,note],sec)=>{h+=`<div class="panel shopsec"><div class="row between" style="margin-bottom:4px"><h3>${esc(title)}</h3><span class="num small">${STORES.map(s=>`<span style="color:var(--${s})">${money(secTotal(sec,s))}${missNote(secMissed([sec],s))}</span>`).join(" · ")}</span></div><div class="small muted" style="margin-bottom:6px">${esc(note)}</div>${items.filter(i=>i.sec===sec).map(i=>{const extra=(i.coles&&i.coles.perKg)||(i.woolies&&i.woolies.perKg)?`<span class="buy small muted">Deli price for ${DELI_LIST_G}g</span>`:"";return itemRow(i,{coles:i.coles&&listPrice(i.coles),woolies:i.woolies&&listPrice(i.woolies)},extra);}).join("")}</div>`});
-  h+=`<div class="row"><button class="ghost" data-act="untickall">Clear ticks for next shop</button></div>`;
-  return h;
+  if(sdays.length)h+=renderCartDays(sdays);
+  h+=renderNextCart();
+  h+=renderExtraServes(pk);
+  const st=store(),ot=other(st);
+  const tot={coles:CAT.storeTotals(rows,"coles",ticks),woolies:CAT.storeTotals(rows,"woolies",ticks)};
+  const serveCount=dm.length+pickServes;
+  h+=`<div class="panel vs">${STORES.map(s=>`<div><span class="small" style="display:block;color:var(--${s});font-weight:700">${STORE_NAME[s]}${tot[s].missed.length?` · ${tot[s].missed.length} missed`:""}</span><b>${money(tot[s].total)}</b></div>`).join("")}</div>`;
+  h+=`<div class="row between"><div class="dial" role="group" aria-label="Store" style="grid-template-columns:repeat(2,auto)">${STORES.map(s=>`<button aria-pressed="${st===s}" data-act="store" data-v="${s}">${STORE_NAME[s]}</button>`).join("")}</div><span class="small">Left to buy <b class="num" style="color:var(--good)">${money(tot[st].left)}</b></span></div>`;
+  h+=`<div class="small muted">${serveCount} serve${serveCount===1?"":"s"} · ${rows.length} items. Tick things off as they go in the trolley, or tick pantry items you already have at home. Prices use whole packs, so the first shop costs more than the per-serve cost. ${priceLabel()}</div>`;
+  [["Fixtures",0],["Fresh",1],["Pantry & freezer (check what you already have)",2]].forEach(([t,sec])=>{
+    const rs=rows.filter(r=>r.sec===sec&&r[st]);if(!rs.length)return;
+    h+=`<div class="panel shopsec"><h3 style="margin-bottom:4px">${t}</h3>${rs.map(r=>{const line=r[st],p=line&&line.product;const tray=p&&p.sizeLabel&&!p.live?` <span class="muted">· price checked ${esc(fmtShort(p.checked))}; charged at the heaviest weight, the difference refunded</span>`:"";const spec=shopRowSpecialHtml(r,st);const swapped=!!(r.woolies&&r.woolies.swap)||!!(r.coles&&r.coles.swap);const rowIt=swapped?Object.assign({},CAT.item(r.id),{same:false}):CAT.item(r.id);return itemRow(rowIt,{coles:r.coles&&r.coles.cost,woolies:r.woolies&&r.woolies.cost},`<span class="buy small"><b>Buy:</b> ${esc(line.buy)}${tray} <span class="muted">· ${esc(shopNeedText(r))}</span></span>${spec}${forLine(r)}`,{coles:r.coles&&r.coles.product,woolies:r.woolies&&r.woolies.product})}).join("")}</div>`;
+  });
+  if(covered.length)h+=`<div class="panel shopsec"><h3 style="margin-bottom:4px">Covered by what you have</h3>${covered.map(r=>`<div class="si"><div class="grow"><span class="grow">${esc(r.name)}</span><span class="small muted" style="display:block">${esc(shopNeedText(r))}</span>${forLine(r)}</div></div>`).join("")}</div>`;
+  const miss=rows.filter(r=>!r[st]);
+  if(miss.length)h+=`<div class="panel stack"><h3>Missed at ${STORE_NAME[st]}</h3><div class="small muted">${STORE_NAME[st]} doesn't ${miss.some(r=>unavailable(r,st))?"have these online right now":"sell these"}. Get them at ${STORE_NAME[ot]}.</div>${miss.map(r=>{const o=r[ot];return `<div class="row between"><span class="small">${esc(o?o.product.name:r.name)}${unavailable(r,st)?` <span class="muted">· instead of ${esc(unavailable(r,st).name)}, unavailable online now</span>`:""}${o?` <span class="muted">· ${esc(o.buy)}</span>`:""}${forLine(r)}</span>${o?`<span class="num small" style="color:var(--${ot})">${money(o.cost)}</span>`:""}</div>`}).join("")}</div>`;
+  h+=renderTrolley(rows,ticks,st);
+  h+=`<div class="row"><button class="ghost" data-act="untickall">Clear ticks</button>${nextShopBtn("list")}</div>${orderHint("list")}`;
+  return h+renderPastOrders();
 }
 function renderTargets(){
   const s=S();
@@ -1412,10 +1457,10 @@ document.addEventListener("click",e=>{
     case "tick":{const t=lsTicks();t[v]=el.checked;lsSetTicks(t);break}
     case "untickall":lsSetTicks({});break;
     case "openitem":state.openItem=state.openItem===v?null:v;break;
-    case "shopmode":state.settings.shopMode=v;saveSettings();break;
+
+    case "leaveout":{const day=ensureDay(v);(day.meals||[]).forEach(m=>{if(!WeekdayFuelBought.isBought(m))m.shop=false});saveDay(v);shopCtx=null;break}
     case "store":if(trolleyBusy())break;state.settings.store=v;saveSettings();if(state.trolley&&state.trolley.store!==v)state.trolley=null;break;
     case "refreshprices":refreshPrices();break;
-    case "serve":{const pk=picks();const n=Math.max(0,Math.min(10,(pk[v]||0)+i));if(n)pk[v]=n;else delete pk[v];state.settings.trial=pk;saveSettings();break}
     case "clearpicks":state.settings.trial={};saveSettings();break;
     case "swapuse":{const [id,sid]=v.split(":");const c=lsSpecials();c[id]={use:sid,useStore:store()};lsSetSpecials(c);shopCtx=null;break}
     case "swapkeep":specialsKeepStore(v,store());shopCtx=null;break;
