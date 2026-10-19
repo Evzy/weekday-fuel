@@ -91,16 +91,6 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .wd.off{opacity:.55}
 .pip.good{background:var(--good)}.pip.warn{background:var(--warn)}.pip.bad{background:var(--bad)}
 
-/* fixtures */
-.fx{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-@media (max-width:420px){.fx{grid-template-columns:1fr}}
-.fxb{display:flex;align-items:center;gap:10px;text-align:left;background:var(--surface);border:1.5px dashed var(--line);border-radius:var(--r);padding:10px 12px}
-.fxb[aria-pressed="true"]{border-style:solid;border-color:var(--yolk);background:var(--yolk-soft)}
-.fxb .tick{width:22px;height:22px;border-radius:6px;border:1.5px solid var(--muted);display:grid;place-items:center;flex:none}
-.fxb[aria-pressed="true"] .tick{background:var(--yolk);border-color:var(--yolk);color:var(--surface)}
-.fxb .tick svg{width:14px;height:14px}
-.fxb b{display:block;font-size:.9rem}
-
 /* meal rows */
 .meal{display:grid;grid-template-columns:1fr auto;gap:8px 12px;align-items:center;padding:12px 0;border-top:1px solid var(--line)}
 .meal:first-child{border-top:0;padding-top:2px}
@@ -302,39 +292,59 @@ function shopHave(){
   shopCtx={have};
   return have;
 }
-function staples(){return WeekdayFuelStaples.parse(S().staples==null?WeekdayFuelStaples.DEFAULTS:S().staples,CAT)}
+function staplesList(){return WeekdayFuelStaples.parse(S().staples==null?WeekdayFuelStaples.DEFAULTS:S().staples,CAT)}
+function staplesToday(){return WeekdayFuelStaples.activeStaples(staplesList(),iso(new Date()))}
 function staplesRaw(){const p=S().staples;if(p==null)return null;return Array.isArray(p)?p.slice():null}
-function staplesPersist(list){state.settings.staples=WeekdayFuelStaples.parse(list,CAT).map(s=>({id:s.id,amount:s.amount,days:s.days}));saveSettings()}
-function stapleMacroItems(){return CAT.ITEMS.filter(it=>MACROS[it.id])}
 function staplesSeedList(){const raw=staplesRaw();return raw==null?WeekdayFuelStaples.DEFAULTS.map(s=>({id:s.id,amount:s.amount,days:s.days})):raw.slice()}
+function staplesPersistParsed(list){state.settings.staples=list.map(s=>{const e={id:s.id,amount:s.amount,days:s.days};if(s.from)e.from=s.from;if(s.until)e.until=s.until;return e});saveSettings()}
+function stapleMacroItems(){return CAT.ITEMS.filter(it=>MACROS[it.id])}
+function stapleDefaultAmount(it){if(!it)return 1;return(it.unit==="g"||it.unit==="mL")?100:1}
+function stapleShortName(it){if(!it)return "";if(it.short)return it.short;const n=it.name.replace(/,.*$/,"").trim();return n.length>14?n.slice(0,14):n}
+function stapleChipText(s,it,on){
+  const short=stapleShortName(it);
+  const mac=WeekdayFuelStaples.macros(s.id,s.amount,CAT,MACROS);
+  const k=mac?r0(mac.k):"?";
+  let label=short;
+  if(it.unit==="g"||it.unit==="mL"){if(s.amount!==1)label=short+" "+s.amount+it.unit}
+  else if(s.amount!==1)label=short+" "+s.amount;
+  const text=(on?"✓ ":"")+label+" · "+k;
+  const tip=short+(s.amount!==1?" "+s.amount+(it.unit==="g"||it.unit==="mL"?it.unit:""):"")+" · "+k+" kcal";
+  return {text,tip};
+}
+function syncStapleSheetDraft(){
+  const draft=state.stapleSheetDraft;if(!draft)return;
+  const sel=$("#stap-item"),amt=$("#stap-amt");
+  if(sel&&sel.value)draft.id=sel.value;
+  if(amt&&amt.value!==""){const v=parseFloat(amt.value);if(isFinite(v))draft.amount=v}
+}
 function openStapleSheet(id){
+  state.stapleSheetError=null;
   if(id){
-    const cur=staples().find(s=>s.id===id);
+    const cur=staplesToday().find(s=>s.id===id);
     state.stapleSheetDraft=cur?{id:cur.id,amount:cur.amount,days:cur.days}:null;
     state.sheet="staple:"+id;
   }else{
-    const list=staples(),macroItems=stapleMacroItems();
-    const pick=macroItems.find(it=>!list.some(s=>s.id===it.id))||macroItems[0];
-    state.stapleSheetDraft=pick?{id:pick.id,amount:pick.id==="yog"?170:1,days:"weekdays"}:null;
+    state.stapleSheetDraft={id:"",amount:100,days:"weekdays"};
     state.sheet="staple:new";
   }
 }
+function stapleEntryFor(id,date){return staplesList().find(s=>{if(s.id!==id)return false;if(s.from&&date<s.from)return false;if(s.until&&date>s.until)return false;return true})}
 function toggleStapleDay(id,date){
   const d=ensureDay(date);d.fx=d.fx||{};
-  const st=staples().find(s=>s.id===id);if(!st)return;
+  const st=stapleEntryFor(id,date);if(!st)return;
   if(WeekdayFuelStaples.onDay(st,date,d))d.fx[id]=false;
   else if(d.fx[id]===false)delete d.fx[id];
   else d.fx[id]=true;
   saveDay(date);
 }
 function renderStapleChips(date,day){
-  const list=staples();if(!list.length)return "";
+  const list=staplesToday();
   const chips=list.map(s=>{
     const it=CAT.item(s.id);if(!it)return "";
     const on=WeekdayFuelStaples.onDay(s,date,day);
-    const mac=WeekdayFuelStaples.macros(s.id,s.amount,CAT,MACROS);
-    const kcal=mac?r0(mac.k):"?";
-    return `<span class="chipwrap"><button type="button" class="chip" aria-pressed="${on?"true":"false"}" data-act="stapletog" data-v="${esc(s.id)}">${on?"✓ ":""}${esc(it.name)} · ${kcal} kcal</button><button type="button" class="chipedit" data-act="stapleedit" data-v="${esc(s.id)}" aria-label="Edit ${esc(it.name)}">Edit</button></span>`;
+    const chip=stapleChipText(s,it,on);
+    const short=stapleShortName(it);
+    return `<span class="chipwrap"><button type="button" class="chip" aria-pressed="${on?"true":"false"}" data-act="stapletog" data-v="${esc(s.id)}" title="${esc(chip.tip)}" aria-label="${esc(chip.tip)}">${esc(chip.text)}</button><button type="button" class="chipedit" data-act="stapleedit" data-v="${esc(s.id)}" aria-label="Edit ${esc(short)}">Edit</button></span>`;
   }).join("");
   return `<div class="stack" style="gap:8px"><div class="eyebrow">Staples</div><div class="chips">${chips}<button type="button" class="chip" data-act="stapleadd" aria-label="Add staple">+</button></div></div>`;
 }
@@ -342,17 +352,21 @@ function renderStapleSheetBody(){
   const draft=state.stapleSheetDraft;if(!draft)return "";
   const isNew=state.sheet==="staple:new";
   const macroItems=stapleMacroItems();
-  const it=CAT.item(draft.id);
+  const it=draft.id?CAT.item(draft.id):null;
   const unit=it?it.unit:"";
   const days=draft.days==="all"?"all":"weekdays";
+  const short=it?stapleShortName(it):"";
+  const choose=isNew?`<option value=""${!draft.id?" selected":""}>Choose an item</option>`:"";
   const opts=[0,1,2].map(sec=>{
     const grp=macroItems.filter(x=>x.sec===sec);if(!grp.length)return "";
     return `<optgroup label="${esc(SECTIONS[sec][0])}">${grp.map(x=>`<option value="${esc(x.id)}"${x.id===draft.id?" selected":""}>${esc(x.name)}</option>`).join("")}</optgroup>`;
   }).join("");
-  return `<form class="stack" id="stapform" style="gap:12px"><label class="f">Item<select id="stap-item" required>${opts}</select></label><label class="f">Amount${unit?` (${esc(unit)})`:""}<input id="stap-amt" class="num" type="number" step="any" min="0" required value="${draft.amount}"></label><div class="f"><span class="small muted" style="display:block;margin-bottom:4px">Schedule</span><div class="dial" role="group" aria-label="Staple days"><button type="button" aria-pressed="${days==="all"?"true":"false"}" data-act="stapdays" data-v="all">Every day</button><button type="button" aria-pressed="${days==="weekdays"?"true":"false"}" data-act="stapdays" data-v="weekdays">Weekdays</button></div></div><div class="row" style="gap:8px;flex-wrap:wrap">${!isNew?`<button type="button" class="ghost warn" data-act="stapremove" data-v="${esc(draft.id)}">Remove</button>`:""}<button type="submit" class="btn">Save</button><button type="button" class="ghost" data-act="close">Cancel</button></div></form>`;
+  const canSave=draft.id&&isFinite(draft.amount)&&draft.amount>0;
+  const err=state.stapleSheetError?`<span class="small" style="color:var(--bad)">${esc(state.stapleSheetError)}</span>`:"";
+  return `<form class="stack" id="stapform" style="gap:12px"><div class="eyebrow">${isNew?"Add":esc(short)} staple</div><label class="f">Item<select id="stap-item"${isNew?"":" disabled"} required>${choose}${opts}</select></label><label class="f">Amount<span id="stap-unit">${unit?` (${esc(unit)})`:""}</span><input id="stap-amt" class="num" type="number" step="any" min="0" required value="${draft.amount||""}"></label>${err}<div class="f"><span class="small muted" style="display:block;margin-bottom:4px">Schedule</span><div class="dial" role="group" aria-label="Staple days"><button type="button" aria-pressed="${days==="all"?"true":"false"}" data-act="stapdays" data-v="all">Every day</button><button type="button" aria-pressed="${days==="weekdays"?"true":"false"}" data-act="stapdays" data-v="weekdays">Weekdays</button></div></div><div class="row" style="gap:8px;flex-wrap:wrap">${!isNew?`<button type="button" class="ghost warn" data-act="stapremove" data-v="${esc(draft.id)}">Remove</button>`:""}<button type="submit" class="btn" ${canSave?"":"disabled"}>Save</button><button type="button" class="ghost" data-act="close">Cancel</button></div></form>`;
 }
-function staplesOn(date){return WeekdayFuelStaples.forDay(staples(),date,dayOf(date))}
-function stapleNeedMap(){const sd=shopDays();if(!sd.length)return {};return WeekdayFuelStaples.needs(staples(),sd,state.days)}
+function staplesOn(date){return WeekdayFuelStaples.forDay(staplesList(),date,dayOf(date))}
+function stapleNeedMap(){const sd=shopDays();if(!sd.length)return {};return WeekdayFuelStaples.needs(staplesList(),sd,state.days)}
 function shopRows(){return CAT.shopList(picks(),stapleNeedMap(),dayMeals(),shopHave())}
 function shopCovered(){
   if(shopHave()===null)return [];
@@ -487,7 +501,7 @@ function renderCheckout(){
   return h;
 }
 const SECTIONS=[
- ["Your daily fixtures","Bulk-buy these when they're half price. They keep at room temperature until opened."],
+ ["Drinks and bars","Bulk-buy these when they're half price. They keep at room temperature until opened."],
  ["Weekly top-up","Sunday batch: put 1kg of chicken breast on a lined tray, season it, and bake at 200°C for 20–25 min (15 if butterflied). Slice it once it's cool. That gives about 750g cooked, which covers 5 meals. Freeze the rest of the raw chicken and the mince in single portions."],
  ["Pantry & freezer (first shop, then occasional)","Most of the flavour comes from these jars, and none of them need the fridge before opening."]
 ];
@@ -1175,7 +1189,7 @@ function renderShop(){
   const secMissed=(secs,s)=>items.filter(i=>secs.includes(i.sec)&&!i[s]).length;
   const missNote=n=>n?` · ${n} missed`:"";
   h+=`<p class="small muted" style="margin:0">Everything for every meal, one pack each. Pack sizes differ between stores, so use <b>Build a shop</b> to compare what a week actually costs. Tap an item for macros, meals and both stores' product pages. ${priceLabel()}</p>`;
-  h+=`<div class="panel vs">${STORES.map(s=>`<div><span class="small" style="display:block;color:var(--${s});font-weight:700">${STORE_NAME[s]}${missNote(secMissed([0,1,2],s))}</span><span class="small muted" style="display:block">Weekly top-up + fixtures</span><b>${money(secTotal(0,s)+secTotal(1,s))}</b><span class="small muted" style="display:block">Pantry, first shop only ${money(secTotal(2,s))}</span></div>`).join("")}</div>`;
+  h+=`<div class="panel vs">${STORES.map(s=>`<div><span class="small" style="display:block;color:var(--${s});font-weight:700">${STORE_NAME[s]}${missNote(secMissed([0,1,2],s))}</span><span class="small muted" style="display:block">Weekly top-up + staples</span><b>${money(secTotal(0,s)+secTotal(1,s))}</b><span class="small muted" style="display:block">Pantry, first shop only ${money(secTotal(2,s))}</span></div>`).join("")}</div>`;
   SECTIONS.forEach(([title,note],sec)=>{h+=`<div class="panel shopsec"><div class="row between" style="margin-bottom:4px"><h3>${esc(title)}</h3><span class="num small">${STORES.map(s=>`<span style="color:var(--${s})">${money(secTotal(sec,s))}${missNote(secMissed([sec],s))}</span>`).join(" · ")}</span></div><div class="small muted" style="margin-bottom:6px">${esc(note)}</div>${items.filter(i=>i.sec===sec).map(i=>{const extra=(i.coles&&i.coles.perKg)||(i.woolies&&i.woolies.perKg)?`<span class="buy small muted">Deli price for ${DELI_LIST_G}g</span>`:"";return itemRow(i,{coles:i.coles&&listPrice(i.coles),woolies:i.woolies&&listPrice(i.woolies)},extra);}).join("")}</div>`});
   h+=`<div class="row"><button class="ghost" data-act="untickall">Clear ticks for next shop</button></div>`;
   return h;
@@ -1238,8 +1252,8 @@ document.addEventListener("click",e=>{
     case "stapletog":toggleStapleDay(v,date);break;
     case "stapleedit":openStapleSheet(v);break;
     case "stapleadd":openStapleSheet(null);break;
-    case "stapdays":{if(state.stapleSheetDraft)state.stapleSheetDraft.days=v;break}
-    case "stapremove":{const list=staplesSeedList().filter(s=>s.id!==v);staplesPersist(list);state.sheet=null;state.stapleSheetDraft=null;break}
+    case "stapdays":{syncStapleSheetDraft();if(state.stapleSheetDraft)state.stapleSheetDraft.days=v;break}
+    case "stapremove":{staplesPersistParsed(WeekdayFuelStaples.applyRemove(staplesSeedList(),v,iso(new Date()),CAT));state.sheet=null;state.stapleSheetDraft=null;state.stapleSheetError=null;break}
     case "suggest":suggestDay(date);state.adding=null;break;
     case "suggestweek":if(state.planning)break;state.planning=true;state.weekNote="Planning your week…";setTimeout(()=>{try{suggestWeek()}finally{state.planning=false;render()}},30);break;
     case "unlockday":{state.unlocked=state.unlocked||{};if(state.unlocked[date])delete state.unlocked[date];else state.unlocked[date]=true;break}
@@ -1266,7 +1280,7 @@ document.addEventListener("click",e=>{
     case "recipe":state.sheet=v;state.sheetTier=TIERS.some(([k])=>k===el.dataset.t)?el.dataset.t:"S";break;
     case "sheettier":state.sheetTier=v;break;
     case "batch":state.sheet="batch:"+v;break;
-    case "close":state.sheet=null;state.stapleSheetDraft=null;break;
+    case "close":state.sheet=null;state.stapleSheetDraft=null;state.stapleSheetError=null;break;
     case "mf":state.mealFilter=v;break;
     case "mode":state.settings.mode=v;saveSettings();break;
     case "applyadj":state.settings.adjust=(state.settings.adjust||0)+(+v);saveSettings();break;
@@ -1316,18 +1330,31 @@ document.addEventListener("submit",e=>{
     const d=ensureDay(state.date);d.extras=d.extras||[];d.extras.push({n:n||"Extra",k,p});saveDay(state.date);render();
   }
   if(e.target.id==="stapform"){
-    const id=$("#stap-item")&&$("#stap-item").value;
-    const amt=parseFloat($("#stap-amt")&&$("#stap-amt").value);
-    const days=state.stapleSheetDraft&&state.stapleSheetDraft.days==="all"?"all":"weekdays";
-    if(!id||!MACROS[id]||!CAT.item(id)||!isFinite(amt)||!(amt>0)){$("#stap-amt")&&$("#stap-amt").focus();return}
-    const list=staplesSeedList().filter(s=>s.id!==id);
-    list.push({id,amount:amt,days});
-    staplesPersist(list);
+    syncStapleSheetDraft();
+    const draft=state.stapleSheetDraft;
+    const id=draft&&draft.id;
+    const amt=draft&&draft.amount;
+    const days=draft&&draft.days==="all"?"all":"weekdays";
+    const today=iso(new Date());
+    if(!id||!MACROS[id]||!CAT.item(id)){return}
+    if(!isFinite(amt)||!(amt>0)){state.stapleSheetError="Enter an amount above 0";$("#stap-amt")&&$("#stap-amt").focus();render();return}
+    state.stapleSheetError=null;
+    const seed=staplesSeedList();
+    const parsed=state.sheet==="staple:new"?WeekdayFuelStaples.applyAdd(seed,{id,amount:amt,days},today,CAT):WeekdayFuelStaples.applyEdit(seed,id,{amount:amt,days},today,CAT);
+    staplesPersistParsed(parsed);
     state.sheet=null;state.stapleSheetDraft=null;render();
   }
 });
 document.addEventListener("change",e=>{
   const el=e.target;
+  if(el.id==="stap-item"&&state.stapleSheetDraft){
+    const it=CAT.item(el.value);
+    state.stapleSheetDraft.id=el.value;
+    if(it)state.stapleSheetDraft.amount=stapleDefaultAmount(it);
+    state.stapleSheetError=null;
+    render();
+    return;
+  }
   if(el.id==="kadd-item"){state.kAddItem=el.value;state.kitchenHint=null;state.kitchenHintWhere=null;return}
   if(!el.dataset||!el.dataset.set)return;
   const val=parseFloat(el.value);if(!isFinite(val))return;

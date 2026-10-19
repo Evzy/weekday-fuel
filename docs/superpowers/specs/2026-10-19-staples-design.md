@@ -12,15 +12,17 @@ Evan, 2026-10-19: Dare and Grenade shouldn't be special. Any item can be a stapl
 
 ## Data
 
-- `settings.staples`: `[{ id, amount, days: "all" | "weekdays" }]`, in display order. `id` is a catalogue item id; `amount` > 0 in the item's unit. Additive setting; when absent it defaults to `[{ id: "dare", amount: 1, days: "weekdays" }, { id: "grenade", amount: 1, days: "weekdays" }]`.
+- `settings.staples`: `[{ id, amount, days: "all" | "weekdays", from?, until? }]`, in display order. `id` is a catalogue item id; `amount` > 0 in the item's unit; optional `from` and `until` are local `YYYY-MM-DD` (inclusive). A staple applies on `date` only when `date` is within `[from, until]` (open-ended when omitted). The same `id` may appear more than once when date ranges do not overlap. Additive setting; when absent it defaults to `[{ id: "dare", amount: 1, days: "weekdays" }, { id: "grenade", amount: 1, days: "weekdays" }]` (no `from`, so from the beginning).
+- **History-safe edits (do not rewrite the past):** adding a staple sets `from` to today; editing amount or schedule sets `until` to yesterday on the current entry and appends a new entry from today; removing sets `until` to yesterday (or deletes the entry if `from` is today or later). Kitchen stock, reserved and day totals for past dates use the staple list that applied on each date. Chips show one row per active `id` (no `until`, or `until` ≥ today; not yet started entries hidden).
 - **On a day:** a staple is on for `date` when (`days === "all"`, or the date is a weekday, or the day is a weekend with `track: true`) and `day.fx[id] !== false`. `day.fx` keeps its shape and meaning (item id → on/off); `dayOf` stops writing default `fx` values (absent means "follow the staple"). Existing stored `fx` values keep working: weekday `true` = on, weekend `false` = off, an explicit `false` = skipped.
 - `settings.fixtures`, `settings.fixtureDays` and `settings.readyMealPrice` stay in storage, unused.
 - **Unit weights:** catalogue items measured in counted units get `unitSize` (grams, or mL for drinks) so macros can be computed from `MACROS` (per 100 g / 100 mL): dare 500, grenade 60, eggs 58, wraps 48, bread 45, muffin 67, rice (pouch) 250, plus any other counted-unit item (find them by `unit`; take sizes from the `MACROS` notes and `.cursor/rules/meals.mdc` label facts; ask Evan only if an item has no source). Items in g or mL need none.
 
 ## Pure module (`staples.js`, ES5, tested)
 
-- `parse(list, cat)`: valid staples only (known item id, finite amount > 0, `days` one of the two values; duplicates by id keep the first).
-- `onDay(staple, date, day)`: the rule above (`date` a local `YYYY-MM-DD`).
+- `parse(list, cat)`: valid staples only (known item id, finite amount > 0, `days` one of the two values; optional valid `from`/`until`; drops overlapping ranges for the same `id`).
+- `onDay(staple, date, day)`: false when `date` is before `from` or after `until`, then the schedule/`day.fx` rules above (`date` a local `YYYY-MM-DD`).
+- `activeStaples(list, today)`, `applyAdd`, `applyEdit`, `applyRemove`: history-safe list mutations for the UI.
 - `forDay(staples, date, day)` → `[{ id, amount }]` of staples on that day.
 - `macros(id, amount, cat, MACROS)` → `{ k, p, c, f }` (amount × unitSize when counted, ÷ 100 × the per-100 values); `null` when the item has no macros.
 - `cost(id, amount, cat, store)` → amount's share of the store's pack price (`amount / product.size × price`, or per kg for deli items), other store as fallback; `null` when neither store sells it.

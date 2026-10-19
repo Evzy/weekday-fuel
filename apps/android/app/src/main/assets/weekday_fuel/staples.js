@@ -8,6 +8,8 @@
   ];
 
   var DATE = /^\d{4}-\d{2}-\d{2}$/;
+  var MIN_DATE = "0000-01-01";
+  var MAX_DATE = "9999-12-31";
 
   function round2(x) {
     return Math.round(x * 100) / 100;
@@ -16,6 +18,26 @@
   function parseLocalDate(date) {
     var p = date.split("-");
     return new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]));
+  }
+
+  function pad2(n) {
+    return n < 10 ? "0" + n : String(n);
+  }
+
+  function toIsoDate(d) {
+    return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate());
+  }
+
+  function addDays(date, n) {
+    if (!DATE.test(date)) return date;
+    var d = parseLocalDate(date);
+    d.setDate(d.getDate() + n);
+    return toIsoDate(d);
+  }
+
+  function compareDate(a, b) {
+    if (a === b) return 0;
+    return a < b ? -1 : 1;
   }
 
   function isWeekend(date) {
@@ -28,25 +50,153 @@
     return unit === "g" || unit === "mL";
   }
 
+  function validOptionalDate(v) {
+    return typeof v === "string" && DATE.test(v) ? v : null;
+  }
+
+  function rangeEnd(s) {
+    return s.until || MAX_DATE;
+  }
+
+  function rangeStart(s) {
+    return s.from || MIN_DATE;
+  }
+
+  function rangesOverlap(a, b) {
+    if (a.id !== b.id) return false;
+    return compareDate(rangeStart(a), rangeEnd(b)) <= 0 && compareDate(rangeStart(b), rangeEnd(a)) <= 0;
+  }
+
+  function copyEntry(s) {
+    var e = { id: s.id, amount: s.amount, days: s.days };
+    if (s.from) e.from = s.from;
+    if (s.until) e.until = s.until;
+    return e;
+  }
+
+  function normalizeRow(s, cat) {
+    if (!s || typeof s.id !== "string" || !s.id) return null;
+    if (!cat || typeof cat.item !== "function" || !cat.item(s.id)) return null;
+    var amount = s.amount;
+    if (typeof amount !== "number" || !isFinite(amount) || !(amount > 0)) return null;
+    if (s.days !== "all" && s.days !== "weekdays") return null;
+    var from = validOptionalDate(s.from);
+    var until = validOptionalDate(s.until);
+    if (from && until && compareDate(from, until) > 0) return null;
+    var e = { id: s.id, amount: amount, days: s.days };
+    if (from) e.from = from;
+    if (until) e.until = until;
+    return e;
+  }
+
   function parse(list, cat) {
     var src = list == null ? DEFAULTS : list;
-    var out = [];
-    var seen = Object.create(null);
     if (!Array.isArray(src)) return parse(DEFAULTS, cat);
+    var out = [];
     src.forEach(function (s) {
-      if (!s || typeof s.id !== "string" || !s.id || seen[s.id]) return;
-      if (!cat || typeof cat.item !== "function" || !cat.item(s.id)) return;
-      var amount = s.amount;
-      if (typeof amount !== "number" || !isFinite(amount) || !(amount > 0)) return;
-      if (s.days !== "all" && s.days !== "weekdays") return;
-      seen[s.id] = true;
-      out.push({ id: s.id, amount: amount, days: s.days });
+      var e = normalizeRow(s, cat);
+      if (!e) return;
+      var bad = false;
+      for (var i = 0; i < out.length; i++) {
+        if (rangesOverlap(out[i], e)) {
+          bad = true;
+          break;
+        }
+      }
+      if (!bad) out.push(e);
     });
     return out;
   }
 
+  function inDateRange(staple, date) {
+    if (staple.from && compareDate(date, staple.from) < 0) return false;
+    if (staple.until && compareDate(date, staple.until) > 0) return false;
+    return true;
+  }
+
+  function isActiveOn(staple, today) {
+    if (!DATE.test(today)) return false;
+    if (staple.from && compareDate(today, staple.from) < 0) return false;
+    if (staple.until && compareDate(today, staple.until) > 0) return false;
+    return true;
+  }
+
+  function findActiveIndex(list, id, today) {
+    for (var i = 0; i < list.length; i++) {
+      var s = list[i];
+      if (s.id === id && isActiveOn(s, today)) return i;
+    }
+    return -1;
+  }
+
+  function activeStaples(list, today) {
+    var byId = Object.create(null);
+    var order = [];
+    (list || []).forEach(function (s) {
+      if (!isActiveOn(s, today)) return;
+      if (!byId[s.id]) order.push(s.id);
+      byId[s.id] = s;
+    });
+    return order.map(function (id) {
+      return byId[id];
+    });
+  }
+
+  function applyAdd(list, entry, today, cat) {
+    if (!DATE.test(today)) return parse(list, cat);
+    var out = (Array.isArray(list) ? list : []).map(copyEntry);
+    var e = copyEntry(entry);
+    e.from = today;
+    delete e.until;
+    out.push(e);
+    return parse(out, cat);
+  }
+
+  function applyEdit(list, id, patch, today, cat) {
+    if (!DATE.test(today)) return parse(list, cat);
+    var raw = Array.isArray(list) ? list.map(copyEntry) : [];
+    var idx = findActiveIndex(raw, id, today);
+    var y = addDays(today, -1);
+    if (idx < 0) {
+      raw.push({
+        id: id,
+        amount: patch.amount,
+        days: patch.days,
+        from: today,
+      });
+      return parse(raw, cat);
+    }
+    var old = raw[idx];
+    var next = {
+      id: id,
+      amount: typeof patch.amount === "number" ? patch.amount : old.amount,
+      days: patch.days || old.days,
+      from: today,
+    };
+    if (old.from && compareDate(old.from, today) >= 0) {
+      raw[idx] = Object.assign({}, old, next);
+      delete raw[idx].until;
+    } else {
+      raw[idx] = Object.assign({}, old, { until: y });
+      raw.push(next);
+    }
+    return parse(raw, cat);
+  }
+
+  function applyRemove(list, id, today, cat) {
+    if (!DATE.test(today)) return parse(list, cat);
+    var raw = Array.isArray(list) ? list.map(copyEntry) : [];
+    var idx = findActiveIndex(raw, id, today);
+    if (idx < 0) return parse(raw, cat);
+    var old = raw[idx];
+    if (old.from && compareDate(old.from, today) >= 0) raw.splice(idx, 1);
+    else raw[idx] = Object.assign({}, old, { until: addDays(today, -1) });
+    return parse(raw, cat);
+  }
+
   function onDay(staple, date, day) {
     if (!staple || !(staple.amount > 0) || !DATE.test(date)) return false;
+    if (!inDateRange(staple, date)) return false;
     day = day || {};
     if (day.fx && day.fx[staple.id] === false) return false;
     if (day.fx && day.fx[staple.id] === true) return true;
@@ -122,6 +272,11 @@
     macros: macros,
     cost: cost,
     needs: needs,
+    activeStaples: activeStaples,
+    applyAdd: applyAdd,
+    applyEdit: applyEdit,
+    applyRemove: applyRemove,
+    addDays: addDays,
   };
   if (typeof module === "object" && module.exports) module.exports = api;
   else root.WeekdayFuelStaples = api;
