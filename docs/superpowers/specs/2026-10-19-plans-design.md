@@ -50,7 +50,7 @@ Given a plan with K days and a start date:
 1. **Dates.** Take the first K weekdays (Mon–Fri) on or after the start date.
 2. **Fill.** For plan day i (date dᵢ) and each slot of breakfast, lunch and dinner:
    - If the day already has any meal in that slot, keep it and count it as kept.
-   - Otherwise add `{id, slot, tier:"S"}` and count it as added.
+   - Otherwise add `{id, slot, t:"S"}` and count it as added.
    - Slot names match the existing day meals (breakfast, lunch, dinner). Other existing meals, such as snacks, stay as they are.
 3. **Fit.** For each date that got at least one meal, run the existing `fitTiers` with the pre-existing meals locked, so only the added meals' portions change.
 4. **Shop days.** Each date that got a meal becomes a shop day, as with `suggestWeek`.
@@ -65,7 +65,8 @@ Dates with no added meals aren't saved or marked as shop days.
 - `weekdaysFrom(startIso, n)` returns n ISO weekday dates on or after the start.
 - `defaultStart(todayIso, daysMap)` returns the first weekday from today with breakfast, lunch and dinner all empty, searching 14 days. If there is none, it returns the first weekday on or after today.
 - `fill(plan, startIso, daysMap)` returns `{dates, changes:{[iso]:{meals, added:[...]}} , added, kept}`. Each entry's `meals` is the day's new meal list sorted in slot order, and `added` lists the slots that were filled. It doesn't fit portions or write anything.
-- `summary(plan, needFn)` returns `{items, costPerDay}`. `needFn(mealIds)` returns the catalogue need for the plan's meals: the HTML passes a function that uses the existing shop-need code and the store's prices.
+- `byId(id)`, `isWeekend(iso)` and `mealCounts(plan)`, which returns `{[mealId]: serves}`.
+- `summary(plan, shopFn)` returns `{items, costPerDay}`. `shopFn(counts)` returns `{items, total}`: the HTML passes a function that builds a shop list from the counts and totals it at the selected store.
 
 The HTML handles the sheet, the calls to `fitTiers` and saving.
 
