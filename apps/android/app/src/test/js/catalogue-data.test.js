@@ -111,6 +111,49 @@ test("the Fewest items meals price at both stores", () => {
   for (const meal of MEALS) for (const store of ["coles", "woolies"]) assert.ok(cat.mealCost(meal, store) > 0, meal + " " + store);
 });
 
+test("swaps are well formed and pass the nutrition guard", () => {
+  const items = cat.ITEMS;
+  const seenW = new Set();
+  const seenC = new Set();
+  items.forEach((it) => {
+    [it.woolies, ...((it.woolies && it.woolies.packs) || [])].filter(Boolean).forEach((p) => seenW.add(p.stockcode));
+    [it.coles, ...((it.coles && it.coles.packs) || [])].filter(Boolean).forEach((p) => seenC.add(cat.colesId(p)));
+  });
+  items.filter((it) => it.swaps).forEach((it) => {
+    assert.ok(it.per && it.per.k > 0 && it.per.p > 0, it.id + " has per");
+    const ids = new Set();
+    it.swaps.forEach((s) => {
+      assert.ok(s.id && !ids.has(s.id), it.id + " unique swap id " + s.id);
+      ids.add(s.id);
+      assert.ok(typeof s.name === "string" && s.name);
+      assert.ok(Number.isInteger(s.serves) && s.serves >= 1, s.id + " serves");
+      assert.ok(s.per && s.per.k > 0 && s.per.p > 0, s.id + " per");
+      assert.ok(s.per.p >= it.per.p - 5 && s.per.k <= it.per.k + 80, s.id + " passes guard");
+      assert.ok(s.woolies || s.coles, s.id + " has a store");
+      if (s.woolies) {
+        assert.ok(Number.isInteger(s.woolies.stockcode) && s.woolies.stockcode > 0);
+        assert.equal(s.woolies.size, s.serves);
+        assert.ok(s.woolies.price > 0 && s.woolies.url.includes(String(s.woolies.stockcode)));
+        assert.ok(!seenW.has(s.woolies.stockcode), s.id + " stockcode not reused");
+        seenW.add(s.woolies.stockcode);
+      }
+      if (s.coles) {
+        const cid = cat.colesId(s.coles);
+        assert.match(String(cid), /^\d{4,7}$/, s.id + " coles id");
+        assert.equal(s.coles.size, s.serves);
+        assert.ok(s.coles.price > 0);
+        assert.ok(!seenC.has(cid), s.id + " coles id not reused");
+        seenC.add(cid);
+      }
+    });
+  });
+  const dare = items.find((i) => i.id === "dare");
+  const gren = items.find((i) => i.id === "grenade");
+  assert.deepEqual(dare.swaps.map((s) => s.id), ["dare-mocha", "pauls-dec", "rokeby-de", "oak-sc", "icebreak"]);
+  assert.deepEqual(gren.swaps.map((s) => s.id), ["gr-oreo", "gr-white-oreo", "gr-cookie", "mu-vancar", "mu-wcsc", "mu-cc", "bsc-cc"]);
+  assert.equal(cat.create(cat.ITEMS).item("dare").swaps.length, 5);
+});
+
 test("RETIRED keys are not current product ids and every entry has a name and url", () => {
   const colesIds = new Set();
   const wooliesCodes = new Set();
