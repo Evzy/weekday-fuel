@@ -223,6 +223,7 @@ a.link{text-decoration:none;display:inline-block;color:var(--accent);border-colo
 <script src="inventory.js"></script>
 <script src="macros.js"></script>
 <script src="staples.js"></script>
+<script src="plans.js"></script>
 <script>
 (function(){
 "use strict";
@@ -802,6 +803,34 @@ function suggestWeek(){
   state.weekNote=`Planned ${dayShort(first)}${last!==first?"–"+dayShort(last):""}: ${r.distinct} different meals, about ${money(weekCost)} of groceries at ${STORE_NAME[s]}. The days are in your shop.`;
   state.date=first;state.adding=null;
 }
+function planSummary(plan){
+  return WeekdayFuelPlans.summary(plan,counts=>{
+    const rows=CAT.shopList(counts,0,[]);
+    return {items:rows.length,total:CAT.storeTotals(rows,store(),{}).total};
+  });
+}
+function applyPlan(id,start){
+  const plan=WeekdayFuelPlans.byId(id);if(!plan)return;
+  const r=WeekdayFuelPlans.fill(plan,start,state.days);
+  const changed=Object.keys(r.changes);
+  if(!changed.length){state.weekNote="Those days are already planned. Nothing changed.";state.tab="today";state.date=start;return}
+  const sd=state.settings.shopDays=Object.assign({},S().shopDays);
+  changed.forEach(d=>{
+    const day=ensureDay(d);
+    const old=day.meals||[];
+    const meals=r.changes[d].meals;
+    const locked=meals.filter(m=>old.includes(m));
+    const fresh=meals.filter(m=>!old.includes(m));
+    day.meals=locked.concat(fresh);
+    fitTiers(day,locked.length,d);
+    day.meals=meals;
+    saveDay(d);sd[d]=true;
+  });
+  saveSettings();shopCtx=null;
+  const first=changed[0],last=changed[changed.length-1];
+  state.weekNote=`Added ${r.added} meal${r.added===1?"":"s"}, ${dayShort(first)}${last!==first?" – "+dayShort(last):""}.${r.kept?` Kept ${r.kept} you'd already planned.`:""}`;
+  state.tab="today";state.date=first;state.sheet=null;state.planStart=null;
+}
 
 /* weight analytics */
 function weightSeries(){return Object.keys(state.weights).filter(k=>state.weights[k]&&isFinite(state.weights[k].kg)).sort().map(k=>({d:k,kg:+state.weights[k].kg}))}
@@ -893,7 +922,7 @@ function renderToday(){
   if(allBought)h+=`<div class="row between" style="margin-bottom:8px"><span class="small"><b>${esc(boughtShopLabel(meals))}</b></span>${inShop?`<button class="ghost" data-act="shopday">Remove from shop</button>`:""}</div>`;
   else if(meals.length||inShop)h+=`<div class="row between" style="margin-bottom:8px">${inShop?`<span class="small"><b>In this shop.</b> Tap a meal's In shop to leave it out.</span><button class="ghost" data-act="shopday">Remove from shop</button>`:`<span class="small muted">Buy this day's meals with your next shop.</span><button class="btn alt" data-act="shopday">Add day to shop</button>`}</div>`;
   if(!day.meals||!day.meals.length){
-    h+=`<div class="empty stack" style="gap:10px"><div>No meals planned yet. Tap <b>Suggest a day</b> for a breakfast, lunch and dinner sized to fit around your staples, or add meals one at a time.</div><div><button class="btn" data-act="suggest">Suggest a day</button></div></div>`;
+    h+=`<div class="empty stack" style="gap:10px"><div>No meals planned yet. Tap <b>Suggest a day</b> for a breakfast, lunch and dinner sized to fit around your staples, or start with a plan, or add meals one at a time.</div><div class="row" style="gap:8px;justify-content:center;flex-wrap:wrap"><button class="btn" data-act="suggest">Suggest a day</button><button class="btn alt" data-act="gomeals">Start with a plan</button></div></div>`;
   } else {
     h+=`<div>`+day.meals.map((m,i)=>{const meal=MEAL[m.id];if(!meal)return"";const v=meal.t[m.t];const bought=WeekdayFuelBought.isBought(m);const locked=mealLocked(m,date);
       const acts=locked?`<button class="ghost" aria-pressed="${typeof m.ate==="string"}" data-act="ate" data-i="${i}">Ate it</button>`:`<div class="dial" role="group" aria-label="Portion">${TIERS.map(([k,l])=>`<button aria-pressed="${m.t===k}" data-act="tier" data-i="${i}" data-v="${k}">${l}</button>`).join("")}</div><button class="ghost" aria-pressed="${typeof m.ate==="string"}" data-act="ate" data-i="${i}">Ate it</button><button class="ghost" data-act="swap" data-i="${i}">Swap</button>${inShop?`<button class="ghost" aria-pressed="${m.shop!==false}" data-act="mealshop" data-i="${i}">${m.shop!==false?"In shop":"Not in shop"}</button>`:""}<button class="ghost ${state.armed==="rm"+i?"warn":""}" data-act="rm" data-i="${i}">${state.armed==="rm"+i?"Tap to remove":"Remove"}</button>`;
@@ -988,13 +1017,13 @@ function renderMeals(){
   const f=state.mealFilter;
   const filt=m=>f==="all"||(f==="breakfast"&&m.slots.includes("breakfast"))||(f==="main"&&m.slots.includes("main"))||(f==="snack"&&m.slots.includes("snack"))||(f==="remake"&&m.remake);
   let h=`<div><div class="eyebrow">${MEALS.length} meals · each one under 20 min</div><h2>Meal library</h2><p class="small muted" style="margin:4px 0 0">Every meal has a fixed protein core. Light, Standard and Loaded only change the carbs and fat (rice, pasta, cheese, oil), so you change the size of a meal without changing what you cook.</p></div>`;
+  h+=`<div class="panel stack"><div class="eyebrow">Plans · a ready-made week</div>${WeekdayFuelPlans.PLANS.map(p=>{const s=planSummary(p);return `<button class="pick" data-act="plan" data-v="${esc(p.id)}"><span><b>${esc(p.name)}</b><br><span class="small muted">${esc(p.blurb)}</span><br><span class="small muted">${s.items} items · about ${money(s.costPerDay)} a day · ${p.days.length} weekdays</span></span><span class="small muted">View</span></button>`}).join("")}</div>`;
   h+=`<div class="panel stack"><div class="eyebrow">Batch prep · cook once, eat all week</div>${BATCHES.map(b=>`<button class="pick" data-act="batch" data-v="${b.id}"><span><b>${esc(b.name)}</b><br><span class="small muted">${esc(b.makes)}. Keeps ${esc(b.keeps)}.</span></span><span class="small muted">Recipe</span></button>`).join("")}</div>`;
   h+=`<div class="chips">${[["all","All"],["breakfast","Breakfast"],["main","Lunch & dinner"],["snack","Snacks"],["remake","Ready-meal remakes"]].map(([k,l])=>`<button class="chip" aria-pressed="${f===k}" data-act="mf" data-v="${k}">${l}</button>`).join("")}</div>`;
   h+=MEALS.filter(filt).map(m=>mealCard(m,false)).join("");
   h+=`<div class="flat small muted">Costs use ${STORE_NAME[store()]} prices (switch store on the Shop tab); macros come from typical labels. Your brands will differ a little, and the weekly weigh-in average corrects for that.</div>`;
   return h;
 }
-const STARTER={toasty:2,tenderwrap:2,burritobowl:2,buffalomac:2};
 function picks(){const t=S().trial;if(Array.isArray(t)){const o={};t.forEach(m=>o[m]=2);return o}return t||{}}
 function fmtAmt(v,u){if(u==="g"&&v>=1000)return (v/1000).toFixed(v%1000?1:0)+"kg";if(u==="mL"&&v>=1000)return (v/1000).toFixed(1)+"L";return (Math.round(v*10)/10)+(u||"")}
 const FRACTION={0.25:"¼",[1/3]:"⅓",0.5:"½",0.75:"¾"};
@@ -1174,7 +1203,6 @@ function renderShop(){
     if(sdays.length)h+=`<div class="panel stack"><h3>Days in this shop</h3>${sdays.map(d=>{const ms=((state.days[d]&&state.days[d].meals)||[]).filter(m=>m.shop!==false&&!WeekdayFuelBought.isBought(m)&&MEAL[m.id]);return `<div class="row between"><button class="pname" data-act="openday" data-v="${d}"><b>${fmtDay(d)}</b><span class="small muted">${ms.length?ms.map(m=>esc(MEAL[m.id].name)).join(", "):"no meals planned"}</span></button><button class="ghost" data-act="unshopday" data-v="${d}">Remove</button></div>`}).join("")}</div>`;
     else h+=`<div class="small muted">Planning days on Today? Tap <b>Add day to shop</b> there and that day's meals join this list.</div>`;
     h+=`<div class="panel stack"><div class="row between"><h3>1. Pick meals and serves</h3>${nMeals?`<button class="ghost" data-act="clearpicks">Clear</button>`:""}</div>`;
-    if(!nMeals&&!dm.length)h+=`<div class="hint"><span>Not sure where to start? The <b>starter shop</b> picks 4 meals that share most of their ingredients (toasty, chicken wraps, burrito bowl, buffalo mac), 2 serves each, so you buy fewer things.</span></div><div><button class="btn" data-act="starter">Use the starter shop</button></div>`;
     const groups=[["Breakfast",m=>m.slots.includes("breakfast")],["Lunch & dinner",m=>m.slots.includes("main")],["Snack",m=>m.slots.includes("snack")&&!m.slots.includes("breakfast")]];
     groups.forEach(([g,f])=>{
       h+=`<div class="eyebrow" style="margin-top:4px">${g}</div><div class="picks">${MEALS.filter(f).map(m=>{const n=pk[m.id]||0;return `<div class="pickrow ${n?"on":""}"><button class="pname" data-act="recipe" data-v="${m.id}"><b>${esc(m.name)}</b><span class="small muted num">${m.t.S.k} kcal · ${m.t.S.p}g P · ${money(mealCosts(m).S)}</span></button><div class="step" role="group" aria-label="Serves of ${esc(m.name)}"><button data-act="serve" data-v="${m.id}" data-i="-1" aria-label="Fewer" ${n?"":"disabled"}>−</button><span class="num">${n}</span><button data-act="serve" data-v="${m.id}" data-i="1" aria-label="More">+</button></div></div>`}).join("")}</div>`;
@@ -1222,6 +1250,24 @@ function renderSheet(){
   if(state.sheet.startsWith("staple:")){
     const title=state.sheet==="staple:new"?"Add staple":"Edit staple";
     root.innerHTML=`<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(title)}"><div class="row between" style="margin-bottom:10px"><span class="eyebrow">Staple</span><button class="ghost" data-act="close">Close</button></div>${renderStapleSheetBody()}</div></div>`;
+    root.dataset.sheet=state.sheet;
+    return;
+  }
+  if(state.sheet.startsWith("plan:")){
+    const plan=WeekdayFuelPlans.byId(state.sheet.slice(5));
+    if(!plan){state.sheet=null;root.innerHTML="";return}
+    const today=iso(new Date());
+    const start=state.planStart||WeekdayFuelPlans.defaultStart(today,state.days);
+    const strip=[];for(let i=0;i<14;i++){const d=new Date(today+"T00:00:00");d.setDate(d.getDate()+i);strip.push(iso(d))}
+    const dates=WeekdayFuelPlans.weekdaysFrom(start,plan.days.length);
+    const name=id=>MEAL[id]?MEAL[id].name:id;
+    const body=`<p class="small muted" style="margin:0">${esc(plan.blurb)}</p>
+      <div class="eyebrow">Start on</div>
+      <div class="chips">${strip.map(d=>{const we=WeekdayFuelPlans.isWeekend(d);return `<button type="button" class="chip" aria-pressed="${d===start}" ${we?"disabled style=\"opacity:.4\"":""} data-act="planstart" data-v="${d}">${esc(dayShort(d))}</button>`}).join("")}</div>
+      <div class="stack" style="gap:6px">${plan.days.map((pd,i)=>`<div class="flat"><b>${esc(dayShort(dates[i]))}</b><br><span class="small muted">${esc(name(pd.breakfast))} · ${esc(name(pd.lunch))} · ${esc(name(pd.dinner))}</span></div>`).join("")}</div>
+      <p class="small muted" style="margin:0">Fills empty breakfast, lunch and dinner slots. Meals you've already planned or bought stay.</p>
+      <button class="btn" data-act="planapply" data-v="${esc(plan.id)}">Add to my days</button>`;
+    root.innerHTML=`<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(plan.name)}"><div class="row between" style="margin-bottom:10px"><span class="eyebrow">Plan</span><button class="ghost" data-act="close">Close</button></div>${body}</div></div>`;
     root.dataset.sheet=state.sheet;
     return;
   }
@@ -1294,6 +1340,10 @@ document.addEventListener("click",e=>{
     case "recipe":state.sheet=v;state.sheetTier=TIERS.some(([k])=>k===el.dataset.t)?el.dataset.t:"S";break;
     case "sheettier":state.sheetTier=v;break;
     case "batch":state.sheet="batch:"+v;break;
+    case "plan":state.sheet="plan:"+v;state.planStart=null;break;
+    case "planstart":state.planStart=v;break;
+    case "planapply":applyPlan(v,state.planStart||WeekdayFuelPlans.defaultStart(iso(new Date()),state.days));break;
+    case "gomeals":state.tab="meals";window.scrollTo(0,0);break;
     case "close":state.sheet=null;state.stapleSheetDraft=null;state.stapleSheetError=null;break;
     case "mf":state.mealFilter=v;break;
     case "mode":state.settings.mode=v;saveSettings();break;
@@ -1306,7 +1356,6 @@ document.addEventListener("click",e=>{
     case "store":if(trolleyBusy())break;state.settings.store=v;saveSettings();if(state.trolley&&state.trolley.store!==v)state.trolley=null;break;
     case "refreshprices":refreshPrices();break;
     case "serve":{const pk=picks();const n=Math.max(0,Math.min(10,(pk[v]||0)+i));if(n)pk[v]=n;else delete pk[v];state.settings.trial=pk;saveSettings();break}
-    case "starter":state.settings.trial=clone(STARTER);saveSettings();break;
     case "clearpicks":state.settings.trial={};saveSettings();break;
     case "pantrycheck":{const rows=shopRows(),s=store(),last=sentFor(s),sent=last&&last.fingerprint===shopFingerprint()?last:null;if(pantryRows(rows,lsTicks()).length||trolleySend(rows,{},s).lines.some(l=>l.quantity===0))state.trolley={store:s,phase:"pantry",haveIt:Object.assign({},WeekdayFuelInventory.shopHaveIt(null,sent))};else sendTrolley(Object.assign({},WeekdayFuelInventory.shopHaveIt(null,sent)));break}
     case "haveit":if(state.trolley&&state.trolley.phase==="pantry")state.trolley.haveIt[v]=el.checked;break;
