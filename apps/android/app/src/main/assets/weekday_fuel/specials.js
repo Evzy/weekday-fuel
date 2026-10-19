@@ -87,6 +87,34 @@
     return muted.indexOf(key) >= 0;
   }
 
+  function singularUnit(unit) {
+    if (/^(g|mL)$/.test(unit)) return unit;
+    return unit.replace(/(ch|sh|x)es$/, "$1").replace(/s$/, "");
+  }
+
+  function swapBuyText(quantity, serves, unit) {
+    unit = unit || "items";
+    if (serves === 1) {
+      return quantity + " " + (quantity <= 1 ? singularUnit(unit) : unit);
+    }
+    return quantity + " × " + serves + " " + unit;
+  }
+
+  function keepBlocksStore(ch, store) {
+    if (!ch || !ch.keep) return false;
+    if (ch.keep === true) return true;
+    return !!(ch.keep && typeof ch.keep === "object" && ch.keep[store]);
+  }
+
+  function hasAnyKeep(ch) {
+    if (!ch || !ch.keep) return false;
+    if (ch.keep === true) return true;
+    if (typeof ch.keep !== "object") return false;
+    return Object.keys(ch.keep).some(function (k) {
+      return ch.keep[k];
+    });
+  }
+
   function suggest(row, item, store, muted, onlyId) {
     if (!row || !item || !item.swaps || !item.per) return null;
     var remaining = Math.max(0, row.need - (row.have || 0));
@@ -120,7 +148,7 @@
     return best;
   }
 
-  function useSwap(row, store, s) {
+  function useSwap(row, store, s, unit) {
     var out = {};
     Object.keys(row).forEach(function (k) {
       out[k] = row[k];
@@ -129,8 +157,9 @@
       product: s.product,
       quantity: s.quantity,
       cost: s.cost,
-      buy: s.quantity + " × " + s.swap.name,
+      buy: swapBuyText(s.quantity, s.swap.serves, unit),
       swap: s.swap.id,
+      saved: s.saving,
     };
     return out;
   }
@@ -146,12 +175,13 @@
       if (!row || !row.id) return row;
       var ch = choices[row.id];
       if (!ch || !ch.use) return row;
+      if (ch.useStore && ch.useStore !== store) return row;
       var it = byId[row.id];
       if (!it) return row;
       var s = suggest(row, it, store, muted, ch.use);
       if (!s) return row;
       used[row.id] = ch.use;
-      return useSwap(row, store, s);
+      return useSwap(row, store, s, it.unit);
     });
     return { rows: outRows, used: used };
   }
@@ -161,6 +191,9 @@
     applySwapPrices: applySwapPrices,
     passesGuard: passesGuard,
     suggest: suggest,
+    swapBuyText: swapBuyText,
+    keepBlocksStore: keepBlocksStore,
+    hasAnyKeep: hasAnyKeep,
     useSwap: useSwap,
     applyChoices: applyChoices,
   };

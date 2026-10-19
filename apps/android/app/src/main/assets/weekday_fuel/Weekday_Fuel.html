@@ -1094,20 +1094,29 @@ function priceLabel(){
   if(state.prices==="error")h+=`<span style="display:block;color:var(--bad)">Couldn't update Woolworths prices</span>`;
   return h;
 }
+function specialsKeepStore(id,st){
+  const c=lsSpecials(),prev=c[id]||{};
+  delete prev.use;delete prev.useStore;
+  const keep=prev.keep===true?{woolies:true,coles:true}:(prev.keep&&typeof prev.keep==="object"?Object.assign({},prev.keep):{});
+  keep[st]=true;
+  c[id]={keep};
+  lsSetSpecials(c);
+}
+const macroDelta=n=>n>=0?`+${n}`:`−${Math.abs(n)}`;
 function swapDetailBlock(it){
   if(!it||!it.swaps||!it.swaps.length)return "";
-  const st=store(),muted=mutedSwaps();
-  return `<div class="eyebrow" style="margin-top:8px">Swaps when on special</div>${it.swaps.map(s=>{const p=s[st],on=muted.indexOf(it.id+":"+s.id)>=0;let price=p?money(p.price)+(p.special&&p.was?` · Special, was ${money(p.was)}`:p.special?" · Special":""):`Not at ${STORE_NAME[st]}`;return `<div class="small" style="margin-top:6px"><b>${esc(s.name)}</b> · ${price}<br>${s.per.k} kcal · ${s.per.p}g protein per serve<br><button class="ghost" data-act="swapmute" data-v="${esc(it.id+":"+s.id)}" aria-pressed="${on}">${on?"Suggest again":"Don't suggest"}</button></div>`}).join("")}`;
+  const st=store(),muted=mutedSwaps(),ch=lsSpecials()[it.id],reset=WeekdayFuelSpecials.hasAnyKeep(ch)?`<button class="ghost" data-act="swapreset" data-v="${esc(it.id)}">Show specials again</button>`:"";
+  return `<div class="eyebrow" style="margin-top:8px">Swaps when on special</div>${it.swaps.map(s=>{const p=s[st],on=muted.indexOf(it.id+":"+s.id)>=0;let price=!p?`Not at ${STORE_NAME[st]}`:!p.live?"price not checked":money(p.price)+(p.special&&p.was?` · Special, was ${money(p.was)}`:p.special?" · Special":"");return `<div class="small" style="margin-top:6px"><b>${esc(s.name)}</b> · ${price}<br>${s.per.k} kcal · ${s.per.p}g protein per serve<br><button class="ghost" data-act="swapmute" data-v="${esc(it.id+":"+s.id)}" aria-pressed="${on}">${on?"Suggest again":"Don't suggest"}</button></div>`}).join("")}${reset?`<div style="margin-top:6px">${reset}</div>`:""}`;
 }
 function shopRowSpecialHtml(r,st){
   const it=pricedItem(r.id);if(!it)return "";
   const short=it.short||it.name,line=r[st];
-  if(line&&line.swap){const swap=(it.swaps||[]).find(s=>s.id===line.swap);return `<div class="small"><b>Using the special:</b> ${esc(swap?swap.name:line.swap)} <button class="ghost" data-act="swapundo" data-v="${esc(r.id)}">Back to ${esc(short)}</button></div>`}
+  if(line&&line.swap){const saved=line.saved;return `<div class="small">Swapped for ${esc(short)}${saved!=null?` · saves ${money(saved)}`:""} <button class="ghost" data-act="swapundo" data-v="${esc(r.id)}">Back to ${esc(short)}</button></div>`}
   const ch=lsSpecials()[r.id];
-  if(ch&&ch.keep)return "";
+  if(ch&&WeekdayFuelSpecials.keepBlocksStore(ch,st))return "";
   const s=WeekdayFuelSpecials.suggest(r,it,st,mutedSwaps());
   if(!s)return "";
-  return `<div class="special small"><span><b>On special instead:</b> ${esc(s.swap.name)}, ${s.quantity} × ${money(s.product.price)}${s.saving!=null?` (save ${money(s.saving)})`:""} · ${s.dk>=0?"+":""}${s.dk} kcal, ${s.dp>=0?"+":""}${s.dp}g protein per serve</span> <span class="row" style="gap:6px"><button class="btn alt" data-act="swapuse" data-v="${esc(r.id)}:${esc(s.swap.id)}">Use it</button><button class="ghost" data-act="swapkeep" data-v="${esc(r.id)}">Keep ${esc(short)}</button></span></div>`;
+  return `<div class="special small"><span><b>On special instead:</b> ${esc(s.swap.name)}, ${s.quantity} × ${money(s.product.price)}${s.saving!=null?` · save ${money(s.saving)}`:""} · ${macroDelta(s.dk)} kcal, ${macroDelta(s.dp)}g protein each</span> <span class="row" style="gap:6px"><button class="btn alt" data-act="swapuse" data-v="${esc(r.id)}:${esc(s.swap.id)}">Use it</button><button class="ghost" data-act="swapkeep" data-v="${esc(r.id)}">Keep ${esc(short)}</button></span></div>`;
 }
 function itemRow(it,prices,extra,products){
   const pr=products||{coles:it.coles,woolies:it.woolies};const id=it.id;const ticks=lsTicks();const open=state.openItem===id;const used=CAT.usedIn(id);const priced=pricedItem(id);
@@ -1247,7 +1256,7 @@ function renderShop(){
     h+=`<div class="small muted">${nMeals+dm.length} serve${nMeals+dm.length===1?"":"s"} · ${rows.length} items. Tick things off as they go in the trolley, or tick pantry items you already have at home. Prices use whole packs, so the first shop costs more than the per-serve cost. ${priceLabel()}</div>`;
     [["Fixtures",0],["Fresh",1],["Pantry & freezer (check what you already have)",2]].forEach(([t,sec])=>{
       const rs=rows.filter(r=>r.sec===sec&&r[st]);if(!rs.length)return;
-      h+=`<div class="panel shopsec"><h3 style="margin-bottom:4px">${t}</h3>${rs.map(r=>{const line=r[st],p=line&&line.product;const tray=p&&p.sizeLabel&&!p.live?` <span class="muted">· price checked ${esc(fmtShort(p.checked))}; charged at the heaviest weight, the difference refunded</span>`:"";const spec=shopRowSpecialHtml(r,st);return itemRow(CAT.item(r.id),{coles:r.coles&&r.coles.cost,woolies:r.woolies&&r.woolies.cost},`<span class="buy small"><b>Buy:</b> ${esc(line.buy)}${tray} <span class="muted">· ${esc(shopNeedText(r))}</span></span>${spec}${forLine(r)}`,{coles:r.coles&&r.coles.product,woolies:r.woolies&&r.woolies.product})}).join("")}</div>`;
+      h+=`<div class="panel shopsec"><h3 style="margin-bottom:4px">${t}</h3>${rs.map(r=>{const line=r[st],p=line&&line.product;const tray=p&&p.sizeLabel&&!p.live?` <span class="muted">· price checked ${esc(fmtShort(p.checked))}; charged at the heaviest weight, the difference refunded</span>`:"";const spec=shopRowSpecialHtml(r,st);const swapped=!!(r.woolies&&r.woolies.swap)||!!(r.coles&&r.coles.swap);const rowIt=swapped?Object.assign({},CAT.item(r.id),{same:false}):CAT.item(r.id);return itemRow(rowIt,{coles:r.coles&&r.coles.cost,woolies:r.woolies&&r.woolies.cost},`<span class="buy small"><b>Buy:</b> ${esc(line.buy)}${tray} <span class="muted">· ${esc(shopNeedText(r))}</span></span>${spec}${forLine(r)}`,{coles:r.coles&&r.coles.product,woolies:r.woolies&&r.woolies.product})}).join("")}</div>`;
     });
     if(covered.length)h+=`<div class="panel shopsec"><h3 style="margin-bottom:4px">Covered by what you have</h3>${covered.map(r=>`<div class="si"><div class="grow"><span class="grow">${esc(r.name)}</span><span class="small muted" style="display:block">${esc(shopNeedText(r))}</span>${forLine(r)}</div></div>`).join("")}</div>`;
     const miss=rows.filter(r=>!r[st]);
@@ -1389,9 +1398,10 @@ document.addEventListener("click",e=>{
     case "refreshprices":refreshPrices();break;
     case "serve":{const pk=picks();const n=Math.max(0,Math.min(10,(pk[v]||0)+i));if(n)pk[v]=n;else delete pk[v];state.settings.trial=pk;saveSettings();break}
     case "clearpicks":state.settings.trial={};saveSettings();break;
-    case "swapuse":{const [id,sid]=v.split(":");const c=lsSpecials();c[id]={use:sid};lsSetSpecials(c);shopCtx=null;break}
-    case "swapkeep":{const c=lsSpecials();c[v]={keep:true};lsSetSpecials(c);shopCtx=null;break}
-    case "swapundo":{const c=lsSpecials();c[v]={keep:true};lsSetSpecials(c);shopCtx=null;break}
+    case "swapuse":{const [id,sid]=v.split(":");const c=lsSpecials();c[id]={use:sid,useStore:store()};lsSetSpecials(c);shopCtx=null;break}
+    case "swapkeep":specialsKeepStore(v,store());shopCtx=null;break;
+    case "swapundo":specialsKeepStore(v,store());shopCtx=null;break;
+    case "swapreset":{const c=lsSpecials();delete c[v];lsSetSpecials(c);shopCtx=null;break}
     case "swapmute":{const k=v;const m=mutedSwaps().slice();const i=m.indexOf(k);if(i>=0)m.splice(i,1);else m.push(k);state.settings.mutedAlts=m;saveSettings();shopCtx=null;break}
     case "pantrycheck":{const rows=shopRows(),s=store(),last=sentFor(s),sent=last&&last.fingerprint===shopFingerprint()?last:null;if(pantryRows(rows,lsTicks()).length||trolleySend(rows,{},s).lines.some(l=>l.quantity===0))state.trolley={store:s,phase:"pantry",haveIt:Object.assign({},WeekdayFuelInventory.shopHaveIt(null,sent))};else sendTrolley(Object.assign({},WeekdayFuelInventory.shopHaveIt(null,sent)));break}
     case "haveit":if(state.trolley&&state.trolley.phase==="pantry")state.trolley.haveIt[v]=el.checked;break;

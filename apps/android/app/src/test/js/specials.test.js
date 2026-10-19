@@ -69,25 +69,62 @@ test("useSwap rewrites only the chosen store line", () => {
   const it = item([sw("a", 292, 30, wp(111, 3, { special: true }))]);
   const r = row(5, 0, 23.25, 23.25);
   const s = S.suggest(r, it, "woolies", []);
-  const out = S.useSwap(r, "woolies", s);
+  const out = S.useSwap(r, "woolies", s, "bottles");
   assert.deepEqual([out.woolies.product.stockcode, out.woolies.quantity, out.woolies.cost, out.woolies.swap], [111, 5, 15, "a"]);
-  assert.equal(out.woolies.buy, "5 × a name");
+  assert.equal(out.woolies.buy, "5 bottles");
+  assert.equal(out.woolies.saved, 8.25);
   assert.equal(out.coles, r.coles);
   assert.equal(r.woolies.product.stockcode, 72280, "input not mutated");
+});
+
+test("swapBuyText formats single-serve and multi-serve packs", () => {
+  assert.equal(S.swapBuyText(5, 1, "bottles"), "5 bottles");
+  assert.equal(S.swapBuyText(1, 1, "bottles"), "1 bottle");
+  assert.equal(S.swapBuyText(3, 2, "bottles"), "3 × 2 bottles");
+});
+
+test("pack count uses ceil not round", () => {
+  const it = item([sw("a", 292, 30, wp(111, 3, { special: true }))]);
+  assert.equal(S.suggest({ id: "dare", need: 4.4, have: 0, woolies: null }, it, "woolies", []).quantity, 5);
+  const two = item([sw("two", 292, 30, wp(111, 4, { special: true }), null, 2)]);
+  assert.equal(S.suggest(row(5, 0, 23.25, null), two, "woolies", []).quantity, 3);
+});
+
+test("saving and dp rounding", () => {
+  const it = item([sw("a", 292, 30.2, wp(111, 3.3, { special: true }))]);
+  const s = S.suggest(row(5, 2, 13.95, null), it, "woolies", []);
+  assert.equal(s.saving, 4.05);
+  assert.equal(s.dp, 0.2);
+});
+
+test("keepBlocksStore honours per-store and legacy keep", () => {
+  assert.equal(S.keepBlocksStore({ keep: true }, "woolies"), true);
+  assert.equal(S.keepBlocksStore({ keep: { woolies: true } }, "coles"), false);
+  assert.equal(S.keepBlocksStore({ keep: { coles: true } }, "coles"), true);
+  assert.equal(S.keepBlocksStore({ use: "a" }, "woolies"), false);
+});
+
+test("hasAnyKeep detects legacy and per-store keep", () => {
+  assert.equal(S.hasAnyKeep({ keep: true }), true);
+  assert.equal(S.hasAnyKeep({ keep: { woolies: true } }), true);
+  assert.equal(S.hasAnyKeep({ keep: {} }), false);
+  assert.equal(S.hasAnyKeep({ use: "a" }), false);
 });
 
 test("applyChoices applies a still-qualifying choice and drops a stale one", () => {
   const it = item([sw("a", 292, 30, wp(111, 3, { special: true })), sw("b", 292, 30, wp(222, 3.1, { special: false }))]);
   const rows = [row(5, 0, 23.25, null), { id: "eggs", need: 12, woolies: { product: wp(9, 1), quantity: 1, cost: 1 } }];
-  const r1 = S.applyChoices(rows, [it], "woolies", { dare: { use: "a" } }, ["dare:a"]);
+  const r1 = S.applyChoices(rows, [it], "woolies", { dare: { use: "a", useStore: "woolies" } }, ["dare:a"]);
   assert.equal(r1.rows[0].woolies.swap, "a");
   assert.deepEqual(r1.used, { dare: "a" });
   assert.equal(r1.rows[1], rows[1]);
   const r2 = S.applyChoices(rows, [it], "woolies", { dare: { use: "b" } }, []);
   assert.equal(r2.rows[0], rows[0]);
   assert.deepEqual(r2.used, {});
-  const r3 = S.applyChoices(rows, [it], "woolies", { dare: { keep: true } }, []);
+  const r3 = S.applyChoices(rows, [it], "woolies", { dare: { keep: { woolies: true } } }, []);
   assert.equal(r3.rows[0], rows[0]);
+  const r4 = S.applyChoices(rows, [it], "coles", { dare: { use: "a", useStore: "woolies" } }, []);
+  assert.equal(r4.rows[0], rows[0], "use on woolies does not apply on coles");
 });
 
 test("suggest pack count tolerates floating have", () => {
@@ -136,8 +173,8 @@ test("a swapped row flows into the trolley, orders and stock-in", () => {
   const inv = require("../../main/assets/weekday_fuel/inventory.js");
   const it = item([sw("a", 292, 30, wp(111, 3, { special: true }), cp(2222, 3, { special: true }))]);
   const r = row(5, 0, 23.25, 23.25);
-  const w = S.useSwap(r, "woolies", S.suggest(r, it, "woolies", []));
-  const c = S.useSwap(r, "coles", S.suggest(r, it, "coles", []));
+  const w = S.useSwap(r, "woolies", S.suggest(r, it, "woolies", []), "bottles");
+  const c = S.useSwap(r, "coles", S.suggest(r, it, "coles", []), "bottles");
   const wl = cart.cartLines([w], {}, {});
   assert.equal(wl.lines[0].stockcode, 111);
   const cl = cart.colesCartLines([c], {}, {}, colesId);
