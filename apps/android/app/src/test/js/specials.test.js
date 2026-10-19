@@ -90,6 +90,47 @@ test("applyChoices applies a still-qualifying choice and drops a stale one", () 
   assert.equal(r3.rows[0], rows[0]);
 });
 
+test("suggest pack count tolerates floating have", () => {
+  const it = item([sw("a", 292, 30, wp(111, 3, { special: true }))]);
+  const s = S.suggest({ id: "dare", need: 5, have: 1.9999999999, woolies: null }, it, "woolies", []);
+  assert.equal(s.quantity, 3);
+});
+
+test("suggest with no main line still offers a special", () => {
+  const it = item([sw("a", 292, 30, wp(111, 3, { special: true }))]);
+  const r = { id: "dare", need: 5, have: 0, woolies: null, coles: null };
+  const s = S.suggest(r, it, "woolies", []);
+  assert.equal(s.cost, 15);
+  assert.equal(s.saving, null);
+});
+
+test("suggest serves two-pack only when it wins on cost", () => {
+  const it = item([sw("two", 292, 30, wp(111, 4, { special: true }), null, 2)]);
+  const s = S.suggest(row(5, 0, 23.25, null), it, "woolies", []);
+  assert.deepEqual([s.swap.id, s.quantity, s.cost], ["two", 3, 12]);
+});
+
+test("suggest rejects equal-cost specials", () => {
+  const it = item([sw("a", 292, 30, wp(111, 4.65, { special: true }))]);
+  assert.equal(S.suggest(row(5, 0, 23.25, null), it, "woolies", []), null);
+});
+
+test("suggest returns null when item has no per", () => {
+  const it = { id: "dare", swaps: [sw("a", 292, 30, wp(111, 3, { special: true }))] };
+  assert.equal(S.suggest(row(5, 0, 23.25, null), it, "woolies", []), null);
+});
+
+test("applySwapPrices clears special when live says so and ignores bad was", () => {
+  const items = [item([sw("a", 290, 30, wp(111, 4, { special: true }), cp(2222, 4))])];
+  const out = S.applySwapPrices(items, { 111: { price: 3, was: 2, special: false, available: true } }, {}, colesId);
+  assert.equal(out[0].swaps[0].woolies.special, false);
+  assert.equal(out[0].swaps[0].woolies.was, null);
+  assert.equal(out[0].swaps[0].woolies.price, 3);
+  const noLive = S.applySwapPrices(items, { 111: { special: true } }, {}, colesId);
+  assert.equal(noLive[0].swaps[0].woolies.price, 4);
+  assert.equal(noLive[0].swaps[0].woolies.special, true);
+});
+
 test("a swapped row flows into the trolley, orders and stock-in", () => {
   const cart = require("../../main/assets/weekday_fuel/cart.js");
   const inv = require("../../main/assets/weekday_fuel/inventory.js");

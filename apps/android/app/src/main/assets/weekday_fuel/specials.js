@@ -16,11 +16,13 @@
       o[k] = p[k];
     });
     if (!live) return o;
-    if (live.price > 0) o.price = live.price;
-    o.was = live.was > o.price ? live.was : null;
     o.special = !!live.special;
     o.available = live.available !== false;
-    o.live = true;
+    if (typeof live.price === "number" && live.price > 0) {
+      o.price = live.price;
+      o.was = typeof live.was === "number" && live.was > live.price ? live.was : null;
+      o.live = true;
+    }
     return o;
   }
 
@@ -100,7 +102,7 @@
       if (!product) return;
       if (!product.special) return;
       if (product.available === false) return;
-      var quantity = Math.ceil(remaining / swap.serves);
+      var quantity = Math.ceil(remaining / swap.serves - 1e-9);
       var cost = round2(quantity * product.price);
       if (!(cost < mainCost)) return;
       if (!best || cost < best.cost) {

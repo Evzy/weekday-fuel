@@ -154,6 +154,40 @@ test("swaps are well formed and pass the nutrition guard", () => {
   assert.equal(cat.create(cat.ITEMS).item("dare").swaps.length, 5);
 });
 
+test("approved swap catalogue values match the spec", () => {
+  const approved = {
+    "dare-mocha": { W: 6074551, C: "1608570", k: 292, p: 30 },
+    "pauls-dec": { W: 6049883, C: "1439928", k: 270, p: 30 },
+    "rokeby-de": { W: 771267, C: "6258498", k: 292, p: 30.2 },
+    "oak-sc": { W: 6048422, C: "1043778", k: 304, p: 30 },
+    icebreak: { W: null, C: "7850783", k: 347, p: 30 },
+    "gr-oreo": { W: 286090, C: "6509780", k: 253, p: 20.9 },
+    "gr-white-oreo": { W: 6028961, C: "9968718", k: 253, p: 20.7 },
+    "gr-cookie": { W: 6043930, C: null, k: 208, p: 21 },
+    "mu-vancar": { W: 153264, C: "4292429", k: 239, p: 20.1 },
+    "mu-wcsc": { W: 6014680, C: "9958500", k: 256, p: 21.3 },
+    "mu-cc": { W: 555158, C: "7875897", k: 256, p: 20.7 },
+    "bsc-cc": { W: null, C: "3125148", k: 207, p: 19.2 },
+  };
+  const retiredW = new Set(Object.keys(cat.RETIRED.woolies));
+  const retiredC = new Set(Object.keys(cat.RETIRED.coles));
+  const items = cat.ITEMS;
+  const swaps = items.flatMap((it) => (it.swaps || []).map((s) => ({ item: it.id, swap: s })));
+  assert.equal(swaps.length, 12);
+  swaps.forEach(({ swap: s }) => {
+    const exp = approved[s.id];
+    assert.ok(exp, s.id + " in approved table");
+    assert.equal(s.per.k, exp.k, s.id + " k");
+    assert.equal(s.per.p, exp.p, s.id + " p");
+    const wCode = s.woolies ? s.woolies.stockcode : null;
+    const cId = s.coles ? cat.colesId(s.coles) : null;
+    assert.equal(wCode, exp.W, s.id + " W");
+    assert.equal(cId, exp.C, s.id + " C");
+    if (wCode != null) assert.ok(!retiredW.has(String(wCode)), s.id + " W not retired");
+    if (cId != null) assert.ok(!retiredC.has(String(cId)), s.id + " C not retired");
+  });
+});
+
 test("RETIRED keys are not current product ids and every entry has a name and url", () => {
   const colesIds = new Set();
   const wooliesCodes = new Set();
