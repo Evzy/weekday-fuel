@@ -405,7 +405,7 @@
           reserveMeal(out, cat, m);
           return;
         }
-        if (m && m.shop === false) {
+        if (m && m.shop === false && !m.held) {
           if (compareDate(d, today) >= 0 || shopDaySet[d]) {
             reserveMeal(out, cat, m);
             return;

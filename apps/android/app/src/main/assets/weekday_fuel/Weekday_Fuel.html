@@ -117,6 +117,7 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 /* add picker */
 .picker{display:flex;flex-direction:column;gap:6px;max-height:340px;overflow:auto;margin-top:10px}
 .pick{display:flex;justify-content:space-between;gap:10px;align-items:center;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:9px 12px}
+.pick[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft)}
 .pick .num{font-size:.78rem;color:var(--muted);white-space:nowrap}
 .chips{display:flex;gap:6px;flex-wrap:wrap}
 .chip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:5px 11px;font-size:.8rem;font-weight:600;color:var(--muted)}
@@ -174,14 +175,7 @@ ul.ing{margin:0;padding-left:1.1em;font-size:.88rem;columns:2;column-gap:20px}
 .si .p{font-family:var(--f-num);font-size:.85rem;white-space:nowrap;margin-left:auto;font-weight:500}
 .si.done .itembtn .grow{text-decoration:line-through;color:var(--muted)}
 .itembtn{display:flex;gap:10px;width:100%;background:none;border:0;padding:0;text-align:left;font-weight:600;align-items:flex-start}
-.picks{display:flex;flex-direction:column;gap:6px}
-.pickrow{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:var(--surface)}
-.pickrow.on{border-color:var(--accent);background:var(--accent-soft)}
 .pname{flex:1;min-width:0;background:none;border:0;padding:0;text-align:left;display:flex;flex-direction:column;gap:2px}
-.step{display:inline-flex;align-items:center;gap:2px;background:var(--sunk);border-radius:9px;padding:2px;flex:none}
-.step button{width:32px;height:32px;border:0;border-radius:7px;background:var(--surface);font-weight:700;font-size:1rem}
-.step button:disabled{opacity:.4;cursor:default}
-.step .num{min-width:24px;text-align:center;font-weight:600}
 .buy{display:block;margin-top:2px}
 .itemdetail{margin-top:8px;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--surface)}
 a.link{text-decoration:none;display:inline-block;color:var(--accent);border-color:var(--accent)}
@@ -798,6 +792,7 @@ function suggestDay(date){
     return [{id:m.id,slot,t:"S"}];
   };
   const added=[...pick("breakfast","breakfast"),...pick("lunch","main"),...pick("dinner","main")];
+  if(trolleySent()&&shopDays().includes(date))added.forEach(m=>holdMealForNextCart(m));
   day.meals=kept.concat(added).sort((a,b)=>SLOT_ORDER.indexOf(a.slot)-SLOT_ORDER.indexOf(b.slot));
   fitTiers(day,0,date);saveDay(date);
 }
@@ -806,7 +801,9 @@ function swapMeal(date,idx){
   const kind=m.slot==="breakfast"?"breakfast":m.slot==="snack"?"snack":"main";
   const avoid=new Set(day.meals.map(x=>x.id));recentIds(date,1).forEach(x=>avoid.add(x));
   const n=randomPick(MEALS.filter(x=>x.slots.includes(kind)),avoid);
-  const next=Object.assign({},m,{id:n.id});delete next.ate;day.meals[idx]=next;saveDay(date);
+  const next=Object.assign({},m,{id:n.id});delete next.ate;
+  if(trolleySent()&&shopDays().includes(date))holdMealForNextCart(next);
+  day.meals[idx]=next;saveDay(date);
 }
 const SLOT_ORDER=["breakfast","lunch","snack","dinner"];
 function trolleySent(){return !!(lsSent()||lsColesSent())}
@@ -884,7 +881,7 @@ function doAddMeal(mode){
   if(frozen)holdMealForNextCart(r.added);
   saveDay(d);
   shopCtx=null;
-  state.mealNote=`Added to ${dayShort(d)} ${slot}. ${frozen?NEXT_SHOP_NOTE:"It's in your cart."}`;
+  state.mealNote=`Added to ${dayShort(d)} ${slot}. ${trolleySent()?"It'll be in your next cart.":"It's in your cart."}`;
   state.sheet=null;
   state.addPick=null;
   state.scrollMealNote=true;
@@ -976,7 +973,7 @@ function renderToday(){
   h+=`<div class="panel"><div class="row between" style="margin-bottom:${hasBought?4:8}px"><h2>Meals</h2><div class="row" style="gap:6px;flex-wrap:wrap">${showFit?`<button class="ghost" data-act="fit">Fit portions to target</button>`:""}<button class="ghost" data-act="suggest">${meals.length?"New suggestion":"Suggest a day"}</button></div></div>`;
   if(hasBought)h+=`<div class="row" style="margin-bottom:8px"><button class="ghost" data-act="unlockday">${dayUnlocked(date)?"Lock":"Unlock to edit"}</button></div>`;
   if(state.dayNote&&state.dayNote.date===date)h+=`<div class="hint"><span>${esc(state.dayNote.msg)}</span></div>`;
-  const inCart=trolleySent()?shopDays().includes(date):date>=iso(new Date());
+  const inCart=date>=iso(new Date());
   if(allBought)h+=`<div class="row between" style="margin-bottom:8px"><span class="small"><b>${esc(boughtShopLabel(meals))}</b></span></div>`;
   if(!day.meals||!day.meals.length){
     h+=`<div class="empty stack" style="gap:10px"><div>No meals planned yet. Tap <b>Suggest a day</b> for a breakfast, lunch and dinner sized to fit around your staples, or start with a plan, or add meals one at a time.</div><div class="row" style="gap:8px;justify-content:center;flex-wrap:wrap"><button class="btn" data-act="suggest">Suggest a day</button><button class="btn alt" data-act="gomeals">Start with a plan</button></div></div>`;
@@ -1290,7 +1287,7 @@ function renderCartDays(sdays){
     const flags=[f.few!=null?`Only ${f.few} meal${f.few===1?"":"s"}`:"",f.ahead||""].filter(Boolean).map(t=>`<span class="tag">${esc(t)}</span>`).join(" ");
     const slot=s=>{const xs=ms.filter(m=>m.slot===s);return `<div class="small"><span class="muted">${s[0].toUpperCase()+s.slice(1)} ·</span> ${xs.length?xs.map(nm).join(", "):"–"}</div>`};
     const extras=ms.filter(m=>!["breakfast","lunch","dinner"].includes(m.slot));
-    h+=`<div class="stack" style="gap:2px"><div class="row between"><button class="pname" data-act="openday" data-v="${d}"><b>${esc(fmtDay(d))}</b> ${flags}</button><button class="ghost" data-act="leaveout" data-v="${d}">Leave out</button></div>${slot("breakfast")}${slot("lunch")}${slot("dinner")}${extras.length?`<div class="small"><span class="muted">Also ·</span> ${extras.map(nm).join(", ")}</div>`:""}</div>`;
+    h+=`<div class="stack" style="gap:2px"><div class="row between"><button class="pname" data-act="openday" data-v="${d}"><b>${esc(dayShort(d))}</b> ${flags}</button><button class="ghost" data-act="leaveout" data-v="${d}">Leave out</button></div>${slot("breakfast")}${slot("lunch")}${slot("dinner")}${extras.length?`<div class="small"><span class="muted">Also ·</span> ${extras.map(nm).join(", ")}</div>`:""}</div>`;
   });
   return h+`</div>`;
 }
@@ -1320,7 +1317,7 @@ function renderNextCart(){
   let h=`<div class="panel stack" style="gap:8px"><h3>Next cart</h3><p class="small muted">Planned after your trolley was sent. They join the cart when you save that order.</p>`;
   days.forEach(d=>{
     const ms=nextCartMealsForDay(d);
-    h+=`<button class="pname" data-act="openday" data-v="${d}"><b>${esc(fmtDay(d))}</b><span class="small muted">${ms.length?ms.map(m=>esc(MEAL[m.id].name)).join(", "):"–"}</span></button>`;
+    h+=`<button class="pname" data-act="openday" data-v="${d}"><b>${esc(dayShort(d))}</b><span class="small muted">${ms.length?ms.map(m=>esc(MEAL[m.id].name)).join(", "):"–"}</span></button>`;
   });
   return h+`</div>`;
 }
@@ -1333,13 +1330,14 @@ function renderShop(){
   if(state.checkout&&window.WeekdayFuelHost)return renderCheckout();
   const ticks=lsTicks(),pk=picks(),sdays=shopDays();
   const cartMealCount=sdays.reduce((a,d)=>a+cartMeals(d).length,0);
-  const summary=sdays.length?`${dayShort(sdays[0])}${sdays[sdays.length-1]!==sdays[0]?" – "+dayShort(sdays[sdays.length-1]):""} · ${cartMealCount} meal${cartMealCount===1?"":"s"}`:"Your cart is empty";
-  let h=`<div><div class="eyebrow">Coles or Woolworths</div><h2>Your cart</h2></div>`;
-  h+=`<p class="small muted" style="margin:0">${esc(summary)}</p>`;
   const pickServes=Object.keys(pk).filter(id=>(pk[id]||0)>0&&MEAL[id]).reduce((a,id)=>a+(pk[id]||0),0);
   const rows=shopRows(),covered=shopCovered(),dm=dayMeals();
   const sentN=Object.keys((lsSent()||{lines:{}}).lines||{}).length+Object.keys((lsColesSent()||{lines:{}}).lines||{}).length;
-  if(!sdays.length&&!pickServes&&!rows.length&&!covered.length&&!sentN){
+  const cartEmpty=!sdays.length&&!pickServes&&!rows.length&&!covered.length&&!sentN;
+  const summary=sdays.length?`${dayShort(sdays[0])}${sdays[sdays.length-1]!==sdays[0]?" – "+dayShort(sdays[sdays.length-1]):""} · ${cartMealCount} meal${cartMealCount===1?"":"s"}`:cartEmpty?"":"Your cart is empty";
+  let h=`<div><div class="eyebrow">Coles or Woolworths</div><h2>Your cart</h2></div>`;
+  if(summary)h+=`<p class="small muted" style="margin:0">${esc(summary)}</p>`;
+  if(cartEmpty){
     h+=`<div class="empty stack" style="gap:10px"><div>Your cart is empty. Add meals from the Meals tab, or start with a plan.</div><div><button class="btn" data-act="gomeals">Go to Meals</button></div></div>`;
     return h+renderPastOrders();
   }
@@ -1393,16 +1391,18 @@ function renderSheet(){
       return esc(parts.length>3?parts.slice(0,2).join(" "):MEAL[m0.id].name);
     };
     const pick=state.addPick;
-    let confirm="";
-    if(pick&&pick.date&&pick.p&&(pick.p.action==="ask"||pick.p.action==="locked")){
-      const sl=pick.p.slot,slCap=sl.charAt(0).toUpperCase()+sl.slice(1),ds=dayShort(pick.date);
+    const confirmForDay=d=>{
+      if(!pick||pick.date!==d||!pick.p)return "";
+      const sl=pick.p.slot,slCap=sl.charAt(0).toUpperCase()+sl.slice(1),ds=dayShort(d);
       if(pick.p.action==="ask"){
-        confirm=`<div class="stack" style="gap:8px;margin-top:8px"><p class="small" style="margin:0">${esc(slCap)} on ${esc(ds)} already has ${esc(MEAL[pick.p.existing.id].name)}.</p><div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn" data-act="addgo" data-v="replace">Replace</button><button class="btn alt" data-act="addgo" data-v="extra">Add as an extra</button></div></div>`;
-      }else{
-        confirm=`<div class="stack" style="gap:8px;margin-top:8px"><p class="small" style="margin:0">${esc(slCap)} on ${esc(ds)} is bought. Add as an extra?</p><button class="btn" data-act="addgo" data-v="extra">Add as an extra</button></div>`;
+        return `<div class="stack" style="gap:8px;margin:4px 0 8px 4px"><p class="small" style="margin:0">${esc(slCap)} on ${esc(ds)} already has ${esc(MEAL[pick.p.existing.id].name)}.</p><div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn" data-act="addgo" data-v="replace">Replace</button><button class="btn alt" data-act="addgo" data-v="extra">Add as an extra</button></div></div>`;
       }
-    }
-    const body=`<div class="stack" style="gap:6px">${strip.map(d=>`<button class="pick" data-act="addday" data-v="${d}" aria-pressed="${pick&&pick.date===d}"><span><b>${esc(dayShort(d))}</b>${isWeekend(d)&&!tracked(d)?" · off":""}<br><span class="small muted">${addSlotLabel(d,"breakfast")} · ${addSlotLabel(d,"lunch")} · ${addSlotLabel(d,"dinner")}</span></span></button>`).join("")}</div>${confirm}`;
+      if(pick.p.action==="locked"){
+        return `<div class="stack" style="gap:8px;margin:4px 0 8px 4px"><p class="small" style="margin:0">${esc(slCap)} on ${esc(ds)} is bought. Add as an extra?</p><button class="btn" data-act="addgo" data-v="extra">Add as an extra</button></div>`;
+      }
+      return "";
+    };
+    const body=`<div class="stack" style="gap:6px">${strip.map(d=>`<button class="pick" data-act="addday" data-v="${d}" aria-pressed="${pick&&pick.date===d}"><span><b>${esc(dayShort(d))}</b>${isWeekend(d)&&!tracked(d)?" · off":""}<br><span class="small muted">${addSlotLabel(d,"breakfast")} · ${addSlotLabel(d,"lunch")} · ${addSlotLabel(d,"dinner")}</span></span></button>${confirmForDay(d)}`).join("")}</div>`;
     root.innerHTML=`<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(meal.name)}"><div class="row between" style="margin-bottom:10px"><div><div class="eyebrow">Add to a day</div><h2>${esc(meal.name)}</h2></div><button class="ghost" data-act="close">Close</button></div><div class="stack" style="gap:10px">${body}</div></div></div>`;
     root.dataset.sheet=state.sheet;
     return;
@@ -1491,8 +1491,8 @@ document.addEventListener("click",e=>{
     case "delorder":{if(state.armed!=="order"+v){state.armed="order"+v;break}state.armed=null;if(!lsSetOrders(WeekdayFuelOrders.removeOrder(lsOrders(),v))){state.orderError={where:"del"+v,msg:"Couldn't delete the order."};break}const inv=lsInv();if(inv&&!lsSetInv(WeekdayFuelInventory.removeOrder(inv,v)))state.orderError={where:"kitchen",msg:"Deleted the order, but couldn't update the kitchen stock."};try{const un=WeekdayFuelBought.unmarkBought(state.days,v);state.days=un.days;un.changed.forEach(d=>saveDay(d))}catch(e){}if(state.openOrder===v)state.openOrder=null;break}
     case "rm":{const d=ensureDay(date);const m=d.meals[i];if(mealLocked(m,date))break;if(state.armed==="rm"+i){d.meals.splice(i,1);saveDay(date);state.armed=null}else state.armed="rm"+i;break}
     case "adding":state.adding=state.adding===v?null:v;break;
-    case "add":{const d=ensureDay(date);d.meals=d.meals||[];d.meals.push({id:v,slot:state.adding,t:"S"});state.adding=null;saveDay(date);break}
-    case "addto":{const d=ensureDay(date);d.meals=d.meals||[];d.meals.push({id:v,slot:el.dataset.s,t:"S"});saveDay(date);state.sheet=null;state.tab="today";break}
+    case "add":{const d=ensureDay(date);d.meals=d.meals||[];const nm={id:v,slot:state.adding,t:"S"};d.meals.push(nm);if(trolleySent()&&shopDays().includes(date))holdMealForNextCart(nm);state.adding=null;saveDay(date);break}
+    case "addto":{const d=ensureDay(date);d.meals=d.meals||[];const nm={id:v,slot:el.dataset.s,t:"S"};d.meals.push(nm);if(trolleySent()&&shopDays().includes(date))holdMealForNextCart(nm);saveDay(date);state.sheet=null;state.tab="today";break}
     case "rmx":{const d=ensureDay(date);d.extras.splice(i,1);saveDay(date);break}
     case "recipe":state.sheet=v;state.sheetTier=TIERS.some(([k])=>k===el.dataset.t)?el.dataset.t:"S";break;
     case "sheettier":state.sheetTier=v;break;
@@ -1513,7 +1513,7 @@ document.addEventListener("click",e=>{
     case "untickall":lsSetTicks({});break;
     case "openitem":state.openItem=state.openItem===v?null:v;break;
 
-    case "leaveout":{const day=ensureDay(v);(day.meals||[]).forEach(m=>{if(!WeekdayFuelBought.isBought(m))m.shop=false});saveDay(v);shopCtx=null;break}
+    case "leaveout":{const day=ensureDay(v);(day.meals||[]).forEach(m=>{if(!WeekdayFuelBought.isBought(m)){m.shop=false;delete m.held}});saveDay(v);shopCtx=null;break}
     case "store":if(trolleyBusy())break;state.settings.store=v;saveSettings();if(state.trolley&&state.trolley.store!==v)state.trolley=null;break;
     case "refreshprices":refreshPrices();break;
     case "clearpicks":state.settings.trial={};saveSettings();break;

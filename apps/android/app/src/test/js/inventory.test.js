@@ -372,6 +372,16 @@ test("reserved does not reserve bought meals on or before inventory start", () =
   assert.equal(r.breast, undefined);
 });
 
+test("reserved does not reserve held shop-false meals", () => {
+  const base = inv([]);
+  const days = {
+    "2026-10-22": { meals: [{ id: "toasty", name: "T", t: "S", shop: false, held: true }] },
+  };
+  const r = I.reserved(base, days, cat, "2026-10-20", ["2026-10-21"], staplesNone);
+  assert.equal(r.ham, undefined);
+  assert.equal(r.cheese, undefined);
+});
+
 test("reserved includes shop-false meals from today on when day is off the cart", () => {
   const base = inv([]);
   const days = {
