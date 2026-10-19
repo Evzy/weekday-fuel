@@ -5,6 +5,12 @@
   var SLOTS = ["breakfast", "lunch", "dinner"];
   var ORDER = ["breakfast", "lunch", "snack", "dinner"];
 
+  function slotRank(slot) {
+    if (!slot) return ORDER.length;
+    var i = ORDER.indexOf(slot);
+    return i < 0 ? ORDER.length : i;
+  }
+
   var PLANS = [
     {
       id: "fewest",
@@ -92,10 +98,11 @@
       meals = meals
         .map(function (m, idx) { return { m: m, idx: idx }; })
         .sort(function (a, b) {
-          var d = ORDER.indexOf(a.m.slot) - ORDER.indexOf(b.m.slot);
+          var d = slotRank(a.m && a.m.slot) - slotRank(b.m && b.m.slot);
           return d || a.idx - b.idx;
         })
-        .map(function (x) { return x.m; });
+        .map(function (x) { return x.m; })
+        .filter(function (m) { return m; });
       changes[iso] = { meals: meals, added: filled };
     });
     return { dates: dates, changes: changes, added: added, kept: kept };
@@ -112,8 +119,11 @@
   }
 
   function summary(plan, shopFn) {
-    var r = shopFn(mealCounts(plan)) || { items: 0, total: 0 };
-    return { items: r.items, costPerDay: Math.round((r.total / plan.days.length) * 100) / 100 };
+    if (typeof shopFn !== "function") return { items: 0, costPerDay: 0 };
+    var r = shopFn(mealCounts(plan)) || {};
+    var items = r.items != null ? r.items : 0;
+    var total = r.total != null ? r.total : 0;
+    return { items: items, costPerDay: Math.round((total / plan.days.length) * 100) / 100 };
   }
 
   var api = {

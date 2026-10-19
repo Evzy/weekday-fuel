@@ -1,6 +1,7 @@
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const P = require("../../main/assets/weekday_fuel/plans.js");
+const cat = require("../../main/assets/weekday_fuel/catalogue.js");
 const { MEALS } = require("../../main/assets/weekday_fuel/meals.js");
 
 const MEAL = Object.fromEntries(MEALS.map((m) => [m.id, m]));
@@ -86,6 +87,8 @@ test("fill keeps existing and bought slots and leaves snacks alone", () => {
     snack,
     { id: "buffalomac", slot: "dinner", t: "S" },
   ]);
+  assert.strictEqual(c.meals[0], bought);
+  assert.ok(c.meals.includes(snack));
   assert.equal(r.kept, 1);
   assert.equal(r.added, 14);
   assert.deepEqual(days["2026-10-19"].meals, [snack, bought], "input not mutated");
@@ -104,6 +107,33 @@ test("fill on a weekend start begins on Monday", () => {
   assert.equal(r.dates[0], "2026-10-26");
 });
 
+test("fill keeps relative order among same-slot meals", () => {
+  const s2 = { id: "dare", slot: "snack", t: "S" };
+  const s1 = { id: "yogbowl", slot: "snack", t: "S" };
+  const days = { "2026-10-19": { meals: [s2, s1] } };
+  const r = P.fill(fewest, "2026-10-19", days);
+  const meals = r.changes["2026-10-19"].meals;
+  assert.strictEqual(meals.indexOf(s2) < meals.indexOf(s1), true);
+});
+
+test("fill ignores null meals and does not throw", () => {
+  const days = { "2026-10-19": { meals: [null, { id: "yogbowl", slot: "snack", t: "S" }] } };
+  const r = P.fill(fewest, "2026-10-19", days);
+  const meals = r.changes["2026-10-19"].meals;
+  assert.ok(!meals.includes(null));
+  assert.ok(meals.every((m) => m));
+});
+
+test("fill sorts unknown slots last with stable order", () => {
+  const weird2 = { id: "x", slot: "brunch", t: "S" };
+  const weird1 = { id: "y", slot: "supper", t: "S" };
+  const days = { "2026-10-19": { meals: [weird2, weird1] } };
+  const r = P.fill(fewest, "2026-10-19", days);
+  const meals = r.changes["2026-10-19"].meals;
+  assert.strictEqual(meals[meals.length - 2], weird2);
+  assert.strictEqual(meals[meals.length - 1], weird1);
+});
+
 test("mealCounts and summary", () => {
   assert.deepEqual(P.mealCounts(fewest), { toasty: 5, tenderwrap: 3, buffalomac: 3, burritobowl: 4 });
   let seen = null;
@@ -113,4 +143,19 @@ test("mealCounts and summary", () => {
   });
   assert.deepEqual(seen, P.mealCounts(fewest));
   assert.deepEqual(s, { items: 14, costPerDay: 20.21 });
+});
+
+test("summary returns zero items when shopFn missing or items absent", () => {
+  assert.deepEqual(P.summary(fewest, null), { items: 0, costPerDay: 0 });
+  assert.deepEqual(P.summary(fewest, undefined), { items: 0, costPerDay: 0 });
+  assert.deepEqual(P.summary(fewest, () => ({ total: 50 })), { items: 0, costPerDay: 10 });
+});
+
+test("summary with real catalogue shop list", () => {
+  const s = P.summary(fewest, (counts) => {
+    const rows = cat.shopList(counts, 0, []);
+    return { items: rows.length, total: cat.storeTotals(rows, "woolies", {}).total };
+  });
+  assert.ok(s.items >= 10 && s.items <= 30, "items " + s.items);
+  assert.ok(s.costPerDay > 0);
 });
