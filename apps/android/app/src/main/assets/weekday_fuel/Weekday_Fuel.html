@@ -226,6 +226,7 @@ a.link{text-decoration:none;display:inline-block;color:var(--accent);border-colo
 <script src="staples.js"></script>
 <script src="plans.js"></script>
 <script src="specials.js"></script>
+<script src="cartadd.js"></script>
 <script>
 (function(){
 "use strict";
@@ -263,8 +264,11 @@ const STORES=["coles","woolies"];
 const STORE_NAME={coles:"Coles",woolies:"Woolworths"};
 const store=()=>S().store==="coles"?"coles":"woolies";
 const other=s=>s==="coles"?"woolies":"coles";
-/* Planned days in the shop: settings.shopDays {date:true}; a day's meal with shop:false is left out */
-const shopDays=()=>{const sd=S().shopDays||{};return Object.keys(sd).filter(d=>sd[d]).sort()};
+/* Cart days: while no trolley is sent, every day from today with an unbought, in-shop meal; once sent, the days frozen in settings.shopDays */
+const shopDays=()=>{
+  if(lsSent()||lsColesSent()){const sd=S().shopDays||{};return Object.keys(sd).filter(d=>sd[d]).sort()}
+  return WeekdayFuelCartAdd.cartDays(state.days,iso(new Date()),WeekdayFuelBought.isBought,id=>!!MEAL[id]);
+};
 function dayMealsFrom(mealOk){
   return shopDays().flatMap(d=>((state.days[d]&&state.days[d].meals)||[]).filter(m=>m.shop!==false&&!WeekdayFuelBought.isBought(m)&&(!mealOk||mealOk(m))).map(m=>({day:d,meal:m.id,t:m.t})));
 }
@@ -788,7 +792,7 @@ function swapMeal(date,idx){
 }
 const SLOT_ORDER=["breakfast","lunch","snack","dinner"];
 function trolleySent(){return !!(lsSent()||lsColesSent())}
-const NEXT_SHOP_NOTE="Your trolley's already sent, so the new meals aren't in it. After you save that order, tap Add day to shop on each day.";
+const NEXT_SHOP_NOTE="Your trolley's already sent, so the new meals are in your next cart.";
 function suggestWeek(){
   const P=WeekdayFuelPlanner,w=P.weekDays(state.date,iso(new Date())),s=store();
   const mealsOf=d=>(state.days[d]&&state.days[d].meals)||[];
@@ -806,17 +810,16 @@ function suggestWeek(){
   const havePlan=shopHave();
   const r=P.planWeek({dates:w.dates,before,kept,pools,fit,score:dm=>P.shopScore(CAT,dm,s,havePlan)});
   if(!r){state.weekNote="Couldn't plan this week. Try Suggest a day for each day instead.";return}
-  const sd=state.settings.shopDays=Object.assign({},S().shopDays);
   const held=trolleySent();
+  const frozen=shopDays();
   const changed=w.dates.filter(d=>r.days[d].length!==kept[d].length);
-  changed.forEach(d=>{const day=ensureDay(d);day.meals=r.days[d].concat(unknown[d]).sort((a,b)=>SLOT_ORDER.indexOf(a.slot)-SLOT_ORDER.indexOf(b.slot));if(!sd[d])day.meals.forEach(m=>delete m.shop);else if(held)day.meals.forEach(m=>{if(!kept[d].includes(m)&&!unknown[d].includes(m))m.shop=false});saveDay(d);if(!held)sd[d]=true});
-  saveSettings();
+  changed.forEach(d=>{const day=ensureDay(d);day.meals=r.days[d].concat(unknown[d]).sort((a,b)=>SLOT_ORDER.indexOf(a.slot)-SLOT_ORDER.indexOf(b.slot));if(held&&frozen.includes(d))day.meals.forEach(m=>{if(!kept[d].includes(m)&&!unknown[d].includes(m))m.shop=false});saveDay(d)});
   shopCtx=null;
   const haveCost=shopHave();
   const first=changed[0],last=changed[changed.length-1];
   const wdm=w.dates.flatMap(d=>r.days[d].map(m=>({day:d,meal:m.id,t:m.t})));
   const weekCost=CAT.storeTotals(CAT.shopList({},0,wdm,haveCost),s,{}).total;
-  state.weekNote=`Planned ${dayShort(first)}${last!==first?"–"+dayShort(last):""}: ${r.distinct} different meals, about ${money(weekCost)} of groceries at ${STORE_NAME[s]}. ${held?NEXT_SHOP_NOTE:"The days are in your shop."}`;
+  state.weekNote=`Planned ${dayShort(first)}${last!==first?"–"+dayShort(last):""}: ${r.distinct} different meals, about ${money(weekCost)} of groceries at ${STORE_NAME[s]}. ${held?NEXT_SHOP_NOTE:"They're in your cart."}`;
   state.date=first;state.adding=null;
 }
 function planSummary(plan){
@@ -830,8 +833,8 @@ function applyPlan(id,start){
   const r=WeekdayFuelPlans.fill(plan,start,state.days);
   const changed=Object.keys(r.changes);
   if(!changed.length){state.weekNote="Those days are already planned. Nothing changed.";state.tab="today";state.date=r.dates[0];state.sheet=null;state.planStart=null;window.scrollTo(0,0);return}
-  const sd=state.settings.shopDays=Object.assign({},S().shopDays);
   const held=trolleySent();
+  const frozen=shopDays();
   changed.forEach(d=>{
     const day=ensureDay(d);
     const old=day.meals||[];
@@ -841,10 +844,10 @@ function applyPlan(id,start){
     day.meals=locked.concat(fresh);
     fitTiers(day,locked.length,d);
     day.meals=meals;
-    if(held&&sd[d])fresh.forEach(m=>m.shop=false);
-    saveDay(d);if(!held)sd[d]=true;
+    if(held&&frozen.includes(d))fresh.forEach(m=>m.shop=false);
+    saveDay(d);
   });
-  saveSettings();shopCtx=null;
+  shopCtx=null;
   const first=changed[0],last=changed[changed.length-1];
   state.weekNote=`Added ${r.added} meal${r.added===1?"":"s"}, ${dayShort(first)}${last!==first?" – "+dayShort(last):""}.${r.kept?` Kept ${r.kept} you'd already planned.`:""}${held?" "+NEXT_SHOP_NOTE:""}`;
   state.tab="today";state.date=first;state.sheet=null;state.planStart=null;window.scrollTo(0,0);
@@ -936,14 +939,13 @@ function renderToday(){
   h+=`<div class="panel"><div class="row between" style="margin-bottom:${hasBought?4:8}px"><h2>Meals</h2><div class="row" style="gap:6px;flex-wrap:wrap">${showFit?`<button class="ghost" data-act="fit">Fit portions to target</button>`:""}<button class="ghost" data-act="suggest">${meals.length?"New suggestion":"Suggest a day"}</button></div></div>`;
   if(hasBought)h+=`<div class="row" style="margin-bottom:8px"><button class="ghost" data-act="unlockday">${dayUnlocked(date)?"Lock":"Unlock to edit"}</button></div>`;
   if(state.dayNote&&state.dayNote.date===date)h+=`<div class="hint"><span>${esc(state.dayNote.msg)}</span></div>`;
-  const inShop=!!(S().shopDays&&S().shopDays[date]);
-  if(allBought)h+=`<div class="row between" style="margin-bottom:8px"><span class="small"><b>${esc(boughtShopLabel(meals))}</b></span>${inShop?`<button class="ghost" data-act="shopday">Remove from shop</button>`:""}</div>`;
-  else if(meals.length||inShop)h+=`<div class="row between" style="margin-bottom:8px">${inShop?`<span class="small"><b>In this shop.</b> Tap a meal's In shop to leave it out.</span><button class="ghost" data-act="shopday">Remove from shop</button>`:`<span class="small muted">Buy this day's meals with your next shop.</span><button class="btn alt" data-act="shopday">Add day to shop</button>`}</div>`;
+  const inCart=shopDays().includes(date);
+  if(allBought)h+=`<div class="row between" style="margin-bottom:8px"><span class="small"><b>${esc(boughtShopLabel(meals))}</b></span></div>`;
   if(!day.meals||!day.meals.length){
     h+=`<div class="empty stack" style="gap:10px"><div>No meals planned yet. Tap <b>Suggest a day</b> for a breakfast, lunch and dinner sized to fit around your staples, or start with a plan, or add meals one at a time.</div><div class="row" style="gap:8px;justify-content:center;flex-wrap:wrap"><button class="btn" data-act="suggest">Suggest a day</button><button class="btn alt" data-act="gomeals">Start with a plan</button></div></div>`;
   } else {
     h+=`<div>`+day.meals.map((m,i)=>{const meal=MEAL[m.id];if(!meal)return"";const v=meal.t[m.t];const bought=WeekdayFuelBought.isBought(m);const locked=mealLocked(m,date);
-      const acts=locked?`<button class="ghost" aria-pressed="${typeof m.ate==="string"}" data-act="ate" data-i="${i}">Ate it</button>`:`<div class="dial" role="group" aria-label="Portion">${TIERS.map(([k,l])=>`<button aria-pressed="${m.t===k}" data-act="tier" data-i="${i}" data-v="${k}">${l}</button>`).join("")}</div><button class="ghost" aria-pressed="${typeof m.ate==="string"}" data-act="ate" data-i="${i}">Ate it</button><button class="ghost" data-act="swap" data-i="${i}">Swap</button>${inShop?`<button class="ghost" aria-pressed="${m.shop!==false}" data-act="mealshop" data-i="${i}">${m.shop!==false?"In shop":"Not in shop"}</button>`:""}<button class="ghost ${state.armed==="rm"+i?"warn":""}" data-act="rm" data-i="${i}">${state.armed==="rm"+i?"Tap to remove":"Remove"}</button>`;
+      const acts=locked?`<button class="ghost" aria-pressed="${typeof m.ate==="string"}" data-act="ate" data-i="${i}">Ate it</button>`:`<div class="dial" role="group" aria-label="Portion">${TIERS.map(([k,l])=>`<button aria-pressed="${m.t===k}" data-act="tier" data-i="${i}" data-v="${k}">${l}</button>`).join("")}</div><button class="ghost" aria-pressed="${typeof m.ate==="string"}" data-act="ate" data-i="${i}">Ate it</button><button class="ghost" data-act="swap" data-i="${i}">Swap</button>${inCart?`<button class="ghost" aria-pressed="${m.shop!==false}" data-act="mealshop" data-i="${i}">${m.shop!==false?"In shop":"Not in shop"}</button>`:""}<button class="ghost ${state.armed==="rm"+i?"warn":""}" data-act="rm" data-i="${i}">${state.armed==="rm"+i?"Tap to remove":"Remove"}</button>`;
       return `<div class="meal"><div class="grow"><div class="slot">${esc(m.slot)}${meal.remake?` · <span class="tag remake">Remake</span>`:""}${bought?` · <span class="tag ok">Bought</span>`:""}</div><button class="name" data-act="recipe" data-v="${meal.id}" data-t="${esc(m.t)}">${esc(meal.name)}</button><div class="what">${esc(meal.core)} · ${esc(v.what)}</div></div>
       <div class="kp">${v.k} kcal<br><span style="color:var(--yolk)">${v.p}g P</span></div>
       <div class="acts">${acts}</div></div>`}).join("")+`</div>`;
@@ -1242,8 +1244,8 @@ function renderShop(){
   if(build){
     const pk=picks();const nMeals=Object.keys(pk).filter(id=>MEAL[id]).reduce((a,id)=>a+(pk[id]||0),0);
     const sdays=shopDays(),dm=dayMeals();
-    if(sdays.length)h+=`<div class="panel stack"><h3>Days in this shop</h3>${sdays.map(d=>{const ms=((state.days[d]&&state.days[d].meals)||[]).filter(m=>m.shop!==false&&!WeekdayFuelBought.isBought(m)&&MEAL[m.id]);return `<div class="row between"><button class="pname" data-act="openday" data-v="${d}"><b>${fmtDay(d)}</b><span class="small muted">${ms.length?ms.map(m=>esc(MEAL[m.id].name)).join(", "):"no meals planned"}</span></button><button class="ghost" data-act="unshopday" data-v="${d}">Remove</button></div>`}).join("")}</div>`;
-    else h+=`<div class="small muted">Planning days on Today? Tap <b>Add day to shop</b> there and that day's meals join this list.</div>`;
+    if(sdays.length)h+=`<div class="panel stack"><h3>Days in this shop</h3>${sdays.map(d=>{const ms=((state.days[d]&&state.days[d].meals)||[]).filter(m=>m.shop!==false&&!WeekdayFuelBought.isBought(m)&&MEAL[m.id]);return `<div class="row between"><button class="pname" data-act="openday" data-v="${d}"><b>${fmtDay(d)}</b><span class="small muted">${ms.length?ms.map(m=>esc(MEAL[m.id].name)).join(", "):"no meals planned"}</span></button></div>`}).join("")}</div>`;
+    else h+=`<div class="small muted">Plan meals on Today or apply a plan from Meals and they'll appear here automatically.</div>`;
     h+=`<div class="panel stack"><div class="row between"><h3>1. Pick meals and serves</h3>${nMeals?`<button class="ghost" data-act="clearpicks">Clear</button>`:""}</div>`;
     const groups=[["Breakfast",m=>m.slots.includes("breakfast")],["Lunch & dinner",m=>m.slots.includes("main")],["Snack",m=>m.slots.includes("snack")&&!m.slots.includes("breakfast")]];
     groups.forEach(([g,f])=>{
@@ -1359,7 +1361,7 @@ document.addEventListener("click",e=>{
     case "suggest":suggestDay(date);state.adding=null;break;
     case "suggestweek":if(state.planning)break;state.planning=true;state.weekNote="Planning your week…";setTimeout(()=>{try{suggestWeek()}finally{state.planning=false;render()}},30);break;
     case "unlockday":{state.unlocked=state.unlocked||{};if(state.unlocked[date])delete state.unlocked[date];else state.unlocked[date]=true;break}
-    case "clearunbought":{const skip=clearUnboughtSkipDates();const preview=WeekdayFuelBought.clearUnbought(state.days,skip);if(!preview.cleared)break;if(state.armed!=="clearunbought"){state.armed="clearunbought";break}state.armed=null;state.days=preview.days;preview.changed.forEach(d=>saveDay(d));const sd=Object.assign({},S().shopDays);const skipSet=skip?Object.fromEntries(skip.map(d=>[d,true])):null;preview.changed.forEach(d=>{if(skipSet&&skipSet[d])return;const day=state.days[d];if(!day||!day.meals||!day.meals.length)delete sd[d]});state.settings.shopDays=sd;saveSettings();break}
+    case "clearunbought":{const skip=clearUnboughtSkipDates();const preview=WeekdayFuelBought.clearUnbought(state.days,skip);if(!preview.cleared)break;if(state.armed!=="clearunbought"){state.armed="clearunbought";break}state.armed=null;state.days=preview.days;preview.changed.forEach(d=>saveDay(d));break}
     case "fit":{const d=ensureDay(date);fitTiers(d,0,date);saveDay(date);break}
     case "tier":{const d=ensureDay(date);const m=d.meals[i];if(mealLocked(m,date))break;if(WeekdayFuelBought.isBought(m)&&dayUnlocked(date))state.dayNote={date,msg:"This meal's food was bought for the original meal."};d.meals[i].t=v;saveDay(date);break}
     case "ate":{const d=ensureDay(date);const m=d.meals[i];if(typeof m.ate==="string")delete m.ate;else m.ate=new Date().toISOString();saveDay(date);break}
@@ -1367,9 +1369,7 @@ document.addEventListener("click",e=>{
     case "pendskip":{const dd=el.dataset.d,di=+el.dataset.i,ex=state.days[dd];if(!ex||!ex.meals||!ex.meals[di])break;const d=ensureDay(dd),m=d.meals[di];m.ate=false;saveDay(dd);break}
     case "pendall":WeekdayFuelInventory.pending(lsInv(),state.days,iso(new Date())).forEach(p=>{const d=ensureDay(p.date),m=d.meals[p.i];if(m){m.ate=endOfDayIso(p.date);saveDay(p.date)}});break
     case "swap":{const d=ensureDay(date);const m=d.meals[i];if(mealLocked(m,date))break;if(WeekdayFuelBought.isBought(m)&&dayUnlocked(date))state.dayNote={date,msg:"This meal's food was bought for the original meal."};swapMeal(date,i);break}
-    case "shopday":{const sd=state.settings.shopDays=Object.assign({},S().shopDays);if(sd[date])delete sd[date];else{sd[date]=true;const d=ensureDay(date);(d.meals||[]).forEach(m=>{if(!WeekdayFuelBought.isBought(m))delete m.shop});saveDay(date)}saveSettings();break}
-    case "mealshop":{const d=ensureDay(date);const m=d.meals[i];if(mealLocked(m,date))break;if(m.shop===false)delete m.shop;else m.shop=false;saveDay(date);break}
-    case "unshopday":{const sd=state.settings.shopDays=Object.assign({},S().shopDays);delete sd[v];saveSettings();break}
+    case "mealshop":{const d=ensureDay(date);const m=d.meals[i];if(mealLocked(m,date))break;if(m.shop===false)delete m.shop;else m.shop=false;saveDay(date);shopCtx=null;break}
     case "openday":state.tab="today";state.date=v;state.adding=null;window.scrollTo(0,0);break;
     case "nextshop":if(trolleyBusy())break;if(state.armed!=="nextshop"){state.armed="nextshop";break}state.armed=null;{let saved;try{saved=trySaveOrder()}catch(e){saved=false}if(!saved){state.orderError={where:el.dataset.w,msg:"Couldn't save the order. Nothing was cleared."};break}if(saved!==true){const orderId=saved;try{const st=store(),haveIt=WeekdayFuelInventory.shopHaveIt(state.trolley,sentFor(st)),buys=WeekdayFuelInventory.buysFromRows(shopOrderRows(),st,lsTicks(),haveIt,{sent:(lsSent()||{}).lines||{},colesSent:(lsColesSent()||{}).lines||{},colesId:WeekdayFuelCatalogue.colesId});if(buys.length){const events=buys.map(b=>({k:"buy",item:b.item,amount:b.amount,order:orderId})),inv=WeekdayFuelInventory.addEvents(lsInv(),events,new Date().toISOString());if(!lsSetInv(inv))state.orderError={where:"kitchen",msg:"Saved the order, but couldn't update the kitchen stock."}}}catch(e){state.orderError={where:"kitchen",msg:"Saved the order, but couldn't update the kitchen stock."}}try{const mark=WeekdayFuelBought.markBought(state.days,shopDays(),orderId);state.days=mark.days;mark.changed.forEach(d=>saveDay(d))}catch(e){}}state.settings.shopDays={};state.settings.trial={};saveSettings();lsSetTicks({});lsSetSent(null);lsSetColesSent(null);lsSetSpecials(null);state.trolley=null;state.checkout=null;state.coLast=null;break}
     case "openorder":state.openOrder=state.openOrder===v?null:v;break;
@@ -1496,7 +1496,7 @@ if(window.WeekdayFuelHost){
     const ty=m.type.slice(pre.length);
     if(ty==="Login"){if(!live)return;t.phase="login"}
     else if(ty==="Progress"){if(t.phase!=="adding"&&t.phase!=="login")return;t.phase="adding";t.completed=m.completed;t.total=m.total}
-    else if(ty==="Done"){if(!live)return;t.phase="done";t.results=Array.isArray(m.results)?m.results:[];const old=sentFor(s),rec={at:new Date().toISOString(),fingerprint:t.fingerprint,lines:WeekdayFuelCart.sentAfter(old&&old.lines,t.lines,t.results,TROLLEY[s].key)};if(t.haveIt&&typeof t.haveIt==="object")rec.haveIt=Object.assign({},t.haveIt);setSentFor(s,rec)}
+    else if(ty==="Done"){if(!live)return;t.phase="done";t.results=Array.isArray(m.results)?m.results:[];const old=sentFor(s),rec={at:new Date().toISOString(),fingerprint:t.fingerprint,lines:WeekdayFuelCart.sentAfter(old&&old.lines,t.lines,t.results,TROLLEY[s].key)};if(t.haveIt&&typeof t.haveIt==="object")rec.haveIt=Object.assign({},t.haveIt);if(!lsSent()&&!lsColesSent()){const fz={};shopDays().forEach(d=>fz[d]=true);state.settings.shopDays=fz;saveSettings()}setSentFor(s,rec)}
     else if(ty==="Error"){if(!live)return;t.phase="error";t.message=m.message||(s==="coles"?"Couldn't send to the Coles trolley.":"Something went wrong sending to Woolworths. Try again.")}
     else return;
     if(state.tab==="shop")render();
