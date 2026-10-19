@@ -270,6 +270,14 @@ function runBoughtBackfillIfNeeded(){
   state.settings.boughtBackfill=true;
   saveSettings();
 }
+function runStaplesFxMigrateIfNeeded(){
+  if(S().staplesFxMigrated)return;
+  const r=WeekdayFuelStaples.migrateLegacyFx(state.days);
+  if(r.changed){state.days=r.days;(r.changedDates||[]).forEach(d=>saveDay(d))}
+  state.settings.staplesFxMigrated=true;
+  saveSettings();
+}
+function staplesActiveOn(date){return WeekdayFuelStaples.activeStaples(staplesList(),date)}
 function dayMealsAll(){return dayMealsFrom(null)}
 function dayMeals(){
   const inv=lsInv();
@@ -320,7 +328,7 @@ function syncStapleSheetDraft(){
 function openStapleSheet(id){
   state.stapleSheetError=null;
   if(id){
-    const cur=staplesToday().find(s=>s.id===id);
+    const cur=staplesActiveOn(state.date).find(s=>s.id===id);
     state.stapleSheetDraft=cur?{id:cur.id,amount:cur.amount,days:cur.days}:null;
     state.sheet="staple:"+id;
   }else{
@@ -333,12 +341,14 @@ function toggleStapleDay(id,date){
   const d=ensureDay(date);d.fx=d.fx||{};
   const st=stapleEntryFor(id,date);if(!st)return;
   if(WeekdayFuelStaples.onDay(st,date,d))d.fx[id]=false;
-  else if(d.fx[id]===false)delete d.fx[id];
-  else d.fx[id]=true;
+  else{
+    delete d.fx[id];
+    if(!WeekdayFuelStaples.onDay(st,date,d))d.fx[id]=true;
+  }
   saveDay(date);
 }
 function renderStapleChips(date,day){
-  const list=staplesToday();
+  const list=staplesActiveOn(date);
   const chips=list.map(s=>{
     const it=CAT.item(s.id);if(!it)return "";
     const on=WeekdayFuelStaples.onDay(s,date,day);
@@ -673,6 +683,7 @@ async function initStore(){
   const cached=lsGet();
   if(cached){state.settings=deepMerge(DEFAULT_SETTINGS,cached.settings);state.days=cached.days||{};state.weights=cached.weights||{};}
   runBoughtBackfillIfNeeded();
+  runStaplesFxMigrateIfNeeded();
   setSync(false,"Saved on this device");
   render();
   try{ if(window.claude&&window.claude.use) db=await window.claude.use("db"); }catch(e){db=null}
@@ -1340,7 +1351,8 @@ document.addEventListener("submit",e=>{
     if(!isFinite(amt)||!(amt>0)){state.stapleSheetError="Enter an amount above 0";$("#stap-amt")&&$("#stap-amt").focus();render();return}
     state.stapleSheetError=null;
     const seed=staplesSeedList();
-    const parsed=state.sheet==="staple:new"?WeekdayFuelStaples.applyAdd(seed,{id,amount:amt,days},today,CAT):WeekdayFuelStaples.applyEdit(seed,id,{amount:amt,days},today,CAT);
+    const isEdit=state.sheet!=="staple:new"||staplesToday().some(s=>s.id===id);
+    const parsed=isEdit?WeekdayFuelStaples.applyEdit(seed,id,{amount:amt,days},today,CAT):WeekdayFuelStaples.applyAdd(seed,{id,amount:amt,days},today,CAT);
     staplesPersistParsed(parsed);
     state.sheet=null;state.stapleSheetDraft=null;render();
   }

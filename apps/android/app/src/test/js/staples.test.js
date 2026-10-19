@@ -175,3 +175,30 @@ test("reserved sums staples with amount greater than one", () => {
   const r = I.reserved(base, {}, cat, "2026-10-18", ["2026-10-21"], staplesOn);
   assert.equal(r.yog, 4);
 });
+
+test("applyAdd edits when id is already active on that date", () => {
+  const today = "2026-10-19";
+  const parsed = S.parse(S.DEFAULTS, cat);
+  const next = S.applyAdd(parsed, { id: "dare", amount: 2, days: "all" }, today, cat);
+  const dare = S.activeStaples(next, today).find((s) => s.id === "dare");
+  assert.equal(dare.amount, 2);
+  assert.equal(dare.days, "all");
+  assert.equal(next.filter((s) => s.id === "dare").length, 2);
+});
+
+test("migrateLegacyFx strips default fx flags only", () => {
+  const days = {
+    "2026-10-19": { meals: [], fx: { dare: true, grenade: true } },
+    "2026-10-18": { meals: [], track: false, fx: { dare: false, grenade: false } },
+    "2026-10-20": { meals: [], fx: { dare: false } },
+    "2026-10-25": { meals: [], track: false, fx: { dare: true } },
+    "2026-10-24": { meals: [], track: true, fx: { dare: true, grenade: true } },
+  };
+  const r = S.migrateLegacyFx(days);
+  assert.equal(r.changed, true);
+  assert.equal(r.days["2026-10-19"].fx, undefined);
+  assert.equal(r.days["2026-10-18"].fx, undefined);
+  assert.equal(r.days["2026-10-20"].fx.dare, false);
+  assert.equal(r.days["2026-10-25"].fx.dare, true);
+  assert.equal(r.days["2026-10-24"].fx.dare, true);
+});

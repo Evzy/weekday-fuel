@@ -144,7 +144,12 @@
 
   function applyAdd(list, entry, today, cat) {
     if (!DATE.test(today)) return parse(list, cat);
-    var out = (Array.isArray(list) ? list : []).map(copyEntry);
+    if (!entry || !entry.id) return parse(list, cat);
+    var raw = Array.isArray(list) ? list.map(copyEntry) : [];
+    if (findActiveIndex(raw, entry.id, today) >= 0) {
+      return applyEdit(raw, entry.id, { amount: entry.amount, days: entry.days }, today, cat);
+    }
+    var out = raw.slice();
     var e = copyEntry(entry);
     e.from = today;
     delete e.until;
@@ -252,6 +257,46 @@
     return lineCost(p, amount);
   }
 
+  var LEGACY_FX_IDS = ["dare", "grenade"];
+
+  function legacyFxDefault(id, date, day) {
+    if (LEGACY_FX_IDS.indexOf(id) < 0) return null;
+    if (!isWeekend(date)) return true;
+    if (day && day.track) return null;
+    return false;
+  }
+
+  function migrateLegacyFx(days) {
+    var src = days && typeof days === "object" ? days : {};
+    var out = Object.assign({}, src);
+    var changed = false;
+    var changedDates = [];
+    Object.keys(src).forEach(function (date) {
+      if (!DATE.test(date)) return;
+      var day = src[date];
+      if (!day || !day.fx || typeof day.fx !== "object") return;
+      var nextFx = Object.assign({}, day.fx);
+      var fxChanged = false;
+      LEGACY_FX_IDS.forEach(function (id) {
+        if (!(id in day.fx)) return;
+        var def = legacyFxDefault(id, date, day);
+        if (def === null) return;
+        if (day.fx[id] === def) {
+          delete nextFx[id];
+          fxChanged = true;
+        }
+      });
+      if (!fxChanged) return;
+      changed = true;
+      changedDates.push(date);
+      var nextDay = Object.assign({}, day);
+      if (Object.keys(nextFx).length) nextDay.fx = nextFx;
+      else delete nextDay.fx;
+      out[date] = nextDay;
+    });
+    return { days: out, changed: changed, changedDates: changedDates };
+  }
+
   function needs(staples, dates, daysMap) {
     var out = Object.create(null);
     (Array.isArray(dates) ? dates : []).forEach(function (date) {
@@ -277,6 +322,7 @@
     applyEdit: applyEdit,
     applyRemove: applyRemove,
     addDays: addDays,
+    migrateLegacyFx: migrateLegacyFx,
   };
   if (typeof module === "object" && module.exports) module.exports = api;
   else root.WeekdayFuelStaples = api;
