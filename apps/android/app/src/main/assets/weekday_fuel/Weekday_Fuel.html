@@ -589,7 +589,7 @@ const clone=o=>JSON.parse(JSON.stringify(o));
 function deepMerge(base,over){const out=clone(base);if(!over)return out;for(const k in over){if(k==="trial"){out[k]=clone(over[k]);continue}if(over[k]&&typeof over[k]==="object"&&!Array.isArray(over[k])&&out[k]&&typeof out[k]==="object")out[k]=deepMerge(out[k],over[k]);else out[k]=over[k];}return out}
 
 /* ---------- state + storage ---------- */
-const state={tab:"today",date:iso(new Date()),settings:clone(DEFAULT_SETTINGS),days:{},weights:{},adding:null,mealFilter:"all",sheet:null,armed:null,unlocked:{},dayNote:null,openItem:null,kOpen:null,kAddItem:null,kitchenError:null,kitchenHint:null,kitchenHintWhere:null,trolley:null,prices:null,colesPrices:null,pricesTried:0,checkout:null,coLast:null,openOrder:null,orderError:false,weekNote:null};
+const state={tab:"today",date:iso(new Date()),settings:clone(DEFAULT_SETTINGS),days:{},weights:{},adding:null,mealFilter:"all",sheet:null,addPick:null,armed:null,unlocked:{},dayNote:null,openItem:null,kOpen:null,kAddItem:null,kitchenError:null,kitchenHint:null,kitchenHintWhere:null,trolley:null,prices:null,colesPrices:null,pricesTried:0,checkout:null,coLast:null,openOrder:null,orderError:false,weekNote:null,mealNote:null,scrollMealNote:false};
 let db=null;
 const LS="weekdayfuel.v1";
 const SPECIALS_KEY=LS+".specials";
@@ -870,6 +870,25 @@ function applyPlan(id,start){
   state.weekNote=`Added ${r.added} meal${r.added===1?"":"s"}, ${dayShort(first)}${last!==first?" – "+dayShort(last):""}.${r.kept?` Kept ${r.kept} you'd already planned.`:""}${held?" "+NEXT_SHOP_NOTE:""}`;
   state.tab="today";state.date=first;state.sheet=null;state.planStart=null;window.scrollTo(0,0);
 }
+function doAddMeal(mode){
+  const id=state.sheet&&state.sheet.slice(4),meal=MEAL[id],pick=state.addPick;
+  if(!meal||!pick||!pick.date)return;
+  const d=pick.date,day=ensureDay(d),old=day.meals||[];
+  const slot=(pick.p&&pick.p.slot)||WeekdayFuelCartAdd.naturalSlot(meal,old);
+  const r=WeekdayFuelCartAdd.apply(old,id,slot,mode==="replace"?"replace":"extra",WeekdayFuelBought.isBought);
+  const keep=r.meals.filter(m=>m!==r.added);
+  day.meals=keep.concat([r.added]);
+  fitTiers(day,keep.length,d);
+  day.meals=r.meals;
+  const frozen=trolleySent()&&shopDays().includes(d);
+  if(frozen)holdMealForNextCart(r.added);
+  saveDay(d);
+  shopCtx=null;
+  state.mealNote=`Added to ${dayShort(d)} ${slot}. ${frozen?NEXT_SHOP_NOTE:"It's in your cart."}`;
+  state.sheet=null;
+  state.addPick=null;
+  state.scrollMealNote=true;
+}
 
 /* weight analytics */
 function weightSeries(){return Object.keys(state.weights).filter(k=>state.weights[k]&&isFinite(state.weights[k].kg)).sort().map(k=>({d:k,kg:+state.weights[k].kg}))}
@@ -1049,12 +1068,13 @@ function tierTable(m){
 }
 function mealCard(m,full,tier){
   const tr=tier||"S";
-  return `<div class="card"><div class="row between" style="align-items:flex-start"><div class="grow"><div class="row" style="gap:6px;margin-bottom:4px"><span class="tag">${esc(m.cuisine)}</span><span class="tag">${m.mins} min</span><span class="tag">${esc(PREP_LABEL[m.prep]||"")}</span>${m.remake?`<span class="tag remake">Remake</span>`:""}</div><h3>${esc(m.name)}</h3><div class="small muted">Fixed protein core: ${esc(m.core)}</div></div>${full?"":`<button class="ghost" data-act="recipe" data-v="${m.id}">Recipe</button>`}</div>${tierTable(m)}${full?`<div class="stack" style="gap:8px"><div class="row between"><div class="eyebrow">Ingredients</div><div class="dial" role="group" aria-label="Recipe portion">${TIERS.map(([k,l])=>`<button aria-pressed="${tr===k}" data-act="sheettier" data-v="${k}">${l}</button>`).join("")}</div></div><ul class="ing">${recipeLines(m,tr)}</ul>${(m.batch||[]).map(id=>BATCH[id]).filter(Boolean).map(b=>`<div class="row between"><span class="small">Uses ${esc(b.name)} from your batch prep</span><button class="ghost" data-act="batch" data-v="${b.id}">Batch prep</button></div>`).join("")}<div class="eyebrow">Method</div><ol class="steps">${m.steps.map(s=>`<li>${esc(s)}</li>`).join("")}</ol>${m.note?`<div class="hint"><span>${esc(m.note)}</span></div>`:""}</div>`:""}<div class="row" style="gap:6px">${(m.slots.includes("breakfast")?["breakfast"]:m.slots.includes("snack")?["snack"]:["lunch","dinner"]).map(s=>`<button class="ghost" data-act="addto" data-v="${m.id}" data-s="${s}">Add to ${state.date===iso(new Date())?"today":fmtShort(state.date)} as ${s}</button>`).join("")}</div></div>`;
+  return `<div class="card"><div class="row between" style="align-items:flex-start"><div class="grow"><div class="row" style="gap:6px;margin-bottom:4px"><span class="tag">${esc(m.cuisine)}</span><span class="tag">${m.mins} min</span><span class="tag">${esc(PREP_LABEL[m.prep]||"")}</span>${m.remake?`<span class="tag remake">Remake</span>`:""}</div><h3>${esc(m.name)}</h3><div class="small muted">Fixed protein core: ${esc(m.core)}</div></div>${full?"":`<div class="row" style="gap:6px"><button class="btn alt" data-act="addmeal" data-v="${m.id}">Add</button><button class="ghost" data-act="recipe" data-v="${m.id}">Recipe</button></div>`}</div>${tierTable(m)}${full?`<div class="stack" style="gap:8px"><div class="row between"><div class="eyebrow">Ingredients</div><div class="dial" role="group" aria-label="Recipe portion">${TIERS.map(([k,l])=>`<button aria-pressed="${tr===k}" data-act="sheettier" data-v="${k}">${l}</button>`).join("")}</div></div><ul class="ing">${recipeLines(m,tr)}</ul>${(m.batch||[]).map(id=>BATCH[id]).filter(Boolean).map(b=>`<div class="row between"><span class="small">Uses ${esc(b.name)} from your batch prep</span><button class="ghost" data-act="batch" data-v="${b.id}">Batch prep</button></div>`).join("")}<div class="eyebrow">Method</div><ol class="steps">${m.steps.map(s=>`<li>${esc(s)}</li>`).join("")}</ol>${m.note?`<div class="hint"><span>${esc(m.note)}</span></div>`:""}</div>`:""}<div class="row" style="gap:6px">${(m.slots.includes("breakfast")?["breakfast"]:m.slots.includes("snack")?["snack"]:["lunch","dinner"]).map(s=>`<button class="ghost" data-act="addto" data-v="${m.id}" data-s="${s}">Add to ${state.date===iso(new Date())?"today":fmtShort(state.date)} as ${s}</button>`).join("")}</div></div>`;
 }
 function renderMeals(){
   const f=state.mealFilter;
   const filt=m=>f==="all"||(f==="breakfast"&&m.slots.includes("breakfast"))||(f==="main"&&m.slots.includes("main"))||(f==="snack"&&m.slots.includes("snack"))||(f==="remake"&&m.remake);
   let h=`<div><div class="eyebrow">${MEALS.length} meals · each one under 20 min</div><h2>Meal library</h2><p class="small muted" style="margin:4px 0 0">Every meal has a fixed protein core. Light, Standard and Loaded only change the carbs and fat (rice, pasta, cheese, oil), so you change the size of a meal without changing what you cook.</p></div>`;
+  if(state.mealNote)h+=`<div class="hint" id="meal-note"><span>${esc(state.mealNote)}</span></div>`;
   h+=`<div class="panel stack"><div class="eyebrow">Plans · a ready-made week</div>${WeekdayFuelPlans.PLANS.map(p=>{const s=planSummary(p);return `<button class="pick" data-act="plan" data-v="${esc(p.id)}"><span><b>${esc(p.name)}</b><br><span class="small muted">${esc(p.blurb)}</span><br><span class="small muted">${s.items} items · about ${money(s.costPerDay)} a day · ${p.days.length} weekdays</span></span><span class="small muted">View</span></button>`}).join("")}</div>`;
   h+=`<div class="panel stack"><div class="eyebrow">Batch prep · cook once, eat all week</div>${BATCHES.map(b=>`<button class="pick" data-act="batch" data-v="${b.id}"><span><b>${esc(b.name)}</b><br><span class="small muted">${esc(b.makes)}. Keeps ${esc(b.keeps)}.</span></span><span class="small muted">Recipe</span></button>`).join("")}</div>`;
   h+=`<div class="chips">${[["all","All"],["breakfast","Breakfast"],["main","Lunch & dinner"],["snack","Snacks"],["remake","Ready-meal remakes"]].map(([k,l])=>`<button class="chip" aria-pressed="${f===k}" data-act="mf" data-v="${k}">${l}</button>`).join("")}</div>`;
@@ -1360,6 +1380,33 @@ function renderSheet(){
     root.dataset.sheet=state.sheet;
     return;
   }
+  if(state.sheet.startsWith("add:")){
+    const id=state.sheet.slice(4),meal=MEAL[id];
+    if(!meal){state.sheet=null;root.innerHTML="";return}
+    const today=iso(new Date());
+    const strip=[];for(let i=0;i<14;i++){const dt=new Date(today+"T00:00:00");dt.setDate(dt.getDate()+i);strip.push(iso(dt))}
+    const addSlotLabel=(d,sl)=>{
+      const xs=((state.days[d]&&state.days[d].meals)||[]).filter(m=>m.slot===sl);
+      const m0=xs[0];
+      if(!m0||!MEAL[m0.id])return "–";
+      const parts=MEAL[m0.id].name.split(/\s+/);
+      return esc(parts.length>3?parts.slice(0,2).join(" "):MEAL[m0.id].name);
+    };
+    const pick=state.addPick;
+    let confirm="";
+    if(pick&&pick.date&&pick.p&&(pick.p.action==="ask"||pick.p.action==="locked")){
+      const sl=pick.p.slot,slCap=sl.charAt(0).toUpperCase()+sl.slice(1),ds=dayShort(pick.date);
+      if(pick.p.action==="ask"){
+        confirm=`<div class="stack" style="gap:8px;margin-top:8px"><p class="small" style="margin:0">${esc(slCap)} on ${esc(ds)} already has ${esc(MEAL[pick.p.existing.id].name)}.</p><div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn" data-act="addgo" data-v="replace">Replace</button><button class="btn alt" data-act="addgo" data-v="extra">Add as an extra</button></div></div>`;
+      }else{
+        confirm=`<div class="stack" style="gap:8px;margin-top:8px"><p class="small" style="margin:0">${esc(slCap)} on ${esc(ds)} is bought. Add as an extra?</p><button class="btn" data-act="addgo" data-v="extra">Add as an extra</button></div>`;
+      }
+    }
+    const body=`<div class="stack" style="gap:6px">${strip.map(d=>`<button class="pick" data-act="addday" data-v="${d}" aria-pressed="${pick&&pick.date===d}"><span><b>${esc(dayShort(d))}</b>${isWeekend(d)&&!tracked(d)?" · off":""}<br><span class="small muted">${addSlotLabel(d,"breakfast")} · ${addSlotLabel(d,"lunch")} · ${addSlotLabel(d,"dinner")}</span></span></button>`).join("")}</div>${confirm}`;
+    root.innerHTML=`<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(meal.name)}"><div class="row between" style="margin-bottom:10px"><div><div class="eyebrow">Add to a day</div><h2>${esc(meal.name)}</h2></div><button class="ghost" data-act="close">Close</button></div><div class="stack" style="gap:10px">${body}</div></div></div>`;
+    root.dataset.sheet=state.sheet;
+    return;
+  }
   if(state.sheet.startsWith("plan:")){
     const plan=WeekdayFuelPlans.byId(state.sheet.slice(5));
     if(!plan){state.sheet=null;root.innerHTML="";return}
@@ -1392,6 +1439,10 @@ function render(){
   const map={today:renderToday,weigh:renderWeigh,meals:renderMeals,shop:renderShop,kitchen:renderKitchen,targets:renderTargets};
   v.innerHTML=map[state.tab]();
   renderSheet();
+  if(state.scrollMealNote){
+    state.scrollMealNote=false;
+    requestAnimationFrame(()=>{const n=document.getElementById("meal-note");if(n)n.scrollIntoView({block:"start"})});
+  }
 }
 
 /* ---------- events ---------- */
@@ -1403,6 +1454,7 @@ document.addEventListener("click",e=>{
   state.orderError=false;
   state.kitchenError=null;
   state.weekNote=null;
+  state.mealNote=null;
   state.dayNote=null;
   const date=state.date;
   switch(act){
@@ -1445,11 +1497,14 @@ document.addEventListener("click",e=>{
     case "recipe":state.sheet=v;state.sheetTier=TIERS.some(([k])=>k===el.dataset.t)?el.dataset.t:"S";break;
     case "sheettier":state.sheetTier=v;break;
     case "batch":state.sheet="batch:"+v;break;
+    case "addmeal":state.sheet="add:"+v;state.addPick=null;break;
+    case "addday":{const id=state.sheet&&state.sheet.startsWith("add:")?state.sheet.slice(4):null,meal=id&&MEAL[id];if(!meal)break;const d=v,old=(state.days[d]&&state.days[d].meals)||[],p=WeekdayFuelCartAdd.place(meal,old,WeekdayFuelBought.isBought);if(p.action==="add"){state.addPick={date:d,p};doAddMeal("add");break}state.addPick={date:d,p};break}
+    case "addgo":doAddMeal(v);break;
     case "plan":state.sheet="plan:"+v;break;
     case "planstart":state.planStart=v;break;
     case "planapply":{const t=iso(new Date());applyPlan(v,state.planStart&&state.planStart>=t?state.planStart:WeekdayFuelPlans.defaultStart(t,state.days));break}
     case "gomeals":{state.tab="meals";const t=iso(new Date());const lim=new Date(t+"T00:00:00");lim.setDate(lim.getDate()+13);state.planStart=state.date>=t&&state.date<=iso(lim)&&!WeekdayFuelPlans.isWeekend(state.date)?state.date:null;window.scrollTo(0,0);break}
-    case "close":state.sheet=null;state.stapleSheetDraft=null;state.stapleSheetError=null;break;
+    case "close":state.sheet=null;state.addPick=null;state.stapleSheetDraft=null;state.stapleSheetError=null;break;
     case "mf":state.mealFilter=v;break;
     case "mode":state.settings.mode=v;saveSettings();break;
     case "applyadj":state.settings.adjust=(state.settings.adjust||0)+(+v);saveSettings();break;
