@@ -49,6 +49,7 @@
     if (!staple || !(staple.amount > 0) || !DATE.test(date)) return false;
     day = day || {};
     if (day.fx && day.fx[staple.id] === false) return false;
+    if (day.fx && day.fx[staple.id] === true) return true;
     if (staple.days === "all") return true;
     if (staple.days === "weekdays") {
       if (!isWeekend(date)) return true;

@@ -130,6 +130,9 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .chips{display:flex;gap:6px;flex-wrap:wrap}
 .chip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:5px 11px;font-size:.8rem;font-weight:600;color:var(--muted)}
 .chip[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--bg)}
+.chipwrap{display:inline-flex;align-items:stretch;max-width:100%}
+.chipwrap .chip{border-top-right-radius:0;border-bottom-right-radius:0;max-width:calc(100% - 2.5rem);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chipedit{border:1px solid var(--line);border-left:0;background:var(--surface);border-radius:0 999px 999px 0;padding:5px 9px;font-size:.68rem;font-weight:700;color:var(--muted);flex:none}
 .tag{display:inline-block;font-size:.7rem;font-weight:700;letter-spacing:.04em;padding:2px 7px;border-radius:6px;background:var(--sunk);color:var(--muted)}
 .tag.remake{background:var(--yolk-soft);color:var(--warn)}
 .mac{display:block;font-size:.74rem;color:var(--ink);background:var(--sunk);border-radius:7px;padding:5px 8px;margin-top:5px;line-height:1.45}
@@ -300,6 +303,54 @@ function shopHave(){
   return have;
 }
 function staples(){return WeekdayFuelStaples.parse(S().staples==null?WeekdayFuelStaples.DEFAULTS:S().staples,CAT)}
+function staplesRaw(){const p=S().staples;if(p==null)return null;return Array.isArray(p)?p.slice():null}
+function staplesPersist(list){state.settings.staples=WeekdayFuelStaples.parse(list,CAT).map(s=>({id:s.id,amount:s.amount,days:s.days}));saveSettings()}
+function stapleMacroItems(){return CAT.ITEMS.filter(it=>MACROS[it.id])}
+function staplesSeedList(){const raw=staplesRaw();return raw==null?WeekdayFuelStaples.DEFAULTS.map(s=>({id:s.id,amount:s.amount,days:s.days})):raw.slice()}
+function openStapleSheet(id){
+  if(id){
+    const cur=staples().find(s=>s.id===id);
+    state.stapleSheetDraft=cur?{id:cur.id,amount:cur.amount,days:cur.days}:null;
+    state.sheet="staple:"+id;
+  }else{
+    const list=staples(),macroItems=stapleMacroItems();
+    const pick=macroItems.find(it=>!list.some(s=>s.id===it.id))||macroItems[0];
+    state.stapleSheetDraft=pick?{id:pick.id,amount:pick.id==="yog"?170:1,days:"weekdays"}:null;
+    state.sheet="staple:new";
+  }
+}
+function toggleStapleDay(id,date){
+  const d=ensureDay(date);d.fx=d.fx||{};
+  const st=staples().find(s=>s.id===id);if(!st)return;
+  if(WeekdayFuelStaples.onDay(st,date,d))d.fx[id]=false;
+  else if(d.fx[id]===false)delete d.fx[id];
+  else d.fx[id]=true;
+  saveDay(date);
+}
+function renderStapleChips(date,day){
+  const list=staples();if(!list.length)return "";
+  const chips=list.map(s=>{
+    const it=CAT.item(s.id);if(!it)return "";
+    const on=WeekdayFuelStaples.onDay(s,date,day);
+    const mac=WeekdayFuelStaples.macros(s.id,s.amount,CAT,MACROS);
+    const kcal=mac?r0(mac.k):"?";
+    return `<span class="chipwrap"><button type="button" class="chip" aria-pressed="${on?"true":"false"}" data-act="stapletog" data-v="${esc(s.id)}">${on?"✓ ":""}${esc(it.name)} · ${kcal} kcal</button><button type="button" class="chipedit" data-act="stapleedit" data-v="${esc(s.id)}" aria-label="Edit ${esc(it.name)}">Edit</button></span>`;
+  }).join("");
+  return `<div class="stack" style="gap:8px"><div class="eyebrow">Staples</div><div class="chips">${chips}<button type="button" class="chip" data-act="stapleadd" aria-label="Add staple">+</button></div></div>`;
+}
+function renderStapleSheetBody(){
+  const draft=state.stapleSheetDraft;if(!draft)return "";
+  const isNew=state.sheet==="staple:new";
+  const macroItems=stapleMacroItems();
+  const it=CAT.item(draft.id);
+  const unit=it?it.unit:"";
+  const days=draft.days==="all"?"all":"weekdays";
+  const opts=[0,1,2].map(sec=>{
+    const grp=macroItems.filter(x=>x.sec===sec);if(!grp.length)return "";
+    return `<optgroup label="${esc(SECTIONS[sec][0])}">${grp.map(x=>`<option value="${esc(x.id)}"${x.id===draft.id?" selected":""}>${esc(x.name)}</option>`).join("")}</optgroup>`;
+  }).join("");
+  return `<form class="stack" id="stapform" style="gap:12px"><label class="f">Item<select id="stap-item" required>${opts}</select></label><label class="f">Amount${unit?` (${esc(unit)})`:""}<input id="stap-amt" class="num" type="number" step="any" min="0" required value="${draft.amount}"></label><div class="f"><span class="small muted" style="display:block;margin-bottom:4px">Schedule</span><div class="dial" role="group" aria-label="Staple days"><button type="button" aria-pressed="${days==="all"?"true":"false"}" data-act="stapdays" data-v="all">Every day</button><button type="button" aria-pressed="${days==="weekdays"?"true":"false"}" data-act="stapdays" data-v="weekdays">Weekdays</button></div></div><div class="row" style="gap:8px;flex-wrap:wrap">${!isNew?`<button type="button" class="ghost warn" data-act="stapremove" data-v="${esc(draft.id)}">Remove</button>`:""}<button type="submit" class="btn">Save</button><button type="button" class="ghost" data-act="close">Cancel</button></div></form>`;
+}
 function staplesOn(date){return WeekdayFuelStaples.forDay(staples(),date,dayOf(date))}
 function stapleNeedMap(){const sd=shopDays();if(!sd.length)return {};return WeekdayFuelStaples.needs(staples(),sd,state.days)}
 function shopRows(){return CAT.shopList(picks(),stapleNeedMap(),dayMeals(),shopHave())}
@@ -795,13 +846,12 @@ function renderToday(){
   if(state.weekNote)h+=`<div class="hint"><span>${esc(state.weekNote)}</span></div>`;
   if(we&&!on){
     h+=`<div class="panel stack"><h2>Weekend: off the books</h2><p class="muted" style="margin:0">Eat how you like. Keep weighing in each morning, and Monday's plan will adjust from the trend.</p><div><button class="btn alt" data-act="track">Plan this day anyway</button></div></div>`;
+    h+=renderStapleChips(date,day);
     return h;
   }
   h+=`<div class="panel stack"><div class="meter">${gauge("Calories",t.k,tg.k,"","")}${gauge("Protein",t.p,tg.p,"g","p")}</div>
     <div class="macros num"><span>Carbs ${r0(t.c)}g</span><span>Fat ${r0(t.f)}g</span><span>Est. cost ${money(t.cost)}</span><span>${MODES[S().mode].label}${S().adjust?` (${S().adjust>0?"+":""}${S().adjust})`:""}</span></div></div>`;
-  // fixtures
-  const fx=S().fixtures;
-  h+=`<div class="stack" style="gap:8px"><div class="eyebrow">Fixtures</div><div class="fx">${Object.keys(fx).map(k=>`<button class="fxb" aria-pressed="${!!(day.fx&&day.fx[k])}" data-act="fx" data-v="${k}"><span class="tick">${ICON.check}</span><span class="grow"><b>${esc(fx[k].name)}</b><span class="small muted num">${fx[k].p}g protein · ${fx[k].k} kcal</span></span></button>`).join("")}</div></div>`;
+  h+=renderStapleChips(date,day);
   // meals
   const hasBought=(day.meals||[]).some(WeekdayFuelBought.isBought);
   const meals=day.meals||[];
@@ -815,7 +865,7 @@ function renderToday(){
   if(allBought)h+=`<div class="row between" style="margin-bottom:8px"><span class="small"><b>${esc(boughtShopLabel(meals))}</b></span>${inShop?`<button class="ghost" data-act="shopday">Remove from shop</button>`:""}</div>`;
   else if(meals.length||inShop)h+=`<div class="row between" style="margin-bottom:8px">${inShop?`<span class="small"><b>In this shop.</b> Tap a meal's In shop to leave it out.</span><button class="ghost" data-act="shopday">Remove from shop</button>`:`<span class="small muted">Buy this day's meals with your next shop.</span><button class="btn alt" data-act="shopday">Add day to shop</button>`}</div>`;
   if(!day.meals||!day.meals.length){
-    h+=`<div class="empty stack" style="gap:10px"><div>No meals planned yet. Tap <b>Suggest a day</b> for a breakfast, lunch and dinner sized to fit around your fixtures, or add meals one at a time.</div><div><button class="btn" data-act="suggest">Suggest a day</button></div></div>`;
+    h+=`<div class="empty stack" style="gap:10px"><div>No meals planned yet. Tap <b>Suggest a day</b> for a breakfast, lunch and dinner sized to fit around your staples, or add meals one at a time.</div><div><button class="btn" data-act="suggest">Suggest a day</button></div></div>`;
   } else {
     h+=`<div>`+day.meals.map((m,i)=>{const meal=MEAL[m.id];if(!meal)return"";const v=meal.t[m.t];const bought=WeekdayFuelBought.isBought(m);const locked=mealLocked(m,date);
       const acts=locked?`<button class="ghost" aria-pressed="${typeof m.ate==="string"}" data-act="ate" data-i="${i}">Ate it</button>`:`<div class="dial" role="group" aria-label="Portion">${TIERS.map(([k,l])=>`<button aria-pressed="${m.t===k}" data-act="tier" data-i="${i}" data-v="${k}">${l}</button>`).join("")}</div><button class="ghost" aria-pressed="${typeof m.ate==="string"}" data-act="ate" data-i="${i}">Ate it</button><button class="ghost" data-act="swap" data-i="${i}">Swap</button>${inShop?`<button class="ghost" aria-pressed="${m.shop!==false}" data-act="mealshop" data-i="${i}">${m.shop!==false?"In shop":"Not in shop"}</button>`:""}<button class="ghost ${state.armed==="rm"+i?"warn":""}" data-act="rm" data-i="${i}">${state.armed==="rm"+i?"Tap to remove":"Remove"}</button>`;
@@ -904,8 +954,7 @@ function tierTable(m){
 }
 function mealCard(m,full,tier){
   const tr=tier||"S";
-  const rm=m.remake?`<div class="vs"><div><span class="small muted">Ready-made at the shop</span><b>${money(S().readyMealPrice)}</b></div><div><span class="small muted">This, Standard</span><b style="color:var(--good)">${money(mealCosts(m).S)}</b></div></div>`:"";
-  return `<div class="card"><div class="row between" style="align-items:flex-start"><div class="grow"><div class="row" style="gap:6px;margin-bottom:4px"><span class="tag">${esc(m.cuisine)}</span><span class="tag">${m.mins} min</span><span class="tag">${esc(PREP_LABEL[m.prep]||"")}</span>${m.remake?`<span class="tag remake">Remake</span>`:""}</div><h3>${esc(m.name)}</h3><div class="small muted">Fixed protein core: ${esc(m.core)}</div></div>${full?"":`<button class="ghost" data-act="recipe" data-v="${m.id}">Recipe</button>`}</div>${rm}${tierTable(m)}${full?`<div class="stack" style="gap:8px"><div class="row between"><div class="eyebrow">Ingredients</div><div class="dial" role="group" aria-label="Recipe portion">${TIERS.map(([k,l])=>`<button aria-pressed="${tr===k}" data-act="sheettier" data-v="${k}">${l}</button>`).join("")}</div></div><ul class="ing">${recipeLines(m,tr)}</ul>${(m.batch||[]).map(id=>BATCH[id]).filter(Boolean).map(b=>`<div class="row between"><span class="small">Uses ${esc(b.name)} from your batch prep</span><button class="ghost" data-act="batch" data-v="${b.id}">Batch prep</button></div>`).join("")}<div class="eyebrow">Method</div><ol class="steps">${m.steps.map(s=>`<li>${esc(s)}</li>`).join("")}</ol>${m.note?`<div class="hint"><span>${esc(m.note)}</span></div>`:""}</div>`:""}<div class="row" style="gap:6px">${(m.slots.includes("breakfast")?["breakfast"]:m.slots.includes("snack")?["snack"]:["lunch","dinner"]).map(s=>`<button class="ghost" data-act="addto" data-v="${m.id}" data-s="${s}">Add to ${state.date===iso(new Date())?"today":fmtShort(state.date)} as ${s}</button>`).join("")}</div></div>`;
+  return `<div class="card"><div class="row between" style="align-items:flex-start"><div class="grow"><div class="row" style="gap:6px;margin-bottom:4px"><span class="tag">${esc(m.cuisine)}</span><span class="tag">${m.mins} min</span><span class="tag">${esc(PREP_LABEL[m.prep]||"")}</span>${m.remake?`<span class="tag remake">Remake</span>`:""}</div><h3>${esc(m.name)}</h3><div class="small muted">Fixed protein core: ${esc(m.core)}</div></div>${full?"":`<button class="ghost" data-act="recipe" data-v="${m.id}">Recipe</button>`}</div>${tierTable(m)}${full?`<div class="stack" style="gap:8px"><div class="row between"><div class="eyebrow">Ingredients</div><div class="dial" role="group" aria-label="Recipe portion">${TIERS.map(([k,l])=>`<button aria-pressed="${tr===k}" data-act="sheettier" data-v="${k}">${l}</button>`).join("")}</div></div><ul class="ing">${recipeLines(m,tr)}</ul>${(m.batch||[]).map(id=>BATCH[id]).filter(Boolean).map(b=>`<div class="row between"><span class="small">Uses ${esc(b.name)} from your batch prep</span><button class="ghost" data-act="batch" data-v="${b.id}">Batch prep</button></div>`).join("")}<div class="eyebrow">Method</div><ol class="steps">${m.steps.map(s=>`<li>${esc(s)}</li>`).join("")}</ol>${m.note?`<div class="hint"><span>${esc(m.note)}</span></div>`:""}</div>`:""}<div class="row" style="gap:6px">${(m.slots.includes("breakfast")?["breakfast"]:m.slots.includes("snack")?["snack"]:["lunch","dinner"]).map(s=>`<button class="ghost" data-act="addto" data-v="${m.id}" data-s="${s}">Add to ${state.date===iso(new Date())?"today":fmtShort(state.date)} as ${s}</button>`).join("")}</div></div>`;
 }
 function renderMeals(){
   const f=state.mealFilter;
@@ -1132,18 +1181,22 @@ function renderShop(){
   return h;
 }
 function renderTargets(){
-  const s=S();const fx=s.fixtures;
+  const s=S();
   let h=`<div><div class="eyebrow">Your numbers</div><h2>Targets</h2></div>`;
   h+=`<div class="panel stack"><div class="eyebrow">Phase</div><div class="chips">${Object.keys(MODES).map(k=>`<button class="chip" aria-pressed="${s.mode===k}" data-act="mode" data-v="${k}">${MODES[k].label}</button>`).join("")}</div>
   <div class="grid2"><label class="f">Mini-cut kcal<input class="num" type="number" id="k-cut" data-set="kcal.cut" value="${s.kcal.cut}"></label><label class="f">Recomp kcal<input class="num" type="number" id="k-recomp" data-set="kcal.recomp" value="${s.kcal.recomp}"></label><label class="f">Lean bulk kcal<input class="num" type="number" id="k-bulk" data-set="kcal.bulk" value="${s.kcal.bulk}"></label><label class="f">Protein g (every day)<input class="num" type="number" id="prot" data-set="protein" value="${s.protein}"></label><label class="f">Weekday adjustment<input class="num" type="number" step="50" id="adj" data-set="adjust" value="${s.adjust}"></label></div>
   <div class="small muted">Weekday target right now: <b class="num">${target().k} kcal</b>, <b class="num">${s.protein}g</b> protein. The weigh-in tab suggests ±150 kcal changes to the adjustment when the 7-day trend drifts from your phase.</div></div>`;
-  h+=`<div class="panel stack"><div class="eyebrow">Fixtures. Check your labels and correct these.</div>${Object.keys(fx).map(k=>`<div class="stack" style="gap:6px"><b>${esc(fx[k].name)}</b><div class="grid2">${[["k","kcal"],["p","Protein g"],["c","Carbs g"],["f","Fat g"],["cost","Price $"]].map(([f,l])=>`<label class="f">${l}<input class="num" type="number" step="${f==="cost"?"0.05":"1"}" id="fx-${k}-${f}" data-set="fixtures.${k}.${f}" value="${fx[k][f]}"></label>`).join("")}</div></div>`).join("")}</div>`;
-  h+=`<div class="panel stack"><div class="eyebrow">Price comparison</div><label class="f" style="max-width:240px">Ready-made protein meal shelf price $<input class="num" type="number" step="0.5" id="rmp" data-set="readyMealPrice" value="${s.readyMealPrice}"></label><div class="small muted">Used to compare the buffalo mac and schnitzel remakes against the ones in the fridge aisle.</div></div>`;
   return h;
 }
 function renderSheet(){
   const root=$("#sheetroot");
   if(!state.sheet){root.innerHTML="";return}
+  if(state.sheet.startsWith("staple:")){
+    const title=state.sheet==="staple:new"?"Add staple":"Edit staple";
+    root.innerHTML=`<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(title)}"><div class="row between" style="margin-bottom:10px"><span class="eyebrow">Staple</span><button class="ghost" data-act="close">Close</button></div>${renderStapleSheetBody()}</div></div>`;
+    root.dataset.sheet=state.sheet;
+    return;
+  }
   const isBatch=state.sheet.startsWith("batch:"),b=isBatch?BATCH[state.sheet.slice(6)]:null,m=isBatch?null:MEAL[state.sheet];
   if(!b&&!m){state.sheet=null;root.innerHTML="";return}
   const name=b?b.name:m.name,prev=root.querySelector(".sheet"),keep=prev&&root.dataset.sheet===state.sheet?prev.scrollTop:0;
@@ -1182,7 +1235,11 @@ document.addEventListener("click",e=>{
     case "goto":state.date=v;state.adding=null;break;
     case "track":{const d=ensureDay(date);d.track=true;saveDay(date);break}
     case "untrack":{const d=ensureDay(date);d.track=false;saveDay(date);break}
-    case "fx":{const d=ensureDay(date);d.fx=d.fx||{};d.fx[v]=!d.fx[v];saveDay(date);break}
+    case "stapletog":toggleStapleDay(v,date);break;
+    case "stapleedit":openStapleSheet(v);break;
+    case "stapleadd":openStapleSheet(null);break;
+    case "stapdays":{if(state.stapleSheetDraft)state.stapleSheetDraft.days=v;break}
+    case "stapremove":{const list=staplesSeedList().filter(s=>s.id!==v);staplesPersist(list);state.sheet=null;state.stapleSheetDraft=null;break}
     case "suggest":suggestDay(date);state.adding=null;break;
     case "suggestweek":if(state.planning)break;state.planning=true;state.weekNote="Planning your week…";setTimeout(()=>{try{suggestWeek()}finally{state.planning=false;render()}},30);break;
     case "unlockday":{state.unlocked=state.unlocked||{};if(state.unlocked[date])delete state.unlocked[date];else state.unlocked[date]=true;break}
@@ -1209,7 +1266,7 @@ document.addEventListener("click",e=>{
     case "recipe":state.sheet=v;state.sheetTier=TIERS.some(([k])=>k===el.dataset.t)?el.dataset.t:"S";break;
     case "sheettier":state.sheetTier=v;break;
     case "batch":state.sheet="batch:"+v;break;
-    case "close":state.sheet=null;break;
+    case "close":state.sheet=null;state.stapleSheetDraft=null;break;
     case "mf":state.mealFilter=v;break;
     case "mode":state.settings.mode=v;saveSettings();break;
     case "applyadj":state.settings.adjust=(state.settings.adjust||0)+(+v);saveSettings();break;
@@ -1257,6 +1314,16 @@ document.addEventListener("submit",e=>{
     const n=$("#xn").value.trim(),k=parseFloat($("#xk").value),p=parseFloat($("#xp").value)||0;
     if(!isFinite(k)){$("#xk").focus();return}
     const d=ensureDay(state.date);d.extras=d.extras||[];d.extras.push({n:n||"Extra",k,p});saveDay(state.date);render();
+  }
+  if(e.target.id==="stapform"){
+    const id=$("#stap-item")&&$("#stap-item").value;
+    const amt=parseFloat($("#stap-amt")&&$("#stap-amt").value);
+    const days=state.stapleSheetDraft&&state.stapleSheetDraft.days==="all"?"all":"weekdays";
+    if(!id||!MACROS[id]||!CAT.item(id)||!isFinite(amt)||!(amt>0)){$("#stap-amt")&&$("#stap-amt").focus();return}
+    const list=staplesSeedList().filter(s=>s.id!==id);
+    list.push({id,amount:amt,days});
+    staplesPersist(list);
+    state.sheet=null;state.stapleSheetDraft=null;render();
   }
 });
 document.addEventListener("change",e=>{

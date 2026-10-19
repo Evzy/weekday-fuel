@@ -32,6 +32,7 @@ test("onDay follows weekday, weekend, track and skip rules", () => {
   assert.equal(S.onDay(s, "2026-10-18", {}), false);
   assert.equal(S.onDay(s, "2026-10-18", { track: true }), true);
   assert.equal(S.onDay(s, "2026-10-19", { fx: { dare: false } }), false);
+  assert.equal(S.onDay(s, "2026-10-18", { fx: { dare: true } }), true);
   const all = staple("yog", 170, "all");
   assert.equal(S.onDay(all, "2026-10-18", {}), true);
 });
