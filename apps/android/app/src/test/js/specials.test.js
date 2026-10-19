@@ -127,6 +127,33 @@ test("applyChoices applies a still-qualifying choice and drops a stale one", () 
   assert.equal(r4.rows[0], rows[0], "use on woolies does not apply on coles");
 });
 
+test("applyChoices keeps a sent swap after the special ends", () => {
+  const it = item([sw("a", 292, 30.2, wp(111, 3.3, { special: false }))]);
+  const rows = [row(5, 2, 13.95, null)];
+  const r = S.applyChoices(rows, [it], "woolies", { dare: { use: "a", useStore: "woolies" } }, [], ["111"]);
+  assert.equal(r.rows[0].woolies.swap, "a");
+  assert.equal(r.rows[0].woolies.quantity, 3);
+  assert.equal(r.rows[0].woolies.cost, 9.9);
+  assert.equal(r.rows[0].woolies.saved, null);
+  assert.deepEqual(r.used, { dare: "a" });
+});
+
+test("applyChoices drops a stale choice when the swap was not sent", () => {
+  const it = item([sw("a", 292, 30, wp(111, 3, { special: false }))]);
+  const rows = [row(5, 0, 23.25, null)];
+  const r = S.applyChoices(rows, [it], "woolies", { dare: { use: "a" } }, [], []);
+  assert.equal(r.rows[0], rows[0]);
+  assert.deepEqual(r.used, {});
+});
+
+test("applyChoices drops a sent swap that is unavailable", () => {
+  const it = item([sw("a", 292, 30, wp(111, 3, { special: false, available: false }))]);
+  const rows = [row(5, 0, 23.25, null)];
+  const r = S.applyChoices(rows, [it], "woolies", { dare: { use: "a" } }, [], ["111"]);
+  assert.equal(r.rows[0], rows[0]);
+  assert.deepEqual(r.used, {});
+});
+
 test("suggest pack count tolerates floating have", () => {
   const it = item([sw("a", 292, 30, wp(111, 3, { special: true }))]);
   const s = S.suggest({ id: "dare", need: 5, have: 1.9999999999, woolies: null }, it, "woolies", []);

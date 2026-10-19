@@ -386,7 +386,8 @@ function renderStapleSheetBody(){
 function staplesOn(date){return WeekdayFuelStaples.forDay(staplesList(),date,dayOf(date))}
 function stapleNeedMap(){const sd=shopDays();if(!sd.length)return {};return WeekdayFuelStaples.needs(staplesList(),sd,state.days)}
 function shopRowsRaw(){return CAT.shopList(picks(),stapleNeedMap(),dayMeals(),shopHave())}
-function shopRowsApply(base){return WeekdayFuelSpecials.applyChoices(base,PRICED,store(),lsSpecials(),mutedSwaps())}
+function sentProductIds(st){const rec=sentFor(st);if(!rec||!rec.lines)return null;const ids=[];Object.keys(rec.lines).forEach(k=>{if(rec.lines[k]>0)ids.push(String(k))});return ids.length?ids:null}
+function shopRowsApply(base){const st=store();return WeekdayFuelSpecials.applyChoices(base,PRICED,st,lsSpecials(),mutedSwaps(),sentProductIds(st),WeekdayFuelCatalogue.colesId)}
 function shopRows(){return shopRowsApply(shopRowsRaw()).rows}
 function shopCovered(){
   if(shopHave()===null)return [];
@@ -1111,7 +1112,7 @@ function swapDetailBlock(it){
 function shopRowSpecialHtml(r,st){
   const it=pricedItem(r.id);if(!it)return "";
   const short=it.short||it.name,line=r[st];
-  if(line&&line.swap){const saved=line.saved;return `<div class="small">Swapped for ${esc(short)}${saved!=null?` · saves ${money(saved)}`:""} <button class="ghost" data-act="swapundo" data-v="${esc(r.id)}">Back to ${esc(short)}</button></div>`}
+  if(line&&line.swap){const saved=line.saved;return `<div class="small">Instead of ${esc(short)}${saved!=null?` · saves ${money(saved)}`:""} <button class="ghost" data-act="swapundo" data-v="${esc(r.id)}">Back to ${esc(short)}</button></div>`}
   const ch=lsSpecials()[r.id];
   if(ch&&WeekdayFuelSpecials.keepBlocksStore(ch,st))return "";
   const s=WeekdayFuelSpecials.suggest(r,it,st,mutedSwaps());

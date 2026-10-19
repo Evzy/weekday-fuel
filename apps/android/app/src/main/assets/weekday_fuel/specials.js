@@ -148,6 +148,48 @@
     return best;
   }
 
+  function idInSent(sentIds, id) {
+    if (id == null || !sentIds) return false;
+    var key = String(id);
+    if (typeof sentIds.has === "function") return sentIds.has(key);
+    for (var i = 0; i < sentIds.length; i++) {
+      if (String(sentIds[i]) === key) return true;
+    }
+    return false;
+  }
+
+  function productSentId(product, store, colesId) {
+    if (!product) return null;
+    if (store === "woolies") return product.stockcode != null ? product.stockcode : null;
+    return colesId ? colesId(product) : null;
+  }
+
+  function resolveUseChoice(row, item, store, swapId, muted, sentIds, colesId) {
+    var s = suggest(row, item, store, muted, swapId);
+    if (s) return s;
+    if (!sentIds) return null;
+    var remaining = Math.max(0, row.need - (row.have || 0));
+    if (!(remaining > 0)) return null;
+    var swap = null;
+    (item.swaps || []).forEach(function (sw) {
+      if (sw.id === swapId) swap = sw;
+    });
+    if (!swap) return null;
+    var product = swap[store];
+    if (!product || product.available === false) return null;
+    if (!idInSent(sentIds, productSentId(product, store, colesId))) return null;
+    var quantity = Math.ceil(remaining / swap.serves - 1e-9);
+    return {
+      swap: swap,
+      product: product,
+      quantity: quantity,
+      cost: round2(quantity * product.price),
+      saving: null,
+      dk: swap.per.k - item.per.k,
+      dp: round1(swap.per.p - item.per.p),
+    };
+  }
+
   function useSwap(row, store, s, unit) {
     var out = {};
     Object.keys(row).forEach(function (k) {
@@ -164,7 +206,7 @@
     return out;
   }
 
-  function applyChoices(rows, items, store, choices, muted) {
+  function applyChoices(rows, items, store, choices, muted, sentIds, colesId) {
     choices = choices || {};
     var byId = {};
     (items || []).forEach(function (it) {
@@ -178,7 +220,7 @@
       if (ch.useStore && ch.useStore !== store) return row;
       var it = byId[row.id];
       if (!it) return row;
-      var s = suggest(row, it, store, muted, ch.use);
+      var s = resolveUseChoice(row, it, store, ch.use, muted, sentIds, colesId);
       if (!s) return row;
       used[row.id] = ch.use;
       return useSwap(row, store, s, it.unit);
