@@ -54,7 +54,7 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 /* tabs */
 .tabs{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--surface);border-top:1px solid var(--line);
   padding:6px 8px calc(6px + env(safe-area-inset-bottom,0px));display:flex;justify-content:center}
-.tabs-in{display:grid;grid-template-columns:repeat(6,1fr);gap:2px;width:100%;max-width:680px}
+.tabs-in{display:grid;grid-template-columns:repeat(5,1fr);gap:2px;width:100%;max-width:680px}
 .tab{background:none;border:0;border-radius:10px;padding:8px 2px;font-size:.72rem;font-weight:600;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:3px}
 .tab svg{width:20px;height:20px}
 .tab[aria-selected="true"]{color:var(--accent);background:var(--accent-soft)}
@@ -200,7 +200,7 @@ a.link{text-decoration:none;display:inline-block;color:var(--accent);border-colo
       <div class="eyebrow">Evan · weekday plan</div>
       <h1>Weekday Fuel</h1>
     </div>
-    <div class="sync"><span class="dot" id="syncdot"></span><span id="synctext">Loading…</span></div>
+    <div class="sync"><span class="dot" id="syncdot"></span><span id="synctext">Loading…</span><button type="button" class="ghost" data-act="targets" aria-label="Targets" style="font-size:.75rem;padding:2px 6px;line-height:1">⚙</button></div>
   </div>
   <div id="view" class="stack" style="margin-top:14px"></div>
 </div>
@@ -237,7 +237,7 @@ const ICON = {
   right:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>',
   check:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg>'
 };
-const TABS=[["today","Today"],["weigh","Weigh-in"],["meals","Meals"],["shop","Shop"],["kitchen","Kitchen"],["targets","Targets"]];
+const TABS=[["today","Today"],["weigh","Weigh-in"],["meals","Meals"],["shop","Shop"],["kitchen","Kitchen"]];
 const TIERS=[["L","Light"],["S","Standard"],["X","Loaded"]];
 
 const MEALS=WeekdayFuelMeals.MEALS,BATCHES=WeekdayFuelMeals.BATCHES;
@@ -583,7 +583,7 @@ const clone=o=>JSON.parse(JSON.stringify(o));
 function deepMerge(base,over){const out=clone(base);if(!over)return out;for(const k in over){if(k==="trial"){out[k]=clone(over[k]);continue}if(over[k]&&typeof over[k]==="object"&&!Array.isArray(over[k])&&out[k]&&typeof out[k]==="object")out[k]=deepMerge(out[k],over[k]);else out[k]=over[k];}return out}
 
 /* ---------- state + storage ---------- */
-const state={tab:"today",date:iso(new Date()),settings:clone(DEFAULT_SETTINGS),days:{},weights:{},adding:null,mealFilter:"all",sheet:null,addPick:null,armed:null,unlocked:{},dayNote:null,openItem:null,kOpen:null,kAddItem:null,kitchenError:null,kitchenHint:null,kitchenHintWhere:null,trolley:null,prices:null,colesPrices:null,pricesTried:0,checkout:null,coLast:null,openOrder:null,orderError:false,weekNote:null,mealNote:null,scrollMealNote:false};
+const state={tab:"today",tabBeforeTargets:null,date:iso(new Date()),settings:clone(DEFAULT_SETTINGS),days:{},weights:{},adding:null,mealFilter:"all",sheet:null,addPick:null,armed:null,unlocked:{},dayNote:null,openItem:null,kOpen:null,kAddItem:null,kitchenError:null,kitchenHint:null,kitchenHintWhere:null,trolley:null,prices:null,colesPrices:null,pricesTried:0,checkout:null,coLast:null,openOrder:null,orderError:false,weekNote:null,mealNote:null,scrollMealNote:false};
 let db=null;
 const LS="weekdayfuel.v1";
 const SPECIALS_KEY=LS+".specials";
@@ -715,6 +715,7 @@ function saveSettings(){queueWrite("config/settings",clone(state.settings));inva
 async function initStore(){
   const cached=lsGet();
   if(cached){state.settings=deepMerge(DEFAULT_SETTINGS,cached.settings);state.days=cached.days||{};state.weights=cached.weights||{};}
+  if(state.mealFilter==="remake")state.mealFilter="all";
   runBoughtBackfillIfNeeded();
   runStaplesFxMigrateIfNeeded();
   setSync(false,"Saved on this device");
@@ -933,7 +934,7 @@ function weekStrip(){
   }
   const diff=wk-wkT;
   const summary=wkT?`Planned weekdays so far: <b class="num">${r0(wk)}</b> of <b class="num">${r0(wkT)}</b> kcal (${diff>=0?"+":""}${r0(diff)}).`:`Plan a weekday to start the week's tally.`;
-  return `<div class="stack" style="gap:8px"><div class="week">${cells}</div><div class="small muted">${summary} Weekends are off the books, and the weigh-in trend absorbs them.</div></div>`;
+  return `<div class="stack" style="gap:8px"><div class="week">${cells}</div><div class="small muted">${summary} Weekends aren't counted in the tally.</div></div>`;
 }
 function renderToday(){
   const date=state.date;const day=dayOf(date);const tg=target();const t=totals(day,date);const we=isWeekend(date);const on=tracked(date);
@@ -947,7 +948,7 @@ function renderToday(){
   }
   h+=`<div class="panel">${weekStrip()}</div>`;
   const wk=WeekdayFuelPlanner.weekDays(date,iso(new Date()));
-  h+=`<div class="row between" style="gap:8px"><span class="small muted">Plans ${wk.dates.length===1?"the day":"the weekdays"} so meals share ingredients and lunches use the Sunday chicken. Planned meals stay.</span><button class="btn alt" data-act="suggestweek">${esc(wk.label)}</button></div>`;
+  h+=`<div class="row between" style="gap:8px"><span class="small muted">Meals share ingredients across the week.</span><button class="btn alt" data-act="suggestweek">${esc(wk.label)}</button></div>`;
   const clearSkip=clearUnboughtSkipDates();
   const clearPreview=WeekdayFuelBought.clearUnbought(state.days,clearSkip).cleared;
   if(clearPreview>0){
@@ -957,7 +958,7 @@ function renderToday(){
   }
   if(state.weekNote)h+=`<div class="hint"><span>${esc(state.weekNote)}</span></div>`;
   if(we&&!on){
-    h+=`<div class="panel stack"><h2>Weekend: off the books</h2><p class="muted" style="margin:0">Eat how you like. Keep weighing in each morning, and Monday's plan will adjust from the trend.</p><div><button class="btn alt" data-act="track">Plan this day anyway</button></div></div>`;
+    h+=`<div class="panel stack"><h2>Weekend: off the books</h2><p class="muted" style="margin:0">Eat how you like. Weigh in and Monday adjusts from the trend.</p><div><button class="btn alt" data-act="track">Plan this day anyway</button></div></div>`;
     h+=renderStapleChips(date,day);
     return h;
   }
@@ -976,7 +977,7 @@ function renderToday(){
   const inCart=date>=iso(new Date());
   if(allBought)h+=`<div class="row between" style="margin-bottom:8px"><span class="small"><b>${esc(boughtShopLabel(meals))}</b></span></div>`;
   if(!day.meals||!day.meals.length){
-    h+=`<div class="empty stack" style="gap:10px"><div>No meals planned yet. Tap <b>Suggest a day</b> for a breakfast, lunch and dinner sized to fit around your staples, or start with a plan, or add meals one at a time.</div><div class="row" style="gap:8px;justify-content:center;flex-wrap:wrap"><button class="btn" data-act="suggest">Suggest a day</button><button class="btn alt" data-act="gomeals">Start with a plan</button></div></div>`;
+    h+=`<div class="empty stack" style="gap:10px"><div>No meals yet. Suggest a day or start with a plan.</div><div class="row" style="gap:8px;justify-content:center;flex-wrap:wrap"><button class="btn" data-act="suggest">Suggest a day</button><button class="btn alt" data-act="gomeals">Start with a plan</button></div></div>`;
   } else {
     h+=`<div>`+day.meals.map((m,i)=>{const meal=MEAL[m.id];if(!meal)return"";const v=meal.t[m.t];const bought=WeekdayFuelBought.isBought(m);const locked=mealLocked(m,date);
       const acts=locked?`<button class="ghost" aria-pressed="${typeof m.ate==="string"}" data-act="ate" data-i="${i}">Ate it</button>`:`<div class="dial" role="group" aria-label="Portion">${TIERS.map(([k,l])=>`<button aria-pressed="${m.t===k}" data-act="tier" data-i="${i}" data-v="${k}">${l}</button>`).join("")}</div><button class="ghost" aria-pressed="${typeof m.ate==="string"}" data-act="ate" data-i="${i}">Ate it</button><button class="ghost" data-act="swap" data-i="${i}">Swap</button>${inCart?`<button class="ghost" aria-pressed="${m.shop!==false}" data-act="mealshop" data-i="${i}">${m.shop!==false?"In shop":"Not in shop"}</button>`:""}<button class="ghost ${state.armed==="rm"+i?"warn":""}" data-act="rm" data-i="${i}">${state.armed==="rm"+i?"Tap to remove":"Remove"}</button>`;
@@ -1002,7 +1003,7 @@ function renderToday(){
     }
   }
   // extras
-  h+=`<div class="panel stack"><div><h3>Something else</h3><div class="small muted">Work lunch, a Subway, a second bar. Ballpark numbers are fine. Then tap "Fit portions" and the other meals shrink to make room.</div></div>`;
+  h+=`<div class="panel stack"><div><h3>Something else</h3><div class="small muted">Work lunch, takeaway, or a second bar — ballpark kcal and protein is fine.</div></div>`;
   if(day.extras&&day.extras.length){
     h+=`<div class="wlist">`+day.extras.map((x,i)=>`<div class="wli"><span class="grow">${esc(x.n||"Extra")}</span><span class="num small">${r0(x.k)} kcal · ${r0(x.p)}g P</span><button class="ghost" data-act="rmx" data-i="${i}">Remove</button></div>`).join("")+`</div>`;
   }
@@ -1045,7 +1046,7 @@ function renderWeigh(){
   h+=`<form class="panel row" id="wform" style="align-items:flex-end"><label class="f grow">Weight (kg)<input id="wkg" class="num" type="number" step="0.1" min="30" max="250" inputmode="decimal" placeholder="83.5" value="${w?w.kg:""}"></label><label class="f" style="width:160px">Date<input id="wdate" type="date" value="${today}" max="${today}"></label><button class="btn" type="submit">${w?"Update":"Save"}</button></form>`;
   h+=`<div class="panel verdict"><div class="eyebrow">7-day trend</div><div class="head">${esc(v.head)}</div><div class="small">${esc(v.body)}</div>${v.adj?`<div class="row" style="margin-top:6px"><button class="btn" data-act="applyadj" data-v="${v.adj}">Apply ${v.adj>0?"+":""}${v.adj} kcal to weekdays</button><span class="small muted">Current adjustment: ${S().adjust>0?"+":""}${S().adjust}</span></div>`:""}</div>`;
   const chart=chartSVG();
-  h+=`<div class="panel stack"><div class="row between"><h3>Last 5 weeks</h3><span class="small muted">Dots are daily readings, the line is the 7-day average</span></div>${chart||`<div class="empty">Your chart appears after two weigh-ins. Daily readings bounce 0.5–1 kg with water, salt and carbs, so the 7-day line is the one to watch.</div>`}</div>`;
+  h+=`<div class="panel stack"><div class="row between"><h3>Last 5 weeks</h3><span class="small muted">Line is the 7-day average</span></div>${chart||`<div class="empty">Chart appears after two weigh-ins — watch the average, not daily noise.</div>`}</div>`;
   const tbl=weekTable();
   if(tbl)h+=`<div class="panel stack"><h3>Weekly averages</h3>${tbl}</div>`;
   const recent=weightSeries().slice(-10).reverse();
@@ -1068,15 +1069,15 @@ function mealCard(m,full,tier){
   return `<div class="card"><div class="row between" style="align-items:flex-start"><div class="grow"><div class="row" style="gap:6px;margin-bottom:4px"><span class="tag">${esc(m.cuisine)}</span><span class="tag">${m.mins} min</span><span class="tag">${esc(PREP_LABEL[m.prep]||"")}</span>${m.remake?`<span class="tag remake">Remake</span>`:""}</div><h3>${esc(m.name)}</h3><div class="small muted">Fixed protein core: ${esc(m.core)}</div></div>${full?"":`<div class="row" style="gap:6px"><button class="btn alt" data-act="addmeal" data-v="${m.id}">Add</button><button class="ghost" data-act="recipe" data-v="${m.id}">Recipe</button></div>`}</div>${tierTable(m)}${full?`<div class="stack" style="gap:8px"><div class="row between"><div class="eyebrow">Ingredients</div><div class="dial" role="group" aria-label="Recipe portion">${TIERS.map(([k,l])=>`<button aria-pressed="${tr===k}" data-act="sheettier" data-v="${k}">${l}</button>`).join("")}</div></div><ul class="ing">${recipeLines(m,tr)}</ul>${(m.batch||[]).map(id=>BATCH[id]).filter(Boolean).map(b=>`<div class="row between"><span class="small">Uses ${esc(b.name)} from your batch prep</span><button class="ghost" data-act="batch" data-v="${b.id}">Batch prep</button></div>`).join("")}<div class="eyebrow">Method</div><ol class="steps">${m.steps.map(s=>`<li>${esc(s)}</li>`).join("")}</ol>${m.note?`<div class="hint"><span>${esc(m.note)}</span></div>`:""}</div>`:""}<div class="row" style="gap:6px">${(m.slots.includes("breakfast")?["breakfast"]:m.slots.includes("snack")?["snack"]:["lunch","dinner"]).map(s=>`<button class="ghost" data-act="addto" data-v="${m.id}" data-s="${s}">Add to ${state.date===iso(new Date())?"today":fmtShort(state.date)} as ${s}</button>`).join("")}</div></div>`;
 }
 function renderMeals(){
-  const f=state.mealFilter;
-  const filt=m=>f==="all"||(f==="breakfast"&&m.slots.includes("breakfast"))||(f==="main"&&m.slots.includes("main"))||(f==="snack"&&m.slots.includes("snack"))||(f==="remake"&&m.remake);
-  let h=`<div><div class="eyebrow">${MEALS.length} meals · each one under 20 min</div><h2>Meal library</h2><p class="small muted" style="margin:4px 0 0">Every meal has a fixed protein core. Light, Standard and Loaded only change the carbs and fat (rice, pasta, cheese, oil), so you change the size of a meal without changing what you cook.</p></div>`;
+  const f=state.mealFilter==="remake"?"all":state.mealFilter;
+  const filt=m=>f==="all"||(f==="breakfast"&&m.slots.includes("breakfast"))||(f==="main"&&m.slots.includes("main"))||(f==="snack"&&m.slots.includes("snack"));
+  let h=`<div><div class="eyebrow">${MEALS.length} meals · each one under 20 min</div><h2>Meal library</h2><p class="small muted" style="margin:4px 0 0">Light, Standard and Loaded change the carbs and fat around the same protein core.</p></div>`;
   if(state.mealNote)h+=`<div class="hint" id="meal-note"><span>${esc(state.mealNote)}</span></div>`;
   h+=`<div class="panel stack"><div class="eyebrow">Plans · a ready-made week</div>${WeekdayFuelPlans.PLANS.map(p=>{const s=planSummary(p);return `<button class="pick" data-act="plan" data-v="${esc(p.id)}"><span><b>${esc(p.name)}</b><br><span class="small muted">${esc(p.blurb)}</span><br><span class="small muted">${s.items} items · about ${money(s.costPerDay)} a day · ${p.days.length} weekdays</span></span><span class="small muted">View</span></button>`}).join("")}</div>`;
-  h+=`<div class="panel stack"><div class="eyebrow">Batch prep · cook once, eat all week</div>${BATCHES.map(b=>`<button class="pick" data-act="batch" data-v="${b.id}"><span><b>${esc(b.name)}</b><br><span class="small muted">${esc(b.makes)}. Keeps ${esc(b.keeps)}.</span></span><span class="small muted">Recipe</span></button>`).join("")}</div>`;
-  h+=`<div class="chips">${[["all","All"],["breakfast","Breakfast"],["main","Lunch & dinner"],["snack","Snacks"],["remake","Ready-meal remakes"]].map(([k,l])=>`<button class="chip" aria-pressed="${f===k}" data-act="mf" data-v="${k}">${l}</button>`).join("")}</div>`;
+  h+=`<div class="panel stack" style="gap:8px"><div class="eyebrow">Batch prep</div><div class="chips">${BATCHES.map(b=>`<button class="chip" data-act="batch" data-v="${b.id}">${esc(b.name)}</button>`).join("")}</div></div>`;
+  h+=`<div class="chips">${[["all","All"],["breakfast","Breakfast"],["main","Lunch & dinner"],["snack","Snacks"]].map(([k,l])=>`<button class="chip" aria-pressed="${f===k}" data-act="mf" data-v="${k}">${l}</button>`).join("")}</div>`;
   h+=MEALS.filter(filt).map(m=>mealCard(m,false)).join("");
-  h+=`<div class="flat small muted">Costs use ${STORE_NAME[store()]} prices (switch store on the Shop tab); macros come from typical labels. Your brands will differ a little, and the weekly weigh-in average corrects for that.</div>`;
+  h+=`<div class="flat small muted">Costs use ${STORE_NAME[store()]} prices on the Shop tab.</div>`;
   return h;
 }
 function picks(){const t=S().trial;if(Array.isArray(t)){const o={};t.forEach(m=>o[m]=2);return o}return t||{}}
@@ -1349,8 +1350,8 @@ function renderShop(){
   const serveCount=dm.length+pickServes;
   h+=`<div class="panel vs">${STORES.map(s=>`<div><span class="small" style="display:block;color:var(--${s});font-weight:700">${STORE_NAME[s]}${tot[s].missed.length?` · ${tot[s].missed.length} missed`:""}</span><b>${money(tot[s].total)}</b></div>`).join("")}</div>`;
   h+=`<div class="row between"><div class="dial" role="group" aria-label="Store" style="grid-template-columns:repeat(2,auto)">${STORES.map(s=>`<button aria-pressed="${st===s}" data-act="store" data-v="${s}">${STORE_NAME[s]}</button>`).join("")}</div><span class="small">Left to buy <b class="num" style="color:var(--good)">${money(tot[st].left)}</b></span></div>`;
-  h+=`<div class="small muted">${serveCount} serve${serveCount===1?"":"s"} · ${rows.length} items. Tick things off as they go in the trolley, or tick pantry items you already have at home. Prices use whole packs, so the first shop costs more than the per-serve cost. ${priceLabel()}</div>`;
-  [["Fixtures",0],["Fresh",1],["Pantry & freezer (check what you already have)",2]].forEach(([t,sec])=>{
+  h+=`<div class="small muted">${serveCount} serve${serveCount===1?"":"s"} · ${rows.length} items. Tick as you shop; pantry items you have stay out of the trolley. ${priceLabel()}</div>`;
+  [["Staples",0],["Fresh",1],["Pantry & freezer (check what you already have)",2]].forEach(([t,sec])=>{
     const rs=rows.filter(r=>r.sec===sec&&r[st]);if(!rs.length)return;
     h+=`<div class="panel shopsec"><h3 style="margin-bottom:4px">${t}</h3>${rs.map(r=>{const line=r[st],p=line&&line.product;const tray=p&&p.sizeLabel&&!p.live?` <span class="muted">· price checked ${esc(fmtShort(p.checked))}; charged at the heaviest weight, the difference refunded</span>`:"";const spec=shopRowSpecialHtml(r,st);const swapped=!!(r.woolies&&r.woolies.swap)||!!(r.coles&&r.coles.swap);const rowIt=swapped?Object.assign({},CAT.item(r.id),{same:false}):CAT.item(r.id);return itemRow(rowIt,{coles:r.coles&&r.coles.cost,woolies:r.woolies&&r.woolies.cost},`<span class="buy small"><b>Buy:</b> ${esc(line.buy)}${tray} <span class="muted">· ${esc(shopNeedText(r))}</span></span>${spec}${forLine(r)}`,{coles:r.coles&&r.coles.product,woolies:r.woolies&&r.woolies.product})}).join("")}</div>`;
   });
@@ -1363,10 +1364,10 @@ function renderShop(){
 }
 function renderTargets(){
   const s=S();
-  let h=`<div><div class="eyebrow">Your numbers</div><h2>Targets</h2></div>`;
+  let h=`<div class="row between" style="align-items:flex-start"><div><div class="eyebrow">Your numbers</div><h2>Targets</h2></div><button type="button" class="ghost" data-act="targetback">Back</button></div>`;
   h+=`<div class="panel stack"><div class="eyebrow">Phase</div><div class="chips">${Object.keys(MODES).map(k=>`<button class="chip" aria-pressed="${s.mode===k}" data-act="mode" data-v="${k}">${MODES[k].label}</button>`).join("")}</div>
   <div class="grid2"><label class="f">Mini-cut kcal<input class="num" type="number" id="k-cut" data-set="kcal.cut" value="${s.kcal.cut}"></label><label class="f">Recomp kcal<input class="num" type="number" id="k-recomp" data-set="kcal.recomp" value="${s.kcal.recomp}"></label><label class="f">Lean bulk kcal<input class="num" type="number" id="k-bulk" data-set="kcal.bulk" value="${s.kcal.bulk}"></label><label class="f">Protein g (every day)<input class="num" type="number" id="prot" data-set="protein" value="${s.protein}"></label><label class="f">Weekday adjustment<input class="num" type="number" step="50" id="adj" data-set="adjust" value="${s.adjust}"></label></div>
-  <div class="small muted">Weekday target right now: <b class="num">${target().k} kcal</b>, <b class="num">${s.protein}g</b> protein. The weigh-in tab suggests ±150 kcal changes to the adjustment when the 7-day trend drifts from your phase.</div></div>`;
+  <div class="small muted">Now: <b class="num">${target().k} kcal</b>, <b class="num">${s.protein}g</b> protein. Weigh-in can nudge weekdays ±150 kcal.</div></div>`;
   return h;
 }
 function renderSheet(){
@@ -1419,7 +1420,7 @@ function renderSheet(){
       <div class="eyebrow">Start on</div>
       <div class="chips">${strip.map(d=>{const we=WeekdayFuelPlans.isWeekend(d);return `<button type="button" class="chip" aria-pressed="${d===start}" ${we?"disabled style=\"opacity:.4\"":""} data-act="planstart" data-v="${d}">${esc(dayShort(d))}</button>`}).join("")}</div>
       <div class="stack" style="gap:6px">${plan.days.map((pd,i)=>`<div class="flat"><b>${esc(dayShort(dates[i]))}</b><br><span class="small muted">${esc(name(pd.breakfast))} · ${esc(name(pd.lunch))} · ${esc(name(pd.dinner))}</span></div>`).join("")}</div>
-      <p class="small muted" style="margin:0">Fills empty breakfast, lunch and dinner slots. Meals you've already planned or bought stay.</p>
+      <p class="small muted" style="margin:0">Fills empty slots; planned or bought meals stay.</p>
       <button class="btn" data-act="planapply" data-v="${esc(plan.id)}">Add to my days</button>`;
     root.innerHTML=`<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(plan.name)}"><div class="row between" style="margin-bottom:10px"><div><div class="eyebrow">Plan</div><h2>${esc(plan.name)}</h2></div><button class="ghost" data-act="close">Close</button></div><div class="stack" style="gap:10px">${body}</div></div></div>`;
     root.dataset.sheet=state.sheet;
@@ -1458,7 +1459,9 @@ document.addEventListener("click",e=>{
   state.dayNote=null;
   const date=state.date;
   switch(act){
-    case "tab":state.tab=v;state.adding=null;state.planStart=null;state.kOpen=null;state.kitchenHint=null;state.kitchenHintWhere=null;window.scrollTo(0,0);if(v==="shop"&&!coBusy())maybeRefreshPrices();break;
+    case "tab":if(v==="targets"){if(state.tab!=="targets")state.tabBeforeTargets=state.tab;state.tab="targets";break}state.tab=v;state.adding=null;state.planStart=null;state.kOpen=null;state.kitchenHint=null;state.kitchenHintWhere=null;window.scrollTo(0,0);if(v==="shop"&&!coBusy())maybeRefreshPrices();break;
+    case "targets":if(state.tab!=="targets")state.tabBeforeTargets=state.tab;state.tab="targets";window.scrollTo(0,0);break;
+    case "targetback":state.tab=state.tabBeforeTargets&&state.tabBeforeTargets!=="targets"?state.tabBeforeTargets:"today";state.tabBeforeTargets=null;window.scrollTo(0,0);break;
     case "kitem":state.kOpen=state.kOpen===v?null:v;state.kitchenHint=null;state.kitchenHintWhere=null;break;
     case "kused":if(CAT.item(v)&&kitchenSave({k:"set",item:v,amount:0,why:"used"})){state.kitchenHint=null;state.kitchenHintWhere=null}break;
     case "ktoss":if(CAT.item(v)&&kitchenSave({k:"set",item:v,amount:0,why:"toss"})){state.kitchenHint=null;state.kitchenHintWhere=null}break;
@@ -1505,7 +1508,7 @@ document.addEventListener("click",e=>{
     case "planapply":{const t=iso(new Date());applyPlan(v,state.planStart&&state.planStart>=t?state.planStart:WeekdayFuelPlans.defaultStart(t,state.days));break}
     case "gomeals":{state.tab="meals";const t=iso(new Date());const lim=new Date(t+"T00:00:00");lim.setDate(lim.getDate()+13);state.planStart=state.date>=t&&state.date<=iso(lim)&&!WeekdayFuelPlans.isWeekend(state.date)?state.date:null;window.scrollTo(0,0);break}
     case "close":state.sheet=null;state.addPick=null;state.stapleSheetDraft=null;state.stapleSheetError=null;break;
-    case "mf":state.mealFilter=v;break;
+    case "mf":state.mealFilter=v==="remake"?"all":v;break;
     case "mode":state.settings.mode=v;saveSettings();break;
     case "applyadj":state.settings.adjust=(state.settings.adjust||0)+(+v);saveSettings();break;
     case "rmw":{if(state.armed==="w"+v){delete state.weights[v];saveWeight(v);state.armed=null}else state.armed="w"+v;break}
