@@ -17,6 +17,13 @@ function checkProduct(where, p, store) {
   if (store === "coles") assert.ok(cat.colesId(p), where + " has a Coles product id at the end of its url");
 }
 
+test("every counted-unit item has a positive unitSize", () => {
+  for (const it of cat.ITEMS) {
+    if (it.unit === "g" || it.unit === "mL") continue;
+    assert.ok(it.unitSize > 0, it.id + " unitSize");
+  }
+});
+
 test("every item is well formed", () => {
   const ids = new Set();
   for (const it of cat.ITEMS) {

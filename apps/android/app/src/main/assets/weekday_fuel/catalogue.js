@@ -15,12 +15,12 @@
   /* From docs/catalogue-research.md (approved 2026-10-15). */
   var ITEMS = [
     {
-      id: "dare", sec: 0, name: "Dare Protein iced coffee", unit: "bottles", note: "Coles had it on special at $3.30 on 2026-10-15. Bulk-buy at half price; keeps unopened at room temperature", same: true,
+      id: "dare", sec: 0, name: "Dare Protein iced coffee", unit: "bottles", unitSize: 500, note: "Coles had it on special at $3.30 on 2026-10-15. Bulk-buy at half price; keeps unopened at room temperature", same: true,
       coles: { name: "Dare Protein No Sugar Added Iced Coffee Double Espresso 500mL", url: "https://www.coles.com.au/product/dare-protein-no-sugar-added-iced-coffee-double-espresso-500ml-8991361", size: 1, price: 4.65, checked: "2026-10-15" },
       woolies: { name: "Dare Iced Double Espresso Protein No Added Sugar 500mL", url: "https://www.woolworths.com.au/shop/productdetails/72280/dare-iced-double-espresso-protein-no-added-sugar", stockcode: 72280, size: 1, price: 4.65, checked: "2026-10-15" },
     },
     {
-      id: "grenade", sec: 0, name: "Grenade bar", unit: "bars", note: "Same bar; Woolworths leaves \"Chocolate Chip\" out of the name. Half price is $2.50, so buy 10+ then", same: true,
+      id: "grenade", sec: 0, name: "Grenade bar", unit: "bars", unitSize: 60, note: "Same bar; Woolworths leaves \"Chocolate Chip\" out of the name. Half price is $2.50, so buy 10+ then", same: true,
       coles: { name: "Grenade Chocolate Chip Salted Caramel Protein Bar 60g", url: "https://www.coles.com.au/product/grenade-chocolate-chip-salted-caramel-protein-bar-60g-9968707", size: 1, price: 5, checked: "2026-10-15" },
       woolies: { name: "Grenade Salted Caramel Protein Bar 60g", url: "https://www.woolworths.com.au/shop/productdetails/6027807/grenade-salted-caramel-protein-bar", stockcode: 6027807, size: 1, price: 5, checked: "2026-10-15" },
     },
@@ -52,7 +52,7 @@
       },
     },
     {
-      id: "eggs", sec: 1, keeps: 28, name: "Free range eggs, 12 pack", unit: "eggs", note: "The old Woolworths link (582362) is unavailable; 6013278 replaces it", same: false,
+      id: "eggs", sec: 1, keeps: 28, name: "Free range eggs, 12 pack", unit: "eggs", unitSize: 58, note: "The old Woolworths link (582362) is unavailable; 6013278 replaces it", same: false,
       coles: { name: "Coles Free Range Eggs 12 Pack 700g", url: "https://www.coles.com.au/product/coles-free-range-eggs-12-pack-700g-9453478", size: 12, price: 6.9, checked: "2026-10-15" },
       woolies: { name: "Woolworths 12 Pack Extra Large Free Range Eggs 700g", url: "https://www.woolworths.com.au/shop/productdetails/6013278/woolworths-12-pack-extra-large-free-range-eggs", stockcode: 6013278, size: 12, price: 6.7, checked: "2026-10-15" },
     },
@@ -72,17 +72,17 @@
       woolies: { name: "Woolworths Light Tasty Shredded Cheese 500g", url: "https://www.woolworths.com.au/shop/productdetails/729008/woolworths-light-tasty-shredded-cheese", stockcode: 729008, size: 500, price: 8.3, checked: "2026-10-15" },
     },
     {
-      id: "wraps", sec: 1, keeps: 14, name: "Mission Carb Balance wraps", unit: "wraps", note: "Coles lists the 6 pack (8566038) but as unavailable with no price. Woolworths special (usually $6.60). Freeze half", same: false,
+      id: "wraps", sec: 1, keeps: 14, name: "Mission Carb Balance wraps", unit: "wraps", unitSize: 48, note: "Coles lists the 6 pack (8566038) but as unavailable with no price. Woolworths special (usually $6.60). Freeze half", same: false,
       coles: null,
       woolies: { name: "Mission Carb Balance Original Wraps 6 pack", url: "https://www.woolworths.com.au/shop/productdetails/919345/mission-carb-balance-original-wraps", stockcode: 919345, size: 6, price: 5.6, checked: "2026-10-15" },
     },
     {
-      id: "bread", sec: 1, keeps: 5, name: "Wholemeal sandwich loaf", unit: "slices", note: "About 16 slices. Freeze half", same: true,
+      id: "bread", sec: 1, keeps: 5, name: "Wholemeal sandwich loaf", unit: "slices", unitSize: 45, note: "About 16 slices. Freeze half", same: true,
       coles: { name: "Abbott's Bakery Farmhouse Wholemeal Bread 750g", url: "https://www.coles.com.au/product/abbott's-bakery-farmhouse-wholemeal-bread-750g-7226034", size: 16, price: 5.2, checked: "2026-10-15" },
       woolies: { name: "Abbott's Bakery Farmhouse Wholemeal Bread Sandwich Slice Loaf 750g", url: "https://www.woolworths.com.au/shop/productdetails/331591/abbott-s-bakery-farmhouse-wholemeal-bread-sandwich-slice-loaf", stockcode: 331591, size: 16, price: 5.2, checked: "2026-10-15" },
     },
     {
-      id: "muffin", sec: 1, keeps: 5, name: "English muffins", unit: "muffins", note: "The old Woolworths link (6083082) is unavailable", same: true,
+      id: "muffin", sec: 1, keeps: 5, name: "English muffins", unit: "muffins", unitSize: 67, note: "The old Woolworths link (6083082) is unavailable", same: true,
       coles: { name: "Tip Top Muffins English 6 pack (400g)", url: "https://www.coles.com.au/product/tip-top-muffins-english-400g-332394", size: 6, price: 6.6, checked: "2026-10-15" },
       woolies: { name: "Tip Top English Muffins Original 6 pack", url: "https://www.woolworths.com.au/shop/productdetails/46795/tip-top-english-muffins-original-bakery", stockcode: 46795, size: 6, price: 6.8, checked: "2026-10-15" },
     },
@@ -97,17 +97,17 @@
       woolies: { name: "Woolworths Cherry Tomatoes Punnet 250g", url: "https://www.woolworths.com.au/shop/productdetails/149620/woolworths-cherry-tomatoes-punnet", stockcode: 149620, size: 250, price: 3.5, checked: "2026-10-15" },
     },
     {
-      id: "cucumber", sec: 1, keeps: 7, name: "Lebanese cucumber", unit: "cucumbers", note: "", same: false,
+      id: "cucumber", sec: 1, keeps: 7, name: "Lebanese cucumber", unit: "cucumbers", unitSize: 160, note: "", same: false,
       coles: { name: "Coles Lebanese Cucumbers, each (approx. 160g)", url: "https://www.coles.com.au/product/coles-lebanese-cucumbers-approx.-160g-4575208", size: 1, price: 1.42, checked: "2026-10-15" },
       woolies: { name: "Lebanese Cucumbers, each", url: "https://www.woolworths.com.au/shop/productdetails/137130/lebanese-cucumbers", stockcode: 137130, size: 1, price: 1.6, checked: "2026-10-15" },
     },
     {
-      id: "capsicum", sec: 1, keeps: 7, name: "Green capsicum", unit: "capsicums", note: "", same: false,
+      id: "capsicum", sec: 1, keeps: 7, name: "Green capsicum", unit: "capsicums", unitSize: 220, note: "", same: false,
       coles: { name: "Coles Capsicum Green Loose, each (approx. 220g)", url: "https://www.coles.com.au/product/coles-capsicum-green-loose-approx.-220g-7214862", size: 1, price: 1.74, checked: "2026-10-15" },
       woolies: { name: "Woolworths Capsicum Green, each", url: "https://www.woolworths.com.au/shop/productdetails/135156/woolworths-capsicum-green", stockcode: 135156, size: 1, price: 1.48, checked: "2026-10-15" },
     },
     {
-      id: "rice", sec: 2, name: "Microwave rice pouch", unit: "pouches", note: "Often $2.50 on special", same: true,
+      id: "rice", sec: 2, name: "Microwave rice pouch", unit: "pouches", unitSize: 250, note: "Often $2.50 on special", same: true,
       coles: { name: "Sunrice Microwave Long Grain Rice Pouch 250g", url: "https://www.coles.com.au/product/sunrice-microwave-long-grain-rice-pouch-250g-4854391", size: 1, price: 3, checked: "2026-10-15" },
       woolies: { name: "Sunrice Microwave White Long Grain Rice Pouch 250g", url: "https://www.woolworths.com.au/shop/productdetails/244755/sunrice-microwave-white-long-grain-rice-pouch", stockcode: 244755, size: 1, price: 3, checked: "2026-10-15" },
     },
@@ -483,9 +483,17 @@
       (dayMeals || []).forEach(function (dm) {
         addMeal(dm.meal, 1, dm.day, dm.t === "L" || dm.t === "X" ? dm.t : "S");
       });
-      if (fixtureDays > 0) {
-        items.forEach(function (it) {
-          if (it.sec === 0) need[it.id] = fixtureDays;
+      if (typeof fixtureDays === "number") {
+        if (fixtureDays > 0) {
+          items.forEach(function (it) {
+            if (it.sec === 0) need[it.id] = fixtureDays;
+          });
+        }
+      } else if (fixtureDays && typeof fixtureDays === "object" && !Array.isArray(fixtureDays)) {
+        Object.keys(fixtureDays).forEach(function (id) {
+          if (id === "__proto__") return;
+          var n = fixtureDays[id];
+          if (typeof n === "number" && isFinite(n) && n > 0) need[id] = (need[id] || 0) + n;
         });
       }
       return { need: need, used: used, days: days };
