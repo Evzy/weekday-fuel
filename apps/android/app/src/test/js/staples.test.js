@@ -83,6 +83,10 @@ test("shopList staple map matches sec-0 fixture day count", () => {
   );
 });
 
+test("shopList with no shop days omits staples when need map is empty", () => {
+  assert.deepEqual(cat.shopList({}, {}), []);
+});
+
 test("shopList adds staple needs to meal needs for the same item", () => {
   const rows = cat.shopList({}, { yog: 170 }, [{ day: "2026-10-20", meal: "yogbowl", t: "S" }]);
   const yog = rows.find((r) => r.id === "yog");

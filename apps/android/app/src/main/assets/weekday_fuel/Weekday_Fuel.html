@@ -265,7 +265,6 @@ const STORES=["coles","woolies"];
 const STORE_NAME={coles:"Coles",woolies:"Woolworths"};
 const store=()=>S().store==="coles"?"coles":"woolies";
 const other=s=>s==="coles"?"woolies":"coles";
-const fxDays=()=>S().fixtureDays==null?5:S().fixtureDays;
 /* Planned days in the shop: settings.shopDays {date:true}; a day's meal with shop:false is left out */
 const shopDays=()=>{const sd=S().shopDays||{};return Object.keys(sd).filter(d=>sd[d]).sort()};
 function dayMealsFrom(mealOk){
@@ -291,8 +290,8 @@ function shopHave(){
   let have=null;
   if(inv){
     have=WeekdayFuelInventory.freeForShop(
-      WeekdayFuelInventory.stock(inv,state.days,CAT,new Date(),invFixtureOn),
-      WeekdayFuelInventory.reserved(inv,state.days,CAT,iso(new Date()),shopDays(),invFixtureOn),
+      WeekdayFuelInventory.stock(inv,state.days,CAT,new Date(),staplesOn),
+      WeekdayFuelInventory.reserved(inv,state.days,CAT,iso(new Date()),shopDays(),staplesOn),
       CAT,
       shopHaveTargetDate()
     );
@@ -300,12 +299,15 @@ function shopHave(){
   shopCtx={have};
   return have;
 }
-function shopRows(){return CAT.shopList(picks(),fxDays(),dayMeals(),shopHave())}
+function staples(){return WeekdayFuelStaples.parse(S().staples==null?WeekdayFuelStaples.DEFAULTS:S().staples,CAT)}
+function staplesOn(date){return WeekdayFuelStaples.forDay(staples(),date,dayOf(date))}
+function stapleNeedMap(){const sd=shopDays();if(!sd.length)return {};return WeekdayFuelStaples.needs(staples(),sd,state.days)}
+function shopRows(){return CAT.shopList(picks(),stapleNeedMap(),dayMeals(),shopHave())}
 function shopCovered(){
   if(shopHave()===null)return [];
-  return CAT.coveredList(picks(),fxDays(),dayMeals(),shopHave());
+  return CAT.coveredList(picks(),stapleNeedMap(),dayMeals(),shopHave());
 }
-function shopListNoHave(){return CAT.shopList(picks(),fxDays(),dayMealsAll())}
+function shopListNoHave(){return CAT.shopList(picks(),stapleNeedMap(),dayMealsAll())}
 function shopSentCtx(){
   const sent=lsSent(),lines=(sent&&sent.lines)||{},colesLines=(lsColesSent()||{}).lines||{};
   const byId=Object.fromEntries(shopListNoHave().map(r=>[r.id,r]));
@@ -320,7 +322,7 @@ function shopSnapshotCovered(){
   return shopCovered().filter(c=>{const full=byId[c.id];return !full||!WeekdayFuelOrders.rowHasSentLine(full,lines,colesLines,colesId)});
 }
 function shopFingerprint(){
-  const base=WeekdayFuelCart.shopFingerprint(picks(),dayMeals(),fxDays());
+  const base=WeekdayFuelCart.shopFingerprint(picks(),dayMeals(),stapleNeedMap());
   if(shopHave()===null)return base;
   const rows=shopRows(),cov=shopCovered();
   return base+"|"+JSON.stringify(rows.map(r=>[r.id,r.have||0]))+"|"+JSON.stringify(cov.map(c=>c.id));
@@ -497,9 +499,8 @@ const TROLLEY={woolies:{key:"stockcode",send:"sendTrolley",open:"openwoolies"},c
 const ORDERS=LS+".orders";
 function lsOrders(){try{return WeekdayFuelOrders.parseOrders(localStorage.getItem(ORDERS)||"[]")}catch(e){return []}}
 function lsSetOrders(list){try{localStorage.setItem(ORDERS,JSON.stringify(list));return true}catch(e){return false}}
-function invFixtureOn(d,k){const day=dayOf(d);return !!(day.fx&&day.fx[k])}
 function lsInv(){try{const raw=localStorage.getItem(WeekdayFuelInventory.KEY);return raw?WeekdayFuelInventory.parse(raw):null}catch(e){return null}}
-function lsSetInv(inv){try{const pruned=WeekdayFuelInventory.prune(inv,new Date(),state.days,CAT,invFixtureOn);localStorage.setItem(WeekdayFuelInventory.KEY,JSON.stringify(pruned));return true}catch(e){return false}}
+function lsSetInv(inv){try{const pruned=WeekdayFuelInventory.prune(inv,new Date(),state.days,CAT,staplesOn);localStorage.setItem(WeekdayFuelInventory.KEY,JSON.stringify(pruned));return true}catch(e){return false}}
 function kitchenSave(ev){
   const it=CAT.item(ev.item);
   if(!it)return false;
@@ -623,12 +624,19 @@ const S=()=>state.settings;
 const target=()=>({k:S().kcal[S().mode]+S().adjust,p:S().protein});
 function dayOf(date){
   if(state.days[date])return state.days[date];
-  return {fx:{dare:!isWeekend(date),grenade:!isWeekend(date)},meals:[],extras:[],track:false};
+  return {meals:[],extras:[],track:false};
 }
 function ensureDay(date){if(!state.days[date])state.days[date]=clone(dayOf(date));return state.days[date]}
-function totals(day){
+function totals(day,date){
   const t={k:0,p:0,c:0,f:0,cost:0};
-  for(const key in S().fixtures){if(day.fx&&day.fx[key]){const x=S().fixtures[key];t.k+=x.k;t.p+=x.p;t.c+=x.c;t.f+=x.f;t.cost+=x.cost}}
+  if(date){
+    staplesOn(date).forEach(s=>{
+      const m=WeekdayFuelStaples.macros(s.id,s.amount,CAT,MACROS);
+      if(m){t.k+=m.k;t.p+=m.p;t.c+=m.c;t.f+=m.f}
+      const c=WeekdayFuelStaples.cost(s.id,s.amount,CAT,store());
+      if(c!=null)t.cost+=c;
+    });
+  }
   (day.meals||[]).forEach(m=>{const meal=MEAL[m.id];if(!meal)return;const x=meal.t[m.t];t.k+=x.k;t.p+=x.p;t.c+=x.c;t.f+=x.f;t.cost+=mealCosts(meal)[m.t]});
   (day.extras||[]).forEach(x=>{t.k+=+x.k||0;t.p+=+x.p||0});
   return t;
@@ -650,7 +658,7 @@ function fitTiers(day,locked,date){
   const unlocked=date&&dayUnlocked(date);
   const fixed=(m,i)=>i<lk||typeof m.ate==="string"||(WeekdayFuelBought.isBought(m)&&!unlocked);
   const ms=all.filter((m,i)=>MEAL[m.id]&&!fixed(m,i));if(!ms.length)return;
-  const base=totals({fx:day.fx,meals:all.filter((m,i)=>fixed(m,i)),extras:day.extras});
+  const base=totals({fx:day.fx,meals:all.filter((m,i)=>fixed(m,i)),extras:day.extras},date);
   const tg=target();let best=null;
   const keys=["L","S","X"];const n=ms.length;const combos=Math.pow(3,n);
   for(let i=0;i<combos;i++){
@@ -756,7 +764,7 @@ function weekStrip(){
     const d=addDays(mon,i);const day=state.days[d];const on=tracked(d);
     const hasMeals=day&&((day.meals&&day.meals.length)||(day.extras&&day.extras.length));
     let pip="",v="–";
-    if(on&&hasMeals){const t=totals(day);v=r0(t.k);wk+=t.k;wkT+=tg.k;const off=Math.abs(t.k-tg.k);pip=off<=150?"good":off<=350?"warn":"bad";if(t.p<tg.p-15&&pip==="good")pip="warn"}
+    if(on&&hasMeals){const t=totals(day,d);v=r0(t.k);wk+=t.k;wkT+=tg.k;const off=Math.abs(t.k-tg.k);pip=off<=150?"good":off<=350?"warn":"bad";if(t.p<tg.p-15&&pip==="good")pip="warn"}
     else if(on&&i<5){wkT+=0}
     cells+=`<button class="wd ${d===state.date?"sel":""} ${on?"":"off"}" data-act="goto" data-v="${d}" aria-label="${fmtDay(d)}"><span class="l">${names[i]}</span><span class="v">${on?v:"off"}</span><span class="pip ${pip}"></span></button>`;
   }
@@ -765,7 +773,7 @@ function weekStrip(){
   return `<div class="stack" style="gap:8px"><div class="week">${cells}</div><div class="small muted">${summary} Weekends are off the books, and the weigh-in trend absorbs them.</div></div>`;
 }
 function renderToday(){
-  const date=state.date;const day=dayOf(date);const tg=target();const t=totals(day);const we=isWeekend(date);const on=tracked(date);
+  const date=state.date;const day=dayOf(date);const tg=target();const t=totals(day,date);const we=isWeekend(date);const on=tracked(date);
   const isToday=date===iso(new Date());
   let h=`<div class="row between"><div class="daynav"><button class="iconbtn" data-act="shift" data-v="-7" aria-label="Previous week">${ICON.left}</button><button class="iconbtn" data-act="shift" data-v="7" aria-label="Next week">${ICON.right}</button>${isToday?"":`<button class="ghost" data-act="goto" data-v="${iso(new Date())}">Today</button>`}</div><div class="grow" style="text-align:right"><div class="eyebrow">${isToday?"Today":"Planning"}</div><h2>${fmtDay(date)}</h2></div></div>`;
   const pending=WeekdayFuelInventory.pending(lsInv(),state.days,iso(new Date()));
@@ -1094,8 +1102,6 @@ function renderShop(){
     groups.forEach(([g,f])=>{
       h+=`<div class="eyebrow" style="margin-top:4px">${g}</div><div class="picks">${MEALS.filter(f).map(m=>{const n=pk[m.id]||0;return `<div class="pickrow ${n?"on":""}"><button class="pname" data-act="recipe" data-v="${m.id}"><b>${esc(m.name)}</b><span class="small muted num">${m.t.S.k} kcal · ${m.t.S.p}g P · ${money(mealCosts(m).S)}</span></button><div class="step" role="group" aria-label="Serves of ${esc(m.name)}"><button data-act="serve" data-v="${m.id}" data-i="-1" aria-label="Fewer" ${n?"":"disabled"}>−</button><span class="num">${n}</span><button data-act="serve" data-v="${m.id}" data-i="1" aria-label="More">+</button></div></div>`}).join("")}</div>`;
     });
-    const days=S().fixtureDays==null?5:S().fixtureDays;
-    h+=`<div class="row between" style="margin-top:4px"><span class="small"><b>Dare + Grenade</b> for how many days?</span><div class="step"><button data-act="fxdays" data-i="-1" ${days?"":"disabled"} aria-label="Fewer days">−</button><span class="num">${days}</span><button data-act="fxdays" data-i="1" aria-label="More days">+</button></div></div></div>`;
     const st=store(),ot=other(st);const rows=shopRows(),covered=shopCovered();
     if(!nMeals&&!dm.length&&!rows.length&&!covered.length&&!sdays.length&&!Object.keys((lsSent()||{lines:{}}).lines).length&&!Object.keys((lsColesSent()||{lines:{}}).lines).length){h+=`<div class="empty">Pick at least one meal and your list appears here.</div>`;return h+renderPastOrders();}
     const tot={coles:CAT.storeTotals(rows,"coles",ticks),woolies:CAT.storeTotals(rows,"woolies",ticks)};
@@ -1174,7 +1180,7 @@ document.addEventListener("click",e=>{
     case "kadd":{const sel=$("#kadd-item"),item=sel?sel.value:state.kAddItem; if(item)state.kAddItem=item;const amt=parseFloat($("#kadd-amt")&&$("#kadd-amt").value);if(!CAT.item(item)||!isFinite(amt)||!(amt>0)){state.kitchenHint="Enter an amount above 0";state.kitchenHintWhere="add";break}if(kitchenSave({k:"add",item,amount:amt})){state.kitchenHint=null;state.kitchenHintWhere=null}break}
     case "shift":state.date=addDays(date,+v);state.adding=null;break;
     case "goto":state.date=v;state.adding=null;break;
-    case "track":{const d=ensureDay(date);d.track=true;d.fx={dare:true,grenade:true};saveDay(date);break}
+    case "track":{const d=ensureDay(date);d.track=true;saveDay(date);break}
     case "untrack":{const d=ensureDay(date);d.track=false;saveDay(date);break}
     case "fx":{const d=ensureDay(date);d.fx=d.fx||{};d.fx[v]=!d.fx[v];saveDay(date);break}
     case "suggest":suggestDay(date);state.adding=null;break;
@@ -1236,7 +1242,6 @@ document.addEventListener("click",e=>{
     case "codone":state.coLast=(state.checkout&&state.checkout.result)||state.coLast;state.checkout=null;break;
     case "openwoolies":if(coBusy())return;WeekdayFuelHost.postMessage(JSON.stringify({type:"openWoolworths",url:v}));return;
     case "opencoles":WeekdayFuelHost.postMessage(JSON.stringify({type:"openColes",url:v}));return;
-    case "fxdays":{const d=S().fixtureDays==null?5:S().fixtureDays;state.settings.fixtureDays=Math.max(0,Math.min(7,d+i));saveSettings();break}
     default:return;
   }
   render();

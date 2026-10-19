@@ -55,7 +55,19 @@
         return dm.day + ":" + dm.meal + (dm.t === "L" || dm.t === "X" ? ":" + dm.t : "");
       })
       .sort();
-    return JSON.stringify({ picks: p, days: d, fixtureDays: fixtureDays || 0 });
+    var extra;
+    if (typeof fixtureDays === "number") extra = { fixtureDays: fixtureDays || 0 };
+    else if (fixtureDays && typeof fixtureDays === "object" && !Array.isArray(fixtureDays)) {
+      var keys = Object.keys(fixtureDays)
+        .filter(function (k) {
+          return k !== "__proto__";
+        })
+        .sort();
+      extra = { staples: keys.map(function (k) {
+        return [k, fixtureDays[k]];
+      }) };
+    } else extra = { staples: [] };
+    return JSON.stringify(Object.assign({ picks: p, days: d }, extra));
   }
 
   /* Coles trolley lines, keyed by Coles product ID (idOf = catalogue colesId). Rows that share a product are merged. */

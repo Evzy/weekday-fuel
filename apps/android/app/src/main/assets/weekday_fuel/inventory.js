@@ -129,7 +129,7 @@
     };
   }
 
-  function prune(inv, now, days, cat, fixtureOn) {
+  function prune(inv, now, days, cat, staplesOn) {
     if (!inv) return inv;
     var when = now instanceof Date ? now : new Date(now);
     if (isNaN(when.getTime())) return inv;
@@ -142,10 +142,10 @@
     });
     if (!hasOld) return inv;
     var d = days || {};
-    var fx = typeof fixtureOn === "function" ? fixtureOn : function () {
-      return false;
+    var staplesCb = typeof staplesOn === "function" ? staplesOn : function () {
+      return [];
     };
-    var atCutoff = cat ? stock(inv, d, cat, new Date(cutoffTs - 1), fx) : {};
+    var atCutoff = cat ? stock(inv, d, cat, new Date(cutoffTs - 1), staplesCb) : {};
     var kept = inv.events.filter(function (e) {
       return atMs(e.at) >= cutoffTs;
     });
@@ -252,15 +252,15 @@
     return m.t === "L" || m.t === "X" ? m.t : "S";
   }
 
-  function stock(inv, days, cat, now, fixtureOn) {
+  function stock(inv, days, cat, now, staplesOn) {
     if (!inv || !isStart(inv.start)) return {};
     var startMs = atMs(inv.start);
     if (isNaN(startMs)) return {};
     var when = now instanceof Date ? now : new Date(now);
     if (isNaN(when.getTime())) return {};
     var nowTs = when.getTime();
-    var fx = typeof fixtureOn === "function" ? fixtureOn : function () {
-      return false;
+    var staplesCb = typeof staplesOn === "function" ? staplesOn : function () {
+      return [];
     };
     var startDate = toLocalDate(new Date(startMs));
     var endDate = toLocalDate(when);
@@ -296,8 +296,10 @@
       var mid = parseLocalDate(d).toISOString();
       var midTs = atMs(mid);
       if (midTs <= nowTs) {
-        if (fx(d, "dare")) actions.push({ ts: midTs, at: mid, kind: "use", item: "dare", amount: 1 });
-        if (fx(d, "grenade")) actions.push({ ts: midTs, at: mid, kind: "use", item: "grenade", amount: 1 });
+        var dayStaples = staplesCb(d);
+        if (Array.isArray(dayStaples)) dayStaples.forEach(function (s) {
+          if (s && s.id && s.amount > 0) actions.push({ ts: midTs, at: mid, kind: "use", item: s.id, amount: s.amount });
+        });
       }
       d = nextDate(d);
     }
@@ -377,7 +379,7 @@
     });
   }
 
-  function reserved(inv, days, cat, today, shopDays, fixtureOn) {
+  function reserved(inv, days, cat, today, shopDays, staplesOn) {
     var out = nullMap();
     if (!inv) return out;
     if (typeof today !== "string" || !DATE.test(today)) return out;
@@ -415,14 +417,16 @@
         if (past || beforeFirst || betweenShops) reserveMeal(out, cat, m);
       });
     });
-    if (first && typeof fixtureOn === "function") {
+    if (first && typeof staplesOn === "function") {
       var capD = parseLocalDate(today);
       capD.setDate(capD.getDate() + 366);
       var capDate = toLocalDate(capD);
       var fd = nextDate(today);
       while (compareDate(fd, first) < 0 && compareDate(fd, capDate) <= 0) {
-        if (fixtureOn(fd, "dare")) addReserve(out, "dare", 1);
-        if (fixtureOn(fd, "grenade")) addReserve(out, "grenade", 1);
+        var dayStaples = staplesOn(fd);
+        if (Array.isArray(dayStaples)) dayStaples.forEach(function (s) {
+          if (s && s.id && s.amount > 0) addReserve(out, s.id, s.amount);
+        });
         fd = nextDate(fd);
       }
     }
