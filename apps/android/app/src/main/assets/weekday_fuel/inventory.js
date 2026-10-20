@@ -431,6 +431,76 @@
     });
   }
 
+  function reserveExtraUses(out, extras) {
+    if (!Array.isArray(extras)) return;
+    extras.forEach(function (extra) {
+      if (!extra || !Array.isArray(extra.uses)) return;
+      extra.uses.forEach(function (u) {
+        if (u && typeof u.id === "string" && u.amount > 0) addReserve(out, u.id, u.amount);
+      });
+    });
+  }
+
+  function reserveMealsForDay(out, cat, day, d, today, shopDaySet, first, last, startDate) {
+    if (!day || !Array.isArray(day.meals)) return;
+    if (compareDate(d, startDate) <= 0) return;
+    day.meals.forEach(function (m) {
+      var bought = m && typeof m.bought === "string" && m.bought !== "";
+      if (bought) {
+        reserveMeal(out, cat, m, d, today);
+        return;
+      }
+      if (m && m.shop === false) {
+        if (compareDate(d, today) >= 0 || shopDaySet[d]) {
+          reserveMeal(out, cat, m, d, today);
+          return;
+        }
+      }
+      if (shopDaySet[d]) return;
+      var past = compareDate(d, today) < 0;
+      var beforeFirst = first && compareDate(d, first) < 0;
+      var betweenShops = first && last && compareDate(d, first) >= 0 && compareDate(d, last) <= 0;
+      if (past || beforeFirst || betweenShops) reserveMeal(out, cat, m, d, today);
+    });
+  }
+
+  function gapSpareReserved(inv, days, cat, today, weekEnd, shopDays, staplesOn) {
+    var out = nullMap();
+    if (!inv) return out;
+    if (typeof today !== "string" || !DATE.test(today)) return out;
+    var end = typeof weekEnd === "string" && DATE.test(weekEnd) ? weekEnd : today;
+    if (compareDate(end, today) < 0) return out;
+    var startDate = toLocalDate(new Date(inv.start));
+    var shopArr = (Array.isArray(shopDays) ? shopDays.slice() : [])
+      .filter(function (d) {
+        return DATE.test(d);
+      })
+      .sort();
+    var first = shopArr.length ? shopArr[0] : null;
+    var last = shopArr.length ? shopArr[shopArr.length - 1] : null;
+    var shopDaySet = nullMap();
+    shopArr.forEach(function (d) {
+      shopDaySet[d] = true;
+    });
+    var d = today;
+    while (compareDate(d, end) <= 0) {
+      var day = days && days[d];
+      reserveMealsForDay(out, cat, day, d, today, shopDaySet, first, last, startDate);
+      if (typeof staplesOn === "function") {
+        var dayStaples = staplesOn(d);
+        if (Array.isArray(dayStaples)) {
+          dayStaples.forEach(function (s) {
+            if (s && s.id && s.amount > 0) addReserve(out, s.id, s.amount);
+          });
+        }
+      }
+      d = nextDate(d);
+    }
+    var todayDay = days && days[today];
+    if (todayDay) reserveExtraUses(out, todayDay.extras);
+    return out;
+  }
+
   function reserved(inv, days, cat, today, shopDays, staplesOn) {
     var out = nullMap();
     if (!inv) return out;
@@ -470,6 +540,11 @@
         var betweenShops = first && last && compareDate(d, first) >= 0 && compareDate(d, last) <= 0;
         if (past || beforeFirst || betweenShops) reserveMeal(out, cat, m, d, today);
       });
+    });
+    Object.keys(days || {}).forEach(function (d) {
+      if (compareDate(d, today) < 0) return;
+      var day = days[d];
+      if (day) reserveExtraUses(out, day.extras);
     });
     if (first && typeof staplesOn === "function") {
       var capD = parseLocalDate(today);
@@ -607,6 +682,7 @@
     stock: stock,
     pending: pending,
     reserved: reserved,
+    gapSpareReserved: gapSpareReserved,
     free: free,
     freeForShop: freeForShop,
     buysFromRows: buysFromRows,

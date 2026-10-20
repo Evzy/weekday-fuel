@@ -907,6 +907,46 @@ test("extras uses ignore invalid entries and extras without uses", () => {
   assert.equal(I.stock(base, days, cat, after, staplesNone).honey.amount, 60);
 });
 
+test("reserved includes extras uses on today and future days", () => {
+  const base = inv([]);
+  const today = "2026-10-20";
+  const days = {
+    "2026-10-19": {
+      extras: [{ uses: [{ id: "grenade", amount: 1 }] }],
+    },
+    [today]: {
+      extras: [{ uses: [{ id: "dare", amount: 1 }, { id: "grenade", amount: 1 }] }],
+    },
+    "2026-10-22": {
+      extras: [{ uses: [{ id: "yog", amount: 200 }] }],
+    },
+  };
+  const r = I.reserved(base, days, cat, today, [], staplesNone);
+  assert.equal(r.dare, 1);
+  assert.equal(r.grenade, 1);
+  assert.equal(r.yog, 200);
+  const rPast = I.reserved(base, { "2026-10-19": days["2026-10-19"] }, cat, today, [], staplesNone);
+  assert.equal(rPast.grenade, undefined);
+});
+
+test("gapSpareReserved covers meals staples and today extras through week end", () => {
+  const base = inv([]);
+  const today = "2026-10-20";
+  const weekEnd = "2026-10-26";
+  const days = {
+    [today]: {
+      meals: [{ id: "tenderwrap", t: "S", bought: "o1" }],
+      extras: [{ uses: [{ id: "grenade", amount: 1 }] }],
+    },
+    "2026-10-21": { meals: [{ id: "toasty", t: "S" }] },
+  };
+  const staplesOn = (d) => (d === today ? [{ id: "dare", amount: 1 }] : []);
+  const r = I.gapSpareReserved(base, days, cat, today, weekEnd, [], staplesOn);
+  assert.ok(r.breast > 0, "bought meal today reserves ingredients");
+  assert.equal(r.dare, 1);
+  assert.equal(r.grenade, 1);
+});
+
 test("prune keeps an event exactly at the cutoff and drops one millisecond before", () => {
   const when = new Date(2026, 9, 20, 12, 0, 0);
   const cutoff = new Date(when.getFullYear(), when.getMonth(), when.getDate());

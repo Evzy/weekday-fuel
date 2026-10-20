@@ -406,7 +406,7 @@ function renderStapleSheetBody(){
   const err=state.stapleSheetError?`<span class="small" style="color:var(--bad)">${esc(state.stapleSheetError)}</span>`:"";
   return `<form class="stack" id="stapform" style="gap:12px"><div class="eyebrow">${isNew?"Add":esc(short)} staple</div><label class="f">Item<select id="stap-item"${isNew?"":" disabled"} required>${choose}${opts}</select></label><label class="f">Amount<span id="stap-unit">${unit?` (${esc(unit)})`:""}</span><input id="stap-amt" class="num" type="number" step="any" min="0" required value="${draft.amount||""}"></label>${err}<div class="f"><span class="small muted" style="display:block;margin-bottom:4px">Schedule</span><div class="dial" role="group" aria-label="Staple days"><button type="button" aria-pressed="${days==="all"?"true":"false"}" data-act="stapdays" data-v="all">Every day</button><button type="button" aria-pressed="${days==="weekdays"?"true":"false"}" data-act="stapdays" data-v="weekdays">Weekdays</button></div></div><div class="row" style="gap:8px;flex-wrap:wrap">${!isNew?`<button type="button" class="ghost warn" data-act="stapremove" data-v="${esc(draft.id)}">Remove</button>`:""}<button type="submit" class="btn" ${canSave?"":"disabled"}>Save</button><button type="button" class="ghost" data-act="close">Cancel</button></div></form>`;
 }
-function staplesOn(date){return WeekdayFuelStaples.forDay(staplesList(),date,dayOf(date))}
+function staplesOn(date,day){return WeekdayFuelStaples.forDay(staplesList(),date,day||dayOf(date))}
 function stapleNeedMap(){const sd=shopDays();if(!sd.length)return {};return WeekdayFuelStaples.needs(staplesList(),sd,state.days)}
 function shopPackPick(){return S().packPick||undefined}
 function shopRowsRaw(){return CAT.shopList(picks(),stapleNeedMap(),dayMeals(),shopHave(),shopPackPick())}
@@ -660,7 +660,7 @@ const clone=o=>JSON.parse(JSON.stringify(o));
 function deepMerge(base,over){const out=clone(base);if(!over)return out;for(const k in over){if(k==="trial"){out[k]=clone(over[k]);continue}if(over[k]&&typeof over[k]==="object"&&!Array.isArray(over[k])&&out[k]&&typeof out[k]==="object")out[k]=deepMerge(out[k],over[k]);else out[k]=over[k];}return out}
 
 /* ---------- state + storage ---------- */
-const state={tab:"today",tabBefore:null,tabStack:[],date:iso(new Date()),settings:clone(DEFAULT_SETTINGS),days:{},weights:{},mealFilter:"all",sheet:null,addPick:null,weekAddDate:null,armed:null,unlocked:{},dayNote:null,openItem:null,kOpen:null,kAddItem:null,kitchenError:null,kitchenHint:null,kitchenHintWhere:null,trolley:null,prices:null,colesPrices:null,pricesTried:0,checkout:null,coLast:null,openOrder:null,orderError:false,weekNote:null,mealNote:null,scrollMealNote:false,scrollWeekDay:null,todayExtrasOpen:false,shopViewStep:null,shopExpandDays:{},shopAtHomeOpen:false,backup:{busy:null,error:null,needNewFile:false,remembered:null,pending:null},gapOptions:null,gapUndo:null};
+const state={tab:"today",tabBefore:null,tabStack:[],date:iso(new Date()),settings:clone(DEFAULT_SETTINGS),days:{},weights:{},mealFilter:"all",sheet:null,addPick:null,weekAddDate:null,armed:null,unlocked:{},dayNote:null,openItem:null,kOpen:null,kAddItem:null,kitchenError:null,kitchenHint:null,kitchenHintWhere:null,trolley:null,prices:null,colesPrices:null,pricesTried:0,checkout:null,coLast:null,openOrder:null,orderError:false,weekNote:null,mealNote:null,scrollMealNote:false,scrollWeekDay:null,todayExtrasOpen:false,shopViewStep:null,shopExpandDays:{},shopAtHomeOpen:false,backup:{busy:null,error:null,needNewFile:false,remembered:null,pending:null},gapOptions:null,gapUndo:null,suppressGapUndoClear:false};
 let db=null;
 let restoring=false;
 const BACKUP_KEY="weekdayfuel.backup",BEFORE_KEY="weekdayfuel.beforeRestore";
@@ -790,7 +790,10 @@ function queueWrite(path,body){
 }
 function setSync(on,text){$("#syncdot").className="dot"+(on?" on":"");$("#synctext").textContent=text}
 
-function saveDay(date){const d=state.days[date];queueWrite("days/"+date,d?clone(d):null);invalidateShopDays()}
+function saveDay(date){
+  if(state.gapUndo&&Object.prototype.hasOwnProperty.call(state.gapUndo,date)&&!state.suppressGapUndoClear){state.gapUndo=null;state.todayNote=null}
+  const d=state.days[date];queueWrite("days/"+date,d?clone(d):null);invalidateShopDays();
+}
 function saveWeight(date){const w=state.weights[date];queueWrite("weights/"+date,w?clone(w):null)}
 function saveSettings(){queueWrite("config/settings",clone(state.settings));invalidateShopDays()}
 
@@ -833,7 +836,11 @@ function targetAdjLabel(date){
   const day=state.days[date];
   const adj=day&&day.adj;
   if(!adj||!Number.isFinite(adj.k)||adj.k===0)return "";
-  const sign=adj.k>0?"+":"−";
+  if(adj.spreadTo){
+    const sign=adj.k>0?"+":"\u2212";
+    return ` · ${sign}${Math.abs(Math.round(adj.k))} spread to ${esc(adj.spreadTo)}`;
+  }
+  const sign=adj.k>0?"+":"\u2212";
   const from=adj.from?dayShort(adj.from):"";
   return ` · ${sign}${Math.abs(Math.round(adj.k))} from ${esc(from)}`;
 }
@@ -845,7 +852,7 @@ function ensureDay(date){if(!state.days[date])state.days[date]=clone(dayOf(date)
 function totals(day,date){
   const t={k:0,p:0,c:0,f:0,cost:0};
   if(date){
-    staplesOn(date).forEach(s=>{
+    staplesOn(date,day).forEach(s=>{
       const m=WeekdayFuelStaples.macros(s.id,s.amount,CAT,MACROS);
       if(m){t.k+=m.k;t.p+=m.p;t.c+=m.c;t.f+=m.f}
       const c=WeekdayFuelStaples.cost(s.id,s.amount,CAT,store());
@@ -960,7 +967,7 @@ function fitTiers(day,locked,date,opts){
   const fixed=(m,i)=>i<lk||mealImpliedAte(m,date)||(WeekdayFuelBought.isBought(m)&&!unlocked);
   const ms=all.filter((m,i)=>MEAL[m.id]&&!fixed(m,i));if(!ms.length)return [];
   const base=totals({fx:day.fx,meals:all.filter((m,i)=>fixed(m,i)),extras:day.extras},date);
-  const tg=date?target(date):target();let best=null;
+  const tg=opts&&opts.target?opts.target:(date?target(date):target());let best=null;
   const keys=["L","S","X"];const n=ms.length;const combos=Math.pow(3,n);
   for(let i=0;i<combos;i++){
     let k=base.k,p=base.p,x=i;const pick=[];
@@ -993,6 +1000,7 @@ function gapScoreTotals(k,p,date,daysMap){
 }
 function gapMealUnfixed(m,date){
   if(mealImpliedAte(m,date))return false;
+  if(date===iso(new Date()))return true;
   if(WeekdayFuelBought.isBought(m)&&!dayUnlocked(date))return false;
   return true;
 }
@@ -1010,9 +1018,21 @@ function gapSpreadDates(today){
 function gapKitchenFree(){
   const inv=lsInv();
   if(!inv)return {};
+  const today=iso(new Date());
   const st=WeekdayFuelInventory.stock(inv,state.days,CAT,new Date(),staplesOn);
-  const res=WeekdayFuelInventory.reserved(inv,state.days,CAT,iso(new Date()),shopDays(),staplesOn);
+  const res=WeekdayFuelInventory.gapSpareReserved(inv,state.days,CAT,today,gapWeekEnd(today),shopDays(),staplesOn);
   return WeekdayFuelInventory.free(st,res);
+}
+function gapSpreadRangeLabel(dates){
+  if(!dates.length)return "";
+  const first=dates[0],last=dates[dates.length-1];
+  return first===last?dayShort(first):`${dayShort(first)}\u2013${dayShort(last)}`;
+}
+function gapDayBurden(day,date,daysMap,gapK){
+  const t=totals(day,date);
+  const tg=gapTargetOn(date,daysMap);
+  if(gapK>0)return Math.max(0,tg.k-t.k);
+  return Math.max(0,t.k-tg.k);
 }
 function gapMacrosFor(id,amount){
   const m=WeekdayFuelStaples.macros(id,amount,CAT,MACROS);
@@ -1025,29 +1045,32 @@ function gapCloneDay(date,daysMap){
 }
 function gapSimulateSpread(today,gapK,dates){
   if(!dates.length)return null;
-  const saved=clone(state.days);
+  const daysMap=clone(state.days);
   const splits=WeekdayFuelGap.spreadSplit(gapK,dates);
-  try{
-    splits.forEach(({date,k})=>{
-      const day=gapCloneDay(date,state.days);
-      const prev=day.adj&&Number.isFinite(day.adj.k)?day.adj.k:0;
-      day.adj={k:prev+k,from:today};
-      fitTiers(day,0,date,{bought:true});
-      state.days[date]=day;
-    });
-    let sum=0;
-    dates.forEach(d=>{
-      const day=state.days[d]||dayOf(d);
-      const t=totals(day,d);
-      const tg=target(d);
-      sum+=Math.abs(t.k-tg.k);
-    });
-    if(sum>=Math.abs(gapK)/2)return null;
-    const perDay=splits.length?Math.trunc(gapK/splits.length):0;
-    return {splits,perDay,sum};
-  }finally{
-    state.days=saved;
-  }
+  let beforeSum=0;
+  dates.forEach(d=>{beforeSum+=gapDayBurden(daysMap[d]||dayOf(d),d,daysMap,gapK);});
+  splits.forEach(({date,k})=>{
+    const day=gapCloneDay(date,daysMap);
+    const prev=day.adj&&Number.isFinite(day.adj.k)?day.adj.k:0;
+    day.adj={k:prev+k,from:today};
+    daysMap[date]=day;
+    fitTiers(day,0,date,{bought:true,target:gapTargetOn(date,daysMap)});
+    daysMap[date]=day;
+  });
+  let afterSum=0;
+  dates.forEach(d=>{afterSum+=gapDayBurden(daysMap[d]||dayOf(d),d,daysMap,gapK);});
+  const added=afterSum-beforeSum;
+  if(added>=Math.abs(gapK)/2)return null;
+  const perDay=splits.length?Math.trunc(gapK/splits.length):0;
+  const totalSpread=splits.reduce((a,s)=>a+s.k,0);
+  const range=gapSpreadRangeLabel(dates);
+  const todayDay=gapCloneDay(today,daysMap);
+  const prevT=todayDay.adj&&Number.isFinite(todayDay.adj.k)?todayDay.adj.k:0;
+  todayDay.adj={k:prevT-totalSpread,from:today,spreadTo:range};
+  daysMap[today]=todayDay;
+  fitTiers(todayDay,0,today,{bought:true,target:gapTargetOn(today,daysMap)});
+  const afterToday=totals(todayDay,today);
+  return {splits,perDay,added,spreadRange:range,totalSpread,afterToday};
 }
 function gapSimulateForward(today,cand){
   const daysMap=clone(state.days);
@@ -1119,13 +1142,13 @@ function buildGapOptions(today){
     const dates=gapSpreadDates(today);
     const spread=dates.length?gapSimulateSpread(today,meta.gapK,dates):null;
     if(spread){
-      const first=dates[0],last=dates[dates.length-1];
-      const range=first===last?dayShort(first):`${dayShort(first)}–${dayShort(last)}`;
-      const sign=meta.gapK>0?"+":"−";
-      opts.push({type:"spread",label:`Make up ${meta.n} kcal over ${range} (${sign}${Math.abs(spread.perDay)} a day)`,after:{k:t.k,p:t.p},splits:spread.splits,perDay:spread.perDay,gapK:meta.gapK});
+      const range=spread.spreadRange;
+      const sign=spread.perDay>=0?"+":"\u2212";
+      opts.push({type:"spread",label:`Make up ${meta.n} kcal over ${range} (${sign}${Math.abs(spread.perDay)} a day)`,after:{k:spread.afterToday.k,p:spread.afterToday.p},splits:spread.splits,perDay:spread.perDay,gapK:meta.gapK,spreadRange:range,totalSpread:spread.totalSpread});
     }
     const weekEnd=gapWeekEnd(today);
-    const cands=WeekdayFuelGap.forwardCandidates({today,weekEnd,days:state.days,isBought:WeekdayFuelBought.isBought,isEaten:()=>false}).filter(c=>tracked(c.date)&&!mealImpliedAte(c.meal,c.date));
+    const todayMealIds=new Set((day.meals||[]).map(m=>m.id));
+    const cands=WeekdayFuelGap.forwardCandidates({today,weekEnd,days:state.days,isBought:WeekdayFuelBought.isBought,isEaten:()=>false}).filter(c=>tracked(c.date)&&!mealImpliedAte(c.meal,c.date)&&!todayMealIds.has(c.meal.id));
     const forwards=[];
     cands.forEach(c=>{
       const sim=gapSimulateForward(today,c);
@@ -1148,9 +1171,9 @@ function buildGapOptions(today){
     const dates=gapSpreadDates(today);
     const spread=dates.length?gapSimulateSpread(today,meta.gapK,dates):null;
     if(spread){
-      const first=dates[0],last=dates[dates.length-1];
-      const range=first===last?dayShort(first):`${dayShort(first)}–${dayShort(last)}`;
-      opts.push({type:"spread",label:`Spread ${meta.n} kcal over ${range} (${spread.perDay} a day)`,after:{k:t.k,p:t.p},splits:spread.splits,perDay:spread.perDay,gapK:meta.gapK});
+      const range=spread.spreadRange;
+      const sign=spread.perDay>=0?"+":"\u2212";
+      opts.push({type:"spread",label:`Spread ${meta.n} kcal over ${range} (${sign}${Math.abs(spread.perDay)} a day)`,after:{k:spread.afterToday.k,p:spread.afterToday.p},splits:spread.splits,perDay:spread.perDay,gapK:meta.gapK,spreadRange:range,totalSpread:spread.totalSpread});
     }
   }
   return opts;
@@ -1159,7 +1182,7 @@ function gapSnapshotFor(opt,today){
   const snap={};
   const touch=d=>{snap[d]=clone(state.days[d]||dayOf(d))};
   if(opt.type==="snack"||opt.type==="skipStaple")touch(today);
-  else if(opt.type==="spread")opt.splits.forEach(s=>touch(s.date));
+  else if(opt.type==="spread"){touch(today);opt.splits.forEach(s=>touch(s.date))}
   else if(opt.type==="forward"){touch(today);touch(opt.fromDate)}
   return snap;
 }
@@ -1167,6 +1190,8 @@ function applyGapOption(idx,today){
   const opt=state.gapOptions&&state.gapOptions[idx];
   if(!opt)return;
   state.gapUndo=gapSnapshotFor(opt,today);
+  state.suppressGapUndoClear=true;
+  try{
   if(opt.type==="snack"){
     const d=ensureDay(today);
     d.extras=d.extras||[];
@@ -1174,6 +1199,8 @@ function applyGapOption(idx,today){
     saveDay(today);
     state.todayNote=`Added ${opt.snack.label}`;
   }else if(opt.type==="spread"){
+    const total=opt.totalSpread!=null?opt.totalSpread:opt.splits.reduce((a,s)=>a+s.k,0);
+    const range=opt.spreadRange||gapSpreadRangeLabel(opt.splits.map(s=>s.date));
     opt.splits.forEach(({date,k})=>{
       const d=ensureDay(date);
       const prev=d.adj&&Number.isFinite(d.adj.k)?d.adj.k:0;
@@ -1181,7 +1208,12 @@ function applyGapOption(idx,today){
       fitTiers(d,0,date,{bought:true});
       saveDay(date);
     });
-    state.todayNote=`Spread ${Math.abs(Math.round(opt.gapK))} kcal over the week`;
+    const td=ensureDay(today);
+    const prevT=td.adj&&Number.isFinite(td.adj.k)?td.adj.k:0;
+    td.adj={k:prevT-total,from:today,spreadTo:range};
+    fitTiers(td,0,today,{bought:true});
+    saveDay(today);
+    state.todayNote=`Spread ${Math.abs(Math.round(total))} kcal over the week`;
   }else if(opt.type==="forward"){
     const src=ensureDay(opt.fromDate);
     const meals=(src.meals||[]).slice();
@@ -1208,15 +1240,21 @@ function applyGapOption(idx,today){
   }
   state.sheet=null;
   state.gapOptions=null;
+  }finally{state.suppressGapUndoClear=false}
 }
 function undoGap(){
   if(!state.gapUndo)return;
-  Object.keys(state.gapUndo).forEach(d=>{
-    state.days[d]=clone(state.gapUndo[d]);
-    saveDay(d);
-  });
-  state.gapUndo=null;
-  state.todayNote=null;
+  state.suppressGapUndoClear=true;
+  try{
+    Object.keys(state.gapUndo).forEach(d=>{
+      state.days[d]=clone(state.gapUndo[d]);
+      saveDay(d);
+    });
+  }finally{
+    state.suppressGapUndoClear=false;
+    state.gapUndo=null;
+    state.todayNote=null;
+  }
 }
 function renderGapSheetBody(today){
   state.gapOptions=buildGapOptions(today);
@@ -1230,7 +1268,10 @@ function renderGapSheetBody(today){
   const spreads=state.gapOptions.filter(o=>o.type==="spread");
   const forwards=state.gapOptions.filter(o=>o.type==="forward");
   const skips=state.gapOptions.filter(o=>o.type==="skipStaple");
-  const row=(o,i)=>`<button type="button" class="pick" data-act="gapapply" data-v="${i}"><span class="grow"><b>${esc(o.label)}</b><br><span class="small muted">→ <span class="num">${r0(o.after.k)}</span> kcal · <span class="num">${r0(o.after.p)}</span>g protein</span></span></button>`;
+  const row=(o,i)=>{
+    if(o.type==="forward")return `<button type="button" class="pick" data-act="gapapply" data-v="${i}"><span class="grow"><b>${esc(o.label)}</b></span></button>`;
+    return `<button type="button" class="pick" data-act="gapapply" data-v="${i}"><span class="grow"><b>${esc(o.label)}</b><br><span class="small muted">→ <span class="num">${r0(o.after.k)}</span> kcal · <span class="num">${r0(o.after.p)}</span>g protein</span></span></button>`;
+  };
   const idx=t=>state.gapOptions.indexOf(t);
   if(snacks.length){
     h+=`<div class="stack" style="gap:6px;margin-top:10px"><div class="eyebrow">Spare at home</div>${snacks.map(o=>row(o,idx(o))).join("")}</div>`;
@@ -2197,7 +2238,6 @@ document.addEventListener("click",e=>{
   state.kitchenError=null;
   state.weekNote=null;
   if(act!=="weektile")state.mealNote=null;
-  if(act!=="gapopen"&&act!=="gapapply"&&act!=="gapundo"&&act!=="close"){state.todayNote=null;state.gapUndo=null}
   if(act!=="weektile"&&act!=="daymenu"&&act!=="weekmenu")state.dayNote=null;
   const date=actionDate(el);
   switch(act){
