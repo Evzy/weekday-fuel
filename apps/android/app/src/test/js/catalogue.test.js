@@ -652,6 +652,21 @@ test("a Woolworths live main price leaves tray packs at their catalogue price", 
   assert.equal(live[0].woolies.packs[0].live, undefined);
 });
 
+test("Woolworths live passata 400g pack price updates the pack and shop choice", () => {
+  const passata = REAL_ITEMS.find((i) => i.id === "passata");
+  const pack400 = passata.woolies.packs.find((p) => p.size === 400);
+  const liveItems = applyLivePrices(REAL_ITEMS, {
+    [pack400.stockcode]: { price: 2.9, was: 3.7, special: true, available: true },
+  });
+  const livePassata = liveItems.find((i) => i.id === "passata");
+  assert.equal(livePassata.woolies.packs[0].price, 2.9);
+  assert.equal(livePassata.woolies.packs[0].live, true);
+  const liveCat = create(liveItems, realCatalogue.AMOUNTS);
+  const line = byId(liveCat.shopList({ bolognese: 1 }, 0)).passata.woolies;
+  assert.equal(line.product.stockcode, pack400.stockcode);
+  assert.equal(line.product.price, 2.9);
+});
+
 test("Woolworths tray availability from live data", () => {
   const items = [WOOLIES_TRAY_ITEM];
   const dropped = applyLivePrices(items, { 969723: { price: 11, was: null, special: false, available: false } });

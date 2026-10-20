@@ -179,7 +179,7 @@
       woolies: { name: "San Remo Macaroni Pasta No 38 500g", url: "https://www.woolworths.com.au/shop/productdetails/44025/san-remo-macaroni-pasta-no-38", stockcode: 44025, size: 500, price: 2.3, checked: "2026-10-15" },
     },
     {
-      id: "potato", sec: 2, name: "Washed potatoes 2kg", unit: "g", note: "", same: false,
+      id: "potato", sec: 2, name: "Washed potatoes", short: "Potatoes", unit: "g", note: "", same: false,
       coles: {
         name: "Coles Potatoes Washed 2kg", url: "https://www.coles.com.au/product/coles-potatoes-washed-2kg-1206748", size: 2000, price: 6, checked: "2026-10-15",
         packs: [{ name: "Coles Baby Washed Potatoes 1Kg", url: "https://www.coles.com.au/product/coles-baby-washed-potatoes-1kg-2488485", size: 1000, price: 4.5, checked: "2026-10-20" }],
@@ -441,6 +441,12 @@
     return Object.assign({}, main, { packs: packs });
   }
 
+  function liveWoolies(p, live) {
+    if (!(typeof live.price === "number" && live.price > 0)) return p;
+    var was = typeof live.was === "number" && live.was > live.price ? live.was : null;
+    return Object.assign({}, p, { price: live.price, was: was, live: true });
+  }
+
   /* prices: { [stockcode]: { price, was, special, available } } read live from Woolworths. */
   function applyLivePrices(items, prices) {
     if (!prices) return items;
@@ -453,8 +459,7 @@
         if (!live) return it;
         if (live.available === false) return Object.assign({}, it, { woolies: null, wooliesUnavailable: p });
         if (!(typeof live.price === "number" && live.price > 0)) return it;
-        var wasOnly = typeof live.was === "number" && live.was > live.price ? live.was : null;
-        var nextOnly = Object.assign({}, p, { price: live.price, was: wasOnly, live: true });
+        var nextOnly = liveWoolies(p, live);
         return nextOnly === p ? it : Object.assign({}, it, { woolies: nextOnly });
       }
       var packs = p.packs.slice();
@@ -466,7 +471,10 @@
           packsMut = true;
           return null;
         }
-        return pk;
+        if (pk.sizeLabel) return pk;
+        var nextPk = liveWoolies(pk, livePk);
+        if (nextPk !== pk) packsMut = true;
+        return nextPk;
       }).filter(Boolean);
       if (packs.length !== p.packs.length) packsMut = true;
       if (live && live.available === false) {
@@ -475,9 +483,8 @@
       }
       var main = p;
       var mainMut = false;
-      if (live && typeof live.price === "number" && live.price > 0) {
-        var wasMain = typeof live.was === "number" && live.was > live.price ? live.was : null;
-        main = Object.assign({}, p, { price: live.price, was: wasMain, live: true });
+      if (live) {
+        main = liveWoolies(p, live);
         mainMut = main !== p;
       }
       if (!mainMut && !packsMut) return it;
