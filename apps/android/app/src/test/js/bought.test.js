@@ -167,7 +167,7 @@ test("markBoughtKeys marks only matching keys and skips stale keys", () => {
   assert.equal(r.days["2026-10-20"].meals[1].bought, undefined);
 });
 
-test("sameKeys, changedSince, and addedSince compare meal key sets", () => {
+test("sameKeys compares raw keys; changedSince uses date+id multiset", () => {
   const a = ["2026-10-20|0|a", "2026-10-21|1|b"];
   const b = ["2026-10-20|0|a", "2026-10-22|0|c"];
   assert.equal(B.sameKeys(a, a), true);
@@ -176,4 +176,21 @@ test("sameKeys, changedSince, and addedSince compare meal key sets", () => {
   assert.equal(B.changedSince(a, a.slice()), false);
   assert.equal(B.addedSince(a, b), 1);
   assert.equal(B.addedSince(b, a), 1);
+});
+
+test("changedSince ignores pure index shifts on the same date and meal id", () => {
+  const sent = ["2026-10-20|0|bowl", "2026-10-21|1|wrap"];
+  const now = ["2026-10-20|1|bowl", "2026-10-21|0|wrap"];
+  assert.equal(B.changedSince(sent, now), false);
+  assert.equal(B.addedSince(sent, now), 0);
+});
+
+test("markBoughtKeys falls back when an earlier meal was removed after send", () => {
+  const days = {
+    "2026-10-20": day([meal("wrap"), meal("bowl")]),
+  };
+  const r = B.markBoughtKeys(days, ["2026-10-20|0|bowl"], "ord4");
+  assert.deepEqual(r.changed, ["2026-10-20"]);
+  assert.equal(r.days["2026-10-20"].meals[1].bought, "ord4");
+  assert.equal(r.days["2026-10-20"].meals[0].bought, undefined);
 });

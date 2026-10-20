@@ -144,24 +144,83 @@
     return keys;
   }
 
+  function mealIdentity(k) {
+    var p = parseMealKey(k);
+    return p ? p.date + "\0" + p.id : null;
+  }
+
+  function identityCounts(keys) {
+    var out = Object.create(null);
+    (Array.isArray(keys) ? keys : []).forEach(function (k) {
+      var id = mealIdentity(k);
+      if (!id) return;
+      out[id] = (out[id] || 0) + 1;
+    });
+    return out;
+  }
+
+  function sameIdentities(a, b) {
+    var A = identityCounts(a);
+    var B = identityCounts(b);
+    var seen = Object.create(null);
+    Object.keys(A).forEach(function (k) {
+      seen[k] = true;
+    });
+    Object.keys(B).forEach(function (k) {
+      seen[k] = true;
+    });
+    var keys = Object.keys(seen);
+    for (var i = 0; i < keys.length; i++) {
+      var k = keys[i];
+      if ((A[k] || 0) !== (B[k] || 0)) return false;
+    }
+    return true;
+  }
+
   function markBoughtKeys(days, keys, orderId) {
     if (!days || typeof days !== "object" || typeof orderId !== "string" || !orderId || !Array.isArray(keys)) {
       return { days: days, changed: [] };
     }
-    var want = Object.create(null);
+    var matched = Object.create(null);
+    var marks = [];
     keys.forEach(function (k) {
       var p = parseMealKey(k);
-      if (p) want[p.date + "\0" + p.index + "\0" + p.id] = true;
+      if (!p) return;
+      var day = days[p.date];
+      if (!day || !Array.isArray(day.meals)) return;
+      var idx = -1;
+      var m = day.meals[p.index];
+      var slotKey = p.date + "\0" + p.index;
+      if (m && m.id === p.id && !isBought(m) && !matched[slotKey]) idx = p.index;
+      else {
+        for (var i = 0; i < day.meals.length; i++) {
+          var sk = p.date + "\0" + i;
+          if (matched[sk]) continue;
+          var mi = day.meals[i];
+          if (mi && mi.id === p.id && !isBought(mi)) {
+            idx = i;
+            break;
+          }
+        }
+      }
+      if (idx < 0) return;
+      matched[p.date + "\0" + idx] = true;
+      marks.push({ date: p.date, index: idx });
+    });
+    var byDate = Object.create(null);
+    marks.forEach(function (mk) {
+      if (!byDate[mk.date]) byDate[mk.date] = Object.create(null);
+      byDate[mk.date][mk.index] = true;
     });
     var out = days;
     var changed = [];
-    Object.keys(days).forEach(function (date) {
-      if (date === "__proto__") return;
+    Object.keys(byDate).forEach(function (date) {
       var day = days[date];
       if (!day || !Array.isArray(day.meals)) return;
+      var want = byDate[date];
       var touched = false;
       var meals = day.meals.map(function (m, i) {
-        if (!m || !want[date + "\0" + i + "\0" + m.id] || isBought(m)) return m;
+        if (!m || !want[i] || isBought(m)) return m;
         touched = true;
         var copy = cloneMeal(m);
         copy.bought = orderId;
@@ -186,25 +245,17 @@
     return true;
   }
 
-  function keySet(arr) {
-    var s = Object.create(null);
-    (Array.isArray(arr) ? arr : []).forEach(function (k) {
-      if (typeof k === "string" && k) s[k] = true;
-    });
-    return s;
-  }
-
   function changedSince(sentKeys, nowKeys) {
-    var a = (Array.isArray(sentKeys) ? sentKeys.slice() : []).sort();
-    var b = (Array.isArray(nowKeys) ? nowKeys.slice() : []).sort();
-    return !sameKeys(a, b);
+    return !sameIdentities(sentKeys, nowKeys);
   }
 
   function addedSince(sentKeys, nowKeys) {
-    var sent = keySet(sentKeys);
+    var sent = identityCounts(sentKeys);
+    var now = identityCounts(nowKeys);
     var n = 0;
-    (Array.isArray(nowKeys) ? nowKeys : []).forEach(function (k) {
-      if (!sent[k]) n += 1;
+    Object.keys(now).forEach(function (id) {
+      var diff = now[id] - (sent[id] || 0);
+      if (diff > 0) n += diff;
     });
     return n;
   }
