@@ -34,6 +34,20 @@
     return a < b ? -1 : a > b ? 1 : 0;
   }
 
+  function endOfDay(dateStr) {
+    var d = parseLocalDate(dateStr);
+    d.setHours(23, 59, 59, 999);
+    return d.toISOString();
+  }
+
+  function impliedAte(m, date, today) {
+    if (!m) return null;
+    if (typeof m.ate === "string") return m.ate;
+    if (m.ate === false) return null;
+    if (m.ate === undefined && compareDate(date, today) < 0) return endOfDay(date);
+    return null;
+  }
+
   function isStart(s) {
     return typeof s === "string" && !isNaN(Date.parse(s));
   }
@@ -264,6 +278,7 @@
     };
     var startDate = toLocalDate(new Date(startMs));
     var endDate = toLocalDate(when);
+    var todayDate = toLocalDate(when);
     var actions = [];
 
     inv.events.forEach(function (e) {
@@ -277,8 +292,9 @@
       var day = days[date];
       if (!day || !Array.isArray(day.meals)) return;
       day.meals.forEach(function (m) {
-        if (!m || typeof m.ate !== "string") return;
-        var ateMs = atMs(m.ate);
+        var ateAt = impliedAte(m, date, todayDate);
+        if (!ateAt) return;
+        var ateMs = atMs(ateAt);
         if (isNaN(ateMs) || ateMs > nowTs || ateMs < startMs) return;
         if (!m.id) return;
         var tier = mealTier(m);
@@ -286,7 +302,7 @@
         if (!per) return;
         Object.keys(per).forEach(function (item) {
           var amt = cat.amountFor(m.id, item, tier);
-          if (amt > 0) actions.push({ ts: ateMs, at: m.ate, kind: "use", item: item, amount: amt, meal: true });
+          if (amt > 0) actions.push({ ts: ateMs, at: ateAt, kind: "use", item: item, amount: amt, meal: true });
         });
       });
     });
@@ -368,8 +384,10 @@
     out[item] = (out[item] || 0) + amount;
   }
 
-  function reserveMeal(out, cat, m) {
-    if (!m || m.ate !== undefined) return;
+  function reserveMeal(out, cat, m, date, today) {
+    if (!m || m.ate === false) return;
+    if (impliedAte(m, date, today)) return;
+    if (m.ate !== undefined) return;
     var per = cat.AMOUNTS && cat.AMOUNTS[m.id];
     if (!per) return;
     var tier = m.t === "L" || m.t === "X" ? m.t : "S";
@@ -402,12 +420,12 @@
       day.meals.forEach(function (m) {
         var bought = m && typeof m.bought === "string" && m.bought !== "";
         if (bought) {
-          reserveMeal(out, cat, m);
+          reserveMeal(out, cat, m, d, today);
           return;
         }
         if (m && m.shop === false && !m.held) {
           if (compareDate(d, today) >= 0 || shopDaySet[d]) {
-            reserveMeal(out, cat, m);
+            reserveMeal(out, cat, m, d, today);
             return;
           }
         }
@@ -416,7 +434,7 @@
         var past = compareDate(d, today) < 0;
         var beforeFirst = first && compareDate(d, first) < 0;
         var betweenShops = first && last && compareDate(d, first) >= 0 && compareDate(d, last) <= 0;
-        if (past || beforeFirst || betweenShops) reserveMeal(out, cat, m);
+        if (past || beforeFirst || betweenShops) reserveMeal(out, cat, m, d, today);
       });
     });
     if (first && typeof staplesOn === "function") {
@@ -493,23 +511,7 @@
   }
 
   function pending(inv, days, today) {
-    if (!inv || typeof today !== "string" || !DATE.test(today)) return [];
-    var startDate = toLocalDate(new Date(inv.start));
-    var out = [];
-    Object.keys(days || {})
-      .filter(function (d) {
-        return DATE.test(d) && compareDate(d, startDate) > 0 && compareDate(d, today) < 0;
-      })
-      .sort()
-      .forEach(function (date) {
-        var day = days[date];
-        if (!day || !Array.isArray(day.meals)) return;
-        day.meals.forEach(function (m, i) {
-          if (!m || m.ate !== undefined) return;
-          out.push({ date: date, i: i, id: m.id });
-        });
-      });
-    return out;
+    return [];
   }
 
   function shopHaveIt(trolley, sent) {
@@ -575,6 +577,8 @@
     freeForShop: freeForShop,
     buysFromRows: buysFromRows,
     shopHaveIt: shopHaveIt,
+    impliedAte: impliedAte,
+    endOfDay: endOfDay,
   };
   if (typeof module === "object" && module.exports) module.exports = api;
   else root.WeekdayFuelInventory = api;

@@ -200,7 +200,7 @@ test("prune leaves stock amounts unchanged, including old honey with no set", ()
   assert.equal(pruned.events[0].k, "set");
 });
 
-test("stock from buys and ticked meals; skipped and unanswered meals do not use stock", () => {
+test("stock from buys and ticked meals; skipped and past auto-eaten meals", () => {
   const base = I.addEvents(null, [{ k: "buy", item: "breast", amount: 600, order: "o1" }], START);
   const ate = iso(new Date(2026, 9, 15, 13, 0, 0));
   const days = {
@@ -215,6 +215,9 @@ test("stock from buys and ticked meals; skipped and unanswered meals do not use 
   const s = I.stock(base, days, cat, NOW, staplesNone);
   assert.equal(s.breast.amount, 400);
   assert.equal(s.cheese, undefined);
+  const hamBase = I.addEvents(null, [{ k: "buy", item: "ham", amount: 200, order: "o1" }], START);
+  const s2 = I.stock(hamBase, { "2026-10-15": { meals: [{ id: "toasty", name: "T", t: "S" }] } }, cat, NOW, staplesNone);
+  assert.equal(s2.ham.amount, 100);
 });
 
 test("meals ticked before inventory start are ignored", () => {
@@ -314,16 +317,16 @@ test("reserved is empty without inventory", () => {
   assert.equal(Object.getPrototypeOf(r), null);
 });
 
-test("reserved sums pending past meals and fixtures before the first shop day", () => {
+test("reserved sums fixtures before the first shop day, not auto-eaten past meals", () => {
   const base = inv([]);
   const days = {
     "2026-10-11": { meals: [{ id: "tenderwrap", name: "W", t: "S" }] },
     "2026-10-19": { meals: [{ id: "bowl", name: "B", t: "S", ate: "2026-10-19T12:00:00.000Z" }, { id: "toasty", name: "T", t: "S" }] },
   };
   const r = I.reserved(base, days, cat, "2026-10-18", ["2026-10-21"], staplesOnDates(new Set(["2026-10-19", "2026-10-20"])));
-  assert.equal(r.breast, 200);
+  assert.equal(r.breast, undefined);
   assert.equal(r.ham, 100);
-  assert.equal(r.cheese, 60);
+  assert.equal(r.cheese, 30);
   assert.equal(r.dare, 2);
   assert.equal(r.grenade, 2);
 });
@@ -419,20 +422,21 @@ test("reserved skips ticked, skipped, pre-start and shop-day meals except shop f
         { id: "bowl", name: "B", t: "S", shop: false },
       ],
     },
-    "2026-10-22": { meals: [{ id: "tenderwrap", name: "W", t: "S" }] },
+    "2026-10-22": { meals: [{ id: "toasty", name: "T", t: "S", shop: false }] },
   };
-  const r = I.reserved(base, days, cat, "2026-10-23", ["2026-10-21", "2026-10-22"], staplesNone);
-  assert.equal(r.breast, 350);
+  const r = I.reserved(base, days, cat, "2026-10-22", ["2026-10-21", "2026-10-22"], staplesNone);
+  assert.equal(r.breast, undefined);
+  assert.equal(r.ham, 100);
   assert.equal(r.cheese, 30);
-  assert.equal(r.rice, 1);
+  assert.equal(r.rice, undefined);
 });
 
-test("reserved with no shop days only reserves pending past meals", () => {
+test("reserved with no shop days skips auto-eaten past meals", () => {
   const base = inv([]);
   const days = { "2026-10-15": { meals: [{ id: "bowl", name: "B", t: "S" }] } };
   const r = I.reserved(base, days, cat, "2026-10-20", [], staplesAlways());
-  assert.equal(r.breast, 150);
-  assert.equal(r.rice, 1);
+  assert.equal(r.breast, undefined);
+  assert.equal(r.rice, undefined);
   assert.equal(r.dare, undefined);
 });
 
@@ -447,12 +451,12 @@ test("reserved excludes meals on the start date and on today without shop days",
   assert.equal(r.ham, undefined);
 });
 
-test("reserved after a stale first shop day still counts past meals", () => {
+test("reserved after a stale first shop day skips auto-eaten past meals", () => {
   const base = inv([]);
   const days = { "2026-10-15": { meals: [{ id: "bowl", name: "B", t: "S" }] } };
   const r = I.reserved(base, days, cat, "2026-10-20", ["2026-10-10"], staplesNone);
-  assert.equal(r.breast, 150);
-  assert.equal(r.rice, 1);
+  assert.equal(r.breast, undefined);
+  assert.equal(r.rice, undefined);
 });
 
 test("reserved staples honour per-day list and skip today and first shop day", () => {
@@ -490,12 +494,12 @@ test("stock consumes staple amounts greater than one and non-fixture staples", (
   assert.equal(s.yog.amount, 330);
 });
 
-test("reserved with unsorted shop days reserves a past meal between two shop days", () => {
+test("reserved skips past meals between shop days once auto-eaten", () => {
   const base = inv([]);
   const days = { "2026-10-22": { meals: [{ id: "bowl", name: "B", t: "S" }] } };
   const r = I.reserved(base, days, cat, "2026-10-24", ["2026-10-25", "2026-10-21"], staplesNone);
-  assert.equal(r.breast, 150);
-  assert.equal(r.rice, 1);
+  assert.equal(r.breast, undefined);
+  assert.equal(r.rice, undefined);
 });
 
 test("reserved uses the earliest shop day when shopDays is unsorted", () => {
@@ -504,7 +508,7 @@ test("reserved uses the earliest shop day when shopDays is unsorted", () => {
   const sorted = I.reserved(base, days, cat, "2026-10-23", ["2026-10-21", "2026-10-25"], staplesNone);
   const unsorted = I.reserved(base, days, cat, "2026-10-23", ["2026-10-25", "2026-10-21"], staplesNone);
   assert.equal(sorted.breast, unsorted.breast);
-  assert.equal(sorted.breast, 150);
+  assert.equal(sorted.breast, undefined);
 });
 
 test("freeForShop drops perishable lots that will be off by the first shop day", () => {
@@ -552,7 +556,7 @@ test("free subtracts reserved stock and drops zero items", () => {
   assert.equal(I.free(stock, { breast: -50 }).breast, 600);
 });
 
-test("pending lists unanswered past meals after start", () => {
+test("pending is always empty (auto-eaten replaces the pending list)", () => {
   assert.deepEqual(I.pending(null, {}, "2026-10-20"), []);
   const base = inv([]);
   const days = {
@@ -561,7 +565,25 @@ test("pending lists unanswered past meals after start", () => {
     "2026-10-11": { meals: [{ id: "tenderwrap", name: "W" }] },
     "2026-10-20": { meals: [{ id: "bowl", name: "B2" }] },
   };
-  assert.deepEqual(I.pending(base, days, "2026-10-20"), [{ date: "2026-10-11", i: 0, id: "tenderwrap" }]);
+  assert.deepEqual(I.pending(base, days, "2026-10-20"), []);
+});
+
+test("impliedAte and auto-eaten stock consumption", () => {
+  const today = "2026-10-20";
+  assert.equal(I.impliedAte({ ate: "2026-10-15T12:00:00.000Z" }, "2026-10-15", today), "2026-10-15T12:00:00.000Z");
+  assert.equal(I.impliedAte({ ate: false }, "2026-10-15", today), null);
+  const implied = I.impliedAte({}, "2026-10-15", today);
+  assert.equal(implied, I.endOfDay("2026-10-15"));
+  assert.equal(I.impliedAte({}, "2026-10-20", today), null);
+  assert.equal(I.impliedAte({}, "2026-10-22", today), null);
+  const base = I.addEvents(null, [{ k: "buy", item: "breast", amount: 600, order: "o1" }], START);
+  const pastDay = "2026-10-18";
+  const sPast = I.stock(base, { [pastDay]: { meals: [{ id: "tenderwrap", name: "W", t: "S" }] } }, cat, NOW, staplesNone);
+  assert.equal(sPast.breast.amount, 400);
+  const sToday = I.stock(base, { [today]: { meals: [{ id: "tenderwrap", name: "W", t: "S" }] } }, cat, NOW, staplesNone);
+  assert.equal(sToday.breast.amount, 600);
+  const r = I.reserved(base, { [pastDay]: { meals: [{ id: "tenderwrap", name: "W", t: "S" }] } }, cat, today, [], staplesNone);
+  assert.equal(r.breast, undefined);
 });
 
 test("shopHaveIt prefers trolley haveIt, then the sent record", () => {
