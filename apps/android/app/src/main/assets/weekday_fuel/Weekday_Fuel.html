@@ -1997,8 +1997,6 @@ function onHostPageMessage(e){
   else return;
   if(state.tab==="shop")render();
 }
-if(typeof window.WeekdayFuelHost==="undefined"&&/\bstubhost=1\b/.test(location.search)){
-  (function(){const L=[];window.WeekdayFuelHost={postMessage(msg){try{const m=JSON.parse(msg);if(m.type==="sendTrolley"&&Array.isArray(m.lines)){let c=0,total=m.lines.length;const tick=()=>{c++;L.forEach(fn=>fn({data:JSON.stringify({type:"trolleyProgress",completed:c,total})}));if(c<total)setTimeout(tick,15);else{const results=m.lines.filter(l=>l.quantity>0).map(l=>Object.assign({},l,{added:true}));L.forEach(fn=>fn({data:JSON.stringify({type:"trolleyDone",results})}))}};setTimeout(tick,15)}}catch(e){}},addEventListener(t,fn){if(t==="message")L.push(fn)}}})()}
 function installHostListener(){
   const h=window.WeekdayFuelHost;
   if(!h||h.__wfHostBound)return;
