@@ -359,16 +359,14 @@
       } else {
         var bestCost = Infinity;
         var bestLeft = Infinity;
-        var bestIdx = 0;
         for (var i = 0; i < candidates.length; i++) {
           var c = candidates[i];
           var q = qtyFor(c);
-          var cost = q * c.price;
+          var cost = round2(q * c.price);
           var leftover = Math.max(0, q * c.size - need);
-          if (cost < bestCost || (cost === bestCost && leftover < bestLeft) || (cost === bestCost && leftover === bestLeft && i < bestIdx)) {
+          if (cost < bestCost || (cost === bestCost && leftover < bestLeft)) {
             bestCost = cost;
             bestLeft = leftover;
-            bestIdx = i;
             chosen = c;
             n = q;
           }
@@ -390,7 +388,7 @@
         return { product: c, quantity: q, cost: round2(q * c.price) };
       });
       var leftoverAmt = n * chosen.size - need;
-      if (leftoverAmt > 0) line.leftover = leftoverAmt;
+      if (leftoverAmt > 1e-6) line.leftover = round2(leftoverAmt);
       var alts = [];
       for (var j = 0; j < candidates.length; j++) {
         if (candidates[j] !== chosen) alts.push(candidates[j]);

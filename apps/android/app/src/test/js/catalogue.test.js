@@ -76,6 +76,36 @@ test("pack choice picks cheapest total for egg cartons", () => {
   assert.deepEqual([l13.product.stockcode, l13.quantity, l13.cost], [6013280, 1, 8]);
 });
 
+test("pack choice compares rounded total cost; float ties break on leftover then main", () => {
+  const floatTie = create(
+    [
+      {
+        id: "eggs",
+        sec: 1,
+        name: "Eggs",
+        unit: "eggs",
+        note: "",
+        same: false,
+        coles: null,
+        woolies: {
+          name: "Dozen",
+          url: W + "9000",
+          stockcode: 9000,
+          size: 12,
+          price: 12.3,
+          checked: "2026-10-15",
+          packs: [{ name: "Quarter dozen", url: W + "9001", stockcode: 9001, size: 4, price: 4.1, checked: "2026-10-15" }],
+        },
+      },
+    ],
+    { m: { eggs: 10 } },
+  );
+  const line = byId(floatTie.shopList({ m: 1 }, 0)).eggs.woolies;
+  assert.equal(line.product.stockcode, 9000);
+  assert.equal(line.quantity, 1);
+  assert.equal(line.cost, 12.3);
+});
+
 test("pack choice tie-breaks equal cost toward less leftover then main", () => {
   const no18 = create(
     [

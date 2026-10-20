@@ -66,7 +66,7 @@ Evan, 30, Melbourne, 183 cm, ~83.5 kg. Push/pull/legs 5 days a week at lunch, pl
 - Name real products stocked at Coles or Woolworths and look them up on the live sites. Give exact product-page URLs, never search URLs; if there's no exact page, say so.
 - Use label values where you can. Mark every price checked or estimate.
 - Record products in `catalogue.js` `ITEMS` like the existing ones: item `id`, `sec` (0 daily fixtures, 1 fresh, 2 pantry and freezer), `name`, `unit`, `note`, `same`, and per store `name`, `url`, `price`, `size`, `checked` date (Woolworths also `stockcode`, which matches the URL; Coles URLs end with the product id).
-- A store product may list other pack sizes of the same food in `packs` (meat only so far); the shop buys whichever is cheapest for the week counting leftovers as waste. Variable-weight trays use their lightest weight as `size`, the up-front charge as `price`, and a `sizeLabel`.
+- A store product may list other pack sizes of the same food in `packs` (meat only so far); the shop buys whichever is the cheapest total for this shop; ties go to less leftover, then the main product. Variable-weight trays use their lightest weight as `size`, the up-front charge as `price`, and a `sizeLabel`.
 - When replacing a product, add the old Coles id or Woolworths stockcode to `RETIRED` in `catalogue.js` so past orders and removal lines still show its name.
 - Add a new product's label macros to `MACROS` in `Weekday_Fuel.html`, or its shop row shows no macro line.
 - Work portion figures out from the ingredient amounts and `MACROS` (add extras such as butter, mayo or avocado by hand), not by guessing. Set `cost` so Standard matches the catalogue's per-serve cost averaged over both stores.
