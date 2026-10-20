@@ -769,3 +769,45 @@ test("RETIRED is exported with name and url for removed products", () => {
   assert.equal(RETIRED.coles["6284567"].name, "Don Leg Ham Shaved 200g");
   assert.match(RETIRED.coles["6284567"].url, /6284567$/);
 });
+
+const realCatalogue = require("../../main/assets/weekday_fuel/catalogue.js");
+const REAL_ITEMS = realCatalogue.ITEMS;
+const CHECKED_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+test("real catalogue pack entries are valid and sizes are unique per store line", () => {
+  assert.ok(Array.isArray(REAL_ITEMS) && REAL_ITEMS.length > 0);
+  for (const it of REAL_ITEMS) {
+    for (const store of ["coles", "woolies"]) {
+      const prod = it[store];
+      if (!prod || !prod.packs || !prod.packs.length) continue;
+      const candidates = [prod].concat(prod.packs);
+      const sizes = new Set();
+      for (const c of candidates) {
+        assert.ok(c.size > 0, `${it.id} ${store} size`);
+        assert.ok(c.price > 0, `${it.id} ${store} price`);
+        assert.match(c.checked, CHECKED_RE, `${it.id} ${store} checked`);
+        assert.ok(typeof c.name === "string" && c.name.length, `${it.id} ${store} name`);
+        if (store === "woolies") {
+          assert.ok(Number.isInteger(c.stockcode), `${it.id} woolies stockcode`);
+          assert.ok(String(c.url).includes("/" + c.stockcode + "/"), `${it.id} woolies url stockcode`);
+        } else {
+          assert.ok(c.url.startsWith("https://www.coles.com.au/product/"), `${it.id} coles url`);
+          assert.match(c.url, /-\d+$/, `${it.id} coles url id`);
+        }
+        assert.ok(!sizes.has(c.size), `${it.id} ${store} duplicate pack size ${c.size}`);
+        sizes.add(c.size);
+      }
+    }
+  }
+});
+
+test("real catalogue Woolworths eggs pick the 6-pack for a one-day shop when it is cheapest", () => {
+  const eggs = REAL_ITEMS.find((i) => i.id === "eggs");
+  const six = eggs && eggs.woolies && eggs.woolies.packs && eggs.woolies.packs.find((p) => p.size === 6);
+  if (!six) return;
+  const rows = realCatalogue.shopList({ schnitzel: 1 }, 0, [{ day: "2026-10-20", meal: "schnitzel", t: "S" }]);
+  const line = byId(rows).eggs.woolies;
+  assert.equal(line.product.stockcode, six.stockcode);
+  assert.equal(line.product.size, 6);
+  assert.ok(line.product.size < eggs.woolies.size);
+});

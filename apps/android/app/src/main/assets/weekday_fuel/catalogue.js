@@ -93,7 +93,10 @@
     {
       id: "eggs", sec: 1, keeps: 28, name: "Free range eggs, 12 pack", short: "Eggs", unit: "eggs", unitSize: 58, note: "The old Woolworths link (582362) is unavailable; 6013278 replaces it", same: false,
       coles: { name: "Coles Free Range Eggs 12 Pack 700g", url: "https://www.coles.com.au/product/coles-free-range-eggs-12-pack-700g-9453478", size: 12, price: 6.9, checked: "2026-10-15" },
-      woolies: { name: "Woolworths 12 Pack Extra Large Free Range Eggs 700g", url: "https://www.woolworths.com.au/shop/productdetails/6013278/woolworths-12-pack-extra-large-free-range-eggs", stockcode: 6013278, size: 12, price: 6.7, checked: "2026-10-15" },
+      woolies: {
+        name: "Woolworths 12 Pack Extra Large Free Range Eggs 700g", url: "https://www.woolworths.com.au/shop/productdetails/6013278/woolworths-12-pack-extra-large-free-range-eggs", stockcode: 6013278, size: 12, price: 6.7, checked: "2026-10-15",
+        packs: [{ name: "Woolworths 6 Pack Extra Large Free Range Eggs 350g", url: "https://www.woolworths.com.au/shop/productdetails/133245/woolworths-6-pack-extra-large-free-range-eggs", stockcode: 133245, size: 6, price: 4.9, checked: "2026-10-20" }],
+      },
     },
     {
       id: "ham", sec: 1, keeps: 5, name: "Shaved ham", short: "Ham", unit: "g", note: "Coles doesn't sell deli ham by weight online, so a 250g pack instead", same: false,
@@ -103,12 +106,18 @@
     {
       id: "yog", sec: 1, keeps: 14, name: "Greek yoghurt, natural light", short: "Yoghurt", unit: "g", note: "Coles shows it as currently unavailable", same: true,
       coles: { name: "Chobani Greek Yogurt Natural Light 907g", url: "https://www.coles.com.au/product/chobani-greek-yogurt-natural-light-907g-1435100", size: 907, price: 8.8, checked: "2026-10-15" },
-      woolies: { name: "Chobani Greek Yoghurt Natural Light Plain 907g", url: "https://www.woolworths.com.au/shop/productdetails/717518/chobani-greek-yoghurt-natural-light-plain", stockcode: 717518, size: 907, price: 8.8, checked: "2026-10-15" },
+      woolies: {
+        name: "Chobani Greek Yoghurt Natural Light Plain 907g", url: "https://www.woolworths.com.au/shop/productdetails/717518/chobani-greek-yoghurt-natural-light-plain", stockcode: 717518, size: 907, price: 8.8, checked: "2026-10-15",
+        packs: [{ name: "Chobani Greek Yoghurt Natural Light 500g", url: "https://www.woolworths.com.au/shop/productdetails/6093769/chobani-greek-yoghurt-natural-light", stockcode: 6093769, size: 500, price: 6.5, checked: "2026-10-20" }],
+      },
     },
     {
       id: "cheese", sec: 1, keeps: 21, name: "Light tasty shredded cheese", short: "Cheese", unit: "g", note: "Keeps for weeks in the fridge", same: false,
       coles: { name: "Coles Cheese Shredded Tasty Light 700g", url: "https://www.coles.com.au/product/coles-cheese-shredded-tasty-light-700g-8145346", size: 700, price: 11, checked: "2026-10-15" },
-      woolies: { name: "Woolworths Light Tasty Shredded Cheese 500g", url: "https://www.woolworths.com.au/shop/productdetails/729008/woolworths-light-tasty-shredded-cheese", stockcode: 729008, size: 500, price: 8.3, checked: "2026-10-15" },
+      woolies: {
+        name: "Woolworths Light Tasty Shredded Cheese 500g", url: "https://www.woolworths.com.au/shop/productdetails/729008/woolworths-light-tasty-shredded-cheese", stockcode: 729008, size: 500, price: 8.3, checked: "2026-10-15",
+        packs: [{ name: "Woolworths Light Tasty Cheese Shredded 250g", url: "https://www.woolworths.com.au/shop/productdetails/728984/woolworths-light-tasty-cheese-shredded", stockcode: 728984, size: 250, price: 5, checked: "2026-10-20" }],
+      },
     },
     {
       id: "wraps", sec: 1, keeps: 14, name: "Mission Carb Balance wraps", short: "Wrap", unit: "wraps", unitSize: 48, note: "Coles lists the 6 pack (8566038) but as unavailable with no price. Woolworths special (usually $6.60). Freeze half", same: false,
@@ -127,8 +136,17 @@
     },
     {
       id: "spinach", sec: 1, keeps: 4, name: "Baby spinach", unit: "g", note: "The old link was the 280g bag", same: false,
-      coles: { name: "Coles Baby Spinach 120g", url: "https://www.coles.com.au/product/coles-baby-spinach-120g-1499340", size: 120, price: 3.3, checked: "2026-10-15" },
-      woolies: { name: "Woolworths Baby Leaf Spinach 120g", url: "https://www.woolworths.com.au/shop/productdetails/524322/woolworths-baby-leaf-spinach", stockcode: 524322, size: 120, price: 3.3, checked: "2026-10-15" },
+      coles: {
+        name: "Coles Baby Spinach 120g", url: "https://www.coles.com.au/product/coles-baby-spinach-120g-1499340", size: 120, price: 3.3, checked: "2026-10-15",
+        packs: [{ name: "Coles Baby Spinach 60g", url: "https://www.coles.com.au/product/coles-baby-spinach-60g-1499486", size: 60, price: 2.2, checked: "2026-10-20" }],
+      },
+      woolies: {
+        name: "Woolworths Baby Leaf Spinach 120g", url: "https://www.woolworths.com.au/shop/productdetails/524322/woolworths-baby-leaf-spinach", stockcode: 524322, size: 120, price: 3.3, checked: "2026-10-15",
+        packs: [
+          { name: "Woolworths Baby Leaf Spinach 60g", url: "https://www.woolworths.com.au/shop/productdetails/379515/woolworths-baby-leaf-spinach", stockcode: 379515, size: 60, price: 2.2, checked: "2026-10-20" },
+          { name: "Woolworths Baby Leaf Spinach 280g", url: "https://www.woolworths.com.au/shop/productdetails/524336/woolworths-baby-leaf-spinach-spinach", stockcode: 524336, size: 280, price: 5, checked: "2026-10-20" },
+        ],
+      },
     },
     {
       id: "toms", sec: 1, keeps: 7, name: "Cherry tomatoes", unit: "g", note: "Coles shows the 250g punnet as currently unavailable", same: false,
@@ -162,8 +180,14 @@
     },
     {
       id: "potato", sec: 2, name: "Washed potatoes 2kg", unit: "g", note: "", same: false,
-      coles: { name: "Coles Potatoes Washed 2kg", url: "https://www.coles.com.au/product/coles-potatoes-washed-2kg-1206748", size: 2000, price: 6, checked: "2026-10-15" },
-      woolies: { name: "Woolworths Washed Potatoes Bag 2kg", url: "https://www.woolworths.com.au/shop/productdetails/262783/woolworths-washed-potatoes-bag", stockcode: 262783, size: 2000, price: 6.5, checked: "2026-10-15" },
+      coles: {
+        name: "Coles Potatoes Washed 2kg", url: "https://www.coles.com.au/product/coles-potatoes-washed-2kg-1206748", size: 2000, price: 6, checked: "2026-10-15",
+        packs: [{ name: "Coles Baby Washed Potatoes 1Kg", url: "https://www.coles.com.au/product/coles-baby-washed-potatoes-1kg-2488485", size: 1000, price: 4.5, checked: "2026-10-20" }],
+      },
+      woolies: {
+        name: "Woolworths Washed Potatoes Bag 2kg", url: "https://www.woolworths.com.au/shop/productdetails/262783/woolworths-washed-potatoes-bag", stockcode: 262783, size: 2000, price: 6.5, checked: "2026-10-15",
+        packs: [{ name: "Woolworths White Washed Baby Potatoes Bag 1kg", url: "https://www.woolworths.com.au/shop/productdetails/385085/woolworths-white-washed-baby-potatoes-bag", stockcode: 385085, size: 1000, price: 4.8, checked: "2026-10-20" }],
+      },
     },
     {
       id: "corn", sec: 2, name: "Corn kernels", unit: "g", note: "Lives in the pantry", same: true,
@@ -173,7 +197,10 @@
     {
       id: "fzpeas", sec: 2, name: "Frozen peas", unit: "g", note: "", same: false,
       coles: { name: "Coles Frozen Garden Peas 1kg", url: "https://www.coles.com.au/product/coles-frozen-garden-peas-1kg-9054790", size: 1000, price: 4.5, checked: "2026-10-15" },
-      woolies: { name: "Woolworths Frozen Australian Peas 1kg", url: "https://www.woolworths.com.au/shop/productdetails/754169/woolworths-frozen-australian-peas", stockcode: 754169, size: 1000, price: 4.5, checked: "2026-10-15" },
+      woolies: {
+        name: "Woolworths Frozen Australian Peas 1kg", url: "https://www.woolworths.com.au/shop/productdetails/754169/woolworths-frozen-australian-peas", stockcode: 754169, size: 1000, price: 4.5, checked: "2026-10-15",
+        packs: [{ name: "Woolworths Peas 500g", url: "https://www.woolworths.com.au/shop/productdetails/754170/woolworths-peas", stockcode: 754170, size: 500, price: 2.75, checked: "2026-10-20" }],
+      },
     },
     {
       id: "fzmix", sec: 2, name: "Frozen carrots, peas & corn", unit: "g", note: "", same: false,
@@ -222,8 +249,14 @@
     },
     {
       id: "passata", sec: 2, name: "Passata", unit: "g", note: "Woolworths special (usually $4.80)", same: true,
-      coles: { name: "Mutti Passata Tomato Puree 700g", url: "https://www.coles.com.au/product/mutti-passata-tomato-puree-700g-1809266", size: 700, price: 4.8, checked: "2026-10-15" },
-      woolies: { name: "Mutti Passata Tomato Puree 700g", url: "https://www.woolworths.com.au/shop/productdetails/795297/mutti-passata-tomato-puree", stockcode: 795297, size: 700, price: 3.8, checked: "2026-10-15" },
+      coles: {
+        name: "Mutti Passata Tomato Puree 700g", url: "https://www.coles.com.au/product/mutti-passata-tomato-puree-700g-1809266", size: 700, price: 4.8, checked: "2026-10-15",
+        packs: [{ name: "Mutti Tomato Passata 400g", url: "https://www.coles.com.au/product/mutti-tomato-passata-400g-2349503", size: 400, price: 3.7, checked: "2026-10-20" }],
+      },
+      woolies: {
+        name: "Mutti Passata Tomato Puree 700g", url: "https://www.woolworths.com.au/shop/productdetails/795297/mutti-passata-tomato-puree", stockcode: 795297, size: 700, price: 3.8, checked: "2026-10-15",
+        packs: [{ name: "Mutti Passata Tomato Puree 400g", url: "https://www.woolworths.com.au/shop/productdetails/290301/mutti-passata-tomato-puree", stockcode: 290301, size: 400, price: 3.7, checked: "2026-10-20" }],
+      },
     },
     {
       id: "panko", sec: 2, name: "Panko breadcrumbs", unit: "g", note: "The old Crumbed & Co link is unavailable", same: false,
