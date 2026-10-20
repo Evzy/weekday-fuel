@@ -384,9 +384,9 @@ function renderStapleChipsToday(date,day){
     const it=CAT.item(s.id);if(!it)return "";
     const on=WeekdayFuelStaples.onDay(s,date,day);
     const chip=stapleChipText(s,it,on);
-    return `<button type="button" class="chip" aria-pressed="${on?"true":"false"}" data-act="stapletog" data-v="${esc(s.id)}" data-d="${esc(date)}" title="${esc(chip.tip)}" aria-label="${esc(chip.tip)}">${esc(chip.text)}</button>`;
+    return `<button type="button" class="chip" aria-pressed="${on?"true":"false"}" data-act="stapletog" data-fit="1" data-v="${esc(s.id)}" data-d="${esc(date)}" title="${esc(chip.tip)}" aria-label="${esc(chip.tip)}">${esc(chip.text)}</button>`;
   }).join("");
-  return `<div class="stack" style="gap:8px"><div class="eyebrow">Staples · tap to skip or add</div><div class="chips">${chips}</div></div>`;
+  return `<div class="stack" style="gap:8px"><div class="eyebrow">Staples · tap to skip or add, portions refit</div><div class="chips">${chips}</div></div>`;
 }
 function renderStapleSheetBody(){
   const draft=state.stapleSheetDraft;if(!draft)return "";
@@ -934,11 +934,11 @@ function boughtShopLabel(meals){
 }
 function clearUnboughtSkipMealKeys(){if(!lsSent()&&!lsColesSent())return null;const keys=sentMealKeysUnion();return keys.length?keys:null}
 /* choose L/S/X for each meal so the day lands closest to target, protein first; the first `locked` meals keep their portions */
-function fitTiers(day,locked,date){
+function fitTiers(day,locked,date,opts){
   const all=day.meals||[];const lk=locked||0;
-  const unlocked=date&&dayUnlocked(date);
+  const unlocked=date&&dayUnlocked(date)||!!(opts&&opts.bought);
   const fixed=(m,i)=>i<lk||mealImpliedAte(m,date)||(WeekdayFuelBought.isBought(m)&&!unlocked);
-  const ms=all.filter((m,i)=>MEAL[m.id]&&!fixed(m,i));if(!ms.length)return;
+  const ms=all.filter((m,i)=>MEAL[m.id]&&!fixed(m,i));if(!ms.length)return [];
   const base=totals({fx:day.fx,meals:all.filter((m,i)=>fixed(m,i)),extras:day.extras},date);
   const tg=target();let best=null;
   const keys=["L","S","X"];const n=ms.length;const combos=Math.pow(3,n);
@@ -948,7 +948,17 @@ function fitTiers(day,locked,date){
     const score=Math.abs(k-tg.k)+Math.max(0,tg.p-p)*12;
     if(!best||score<best.score)best={score,pick};
   }
-  ms.forEach((m,j)=>m.t=best.pick[j]);
+  const changed=[];
+  ms.forEach((m,j)=>{if(m.t!==best.pick[j])changed.push(m.slot+" → "+tierLabel(best.pick[j]));m.t=best.pick[j]});
+  return changed;
+}
+function todayFit(date,quiet){
+  if(!dayEditable(date)||!tracked(date))return;
+  const d=ensureDay(date);if(!dayHasMeals(d))return;
+  const changed=fitTiers(d,0,date,{bought:true});
+  saveDay(date);
+  if(changed.length)state.todayNote="Portions refit: "+changed.join(", ");
+  else if(!quiet)state.todayNote="Already the closest fit";
 }
 function recentIds(date,back){const s=new Set();for(let i=1;i<=back;i++){const d=state.days[addDays(date,-i)];if(d&&d.meals)d.meals.forEach(m=>s.add(m.id))}return s}
 function randomPick(list,avoid){const pool=list.filter(m=>!avoid.has(m.id));const src=pool.length?pool:list;return src[Math.floor(Math.random()*src.length)]}
@@ -1213,7 +1223,10 @@ function renderToday(){
     h+=`<div class="panel"><p class="muted" style="margin:0">Nothing planned. <button type="button" class="ghost" data-act="planweek">Plan my week →</button></p></div>`;
     h+=renderStapleChipsToday(today,day);
   }else{
-    h+=`<div class="panel stack" style="gap:10px">${compactMacro(t.k,tg.k," kcal","")}${compactMacro(t.p,tg.p," g protein","p")}</div>`;
+    const canFit=dayPip(day,today)!=="good"&&meals.some(m=>MEAL[m.id]&&!mealImpliedAte(m,today));
+    const fitBtn=canFit?`<button type="button" class="ghost" data-act="todayfit" data-d="${esc(today)}">Fit portions</button>`:"";
+    h+=`<div class="panel stack" style="gap:10px">${compactMacro(t.k,tg.k," kcal","")}${compactMacro(t.p,tg.p," g protein","p")}${fitBtn}</div>`;
+    if(state.todayNote)h+=`<div class="hint" id="today-note"><span>${esc(state.todayNote)}</span></div>`;
     h+=renderStapleChipsToday(today,day);
     h+=`<div class="panel stack" style="gap:4px">`+meals.map((m,i)=>{
       const meal=MEAL[m.id];if(!meal)return "";
@@ -1854,6 +1867,7 @@ document.addEventListener("click",e=>{
   state.kitchenError=null;
   state.weekNote=null;
   if(act!=="weektile")state.mealNote=null;
+  state.todayNote=null;
   if(act!=="weektile"&&act!=="daymenu"&&act!=="weekmenu")state.dayNote=null;
   const date=actionDate(el);
   switch(act){
@@ -1880,7 +1894,8 @@ document.addEventListener("click",e=>{
     case "kadd":{const sel=$("#kadd-item"),item=sel?sel.value:state.kAddItem; if(item)state.kAddItem=item;const amt=parseFloat($("#kadd-amt")&&$("#kadd-amt").value);if(!CAT.item(item)||!isFinite(amt)||!(amt>0)){state.kitchenHint="Enter an amount above 0";state.kitchenHintWhere="add";break}if(kitchenSave({k:"add",item,amount:amt})){state.kitchenHint=null;state.kitchenHintWhere=null}break}
     case "track":{if(!dayEditable(date))break;const d=ensureDay(date);d.track=true;saveDay(date);break}
     case "untrack":{if(!dayEditable(date)||dayHasBoughtMeals(date))break;const d=ensureDay(date);d.track=false;saveDay(date);state.sheet=null;break}
-    case "stapletog":{if(!dayEditable(el.dataset.d||date))break;toggleStapleDay(v,el.dataset.d||date);break}
+    case "stapletog":{const sd=el.dataset.d||date;if(!dayEditable(sd))break;toggleStapleDay(v,sd);if(el.dataset.fit)todayFit(sd,true);break}
+    case "todayfit":todayFit(date,false);break;
     case "stapleedit":openStapleSheet(v);break;
     case "stapleadd":openStapleSheet(null);break;
     case "stapdays":{syncStapleSheetDraft();if(state.stapleSheetDraft)state.stapleSheetDraft.days=v;break}
