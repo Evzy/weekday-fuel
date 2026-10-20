@@ -101,6 +101,24 @@ test("clearUnbought skips entire dates in skipDates", () => {
   assert.equal(r.days["2026-10-21"].meals.length, 0);
 });
 
+test("clearUnbought skips meals on sent keys but clears other unbought", () => {
+  const days = {
+    "2026-10-20": day([meal("bowl"), meal("wrap")]),
+    "2026-10-21": day([meal("brekwrap"), meal("toasty")]),
+  };
+  const r = B.clearUnbought(days, null, "2026-10-19", ["2026-10-20|0|bowl", "2026-10-21|0|brekwrap"]);
+  assert.equal(r.cleared, 2);
+  assert.deepEqual(r.changed.sort(), ["2026-10-20", "2026-10-21"]);
+  assert.deepEqual(
+    r.days["2026-10-20"].meals.map((m) => m.id),
+    ["bowl"]
+  );
+  assert.deepEqual(
+    r.days["2026-10-21"].meals.map((m) => m.id),
+    ["brekwrap"]
+  );
+});
+
 test("clearUnbought skipDates as a set-like object", () => {
   const days = { "2026-10-20": day([meal("bowl")]) };
   const r = B.clearUnbought(days, { "2026-10-20": true });
@@ -144,6 +162,11 @@ test("mealKey and parseMealKey round-trip", () => {
   assert.deepEqual(B.parseMealKey(k), { date: "2026-10-20", index: 2, id: "bowl" });
   assert.equal(B.parseMealKey("bad"), null);
   assert.equal(B.parseMealKey("a|b"), null);
+});
+
+test("toBuyKeys uses isBought when isBoughtFn omitted", () => {
+  const days = { "2026-10-20": day([meal("bowl"), meal("wrap", { bought: "o1" })]) };
+  assert.deepEqual(B.toBuyKeys(days, ["2026-10-20"]), ["2026-10-20|0|bowl"]);
 });
 
 test("toBuyKeys skips bought and shop false and sorts", () => {

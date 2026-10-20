@@ -129,14 +129,14 @@
   }
 
   function toBuyKeys(days, dates, isBoughtFn) {
-    var isBought = typeof isBoughtFn === "function" ? isBoughtFn : isBought;
+    var boughtOk = typeof isBoughtFn === "function" ? isBoughtFn : isBought;
     var keys = [];
     (Array.isArray(dates) ? dates : []).forEach(function (date) {
       var day = days && days[date];
       if (!day || !Array.isArray(day.meals)) return;
       day.meals.forEach(function (m, i) {
         if (!m || !m.id) return;
-        if (isBought(m) || m.shop === false) return;
+        if (boughtOk(m) || m.shop === false) return;
         keys.push(mealKey(date, i, m.id));
       });
     });
@@ -260,9 +260,19 @@
     return n;
   }
 
-  function clearUnbought(days, skipDates, todayIso) {
+  function skipMealIdents(keys) {
+    var set = Object.create(null);
+    (Array.isArray(keys) ? keys : []).forEach(function (k) {
+      var p = parseMealKey(k);
+      if (p) set[p.date + "\0" + p.id] = true;
+    });
+    return Object.keys(set).length ? set : null;
+  }
+
+  function clearUnbought(days, skipDates, todayIso, skipMealKeys) {
     if (!days || typeof days !== "object") return { days: days, changed: [], cleared: 0 };
     var skip = skipDateSet(skipDates);
+    var skipMeals = skipMealIdents(skipMealKeys);
     var out = days;
     var changed = [];
     var cleared = 0;
@@ -275,6 +285,10 @@
       var kept = [];
       day.meals.forEach(function (m) {
         if (!m) return;
+        if (skipMeals && m.id && skipMeals[date + "\0" + m.id]) {
+          kept.push(m);
+          return;
+        }
         if (isBought(m) || typeof m.ate === "string") kept.push(m);
         else cleared += 1;
       });
