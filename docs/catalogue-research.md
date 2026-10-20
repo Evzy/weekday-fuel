@@ -166,3 +166,72 @@ Per 100g or 100mL, typical values (check the pack).
 | taco | 300 | 8 | 55 | 4 | 100g | About 4g per bowl |
 | garlic | 150 | 4 | 20 | 5 | 100g | |
 | ginger | 100 | 2 | 15 | 3 | 100g | |
+
+## 2026-10-20: pack sizes
+
+**Checked:** 2026-10-20, by web search only (logged out; nothing added to any trolley). Both store sites block direct fetches (Woolworths returns Access Denied, including the product API; Coles returns an Incapsula block), so names, ids and sizes come from the store product pages as indexed by search, and prices come from the store page snippet where shown, otherwise from price trackers (shophop, grocerize, grocerywise, cartsorted, milkrun). Tracker prices are marked "approx" and should be refreshed by live prices after Send.
+
+Rule applied: same brand family or the store brand already used, macros within ~5% of the current product, and the same form (shredded stays shredded).
+
+### Found
+
+| item | store | product | URL | id | size | $ | price source |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| eggs | Woolworths | Woolworths 6 Pack Extra Large Free Range Eggs 350g | https://www.woolworths.com.au/shop/productdetails/133245/woolworths-6-pack-extra-large-free-range-eggs | 133245 | 6 eggs | 4.90 | approx (shophop 19 Oct, grocerize); same 58g XL eggs and label as the 12 pack. An older listing, 582114 "Woolworths 6 Extra Large Free Range Eggs 350g", also exists; 133245 matches the current 12-pack naming |
+| yog | Woolworths | Chobani Greek Yoghurt Natural Light 500g | https://www.woolworths.com.au/shop/productdetails/6093769/chobani-greek-yoghurt-natural-light | 6093769 | 500 g | 6.50 | approx (dollarprotein, grocerywise 14 Oct); label identical to the 907g tub (9.3g P, 4.0g C, 0.2g F per 100g) |
+| cheese | Woolworths | Woolworths Light Tasty Cheese Shredded 250g | https://www.woolworths.com.au/shop/productdetails/728984/woolworths-light-tasty-cheese-shredded | 728984 | 250 g | 5.00 | approx (buywisely 11 Oct, dollarprotein); label 337 kcal, 29.7g P, 24.2g F per 100g, same as the 500g |
+| spinach | Woolworths | Woolworths Baby Leaf Spinach 60g | https://www.woolworths.com.au/shop/productdetails/379515/woolworths-baby-leaf-spinach | 379515 | 60 g | 2.20 | approx (cartsorted 10 Oct) |
+| spinach | Woolworths | Woolworths Baby Leaf Spinach 280g | https://www.woolworths.com.au/shop/productdetails/524336/woolworths-baby-leaf-spinach-spinach | 524336 | 280 g | 5.00 | approx (pantrypartner 14 Oct, cartsorted 10 Oct) |
+| spinach | Coles | Coles Baby Spinach 60g | https://www.coles.com.au/product/coles-baby-spinach-60g-1499486 | 1499486 | 60 g | 2.20 | Coles page |
+| potato | Woolworths | Woolworths White Washed Baby Potatoes Bag 1kg | https://www.woolworths.com.au/shop/productdetails/385085/woolworths-white-washed-baby-potatoes-bag | 385085 | 1000 g | 4.80 | approx (shophop 15 Oct); label 281 kJ, 2.3g P, 12.9g C per 100g vs 277 kJ, 2.3g P, 12.6g C for the 2kg bag |
+| potato | Coles | Coles Baby Washed Potatoes 1Kg | https://www.coles.com.au/product/coles-baby-washed-potatoes-1kg-2488485 | 2488485 | 1000 g | 4.50 | Coles page (cartsorted shows $4.80) |
+| passata | Woolworths | Mutti Passata Tomato Puree 400g | https://www.woolworths.com.au/shop/productdetails/290301/mutti-passata-tomato-puree | 290301 | 400 g | 3.70 | approx (grocerize; buywisely had $2.90 on 8 Oct); same label as the 700g |
+| passata | Coles | Mutti Tomato Passata 400g | https://www.coles.com.au/product/mutti-tomato-passata-400g-2349503 | 2349503 | 400 g | 3.70 | Coles browse page; id from the Coles app link for this product |
+| fzpeas | Woolworths | Woolworths Peas 500g | https://www.woolworths.com.au/shop/productdetails/754170/woolworths-peas | 754170 | 500 g | 2.75 | approx (milkrun); label 247 kJ, 4.8g P per 100g, same as the 1kg |
+
+### Not stocked, one line each
+
+- eggs, Coles: no Coles-brand free range 6, 18 or 30 pack with extra large eggs (see rejected).
+- eggs, Woolworths: no Woolworths-brand extra large 18 or 30 pack.
+- yog, Coles: Chobani Natural Light only in 160g and 907g at Coles.
+- cheese, Coles: light tasty shredded only in 700g; no 250g or 1kg.
+- cheese, Woolworths: light tasty shredded only in 250g and 500g; no 1kg.
+- bread: Abbott's Farmhouse Wholemeal comes only as the 750g loaf at both stores.
+- potato, loose per kg: neither store sells it as a per-kg line online (Woolworths 208895 "Potato White Washed each" is sold each; Coles loose potatoes are "approx. 150g" each priced by weight), so no `perKg` entry.
+- mince: no 1kg extra lean (5 star / Heart Smart) at either store.
+- toms: Woolworths sells cherry tomatoes only in the 250g punnet; Coles' only other cherry punnet is 200g vine ripened at $3.50, smaller and dearer than the 250g, so never chosen.
+- fzpeas, Coles: Coles Frozen Peas 500g (186328) is listed but currently unavailable.
+- fzmix: neither store has a store-brand 500g carrots, peas and corn.
+- muesli: Uncle Tobys Natural Style Muesli only in 1kg at both stores.
+
+### Will be added
+
+| item | store | size | $ | id |
+| --- | --- | --- | --- | --- |
+| eggs | Woolworths | 6 | 4.90 | 133245 |
+| yog | Woolworths | 500 | 6.50 | 6093769 |
+| cheese | Woolworths | 250 | 5.00 | 728984 |
+| spinach | Woolworths | 60 | 2.20 | 379515 |
+| spinach | Woolworths | 280 | 5.00 | 524336 |
+| spinach | Coles | 60 | 2.20 | 1499486 |
+| potato | Woolworths | 1000 | 4.80 | 385085 |
+| potato | Coles | 1000 | 4.50 | 2488485 |
+| passata | Woolworths | 400 | 3.70 | 290301 |
+| passata | Coles | 400 | 3.70 | 2349503 |
+| fzpeas | Woolworths | 500 | 2.75 | 754170 |
+
+### Rejected
+
+- Eggs, Woolworths 18 Large Free Range Eggs 900g (233889) and Coles Free Range Eggs 6 pack 300g (2680008): 50g eggs, about 14% less per egg than the 58g extra large eggs the item counts.
+- Eggs, Sunny Queen Free Range X Large 6 pack 350g at Coles (5484210, $5.20) and Sunny Queen XL 30 pack 1.75kg ($17.00–19.50): same egg size, but a different brand from the Coles-brand carton. Evan's call; the 30 pack is dearer per egg than the 12 anyway.
+- Cheese, Coles Dairy Shredded Tasty 250g: full-fat tasty, not light. Coles and Woolworths light tasty 1kg and 250g blocks: block, not shredded.
+- Bread, Abbott's Bakery Gluten Free Farmhouse Wholemeal 500g: different recipe (5.6g protein per 100g) and $7.90.
+- Spinach, Coles Salad Family Spinach 280g ($5.00) and Coles Jumbo Value Pack Baby Spinach 400g ($6.00): both exist, but no search result showed their product-page id, so they can't be recorded with a verified URL.
+- Potato, Woolworths White Washed Potatoes 1kg (94448): product page exists but no current price could be found; the baby potatoes 1kg (385085) is used instead.
+- Mince, Coles No Added Hormone Beef Lean Mince 800g (4 star) and Woolworths Beef Mince 1kg (577864, 18g fat per 100g): more fat than the extra lean (5g fat per 100g) mince.
+- Tomatoes, Woolworths Sweet Solanato 200g and Coles grape/Perino 200g: different varieties, and dearer per kg than the 250g cherry punnet.
+- fzmix, McCain Frozen Peas Corn & Carrots 500g (Coles 5394650, $3.80): different brand from the store-brand 1kg. Woolworths Peas & Corn 500g (768564) and Coles Snap Frozen Peas & Corn 500g: no carrot; Woolworths' label is 318 kJ per 100g vs 248 kJ for carrots, peas and corn.
+
+### Price drift seen on current products (for the next price refresh, not acted on)
+
+Coles Cheese Shredded Tasty Light 700g shows $9.50 (catalogue $11). Coles Cherry Tomatoes 250g shows $2.90–3.00 (catalogue $3.70). Coles Baby Spinach 120g shows $3.00 (catalogue $3.30). Coles' 500g extra lean mince page now reads "5 Star Extra Lean Mince" at $11.50, $9.80 on special. Woolworths Washed Potatoes 2kg was $8.50 on 14 Oct (catalogue $6.50; it swings between $6 and $8.50).
