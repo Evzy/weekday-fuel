@@ -10,7 +10,7 @@ Spec: `docs/superpowers/specs/2026-10-21-mixed-packs-design.md`.
 
 ## Global constraints
 
-- Commit to `main` by explicit path; never stage the CRLF-only modified files (note: `cart.js` and `cart.test.js` are among them — before editing, check `git diff --stat` on them; if the only diff is line endings, edit and stage them anyway but make sure the commit diff is content-only by keeping the file's existing line endings as committed in HEAD, e.g. `git show HEAD:<path>` style LF). Never `git stash` / `git clean` / `git reset --hard`.
+- Commit to `main` by explicit path; never stage the CRLF-only modified files except those this plan edits (`cart.js`, `cart.test.js`: Git normalises them to LF on add, so their staged diff is content-only — confirm with `git diff --cached --stat`). Never `git stash` / `git clean` / `git reset --hard`.
 - CI green before the next task; version bump only in the release task. Escape strings with `esc`. HTML via file edit tools.
 - Lines without `parts` behave exactly as today.
 - Tests: `node --test "apps/android/app/src/test/js/*.test.js"`; HTML parse check.
