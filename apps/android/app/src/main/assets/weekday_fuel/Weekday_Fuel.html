@@ -407,7 +407,8 @@ function renderStapleSheetBody(){
 }
 function staplesOn(date){return WeekdayFuelStaples.forDay(staplesList(),date,dayOf(date))}
 function stapleNeedMap(){const sd=shopDays();if(!sd.length)return {};return WeekdayFuelStaples.needs(staplesList(),sd,state.days)}
-function shopRowsRaw(){return CAT.shopList(picks(),stapleNeedMap(),dayMeals(),shopHave())}
+function shopPackPick(){return S().packPick||undefined}
+function shopRowsRaw(){return CAT.shopList(picks(),stapleNeedMap(),dayMeals(),shopHave(),shopPackPick())}
 function sentProductIds(st){const rec=sentFor(st);if(!rec||!rec.lines)return null;const ids=[];Object.keys(rec.lines).forEach(k=>{if(rec.lines[k]>0)ids.push(String(k))});return ids.length?ids:null}
 function shopRowsApply(base){const st=store();return WeekdayFuelSpecials.applyChoices(base,PRICED,st,lsSpecials(),mutedSwaps(),sentProductIds(st),WeekdayFuelCatalogue.colesId)}
 function shopRows(){return shopRowsApply(shopRowsRaw()).rows}
@@ -415,7 +416,7 @@ function shopCovered(){
   if(shopHave()===null)return [];
   return CAT.coveredList(picks(),stapleNeedMap(),dayMeals(),shopHave());
 }
-function shopListNoHave(){return CAT.shopList(picks(),stapleNeedMap(),dayMealsAll())}
+function shopListNoHave(){return CAT.shopList(picks(),stapleNeedMap(),dayMealsAll(),undefined,shopPackPick())}
 function shopSentCtx(){
   const sent=lsSent(),lines=(sent&&sent.lines)||{},colesLines=(lsColesSent()||{}).lines||{};
   const byId=Object.fromEntries(shopListNoHave().map(r=>[r.id,r]));
@@ -507,7 +508,7 @@ function stapleNeedMapForDates(dates){if(!dates.length)return{};return WeekdayFu
 function shopRowsForSentFinish(){
   const dm=sentShopDayMeals();if(!dm)return null;
   const dates=sentShopDates();
-  return shopRowsApply(CAT.shopList(picks(),stapleNeedMapForDates(dates),dm,shopHave())).rows;
+  return shopRowsApply(CAT.shopList(picks(),stapleNeedMapForDates(dates),dm,shopHave(),shopPackPick())).rows;
 }
 function shopFinishBuyRows(){const rows=shopRowsForSentFinish();return rows||shopOrderRows()}
 function legacyFinishShopDays(){
@@ -1384,6 +1385,30 @@ function batchCard(b){
 }
 const shopAmountFmt=(v,u)=>/^(g|mL)$/.test(u)?fmtAmt(v,u):(Math.round(v*10)/10)+" "+(v<=1?oneUnit(u):u);
 const shopNeedText=r=>WeekdayFuelCatalogue.shopNeedLabel(r,shopAmountFmt);
+function packPickId(product){if(!product)return "";if(product.stockcode!=null)return String(product.stockcode);if(typeof product.url==="string")return product.url;return ""}
+function packProductKey(a,b){if(!a||!b)return false;const k=packPickId(a);return k!==""&&k===packPickId(b)}
+function packLabelFor(product,unit){if(product.sizeLabel)return product.sizeLabel;return product.size+(/^(g|mL)$/.test(unit)?unit:" "+unit)}
+function renderPackSheetBody(itemId){
+  const st=store(),rows=shopRows(),row=rows.find(r=>r.id===itemId);
+  const line=row&&row[st],it=CAT.item(itemId);
+  if(!line||!it||!line.candidates||line.candidates.length<=1)return "";
+  const unit=it.unit,ov=S().packPick&&S().packPick[st]&&S().packPick[st][itemId];
+  const picks=line.candidates.map(c=>{
+    const pid=packPickId(c.product);
+    const chosen=packProductKey(c.product,line.product);
+    const lbl=esc(c.quantity+" × "+packLabelFor(c.product,unit)+" · "+money(c.cost))+(chosen?" ✓":"");
+    return `<button type="button" class="pick" data-act="packpick" data-v="${esc(pid)}">${lbl}</button>`;
+  }).join("");
+  return `<div class="stack" style="gap:8px">${picks}<button type="button" class="pick" data-act="packauto">${esc("Auto (cheapest)")}${!ov?" ✓":""}</button></div>`;
+}
+function shopLineBuyHtml(line,id,unit){
+  if(!line)return "";
+  const buyText=esc(line.buy);
+  const leftover=line.leftover>0?` · ${esc(shopAmountFmt(line.leftover,unit))} left over`:"";
+  const multi=line.candidates&&line.candidates.length>1;
+  const buy=multi?`<button type="button" class="ghost" style="padding:0;min-height:0;font:inherit;text-align:left" data-act="packsheet" data-v="${esc(id)}">${buyText}</button>`:buyText;
+  return buy+leftover;
+}
 function macroLine(id){const m=MACROS[id];if(!m)return "";return `<span class="mac num">Per ${m[4]}: ${m[0]} kcal · ${m[1]}g P · ${m[2]}g C · ${m[3]}g F <span class="src">${m[5]==="label"?"from the label":"typical, check the pack"}</span>${m[6]?`<br>${esc(m[6])}`:""}</span>`}
 function storePrice(s,price){return price!=null?`<span class="sp ${s}">${STORE_NAME[s]} ${money(price)}</span>`:`<span class="sp ${s} none">Not at ${STORE_NAME[s]}</span>`}
 const wasNote=p=>p&&p.was?`<span class="was">Special, was ${money(p.was)}${p.perKg?"/kg":""}</span>`:"";
@@ -1547,9 +1572,9 @@ function renderShopItems(st,rows,ticks){
     h+=`<div class="eyebrow" style="margin-top:8px">${esc(t)}</div>`;
     rs.forEach(r=>{
       const line=r[st],id=r.id,open=state.openItem===id,it=pricedItem(id);
-      const name=esc(shopItemShortName(it)),buy=line?esc(line.buy):"",price=line?money(line.cost):"";
+      const name=esc(shopItemShortName(it)),buy=shopLineBuyHtml(line,id,it.unit),price=line?money(line.cost):"";
       const spec=shopRowSpecialHtml(r,st);
-      h+=`<div class="si ${ticks[id]?"done":""}"><input type="checkbox" id="tick-${esc(id)}" aria-label="Already have it: ${esc(it.name)}" data-act="tick" data-v="${esc(id)}" ${ticks[id]?"checked":""}><button type="button" class="itembtn grow row between" data-act="openitem" data-v="${esc(id)}" aria-expanded="${open}"><span class="small grow">${name} ${buy} · ${price}</span></button></div>`;
+      h+=`<div class="si ${ticks[id]?"done":""}"><input type="checkbox" id="tick-${esc(id)}" aria-label="Already have it: ${esc(it.name)}" data-act="tick" data-v="${esc(id)}" ${ticks[id]?"checked":""}><div class="itembtn grow row between" role="button" tabindex="0" data-act="openitem" data-v="${esc(id)}" aria-expanded="${open}"><span class="small grow">${name} ${buy} · ${price}</span></div></div>`;
       if(open)h+=`<div class="itemdetail stack" style="gap:6px;padding:0 0 10px 28px">${spec}${forLine(r)}${it.note?`<div class="small">${esc(it.note)}</div>`:""}${macroLine(id)}${productLinks(CAT.item(r.id),{coles:r.coles&&r.coles.product,woolies:r.woolies&&r.woolies.product})}${swapDetailBlock(it)}</div>`;
     });
   });
@@ -1770,6 +1795,15 @@ function renderSheet(){
     root.dataset.sheet=state.sheet;
     return;
   }
+  if(state.sheet.startsWith("pack:")){
+    const itemId=state.sheet.slice(5),it=CAT.item(itemId);
+    const title=it?shopItemShortName(it):itemId;
+    const body=renderPackSheetBody(itemId);
+    if(!body){state.sheet=null;root.innerHTML="";return}
+    root.innerHTML=`<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(title)}"><div class="row between" style="margin-bottom:10px"><span class="eyebrow">Pack size</span><button type="button" class="ghost" data-act="close">Close</button></div><div class="eyebrow">${esc(title)}</div>${body}</div></div>`;
+    root.dataset.sheet=state.sheet;
+    return;
+  }
   if(state.sheet.startsWith("staple:")){
     const title=state.sheet==="staple:new"?"Add staple":"Edit staple";
     root.innerHTML=`<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(title)}"><div class="row between" style="margin-bottom:10px"><span class="eyebrow">Staple</span><button class="ghost" data-act="close">Close</button></div>${renderStapleSheetBody()}</div></div>`;
@@ -1931,6 +1965,9 @@ document.addEventListener("click",e=>{
     case "tick":{const t=lsTicks();t[v]=el.checked;lsSetTicks(t);break}
     case "untickall":lsSetTicks({});break;
     case "openitem":state.openItem=state.openItem===v?null:v;break;
+    case "packsheet":e.stopPropagation();state.sheet="pack:"+v;break;
+    case "packpick":{e.stopPropagation();if(!state.sheet||!state.sheet.startsWith("pack:"))break;const itemId=state.sheet.slice(5),st=store();if(!state.settings.packPick)state.settings.packPick={};if(!state.settings.packPick[st])state.settings.packPick[st]={};state.settings.packPick[st][itemId]=v;saveSettings();state.sheet=null;shopCtx=null;break}
+    case "packauto":{e.stopPropagation();if(!state.sheet||!state.sheet.startsWith("pack:"))break;const itemId=state.sheet.slice(5),st=store();const pp=state.settings.packPick;if(pp&&pp[st]){delete pp[st][itemId];if(!Object.keys(pp[st]).length)delete pp[st];if(!Object.keys(pp).length)delete state.settings.packPick}saveSettings();state.sheet=null;shopCtx=null;break}
     case "shopstep":{const n=+v;if(n>=1&&n<=shopMaxStep()){if(n===3&&state.trolley&&state.trolley.phase==="done")state.trolley.reviewed=true;state.shopViewStep=n}break}
     case "shopday":{state.shopExpandDays=state.shopExpandDays||{};if(state.shopExpandDays[v])delete state.shopExpandDays[v];else state.shopExpandDays[v]=true;break}
     case "shopathome":state.shopAtHomeOpen=!state.shopAtHomeOpen;break;
