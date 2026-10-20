@@ -1161,7 +1161,6 @@ function renderWeek(){
   const today=iso(new Date());
   const end=weekHorizonEnd(today);
   const tg=target();
-  const wk=WeekdayFuelPlanner.weekDays(today,today);
   const {N,M}=weekTally(today);
   let h=`<div class="row between" style="align-items:flex-start"><div><div class="eyebrow">Week</div><h2>${esc(dayShort(today))} – ${esc(dayShort(end))}</h2></div><button type="button" class="ghost" data-act="weekmenu" aria-label="Week menu">⋯</button></div>`;
   if(state.weekNote)h+=`<div class="hint" id="week-note"><span>${esc(state.weekNote)}</span></div>`;
@@ -1176,7 +1175,7 @@ function renderWeek(){
   h+=`<div class="small muted" style="margin:8px 0">${M?`<b class="num">${N}</b> of <b class="num">${M}</b> planned days on target`:"No planned days yet — meals on tracked days count toward the tally."}</div>`;
   if(!trackedWeekHasMeals(today)){
     const fewest=WeekdayFuelPlans.byId("fewest");
-    h+=`<div class="panel stack" style="gap:12px;text-align:center"><button type="button" class="btn" data-act="suggestweek">${esc(wk.label)}</button><button type="button" class="ghost" data-act="plan" data-v="fewest">or use a plan: ${esc(fewest?fewest.name:"Fewest items")}</button></div>`;
+    h+=`<div class="panel stack" style="gap:12px;text-align:center"><button type="button" class="btn" data-act="suggestweek">Plan my week</button><button type="button" class="ghost" data-act="plan" data-v="fewest">or use a plan: ${esc(fewest?fewest.name:"Fewest items")}</button></div>`;
   }
   h+=`<div class="stack" style="gap:16px;margin-top:8px">`;
   dates.forEach(d=>{
@@ -1252,16 +1251,18 @@ function tierTable(m){
   const mc=mealCosts(m);
   return `<div class="tblwrap"><table class="tiers"><thead><tr><th>Portion</th><th>kcal</th><th>P</th><th>C</th><th>F</th><th>Cost</th></tr></thead><tbody>${TIERS.map(([k,l])=>{const v=m.t[k];return `<tr><td>${l}<small>${esc(v.what)}</small></td><td>${v.k}</td><td>${v.p}</td><td>${v.c}</td><td>${v.f}</td><td>${money(mc[k])}</td></tr>`}).join("")}</tbody></table></div>`;
 }
+function mealMacroRange(m){return `${m.t.L.k}–${m.t.X.k} kcal · ${m.t.L.p}–${m.t.X.p} g protein`}
 function mealCard(m,full,tier){
   const tr=tier||"S";
-  return `<div class="card"><div class="row between" style="align-items:flex-start"><div class="grow"><div class="row" style="gap:6px;margin-bottom:4px"><span class="tag">${esc(m.cuisine)}</span><span class="tag">${m.mins} min</span><span class="tag">${esc(PREP_LABEL[m.prep]||"")}</span>${m.remake?`<span class="tag remake">Remake</span>`:""}</div><h3>${esc(m.name)}</h3><div class="small muted">Fixed protein core: ${esc(m.core)}</div></div>${full?"":`<div class="row" style="gap:6px"><button class="btn alt" data-act="addmeal" data-v="${m.id}">Add</button><button class="ghost" data-act="recipe" data-v="${m.id}">Recipe</button></div>`}</div>${tierTable(m)}${full?`<div class="stack" style="gap:8px"><div class="row between"><div class="eyebrow">Ingredients</div><div class="dial" role="group" aria-label="Recipe portion">${TIERS.map(([k,l])=>`<button aria-pressed="${tr===k}" data-act="sheettier" data-v="${k}">${l}</button>`).join("")}</div></div><ul class="ing">${recipeLines(m,tr)}</ul>${(m.batch||[]).map(id=>BATCH[id]).filter(Boolean).map(b=>`<div class="row between"><span class="small">Uses ${esc(b.name)} from your batch prep</span><button class="ghost" data-act="batch" data-v="${b.id}">Batch prep</button></div>`).join("")}<div class="eyebrow">Method</div><ol class="steps">${m.steps.map(s=>`<li>${esc(s)}</li>`).join("")}</ol>${m.note?`<div class="hint"><span>${esc(m.note)}</span></div>`:""}</div>`:""}<div class="row" style="gap:6px">${(m.slots.includes("breakfast")?["breakfast"]:m.slots.includes("snack")?["snack"]:["lunch","dinner"]).map(s=>`<button class="ghost" data-act="addto" data-v="${m.id}" data-s="${s}">Add to ${state.date===iso(new Date())?"today":fmtShort(state.date)} as ${s}</button>`).join("")}</div></div>`;
+  const head=`<div class="row between" style="align-items:flex-start"><div class="grow"><div class="row" style="gap:6px;margin-bottom:4px"><span class="tag">${esc(m.cuisine)}</span><span class="tag">${m.mins} min</span><span class="tag">${esc(PREP_LABEL[m.prep]||"")}</span>${m.remake?`<span class="tag remake">Remake</span>`:""}</div><h3>${esc(m.name)}</h3><div class="small muted">Fixed protein core: ${esc(m.core)}</div>${full?"":`<div class="small muted num" style="margin-top:4px">${mealMacroRange(m)}</div>`}</div>${full?"":`<div class="row" style="gap:6px;flex-shrink:0"><button class="btn alt" data-act="addmeal" data-v="${esc(m.id)}">Add</button><button class="ghost" data-act="recipe" data-v="${esc(m.id)}">Recipe</button></div>`}</div>`;
+  if(!full)return `<div class="card">${head}</div>`;
+  return `<div class="card">${head}${tierTable(m)}<div class="stack" style="gap:8px"><div class="row between"><div class="eyebrow">Ingredients</div><div class="dial" role="group" aria-label="Recipe portion">${TIERS.map(([k,l])=>`<button aria-pressed="${tr===k}" data-act="sheettier" data-v="${k}">${l}</button>`).join("")}</div></div><ul class="ing">${recipeLines(m,tr)}</ul>${(m.batch||[]).map(id=>BATCH[id]).filter(Boolean).map(b=>`<div class="row between"><span class="small">Uses ${esc(b.name)} from your batch prep</span><button class="ghost" data-act="batch" data-v="${b.id}">Batch prep</button></div>`).join("")}<div class="eyebrow">Method</div><ol class="steps">${m.steps.map(s=>`<li>${esc(s)}</li>`).join("")}</ol>${m.note?`<div class="hint"><span>${esc(m.note)}</span></div>`:""}</div></div>`;
 }
 function renderMeals(){
   const f=state.mealFilter==="remake"?"all":state.mealFilter;
   const filt=m=>f==="all"||(f==="breakfast"&&m.slots.includes("breakfast"))||(f==="main"&&m.slots.includes("main"))||(f==="snack"&&m.slots.includes("snack"));
   let h=`<div><div class="eyebrow">${MEALS.length} meals · each one under 20 min</div><h2>Meal library</h2><p class="small muted" style="margin:4px 0 0">Light, Standard and Loaded change the carbs and fat around the same protein core.</p></div>`;
   if(state.mealNote)h+=`<div class="hint" id="meal-note"><span>${esc(state.mealNote)}</span></div>`;
-  h+=`<div class="panel stack"><div class="eyebrow">Plans · a ready-made week</div>${WeekdayFuelPlans.PLANS.map(p=>{const s=planSummary(p);return `<button class="pick" data-act="plan" data-v="${esc(p.id)}"><span><b>${esc(p.name)}</b><br><span class="small muted">${esc(p.blurb)}</span><br><span class="small muted">${s.items} items · about ${money(s.costPerDay)} a day · ${p.days.length} weekdays</span></span><span class="small muted">View</span></button>`}).join("")}</div>`;
   h+=`<div class="panel stack" style="gap:8px"><div class="eyebrow">Batch prep</div><div class="chips">${BATCHES.map(b=>`<button class="chip" data-act="batch" data-v="${b.id}">${esc(b.name)}</button>`).join("")}</div></div>`;
   h+=`<div class="chips">${[["all","All"],["breakfast","Breakfast"],["main","Lunch & dinner"],["snack","Snacks"]].map(([k,l])=>`<button class="chip" aria-pressed="${f===k}" data-act="mf" data-v="${k}">${l}</button>`).join("")}</div>`;
   h+=MEALS.filter(filt).map(m=>mealCard(m,false)).join("");
