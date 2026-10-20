@@ -16,7 +16,7 @@ Ideas agreed for later. Each gets a brainstorm and spec before it's built.
 
 **Also consider (Today).** Show the shortfall plainly ("170 kcal short even at Loaded") so a refit that can't hit the goal doesn't look like it worked. And the reverse case: adding a staple on a day already over target, with every meal already Light.
 
-## Shop: mix pack sizes in one line (raised 2026-10-20)
+## Done in v0.27.0: Shop: mix pack sizes in one line (raised 2026-10-20)
 
 The chooser buys one pack size per item. Mixing is sometimes cheaper: 15 eggs is 2 x 12 = $13.40 but 12 + 6 = $11.60; 1250g yoghurt is 2 x 907g = $17.60 but 907g + 500g = $15.30. Needs the trolley send, sent record, orders matching and stock to handle two products for one item.
 
