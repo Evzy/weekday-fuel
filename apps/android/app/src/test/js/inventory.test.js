@@ -619,6 +619,23 @@ test("buysFromRows matches Past orders pantry and sent lines", () => {
   assert.deepEqual(I.buysFromRows([pantry], "woolies", {}, { honey: true }, { sent: { 753976: 1 }, colesSent: {}, colesId: catalogueColesId }), [{ item: "honey", amount: 375 }]);
 });
 
+test("buysFromRows ignores unsent shop rows when sent lines exist", () => {
+  const pantry = {
+    id: "honey",
+    sec: 2,
+    woolies: { product: { stockcode: 753976, size: 375 }, quantity: 1, cost: 5, buy: "1 jar" },
+  };
+  const fresh = {
+    id: "breast",
+    sec: 1,
+    woolies: { product: { stockcode: 111, size: 600 }, quantity: 1, cost: 10, buy: "600 g" },
+  };
+  assert.deepEqual(
+    I.buysFromRows([pantry, fresh], "woolies", {}, {}, { sent: { 753976: 1 }, colesSent: {}, colesId: catalogueColesId }),
+    [{ item: "honey", amount: 375 }]
+  );
+});
+
 test("buysFromRows stocks colesUnavailable from colesSent", () => {
   const gone = {
     id: "yog",

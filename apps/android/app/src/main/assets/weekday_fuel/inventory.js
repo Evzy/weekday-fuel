@@ -558,6 +558,7 @@
     var sent = o.sent && typeof o.sent === "object" ? o.sent : {};
     var colesSent = o.colesSent && typeof o.colesSent === "object" ? o.colesSent : {};
     var colesId = typeof o.colesId === "function" ? o.colesId : function () { return null; };
+    var hasSentLines = Object.keys(sent).length > 0 || Object.keys(colesSent).length > 0;
     var other = store === "coles" ? "woolies" : "coles";
     var t = ticks || {};
     var hi = haveIt || {};
@@ -569,6 +570,7 @@
         out.push({ item: row.id, amount: fromSent });
         return;
       }
+      if (hasSentLines) return;
       if (hi[row.id]) return;
       if (t[row.id]) return;
       if (row.sec === 2) return;
