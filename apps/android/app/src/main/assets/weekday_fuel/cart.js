@@ -113,6 +113,35 @@
     return JSON.stringify(Object.assign({ picks: p, days: d }, extra));
   }
 
+  var COLES_MAX_QTY = 99;
+
+  function colesManualLimit(row, part, remainder) {
+    return { itemId: row.id, name: part.product.name + " (add " + remainder + " yourself)", reason: "limit" };
+  }
+
+  function colesAddQty(byId, lines, manual, row, part, pid, addQty) {
+    if (byId[pid]) {
+      var room = COLES_MAX_QTY - byId[pid].quantity;
+      if (room <= 0) {
+        if (addQty > 0) manual.push(colesManualLimit(row, part, addQty));
+        return;
+      }
+      var take = Math.min(addQty, room);
+      byId[pid].quantity += take;
+      var rem = addQty - take;
+      if (rem > 0) manual.push(colesManualLimit(row, part, rem));
+      return;
+    }
+    if (addQty > COLES_MAX_QTY) {
+      byId[pid] = { itemId: row.id, productId: pid, quantity: COLES_MAX_QTY, name: part.product.name, url: part.product.url };
+      lines.push(byId[pid]);
+      manual.push(colesManualLimit(row, part, addQty - COLES_MAX_QTY));
+      return;
+    }
+    byId[pid] = { itemId: row.id, productId: pid, quantity: addQty, name: part.product.name, url: part.product.url };
+    lines.push(byId[pid]);
+  }
+
   /* Coles trolley lines, keyed by Coles product ID (idOf = catalogue colesId). Rows that share a product are merged. */
   function colesCartLines(rows, ticks, haveIt, idOf) {
     var lines = [];
@@ -132,12 +161,7 @@
         var pid = idOf(part.product);
         if (!pid) return;
         added = true;
-        if (byId[pid]) {
-          byId[pid].quantity += part.quantity;
-          return;
-        }
-        byId[pid] = { itemId: row.id, productId: pid, quantity: part.quantity, name: part.product.name, url: part.product.url };
-        lines.push(byId[pid]);
+        colesAddQty(byId, lines, manual, row, part, pid, part.quantity);
       });
       if (!added) {
         if (row.colesUnavailable) manual.push({ itemId: row.id, name: row.colesUnavailable.name, reason: "unavailable" });

@@ -224,6 +224,94 @@ test("mixed pack choice buys the cheapest combination of sizes", () => {
   assert.equal(ly.leftover, 157);
 });
 
+test("approx pack slack with small buy need picks one cheapest pack without crashing", () => {
+  const rows = byId(cat.shopList({}, { breast: 40 }));
+  const coles = rows.breast.coles;
+  assert.equal(coles.parts.length, 1);
+  assert.equal(coles.parts[0].quantity, 1);
+  assert.equal(coles.parts[0].product.name, "Coles Chicken Breast Small");
+  assert.equal(coles.cost, 7.2);
+});
+
+test("mixed pack choice is minimal for several needs", () => {
+  const mixEggs = [
+    {
+      ...EGG_PACK_ITEMS[0],
+      woolies: {
+        ...EGG_PACK_ITEMS[0].woolies,
+        price: 6,
+        packs: [
+          { ...EGG_PACK_ITEMS[0].woolies.packs[0], price: 4 },
+          { ...EGG_PACK_ITEMS[0].woolies.packs[1], price: 11 },
+        ],
+      },
+    },
+  ];
+  for (const n of [4, 10, 13, 15, 21]) {
+    const c = create(mixEggs, { m: { eggs: n } });
+    const line = byId(c.shopList({ m: 1 }, 0)).eggs.woolies;
+    const total = line.parts.reduce((s, p) => s + p.quantity * p.product.size, 0);
+    for (const pt of line.parts) {
+      assert.ok(total - pt.quantity * pt.product.size < n, "need " + n + " still covered without " + pt.product.name);
+    }
+  }
+});
+
+test("pack choice tie-breaks equal cost and leftover toward fewer packs", () => {
+  const fewPacks = create(
+    [
+      {
+        id: "unit",
+        sec: 1,
+        name: "Units",
+        unit: "units",
+        note: "",
+        same: false,
+        coles: null,
+        woolies: {
+          name: "Main ten",
+          url: W + "10001",
+          stockcode: 10001,
+          size: 10,
+          price: 10,
+          checked: "2026-10-15",
+          packs: [{ name: "Half five", url: W + "10002", stockcode: 10002, size: 5, price: 5, checked: "2026-10-15" }],
+        },
+      },
+    ],
+    { m: { unit: 20 } },
+  );
+  const line = byId(fewPacks.shopList({ m: 1 }, 0)).unit.woolies;
+  assert.deepEqual(
+    line.parts.map((p) => [p.product.stockcode, p.quantity, p.cost]),
+    [[10001, 2, 20]],
+  );
+});
+
+// Mirrors Weekday_Fuel.html storeLinePartFingerprint (page-only; not exported from catalogue).
+function storeLinePartFingerprint(line, colesIdFn) {
+  if (!line) return "";
+  const bits = [];
+  if (line.parts && line.parts.length) {
+    line.parts.forEach((p) => {
+      const id = colesIdFn ? colesIdFn(p.product) : p.product.stockcode;
+      if (id != null && id !== "") bits.push(String(id) + ":" + p.quantity);
+    });
+  } else if (line.product) {
+    const id = colesIdFn ? colesIdFn(line.product) : line.product.stockcode;
+    if (id != null && id !== "") bits.push(String(id) + ":" + line.quantity);
+  }
+  return bits.sort().join("+");
+}
+
+test("store line part fingerprint changes when the pack mix changes", () => {
+  const fifteen = create(EGG_PACK_ITEMS, { m: { eggs: 15 } });
+  const ten = create(EGG_PACK_ITEMS, { m: { eggs: 10 } });
+  const l15 = byId(fifteen.shopList({ m: 1 }, 0)).eggs.woolies;
+  const l10 = byId(ten.shopList({ m: 1 }, 0)).eggs.woolies;
+  assert.notEqual(storeLinePartFingerprint(l15, null), storeLinePartFingerprint(l10, null));
+});
+
 test("pack lines expose candidates and leftover; slack only for approx items", () => {
   const exact = create(EGG_PACK_ITEMS, { m: { eggs: 6 } });
   const l6 = byId(exact.shopList({ m: 1 }, 0)).eggs.woolies;
@@ -884,6 +972,17 @@ test("real catalogue pack entries are valid and sizes are unique per store line"
       }
     }
   }
+});
+
+test("real catalogue approx breast after partial have still picks a Coles pack", () => {
+  const rows = realCatalogue.shopList({ tenderwrap: 3 }, 0, null, { breast: 560 });
+  const breast = byId(rows).breast;
+  assert.equal(breast.need, 600);
+  assert.equal(breast.have, 560);
+  const coles = breast.coles;
+  assert.ok(coles.parts && coles.parts.length >= 1);
+  const bought = coles.parts.reduce((s, p) => s + p.quantity * p.product.size, 0);
+  assert.ok(bought >= 40 - 50);
 });
 
 test("real catalogue Woolworths eggs pick the 6-pack for a one-day shop when it is cheapest", () => {

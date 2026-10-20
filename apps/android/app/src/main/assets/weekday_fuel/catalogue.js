@@ -399,10 +399,18 @@
     return false;
   }
 
+  function cheapestSinglePack(candidates) {
+    var pick = candidates[0];
+    for (var ci = 1; ci < candidates.length; ci++) {
+      if (candidates[ci].price < pick.price) pick = candidates[ci];
+    }
+    return [{ product: pick, quantity: 1, cost: round2(pick.price) }];
+  }
+
   function bestPackMix(candidates, need, slack, main) {
     var minCover = need - slack;
     var maxCounts = candidates.map(function (c) {
-      return Math.max(0, Math.ceil(minCover / c.size));
+      return Math.max(1, Math.ceil(minCover / c.size));
     });
     var best = null;
     function search(idx, counts, totalSize, rawCost, packCount, mainCount) {
@@ -455,7 +463,7 @@
         parts = [{ product: forced, quantity: fq, cost: round2(fq * forced.price) }];
       } else {
         var mix = bestPackMix(candidates, need, slack, product);
-        parts = partsFromCounts(candidates, mix.counts);
+        parts = mix ? partsFromCounts(candidates, mix.counts) : cheapestSinglePack(candidates);
       }
     } else {
       var chosen = product;

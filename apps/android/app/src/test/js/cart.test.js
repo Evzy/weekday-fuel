@@ -196,6 +196,19 @@ test("a Coles line becomes a trolley line keyed by its Coles product ID", () => 
   assert.deepEqual(manual, []);
 });
 
+test("Coles merged quantity caps at 99 and sends the rest to the manual list", () => {
+  const rows = [row("a", null, { product: CM, quantity: 60 }), row("b", null, { product: CM, quantity: 50 })];
+  const { lines, manual } = colesCartLines(rows, {}, {}, idOf);
+  assert.deepEqual(lines, [{ itemId: "a", productId: "3329137", quantity: 99, name: CM.name, url: CM.url }]);
+  assert.deepEqual(manual, [{ itemId: "b", name: CM.name + " (add 11 yourself)", reason: "limit" }]);
+});
+
+test("Coles single line over 99 caps the trolley line and manual lists the remainder", () => {
+  const { lines, manual } = colesCartLines([row("mac", null, { product: CM, quantity: 105 })], {}, {}, idOf);
+  assert.deepEqual(lines, [{ itemId: "mac", productId: "3329137", quantity: 99, name: CM.name, url: CM.url }]);
+  assert.deepEqual(manual, [{ itemId: "mac", name: CM.name + " (add 6 yourself)", reason: "limit" }]);
+});
+
 test("Coles lines skip ticked and 'I have it' items and merge rows that share a product", () => {
   const rows = [row("mac", null, { product: CM, quantity: 1 }), row("mac2", null, { product: CM, quantity: 2 }), row("breast", null, { product: CB, quantity: 1 }), row("yog", YOG_ROW_W, { product: CB, quantity: 1 })];
   const { lines } = colesCartLines(rows, { breast: true }, { yog: true }, idOf);
