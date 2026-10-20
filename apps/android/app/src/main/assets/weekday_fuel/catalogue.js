@@ -64,7 +64,7 @@
       ],
     },
     {
-      id: "breast", sec: 1, keeps: 3, name: "Chicken breast fillets", unit: "g", note: "Woolworths buys 650g packs, or the 1.5–2.2kg tray when it's cheaper for the week (charged at 2.2kg, the difference refunded)", same: false,
+      id: "breast", sec: 1, keeps: 3, name: "Chicken breast fillets", unit: "g", note: "Woolworths buys 650g packs, or the 1.5–2.2kg tray when it's cheaper for the week (charged at 2.2kg, the difference refunded)", same: false, approx: true,
       coles: {
         name: "Coles RSPCA Approved Chicken Breast Fillets Large Pack approx. 1.4kg", url: "https://www.coles.com.au/product/coles-rspca-approved-chicken-breast-fillets-large-pack-approx.-1.4kg-2263179", size: 1400, price: 15.4, checked: "2026-10-15",
         packs: [{ name: "Coles RSPCA Approved Chicken Breast Fillets Small Pack approx. 600g", url: "https://www.coles.com.au/product/coles-rspca-approved-chicken-breast-fillets-small-pack-approx.-600g-2263168", size: 600, price: 8.7, checked: "2026-10-15" }],
@@ -80,7 +80,7 @@
       woolies: { name: "Woolworths Heart Smart Extra Lean Beef Mince 500g", url: "https://www.woolworths.com.au/shop/productdetails/577860/woolworths-heart-smart-extra-lean-beef-mince", stockcode: 577860, size: 500, price: 9.8, checked: "2026-10-15" },
     },
     {
-      id: "thigh", sec: 1, keeps: 3, name: "Chicken thigh fillets", unit: "g", note: "Teriyaki week only", same: false,
+      id: "thigh", sec: 1, keeps: 3, name: "Chicken thigh fillets", unit: "g", note: "Teriyaki week only", same: false, approx: true,
       coles: {
         name: "Coles RSPCA Approved Chicken Thigh Fillets Large Pack approx. 1.2kg", url: "https://www.coles.com.au/product/coles-rspca-approved-chicken-thigh-fillets-large-pack-approx.-1.2kg-2263328", size: 1200, price: 17.4, checked: "2026-10-15",
         packs: [{ name: "Coles RSPCA Chicken Thigh Fillets Small Pack approx. 700g", url: "https://www.coles.com.au/product/coles-rspca-chicken-thigh-fillets-small-pack-approx.-700g-2263317", size: 700, price: 12.6, checked: "2026-10-15" }],
@@ -326,33 +326,57 @@
     return unit.replace(/(ch|sh|x)es$/, "$1").replace(/s$/, "");
   }
 
-  function storeLine(item, product, need) {
+  function pickMatches(product, pickId) {
+    if (pickId == null || pickId === "") return false;
+    if (product.stockcode != null && product.stockcode == pickId) return true;
+    if (typeof product.url === "string" && product.url === pickId) return true;
+    return false;
+  }
+
+  function storeLine(item, product, need, pickId) {
     if (product.perKg) {
       var grams = deliGrams(need);
       return { product: product, quantity: grams / 1000, cost: round2((grams / 1000) * product.price), buy: grams + "g from the deli" };
     }
     var candidates = product.packs && product.packs.length ? [product].concat(product.packs) : null;
+    var slack = item.approx ? PACK_SLACK : 0;
+    function qtyFor(c) {
+      return Math.max(1, Math.ceil((need - slack) / c.size - 1e-9));
+    }
     var chosen;
     var n;
     if (candidates) {
-      var bestScore = Infinity;
-      chosen = product;
-      n = 1;
-      for (var i = 0; i < candidates.length; i++) {
-        var c = candidates[i];
-        var q = Math.max(1, Math.ceil((need - PACK_SLACK) / c.size - 1e-9));
-        var cost = q * c.price;
-        var waste = Math.max(0, q * c.size - need) / c.size * c.price;
-        var score = cost + waste;
-        if (score < bestScore) {
-          bestScore = score;
-          chosen = c;
-          n = q;
+      var forced = null;
+      for (var fi = 0; fi < candidates.length; fi++) {
+        if (pickMatches(candidates[fi], pickId)) {
+          forced = candidates[fi];
+          break;
+        }
+      }
+      if (forced) {
+        chosen = forced;
+        n = qtyFor(forced);
+      } else {
+        var bestCost = Infinity;
+        var bestLeft = Infinity;
+        var bestIdx = 0;
+        for (var i = 0; i < candidates.length; i++) {
+          var c = candidates[i];
+          var q = qtyFor(c);
+          var cost = q * c.price;
+          var leftover = Math.max(0, q * c.size - need);
+          if (cost < bestCost || (cost === bestCost && leftover < bestLeft) || (cost === bestCost && leftover === bestLeft && i < bestIdx)) {
+            bestCost = cost;
+            bestLeft = leftover;
+            bestIdx = i;
+            chosen = c;
+            n = q;
+          }
         }
       }
     } else {
       chosen = product;
-      n = Math.max(1, Math.ceil(need / chosen.size - 1e-9));
+      n = Math.max(1, Math.ceil((need - slack) / chosen.size - 1e-9));
     }
     var line = {
       product: chosen,
@@ -361,6 +385,12 @@
       buy: chosen.size === 1 ? n + " " + (n === 1 ? singular(item.unit) : item.unit) : n + " × " + packLabel(chosen, item.unit),
     };
     if (candidates) {
+      line.candidates = candidates.map(function (c) {
+        var q = qtyFor(c);
+        return { product: c, quantity: q, cost: round2(q * c.price) };
+      });
+      var leftoverAmt = n * chosen.size - need;
+      if (leftoverAmt > 0) line.leftover = leftoverAmt;
       var alts = [];
       for (var j = 0; j < candidates.length; j++) {
         if (candidates[j] !== chosen) alts.push(candidates[j]);
@@ -551,7 +581,9 @@
       return shortfall <= Math.max(1e-9, 0.05 * need);
     }
 
-    function shopRow(it, n, used, days, buy, h) {
+    function shopRow(it, n, used, days, buy, h, packPick) {
+      var woolPick = packPick && packPick.woolies ? packPick.woolies[it.id] : undefined;
+      var colesPick = packPick && packPick.coles ? packPick.coles[it.id] : undefined;
       var row = {
         id: it.id,
         sec: it.sec,
@@ -560,8 +592,8 @@
         need: n,
         used: used[it.id] || [],
         days: Object.keys(days[it.id] || {}).sort(),
-        coles: it.coles ? storeLine(it, it.coles, buy) : null,
-        woolies: it.woolies ? storeLine(it, it.woolies, buy) : null,
+        coles: it.coles ? storeLine(it, it.coles, buy, colesPick) : null,
+        woolies: it.woolies ? storeLine(it, it.woolies, buy, woolPick) : null,
         wooliesUnavailable: it.wooliesUnavailable || null,
         colesUnavailable: it.colesUnavailable || null,
       };
@@ -569,7 +601,7 @@
       return row;
     }
 
-    function shopList(picks, fixtureDays, dayMeals, have) {
+    function shopList(picks, fixtureDays, dayMeals, have, packPick) {
       var built = buildShopNeed(picks, fixtureDays, dayMeals);
       var need = built.need;
       var used = built.used;
@@ -580,7 +612,7 @@
         if (!(n > 0)) return;
         var h = haveForRow(have, it.id, n);
         if (rowCovered(n, h)) return;
-        out.push(shopRow(it, n, used, days, n - h, h));
+        out.push(shopRow(it, n, used, days, n - h, h, packPick));
       });
       return out;
     }

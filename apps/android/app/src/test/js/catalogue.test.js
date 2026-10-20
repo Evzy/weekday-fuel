@@ -8,7 +8,7 @@ const ITEMS = [
   { id: "dare", sec: 0, name: "Dare iced coffee", unit: "bottles", note: "", same: true,
     coles: { name: "Dare Double Espresso 500mL", url: C + "dare-8991361", size: 1, price: 5.5, checked: "2026-10-15" },
     woolies: { name: "Dare Double Espresso 500mL", url: W + "72280", stockcode: 72280, size: 1, price: 5, checked: "2026-10-15" } },
-  { id: "breast", sec: 1, name: "Chicken breast", unit: "g", note: "", same: false,
+  { id: "breast", sec: 1, name: "Chicken breast", unit: "g", note: "", same: false, approx: true,
     coles: { name: "Coles Chicken Breast Large", url: C + "breast-large-2263179", size: 1400, price: 16.8, checked: "2026-10-12",
       packs: [{ name: "Coles Chicken Breast Small", url: C + "breast-small-2263168", size: 600, price: 7.2, checked: "2026-10-12" }] },
     woolies: { name: "Woolworths Chicken Breast 1kg", url: W + "123456", stockcode: 123456, size: 1000, price: 13, checked: "2026-10-15" } },
@@ -38,6 +38,150 @@ test("deliGrams rounds up to the next 100 g, at least 100 g", () => {
   assert.equal(deliGrams(0), 100);
 });
 
+const EGG_PACK_ITEMS = [
+  {
+    id: "eggs",
+    sec: 1,
+    name: "Eggs",
+    unit: "eggs",
+    note: "",
+    same: false,
+    coles: null,
+    woolies: {
+      name: "12 pack",
+      url: W + "6013278",
+      stockcode: 6013278,
+      size: 12,
+      price: 6,
+      checked: "2026-10-15",
+      packs: [
+        { name: "6 pack", url: W + "6013276", stockcode: 6013276, size: 6, price: 4, checked: "2026-10-15" },
+        { name: "18 pack", url: W + "6013280", stockcode: 6013280, size: 18, price: 8, checked: "2026-10-15" },
+      ],
+    },
+  },
+];
+
+test("pack choice picks cheapest total for egg cartons", () => {
+  const four = create(EGG_PACK_ITEMS, { m: { eggs: 4 } });
+  const l4 = byId(four.shopList({ m: 1 }, 0)).eggs.woolies;
+  assert.deepEqual([l4.product.stockcode, l4.quantity, l4.cost, l4.leftover], [6013276, 1, 4, 2]);
+
+  const ten = create(EGG_PACK_ITEMS, { m: { eggs: 10 } });
+  const l10 = byId(ten.shopList({ m: 1 }, 0)).eggs.woolies;
+  assert.deepEqual([l10.product.stockcode, l10.quantity, l10.cost], [6013278, 1, 6]);
+
+  const thirteen = create(EGG_PACK_ITEMS, { m: { eggs: 13 } });
+  const l13 = byId(thirteen.shopList({ m: 1 }, 0)).eggs.woolies;
+  assert.deepEqual([l13.product.stockcode, l13.quantity, l13.cost], [6013280, 1, 8]);
+});
+
+test("pack choice tie-breaks equal cost toward less leftover then main", () => {
+  const no18 = create(
+    [
+      {
+        ...EGG_PACK_ITEMS[0],
+        woolies: {
+          ...EGG_PACK_ITEMS[0].woolies,
+          packs: [EGG_PACK_ITEMS[0].woolies.packs[0]],
+        },
+      },
+    ],
+    { m: { eggs: 13 } },
+  );
+  const l13 = byId(no18.shopList({ m: 1 }, 0)).eggs.woolies;
+  assert.deepEqual([l13.product.stockcode, l13.quantity, l13.cost], [6013276, 3, 12]);
+
+  const tie = create(
+    [
+      {
+        id: "tie",
+        sec: 1,
+        name: "Tie eggs",
+        unit: "eggs",
+        note: "",
+        same: false,
+        coles: null,
+        woolies: {
+          name: "Main dozen",
+          url: W + "9001",
+          stockcode: 9001,
+          size: 12,
+          price: 12,
+          checked: "2026-10-15",
+          packs: [{ name: "Alt dozen", url: W + "9002", stockcode: 9002, size: 12, price: 12, checked: "2026-10-15" }],
+        },
+      },
+    ],
+    { m: { tie: 10 } },
+  );
+  assert.equal(byId(tie.shopList({ m: 1 }, 0)).tie.woolies.product.name, "Main dozen");
+});
+
+test("packPick override chooses a pack; unknown override is ignored", () => {
+  const ten = create(EGG_PACK_ITEMS, { m: { eggs: 10 } });
+  const forced = byId(ten.shopList({ m: 1 }, 0, null, null, { woolies: { eggs: 6013276 } })).eggs.woolies;
+  assert.deepEqual([forced.product.stockcode, forced.quantity, forced.cost], [6013276, 2, 8]);
+  const ignored = byId(ten.shopList({ m: 1 }, 0, null, null, { woolies: { eggs: 9999999 } })).eggs.woolies;
+  assert.deepEqual([ignored.product.stockcode, ignored.quantity], [6013278, 1]);
+});
+
+test("pack lines expose candidates and leftover; slack only for approx items", () => {
+  const exact = create(EGG_PACK_ITEMS, { m: { eggs: 6 } });
+  const l6 = byId(exact.shopList({ m: 1 }, 0)).eggs.woolies;
+  assert.equal(l6.leftover, undefined);
+  assert.equal(l6.candidates.length, 3);
+  assert.equal(l6.candidates[0].product.stockcode, 6013278);
+
+  const slackItem = create(
+    [
+      {
+        id: "pin",
+        sec: 1,
+        name: "Exact pack",
+        unit: "g",
+        note: "",
+        same: false,
+        coles: {
+          name: "650g",
+          url: C + "pin-650",
+          size: 650,
+          price: 10,
+          checked: "2026-10-15",
+        },
+        woolies: null,
+      },
+    ],
+    { a: { pin: 650 }, b: { pin: 651 } },
+  );
+  assert.equal(byId(slackItem.shopList({ a: 1 }, 0)).pin.coles.quantity, 1);
+  assert.equal(byId(slackItem.shopList({ b: 1 }, 0)).pin.coles.quantity, 2);
+
+  const approxItem = create(
+    [
+      {
+        id: "pin",
+        sec: 1,
+        name: "Approx pack",
+        unit: "g",
+        note: "",
+        same: false,
+        approx: true,
+        coles: {
+          name: "650g",
+          url: C + "pin-650",
+          size: 650,
+          price: 10,
+          checked: "2026-10-15",
+        },
+        woolies: null,
+      },
+    ],
+    { m: { pin: 690 } },
+  );
+  assert.equal(byId(approxItem.shopList({ m: 1 }, 0)).pin.coles.quantity, 1);
+});
+
 test("shopList adds up each item's need across meals and serves, in catalogue order", () => {
   const rows = cat.shopList({ toasty: 2, tenderwrap: 2 }, 0);
   assert.deepEqual(rows.map((r) => [r.id, r.need]), [["breast", 400], ["ham", 200], ["cheese", 120]]);
@@ -65,7 +209,7 @@ test("whole packs per store, from each store's own pack size", () => {
   assert.equal(r.evap.woolies, null);
 });
 
-test("the cheapest chicken pack for the week wins on cost plus waste", () => {
+test("the cheapest chicken pack for the week wins on total cost", () => {
   const small = byId(cat.shopList({ tenderwrap: 3 }, 0)).breast.coles;
   assert.deepEqual([small.product.name, small.quantity, small.cost, small.buy], ["Coles Chicken Breast Small", 1, 7.2, "1 × 600g"]);
   const twoSmall = byId(cat.shopList({ tenderwrap: 4 }, 0)).breast.coles;
@@ -77,7 +221,7 @@ test("the cheapest chicken pack for the week wins on cost plus waste", () => {
   assert.deepEqual([at651.product.name, at651.quantity, at651.cost], ["Coles Chicken Breast Small", 2, 14.4]);
 });
 
-test("a Woolworths tray is chosen when it beats fixed packs on cost plus waste", () => {
+test("a Woolworths tray is chosen when it beats fixed packs on total cost", () => {
   const trayItems = [
     {
       id: "breast",
@@ -86,6 +230,7 @@ test("a Woolworths tray is chosen when it beats fixed packs on cost plus waste",
       unit: "g",
       note: "",
       same: false,
+      approx: true,
       coles: null,
       woolies: {
         name: "Woolworths Chicken Breast 650g",
@@ -105,7 +250,7 @@ test("a Woolworths tray is chosen when it beats fixed packs on cost plus waste",
   assert.deepEqual([packs.product.name, packs.quantity, packs.cost], ["Woolworths Chicken Breast 650g", 2, 18.8]);
 });
 
-test("pack choice uses cost plus waste, not cost alone", () => {
+test("pack choice uses cheapest total cost, not leftover waste alone", () => {
   const pin = create(
     [
       {
@@ -129,12 +274,11 @@ test("pack choice uses cost plus waste, not cost alone", () => {
     { one: { pin: 650 } },
   );
   const line = byId(pin.shopList({ one: 1 }, 0)).pin.coles;
-  assert.equal(line.product.name, "Alt 650g");
-  assert.equal(line.cost, 12);
-  assert.ok(10 < 12, "cost alone would pick the 1kg main ($10 vs $12)");
+  assert.equal(line.product.name, "Main 1kg");
+  assert.equal(line.cost, 10);
 });
 
-test("identical cost plus waste ties go to the main product", () => {
+test("identical total cost ties go to less leftover then the main product", () => {
   const tie = create(
     [
       {
@@ -567,6 +711,7 @@ test("storeLine lists unchosen pack candidates in alts, and items without packs 
       unit: "g",
       note: "",
       same: false,
+      approx: true,
       coles: null,
       woolies: {
         name: "Woolworths Chicken Breast 650g",
