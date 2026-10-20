@@ -60,6 +60,18 @@ Friction, worst first:
 
 ## Shop (v0.24.0)
 
+### Bought or to buy (Evan, 2026-10-20)
+
+"The idea of this cart and next cart seems weird; I've either bought the meals or not." The cart stops being its own thing:
+
+- **To buy** = every planned meal from today on that isn't bought and isn't left out (`shop:false`). That is the whole Shop list, always; it's never frozen.
+- **Sending a trolley** records which meals it covered: the sent record (`weekdayfuel.v1.sent` / `.colesSent`) gains an additive `meals: ["<date>|<index>|<mealId>", …]`, the to-buy meals at the moment of that send.
+- **Planned after sending:** if the to-buy list now differs from what was sent, Review shows "2 meals added since you sent" (or "changed") and the button **Send these too**. It re-sends the whole list; the trolley scripts already set exact quantities (and 0 for lines no longer needed), so the store trolley ends up matching. The sent record's `meals` is replaced with the new set.
+- **After "I've paid":** the store trolley can't change, so the button reads "Finish this shop first" (disabled), and new meals simply wait.
+- **Finish this shop** marks bought exactly the meals in the sent record's `meals` that still exist with the same id (same rules as `markBought` today otherwise), saves the order, adds buys to stock. Meals not covered stay "to buy". With no trolley sent (shopping in store), it marks every to-buy meal bought (as today).
+- **Removed:** frozen `settings.shopDays`, the freeze on Done, `held` / `holdMealForNextCart` / `releaseHeldMealsForNextCart`, the "Next cart" section and `NEXT_SHOP_NOTE`. Existing stored `held:true` meals are treated as plain to-buy (`delete shop` and `held` once on load where `held` is set). Existing `settings.shopDays` is ignored (left in storage). `shopDays()` is always the derived set.
+- Meals added from Week / Meals / plans while a trolley is sent are normal to-buy meals (no hold).
+
 A step bar at the top: **1 Review · 2 Send · 3 Check out · 4 Done**, derived from existing state (no trolley sent → Review; sending → Send; sent → Check out; checked out/paid → Done).
 
 - **1 Review:**
@@ -71,12 +83,12 @@ A step bar at the top: **1 Review · 2 Send · 3 Check out · 4 Done**, derived 
   - Button: **Send to {store} trolley**.
 - **2 Send:** progress, then "Add these yourself", as now. Button: **Check out**.
 - **3 Check out:** the existing in-app Woolworths checkout, or the Coles link. Button: **I've paid**.
-- **4 Done:** **Finish this shop** (today's "Save order and start next shop": save the order, add the buys to stock, mark meals bought, release held meals, start a fresh cart). Past orders as a link.
+- **4 Done:** **Finish this shop** (today's "Save order and start next shop": save the order, add the buys to stock, mark the sent meals bought, clear ticks and sent records). Past orders as a link.
 - **Price consistency:** Suggest my week and Plans quote the cart total for the selected store, computed the same way as the cart.
 
 ## Unchanged
 
-Storage shapes (only additive `settings.setupDone`), meal ids, catalogue, trolley/checkout host messages and the JS bridge rule, specials/swaps behaviour, staples data, held-meal and frozen-cart logic.
+Storage shapes (only additive `settings.setupDone` and the sent record's `meals`), meal ids, catalogue, trolley/checkout host messages and the JS bridge rule, specials/swaps behaviour, staples data. (Held-meal and frozen-cart logic is removed in v0.24.0, above.)
 
 ## Testing
 
