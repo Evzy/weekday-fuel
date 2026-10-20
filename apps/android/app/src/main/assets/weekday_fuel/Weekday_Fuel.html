@@ -386,6 +386,17 @@ function renderStapleChips(date,day){
   }).join("");
   return `<div class="stack" style="gap:8px"><div class="eyebrow">Staples</div><div class="chips">${chips}<button type="button" class="chip" data-act="stapleadd" aria-label="Add staple">+</button></div></div>`;
 }
+function renderStapleChipsToday(date,day){
+  const list=staplesActiveOn(date);
+  if(!list.length)return "";
+  const chips=list.map(s=>{
+    const it=CAT.item(s.id);if(!it)return "";
+    const on=WeekdayFuelStaples.onDay(s,date,day);
+    const chip=stapleChipText(s,it,on);
+    return `<button type="button" class="chip" aria-pressed="${on?"true":"false"}" data-act="stapletog" data-v="${esc(s.id)}" data-d="${esc(date)}" title="${esc(chip.tip)}" aria-label="${esc(chip.tip)}">${esc(chip.text)}</button>`;
+  }).join("");
+  return `<div class="stack" style="gap:8px"><div class="eyebrow">Staples</div><div class="chips">${chips}</div></div>`;
+}
 function renderStapleSheetBody(){
   const draft=state.stapleSheetDraft;if(!draft)return "";
   const isNew=state.sheet==="staple:new";
@@ -561,6 +572,7 @@ const DEFAULT_SETTINGS={
   trial:{},
   shopDays:{},
   fixtureDays:5,
+  setupDone:false,
   fixtures:{
     dare:{name:"Dare Protein iced coffee",sub:"No added sugar · 500ml",k:296,p:30,c:26,f:8,cost:5.5},
     grenade:{name:"Grenade bar",sub:"Salted caramel · 60g",k:244,p:20,c:2,f:10,cost:4.15}
@@ -587,7 +599,7 @@ const clone=o=>JSON.parse(JSON.stringify(o));
 function deepMerge(base,over){const out=clone(base);if(!over)return out;for(const k in over){if(k==="trial"){out[k]=clone(over[k]);continue}if(over[k]&&typeof over[k]==="object"&&!Array.isArray(over[k])&&out[k]&&typeof out[k]==="object")out[k]=deepMerge(out[k],over[k]);else out[k]=over[k];}return out}
 
 /* ---------- state + storage ---------- */
-const state={tab:"today",tabBefore:null,date:iso(new Date()),settings:clone(DEFAULT_SETTINGS),days:{},weights:{},adding:null,mealFilter:"all",sheet:null,addPick:null,armed:null,unlocked:{},dayNote:null,openItem:null,kOpen:null,kAddItem:null,kitchenError:null,kitchenHint:null,kitchenHintWhere:null,trolley:null,prices:null,colesPrices:null,pricesTried:0,checkout:null,coLast:null,openOrder:null,orderError:false,weekNote:null,mealNote:null,scrollMealNote:false,backup:{busy:null,error:null,needNewFile:false,remembered:null,pending:null}};
+const state={tab:"today",tabBefore:null,date:iso(new Date()),settings:clone(DEFAULT_SETTINGS),days:{},weights:{},adding:null,mealFilter:"all",sheet:null,addPick:null,armed:null,unlocked:{},dayNote:null,openItem:null,kOpen:null,kAddItem:null,kitchenError:null,kitchenHint:null,kitchenHintWhere:null,trolley:null,prices:null,colesPrices:null,pricesTried:0,checkout:null,coLast:null,openOrder:null,orderError:false,weekNote:null,mealNote:null,scrollMealNote:false,todayExtrasOpen:false,backup:{busy:null,error:null,needNewFile:false,remembered:null,pending:null}};
 let db=null;
 let restoring=false;
 const BACKUP_KEY="weekdayfuel.backup",BEFORE_KEY="weekdayfuel.beforeRestore";
@@ -725,6 +737,11 @@ async function initStore(){
   const cached=lsGet();
   if(cached){state.settings=deepMerge(DEFAULT_SETTINGS,cached.settings);state.days=cached.days||{};state.weights=cached.weights||{};}
   if(state.mealFilter==="remake")state.mealFilter="all";
+  if(state.settings.setupDone!==true){
+    const hasDays=Object.keys(state.days).length>0;
+    const hasWeights=Object.keys(state.weights).some(k=>state.weights[k]&&isFinite(state.weights[k].kg));
+    if(hasDays||hasWeights){state.settings.setupDone=true;saveSettings()}
+  }
   normalizeTab();
   runBoughtBackfillIfNeeded();
   runStaplesFxMigrateIfNeeded();
@@ -952,6 +969,40 @@ function gauge(label,val,tgt,unit,cls){
     : (left>=0?`<b>${r0(left)}</b> kcal left to spend`:`<b>${r0(-left)}</b> kcal over`);
   return `<div class="gauge"><div class="eyebrow">${label}</div><div class="row" style="gap:6px;align-items:baseline"><span class="big">${r0(val)}</span><span class="of">/ ${tgt}${unit}</span></div><div class="bar ${cls||""} ${over?"over":""}"><i style="width:${pct}%"></i></div><div class="left">${leftTxt}</div></div>`;
 }
+function compactMacro(val,tgt,unit,cls){
+  const pct=Math.min(100,tgt?val/tgt*100:0);
+  return `<div class="stack" style="gap:4px"><div class="small"><b class="num">${r0(val)}</b> / ${tgt}${unit}</div><div class="bar ${cls||""}" style="height:4px"><i style="width:${pct}%"></i></div></div>`;
+}
+function tierLabel(t){const x=TIERS.find(([k])=>k===t);return x?x[1]:"Standard"}
+function renderSetupCard(){
+  const s=S(),mode=s.mode,kKey=mode==="cut"?"cut":mode==="bulk"?"bulk":"recomp";
+  return `<div class="panel stack" style="gap:10px" id="setup-card"><div class="eyebrow">Welcome</div><h2>Your targets</h2><div class="chips">${Object.keys(MODES).map(k=>`<button type="button" class="chip" aria-pressed="${s.mode===k}" data-act="mode" data-v="${k}">${MODES[k].label}</button>`).join("")}</div><label class="f">${esc(MODES[mode].label)} kcal<input class="num" type="number" data-set="kcal.${kKey}" value="${s.kcal[kKey]}"></label><label class="f">Protein g (every day)<input class="num" type="number" data-set="protein" value="${s.protein}"></label><button type="button" class="btn" data-act="setupdone">Save</button></div>`;
+}
+function renderTodayWeighBox(today){
+  const w=state.weights[today];
+  if(!w||!isFinite(w.kg)){
+    return `<form class="panel row" id="wform" style="align-items:flex-end;gap:8px;flex-wrap:wrap"><label class="f grow">Morning weight (kg)<input id="wkg" class="num" type="number" step="0.1" min="30" max="250" inputmode="decimal" placeholder="83.5"></label><input type="hidden" id="wdate" value="${today}"><button class="btn" type="submit">Save</button></form>`;
+  }
+  const cur=avgWindow(today,7);
+  let extra="";
+  if(cur&&cur.n>=3){
+    const prev=avgWindow(addDays(today,-7),7);
+    extra=` · 7-day avg ${cur.avg.toFixed(1)}`;
+    if(prev&&prev.n>=3){
+      const delta=cur.avg-prev.avg;
+      extra+=(delta>=0?" ↑":" ↓")+Math.abs(delta).toFixed(1);
+    }
+  }
+  return `<button type="button" class="panel row between" data-act="view" data-v="weigh" style="width:100%;text-align:left;cursor:pointer"><span><b class="num">${w.kg.toFixed(1)}</b> kg today${extra}</span><span class="small muted">Weigh-in</span></button>`;
+}
+function renderTodayExtrasForm(today){
+  const day=dayOf(today);
+  let h=`<form class="grid2" id="xform"><label class="f">What<input id="xn" placeholder="e.g. Subway footlong"></label><label class="f">kcal<input id="xk" class="num" type="number" inputmode="numeric" min="0" placeholder="900"></label><label class="f">Protein g<input id="xp" class="num" type="number" inputmode="numeric" min="0" placeholder="50"></label><div style="display:flex;align-items:flex-end"><button class="btn alt" style="width:100%" type="submit">Add</button></div></form>`;
+  if(day.extras&&day.extras.length){
+    h=`<div class="wlist">`+day.extras.map((x,i)=>`<div class="wli"><span class="grow">${esc(x.n||"Extra")}</span><span class="num small">${r0(x.k)} kcal · ${r0(x.p)}g P</span><button class="ghost" data-act="rmx" data-i="${i}" data-d="${esc(today)}">Remove</button></div>`).join("")+`</div>`+h;
+  }
+  return h;
+}
 function weekStrip(){
   const mon=monday(state.date);const tg=target();
   const names=["MON","TUE","WED","THU","FRI","SAT","SUN"];
@@ -969,8 +1020,42 @@ function weekStrip(){
   return `<div class="stack" style="gap:8px"><div class="week">${cells}</div><div class="small muted">${summary} Weekends aren't counted in the tally.</div></div>`;
 }
 function renderToday(){
-  state.date=iso(new Date());
-  return renderWeek();
+  const today=iso(new Date());
+  const day=dayOf(today);
+  const we=isWeekend(today);
+  const on=tracked(today);
+  let h=`<div><div class="eyebrow">Today</div><h2>${fmtDay(today)}</h2></div>`;
+  if(state.settings.setupDone!==true){
+    h+=renderSetupCard();
+    return h;
+  }
+  h+=renderTodayWeighBox(today);
+  if(we&&!on){
+    h+=`<div class="panel stack" style="gap:8px"><p class="muted" style="margin:0">Weekend, eat how you like.</p><button type="button" class="ghost" data-act="plantoday">Plan today anyway →</button></div>`;
+    h+=renderStapleChipsToday(today,day);
+    return h;
+  }
+  const meals=day.meals||[];
+  const tg=target();
+  const t=totals(day,today);
+  if(!meals.length){
+    h+=`<div class="panel"><p class="muted" style="margin:0">Nothing planned. <button type="button" class="ghost" data-act="tab" data-v="week">Plan my week →</button></p></div>`;
+  }else{
+    h+=`<div class="panel stack" style="gap:10px">${compactMacro(t.k,tg.k," kcal","")}${compactMacro(t.p,tg.p," g protein","p")}</div>`;
+    h+=renderStapleChipsToday(today,day);
+    h+=`<div class="panel stack" style="gap:4px">`+meals.map((m,i)=>{
+      const meal=MEAL[m.id];if(!meal)return "";
+      const bought=WeekdayFuelBought.isBought(m);
+      const boughtTag=bought?` · <span class="tag ok">Bought</span>`:"";
+      return `<button type="button" class="pick" data-act="todaymeal" data-i="${i}"><span class="small grow">${esc(m.slot)} · ${esc(meal.name)} · ${esc(tierLabel(m.t))}${boughtTag}</span></button>`;
+    }).join("")+`</div>`;
+  }
+  if(meals.length){
+    h+=`<div class="stack" style="gap:8px;margin-top:8px"><button type="button" class="ghost" data-act="todayextra">${state.todayExtrasOpen?"Hide extras":"Ate something else?"}</button>`;
+    if(state.todayExtrasOpen)h+=`<div class="panel stack">${renderTodayExtrasForm(today)}</div>`;
+    h+=`</div>`;
+  }
+  return h;
 }
 function renderWeek(){
   const date=state.date;const day=dayOf(date);const tg=target();const t=totals(day,date);const we=isWeekend(date);const on=tracked(date);
@@ -1453,6 +1538,22 @@ function renderTargets(){
 function renderSheet(){
   const root=$("#sheetroot");
   if(!state.sheet){root.innerHTML="";return}
+  if(state.sheet.startsWith("today:")){
+    const i=+state.sheet.slice(6);
+    const today=iso(new Date());
+    const day=dayOf(today);
+    const m=(day.meals||[])[i];
+    const meal=m&&MEAL[m.id];
+    if(!m||!meal){state.sheet=null;root.innerHTML="";return}
+    const locked=mealLocked(m,today);
+    const dd=` data-d="${esc(today)}"`;
+    const tierDial=locked?"":`<div class="dial" role="group" aria-label="Portion">${TIERS.map(([k,l])=>`<button type="button" aria-pressed="${m.t===k}" data-act="tier" data-i="${i}" data-v="${k}"${dd}>${l}</button>`).join("")}</div>`;
+    const rmArmed=state.armed==="rm"+i;
+    const body=`<div class="stack" style="gap:10px"><div><div class="eyebrow">${esc(m.slot)}</div><h2>${esc(meal.name)}</h2><div class="small muted">${esc(tierLabel(m.t))}${WeekdayFuelBought.isBought(m)?` · Bought`:""}</div></div><div class="row" style="gap:8px;flex-wrap:wrap"><button type="button" class="btn alt" data-act="recipe" data-v="${esc(meal.id)}" data-t="${esc(m.t)}">Recipe</button></div>${tierDial}<div class="row" style="gap:8px;flex-wrap:wrap"><button type="button" class="ghost" data-act="swap" data-i="${i}"${dd}>Swap</button><button type="button" class="ghost ${rmArmed?"warn":""}" data-act="rm" data-i="${i}"${dd}>${rmArmed?"Tap to remove":"Remove"}</button></div></div>`;
+    root.innerHTML=`<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(meal.name)}"><div class="row between" style="margin-bottom:10px"><span class="eyebrow">Today</span><button type="button" class="ghost" data-act="close">Close</button></div>${body}</div></div>`;
+    root.dataset.sheet=state.sheet;
+    return;
+  }
   if(state.sheet.startsWith("staple:")){
     const title=state.sheet==="staple:new"?"Add staple":"Edit staple";
     root.innerHTML=`<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(title)}"><div class="row between" style="margin-bottom:10px"><span class="eyebrow">Staple</span><button class="ghost" data-act="close">Close</button></div>${renderStapleSheetBody()}</div></div>`;
@@ -1537,9 +1638,13 @@ document.addEventListener("click",e=>{
   state.weekNote=null;
   state.mealNote=null;
   state.dayNote=null;
-  const date=state.date;
+  const date=el.dataset.d||(state.tab==="today"?iso(new Date()):state.date);
   switch(act){
-    case "tab":state.tab=v;state.adding=null;state.planStart=null;state.kOpen=null;state.kitchenHint=null;state.kitchenHintWhere=null;window.scrollTo(0,0);if(v==="shop"&&!coBusy())maybeRefreshPrices();break;
+    case "tab":state.tab=v;state.adding=null;state.planStart=null;state.kOpen=null;state.kitchenHint=null;state.kitchenHintWhere=null;if(v!=="today")state.todayExtrasOpen=false;window.scrollTo(0,0);if(v==="shop"&&!coBusy())maybeRefreshPrices();break;
+    case "setupdone":state.settings.setupDone=true;saveSettings();break;
+    case "todaymeal":state.sheet="today:"+i;break;
+    case "todayextra":state.todayExtrasOpen=!state.todayExtrasOpen;break;
+    case "plantoday":{const t=iso(new Date());const d=ensureDay(t);if(isWeekend(t))d.track=true;saveDay(t);state.tab="week";state.date=t;state.adding=null;window.scrollTo(0,0);break}
     case "view":openView(v);break;
     case "back":closeView();break;
     case "targets":openView("targets");break;
@@ -1553,7 +1658,7 @@ document.addEventListener("click",e=>{
     case "goto":state.date=v;state.adding=null;break;
     case "track":{const d=ensureDay(date);d.track=true;saveDay(date);break}
     case "untrack":{const d=ensureDay(date);d.track=false;saveDay(date);break}
-    case "stapletog":toggleStapleDay(v,date);break;
+    case "stapletog":toggleStapleDay(v,el.dataset.d||date);break;
     case "stapleedit":openStapleSheet(v);break;
     case "stapleadd":openStapleSheet(null);break;
     case "stapdays":{syncStapleSheetDraft();if(state.stapleSheetDraft)state.stapleSheetDraft.days=v;break}
@@ -1571,7 +1676,7 @@ document.addEventListener("click",e=>{
     case "nextshop":if(trolleyBusy())break;if(state.armed!=="nextshop"){state.armed="nextshop";break}state.armed=null;{let saved;try{saved=trySaveOrder()}catch(e){saved=false}if(!saved){state.orderError={where:el.dataset.w,msg:"Couldn't save the order. Nothing was cleared."};break}if(saved!==true){const orderId=saved;try{const st=store(),haveIt=WeekdayFuelInventory.shopHaveIt(state.trolley,sentFor(st)),buys=WeekdayFuelInventory.buysFromRows(shopOrderRows(),st,lsTicks(),haveIt,{sent:(lsSent()||{}).lines||{},colesSent:(lsColesSent()||{}).lines||{},colesId:WeekdayFuelCatalogue.colesId});if(buys.length){const events=buys.map(b=>({k:"buy",item:b.item,amount:b.amount,order:orderId})),inv=WeekdayFuelInventory.addEvents(lsInv(),events,new Date().toISOString());if(!lsSetInv(inv))state.orderError={where:"kitchen",msg:"Saved the order, but couldn't update the kitchen stock."}}}catch(e){state.orderError={where:"kitchen",msg:"Saved the order, but couldn't update the kitchen stock."}}try{const mark=WeekdayFuelBought.markBought(state.days,shopDays(),orderId);state.days=mark.days;mark.changed.forEach(d=>saveDay(d))}catch(e){}}state.settings.shopDays={};state.settings.trial={};saveSettings();lsSetTicks({});lsSetSent(null);lsSetColesSent(null);lsSetSpecials(null);releaseHeldMealsForNextCart();state.trolley=null;state.checkout=null;state.coLast=null;break}
     case "openorder":state.openOrder=state.openOrder===v?null:v;break;
     case "delorder":{if(state.armed!=="order"+v){state.armed="order"+v;break}state.armed=null;if(!lsSetOrders(WeekdayFuelOrders.removeOrder(lsOrders(),v))){state.orderError={where:"del"+v,msg:"Couldn't delete the order."};break}const inv=lsInv();if(inv&&!lsSetInv(WeekdayFuelInventory.removeOrder(inv,v)))state.orderError={where:"kitchen",msg:"Deleted the order, but couldn't update the kitchen stock."};try{const un=WeekdayFuelBought.unmarkBought(state.days,v);state.days=un.days;un.changed.forEach(d=>saveDay(d))}catch(e){}if(state.openOrder===v)state.openOrder=null;break}
-    case "rm":{const d=ensureDay(date);const m=d.meals[i];if(mealLocked(m,date))break;if(state.armed==="rm"+i){d.meals.splice(i,1);saveDay(date);state.armed=null}else state.armed="rm"+i;break}
+    case "rm":{const d=ensureDay(date);const m=d.meals[i];if(mealLocked(m,date))break;if(state.armed==="rm"+i){d.meals.splice(i,1);saveDay(date);state.armed=null;if(state.sheet&&state.sheet.startsWith("today:"))state.sheet=null}else state.armed="rm"+i;break}
     case "adding":state.adding=state.adding===v?null:v;break;
     case "add":{const d=ensureDay(date);d.meals=d.meals||[];const nm={id:v,slot:state.adding,t:"S"};d.meals.push(nm);if(trolleySent()&&shopDays().includes(date))holdMealForNextCart(nm);state.adding=null;saveDay(date);break}
     case "addto":{const d=ensureDay(date);d.meals=d.meals||[];const nm={id:v,slot:el.dataset.s,t:"S"};d.meals.push(nm);if(trolleySent()&&shopDays().includes(date))holdMealForNextCart(nm);saveDay(date);state.sheet=null;state.tab="week";state.date=date;window.scrollTo(0,0);break}
@@ -1643,7 +1748,9 @@ document.addEventListener("submit",e=>{
   if(e.target.id==="xform"){
     const n=$("#xn").value.trim(),k=parseFloat($("#xk").value),p=parseFloat($("#xp").value)||0;
     if(!isFinite(k)){$("#xk").focus();return}
-    const d=ensureDay(state.date);d.extras=d.extras||[];d.extras.push({n:n||"Extra",k,p});saveDay(state.date);render();
+    const today=iso(new Date());
+    const dayDate=state.tab==="today"?today:state.date;
+    const d=ensureDay(dayDate);d.extras=d.extras||[];d.extras.push({n:n||"Extra",k,p});saveDay(dayDate);render();
   }
   if(e.target.id==="stapform"){
     syncStapleSheetDraft();
