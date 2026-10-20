@@ -1047,6 +1047,11 @@ function gapSimulateSpread(today,gapK,dates){
   if(!dates.length)return null;
   const daysMap=clone(state.days);
   const splits=WeekdayFuelGap.spreadSplit(gapK,dates);
+  dates.forEach(d=>{
+    const day=gapCloneDay(d,daysMap);
+    fitTiers(day,0,d,{bought:true,target:gapTargetOn(d,daysMap)});
+    daysMap[d]=day;
+  });
   let beforeSum=0;
   dates.forEach(d=>{beforeSum+=gapDayBurden(daysMap[d]||dayOf(d),d,daysMap,gapK);});
   splits.forEach(({date,k})=>{
@@ -2238,6 +2243,7 @@ document.addEventListener("click",e=>{
   state.kitchenError=null;
   state.weekNote=null;
   if(act!=="weektile")state.mealNote=null;
+  if(act!=="gapopen"&&act!=="gapapply"&&act!=="gapundo"&&!state.gapUndo)state.todayNote=null;
   if(act!=="weektile"&&act!=="daymenu"&&act!=="weekmenu")state.dayNote=null;
   const date=actionDate(el);
   switch(act){

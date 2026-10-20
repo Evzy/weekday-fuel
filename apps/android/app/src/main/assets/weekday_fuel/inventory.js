@@ -498,6 +498,17 @@
     }
     var todayDay = days && days[today];
     if (todayDay) reserveExtraUses(out, todayDay.extras);
+    Object.keys(days || {}).forEach(function (d) {
+      if (d === "__proto__" || !DATE.test(d)) return;
+      if (compareDate(d, end) <= 0) return;
+      if (compareDate(d, startDate) <= 0) return;
+      var day = days[d];
+      if (!day || !Array.isArray(day.meals)) return;
+      day.meals.forEach(function (m) {
+        var bought = m && typeof m.bought === "string" && m.bought !== "";
+        if (bought) reserveMeal(out, cat, m, d, today);
+      });
+    });
     return out;
   }
 

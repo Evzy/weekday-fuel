@@ -947,6 +947,17 @@ test("gapSpareReserved covers meals staples and today extras through week end", 
   assert.equal(r.grenade, 1);
 });
 
+test("gapSpareReserved includes bought meals after week end", () => {
+  const base = inv([]);
+  const today = "2026-10-20";
+  const weekEnd = "2026-10-26";
+  const days = {
+    "2026-10-27": { meals: [{ id: "tenderwrap", t: "S", bought: "o1" }] },
+  };
+  const r = I.gapSpareReserved(base, days, cat, today, weekEnd, [], staplesNone);
+  assert.ok(r.breast > 0);
+});
+
 test("prune keeps an event exactly at the cutoff and drops one millisecond before", () => {
   const when = new Date(2026, 9, 20, 12, 0, 0);
   const cutoff = new Date(when.getFullYear(), when.getMonth(), when.getDate());
