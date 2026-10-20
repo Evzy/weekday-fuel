@@ -24,11 +24,18 @@ const ITEMS = [
   { id: "spin", sec: 1, name: "Spinach", unit: "g", coles: P(120, 3), woolies: P(120, 3) },
   { id: "toms", sec: 1, name: "Tomatoes", unit: "g", coles: P(250, 4), woolies: P(250, 4) },
   { id: "bread", sec: 2, name: "Bread", unit: "slices", coles: P(10, 4), woolies: P(10, 4) },
-  { id: "eggs", sec: 1, name: "Eggs", unit: "eggs", coles: P(12, 6), woolies: P(12, 6) },
+  {
+    id: "eggs",
+    sec: 1,
+    name: "Eggs",
+    unit: "eggs",
+    coles: Object.assign(P(12, 6), { packs: [P(6, 4)] }),
+    woolies: Object.assign(P(12, 6), { packs: [P(6, 4)] }),
+  },
   { id: "wo", sec: 2, name: "Woolworths only", unit: "bottles", coles: null, woolies: P(1, 7) },
 ];
 const AMOUNTS = {
-  b1: { eggs: 3, bread: 2 }, b2: { eggs: 2, spin: 20 }, b3: { bread: 2, toms: 50 },
+  b1: { eggs: 3, bread: 2 }, b2: { eggs: 2, spin: 20 }, b3: { bread: 2, toms: 50 }, b15: { eggs: 15 },
   l1: { chick: 200, rice: 1 }, l2: { chick: 200, spin: 30 }, l3: { chick: 200, toms: 50 },
   d1: { pasta: 100, toms: 100 }, d2: { pasta: 100, chick: 180 }, d3: { rice: 1, spin: 40 }, d4: { pasta: 100, spin: 60 },
   sa: { spin: 20 }, st: { toms: 50 }, sp: { pasta: 100 }, sw: { wo: 1 },
@@ -143,6 +150,7 @@ test("shopScore is the whole-pack cost plus the unused part of fresh packs, usin
   assert.equal(shopScore(CAT, dm("sp"), "coles"), 2);
   assert.equal(shopScore(CAT, dm("sw"), "coles"), 7);
   assert.ok(shopScore(CAT, dm("sa", "sa"), "coles") < shopScore(CAT, dm("sa", "st"), "coles"));
+  assert.equal(shopScore(CAT, dm("b15"), "coles"), 11.5);
 });
 
 test("with near 0 the chosen week is the best-scoring one found", () => {

@@ -120,7 +120,15 @@ test("pack choice tie-breaks equal cost toward less leftover then main", () => {
     { m: { eggs: 13 } },
   );
   const l13 = byId(no18.shopList({ m: 1 }, 0)).eggs.woolies;
-  assert.deepEqual([l13.product.stockcode, l13.quantity, l13.cost], [6013276, 3, 12]);
+  assert.equal(l13.buy, "1 × 12 eggs + 1 × 6 eggs");
+  assert.deepEqual([l13.product.stockcode, l13.quantity, l13.cost], [6013278, 1, 10]);
+  assert.deepEqual(
+    l13.parts.map((p) => [p.product.stockcode, p.quantity, p.cost]),
+    [
+      [6013278, 1, 6],
+      [6013276, 1, 4],
+    ],
+  );
 
   const tie = create(
     [
@@ -156,10 +164,72 @@ test("packPick override chooses a pack; unknown override is ignored", () => {
   assert.deepEqual([ignored.product.stockcode, ignored.quantity], [6013278, 1]);
 });
 
+test("mixed pack choice buys the cheapest combination of sizes", () => {
+  const mixEggs = [
+    {
+      ...EGG_PACK_ITEMS[0],
+      woolies: {
+        ...EGG_PACK_ITEMS[0].woolies,
+        price: 6,
+        packs: [
+          { ...EGG_PACK_ITEMS[0].woolies.packs[0], price: 4 },
+          { ...EGG_PACK_ITEMS[0].woolies.packs[1], price: 11 },
+        ],
+      },
+    },
+  ];
+  const fifteen = create(mixEggs, { m: { eggs: 15 } });
+  const l15 = byId(fifteen.shopList({ m: 1 }, 0)).eggs.woolies;
+  assert.equal(l15.buy, "1 × 12 eggs + 1 × 6 eggs");
+  assert.equal(l15.cost, 10);
+  assert.equal(l15.leftover, 3);
+  assert.deepEqual(
+    l15.parts.map((p) => [p.product.stockcode, p.quantity, p.cost]),
+    [
+      [6013278, 1, 6],
+      [6013276, 1, 4],
+    ],
+  );
+  assert.ok(l15.alts.some((p) => p.stockcode === 6013280));
+  assert.ok(!l15.alts.some((p) => p.stockcode === 6013278));
+  assert.ok(!l15.alts.some((p) => p.stockcode === 6013276));
+  const total = l15.parts.reduce((s, p) => s + p.quantity * p.product.size, 0);
+  for (const pt of l15.parts) {
+    assert.ok(total - pt.quantity * pt.product.size < 15);
+  }
+
+  const YOG_PACK_ITEMS = [
+    {
+      id: "yog",
+      sec: 1,
+      name: "Yoghurt",
+      unit: "g",
+      note: "",
+      same: true,
+      coles: {
+        name: "907g",
+        url: C + "yog-907",
+        size: 907,
+        price: 8.8,
+        checked: "2026-10-15",
+        packs: [{ name: "500g", url: C + "yog-500", size: 500, price: 6.5, checked: "2026-10-20" }],
+      },
+      woolies: null,
+    },
+  ];
+  const y1250 = create(YOG_PACK_ITEMS, { m: { yog: 1250 } });
+  const ly = byId(y1250.shopList({ m: 1 }, 0)).yog.coles;
+  assert.equal(ly.buy, "1 × 907g + 1 × 500g");
+  assert.equal(ly.cost, 15.3);
+  assert.equal(ly.leftover, 157);
+});
+
 test("pack lines expose candidates and leftover; slack only for approx items", () => {
   const exact = create(EGG_PACK_ITEMS, { m: { eggs: 6 } });
   const l6 = byId(exact.shopList({ m: 1 }, 0)).eggs.woolies;
   assert.equal(l6.leftover, undefined);
+  assert.equal(l6.parts.length, 1);
+  assert.equal(l6.parts[0].product.stockcode, 6013276);
   assert.equal(l6.candidates.length, 3);
   assert.equal(l6.candidates[0].product.stockcode, 6013278);
 

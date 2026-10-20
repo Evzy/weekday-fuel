@@ -55,7 +55,14 @@
       var p = line.product;
       if (r.sec === 1 && !p.perKg) {
         var buyNeed = r.need - (r.have || 0);
-        var left = line.quantity * p.size - buyNeed;
+        var boughtSize;
+        if (line.parts && line.parts.length) {
+          boughtSize = 0;
+          line.parts.forEach(function (pt) {
+            boughtSize += pt.quantity * pt.product.size;
+          });
+        } else boughtSize = line.quantity * p.size;
+        var left = boughtSize - buyNeed;
         if (left > 0) total += (left / p.size) * p.price;
       }
     });

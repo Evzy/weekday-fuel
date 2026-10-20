@@ -366,6 +366,71 @@
     return false;
   }
 
+  function partBuy(n, prod, item) {
+    return prod.size === 1 ? n + " " + (n === 1 ? singular(item.unit) : item.unit) : n + " × " + packLabel(prod, item.unit);
+  }
+
+  function partsFromCounts(candidates, counts) {
+    var parts = [];
+    for (var i = 0; i < candidates.length; i++) {
+      if (counts[i] > 0) parts.push({ product: candidates[i], quantity: counts[i], cost: round2(counts[i] * candidates[i].price) });
+    }
+    parts.sort(function (a, b) {
+      return b.product.size - a.product.size;
+    });
+    return parts;
+  }
+
+  function primaryPart(parts, main) {
+    var pick = parts[0];
+    var best = parts[0].quantity * parts[0].product.size;
+    for (var i = 0; i < parts.length; i++) {
+      var amt = parts[i].quantity * parts[i].product.size;
+      if (amt > best || (amt === best && parts[i].product === main)) {
+        best = amt;
+        pick = parts[i];
+      }
+    }
+    return pick;
+  }
+
+  function productInParts(prod, parts) {
+    for (var i = 0; i < parts.length; i++) if (parts[i].product === prod) return true;
+    return false;
+  }
+
+  function bestPackMix(candidates, need, slack, main) {
+    var minCover = need - slack;
+    var maxCounts = candidates.map(function (c) {
+      return Math.max(0, Math.ceil(minCover / c.size));
+    });
+    var best = null;
+    function search(idx, counts, totalSize, rawCost, packCount, mainCount) {
+      if (idx === candidates.length) {
+        if (totalSize + 1e-9 < minCover || packCount < 1) return;
+        var cost = round2(rawCost);
+        var leftover = totalSize - need;
+        if (
+          !best ||
+          cost < best.cost ||
+          (cost === best.cost && leftover < best.leftover) ||
+          (cost === best.cost && leftover === best.leftover && packCount < best.packCount) ||
+          (cost === best.cost && leftover === best.leftover && packCount === best.packCount && mainCount > best.mainCount)
+        ) {
+          best = { cost: cost, leftover: leftover, packCount: packCount, mainCount: mainCount, counts: counts.slice() };
+        }
+        return;
+      }
+      var c = candidates[idx];
+      for (var n = 0; n <= maxCounts[idx]; n++) {
+        counts[idx] = n;
+        search(idx + 1, counts, totalSize + n * c.size, rawCost + n * c.price, packCount + n, mainCount + (idx === 0 ? n : 0));
+      }
+    }
+    search(0, new Array(candidates.length), 0, 0, 0, 0);
+    return best;
+  }
+
   function storeLine(item, product, need, pickId) {
     if (product.perKg) {
       var grams = deliGrams(need);
@@ -376,8 +441,7 @@
     function qtyFor(c) {
       return Math.max(1, Math.ceil((need - slack) / c.size - 1e-9));
     }
-    var chosen;
-    var n;
+    var parts;
     if (candidates) {
       var forced = null;
       for (var fi = 0; fi < candidates.length; fi++) {
@@ -387,47 +451,49 @@
         }
       }
       if (forced) {
-        chosen = forced;
-        n = qtyFor(forced);
+        var fq = qtyFor(forced);
+        parts = [{ product: forced, quantity: fq, cost: round2(fq * forced.price) }];
       } else {
-        var bestCost = Infinity;
-        var bestLeft = Infinity;
-        for (var i = 0; i < candidates.length; i++) {
-          var c = candidates[i];
-          var q = qtyFor(c);
-          var cost = round2(q * c.price);
-          var leftover = Math.max(0, q * c.size - need);
-          if (cost < bestCost || (cost === bestCost && leftover < bestLeft)) {
-            bestCost = cost;
-            bestLeft = leftover;
-            chosen = c;
-            n = q;
-          }
-        }
+        var mix = bestPackMix(candidates, need, slack, product);
+        parts = partsFromCounts(candidates, mix.counts);
       }
     } else {
-      chosen = product;
-      n = Math.max(1, Math.ceil((need - slack) / chosen.size - 1e-9));
+      var chosen = product;
+      var n = Math.max(1, Math.ceil((need - slack) / chosen.size - 1e-9));
+      return {
+        product: chosen,
+        quantity: n,
+        cost: round2(n * chosen.price),
+        buy: partBuy(n, chosen, item),
+      };
+    }
+    var primary = primaryPart(parts, product);
+    var totalSize = 0;
+    var lineCost = 0;
+    for (var pi = 0; pi < parts.length; pi++) {
+      totalSize += parts[pi].quantity * parts[pi].product.size;
+      lineCost += parts[pi].cost;
     }
     var line = {
-      product: chosen,
-      quantity: n,
-      cost: round2(n * chosen.price),
-      buy: chosen.size === 1 ? n + " " + (n === 1 ? singular(item.unit) : item.unit) : n + " × " + packLabel(chosen, item.unit),
+      product: primary.product,
+      quantity: primary.quantity,
+      cost: round2(lineCost),
+      buy: parts.map(function (p) {
+        return partBuy(p.quantity, p.product, item);
+      }).join(" + "),
+      parts: parts,
     };
-    if (candidates) {
-      line.candidates = candidates.map(function (c) {
-        var q = qtyFor(c);
-        return { product: c, quantity: q, cost: round2(q * c.price) };
-      });
-      var leftoverAmt = n * chosen.size - need;
-      if (leftoverAmt > 1e-6) line.leftover = round2(leftoverAmt);
-      var alts = [];
-      for (var j = 0; j < candidates.length; j++) {
-        if (candidates[j] !== chosen) alts.push(candidates[j]);
-      }
-      if (alts.length) line.alts = alts;
+    line.candidates = candidates.map(function (c) {
+      var q = qtyFor(c);
+      return { product: c, quantity: q, cost: round2(q * c.price) };
+    });
+    var leftoverAmt = totalSize - need;
+    if (leftoverAmt > 1e-6) line.leftover = round2(leftoverAmt);
+    var alts = [];
+    for (var j = 0; j < candidates.length; j++) {
+      if (!productInParts(candidates[j], parts)) alts.push(candidates[j]);
     }
+    if (alts.length) line.alts = alts;
     return line;
   }
 
