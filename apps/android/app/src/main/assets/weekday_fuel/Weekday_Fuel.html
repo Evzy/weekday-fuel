@@ -386,7 +386,7 @@ function renderStapleChipsToday(date,day){
     const chip=stapleChipText(s,it,on);
     return `<button type="button" class="chip" aria-pressed="${on?"true":"false"}" data-act="stapletog" data-v="${esc(s.id)}" data-d="${esc(date)}" title="${esc(chip.tip)}" aria-label="${esc(chip.tip)}">${esc(chip.text)}</button>`;
   }).join("");
-  return `<div class="stack" style="gap:8px"><div class="eyebrow">Staples</div><div class="chips">${chips}</div></div>`;
+  return `<div class="stack" style="gap:8px"><div class="eyebrow">Staples · tap to skip or add</div><div class="chips">${chips}</div></div>`;
 }
 function renderStapleSheetBody(){
   const draft=state.stapleSheetDraft;if(!draft)return "";
@@ -1211,6 +1211,7 @@ function renderToday(){
   const t=totals(day,today);
   if(!meals.length){
     h+=`<div class="panel"><p class="muted" style="margin:0">Nothing planned. <button type="button" class="ghost" data-act="planweek">Plan my week →</button></p></div>`;
+    h+=renderStapleChipsToday(today,day);
   }else{
     h+=`<div class="panel stack" style="gap:10px">${compactMacro(t.k,tg.k," kcal","")}${compactMacro(t.p,tg.p," g protein","p")}</div>`;
     h+=renderStapleChipsToday(today,day);
