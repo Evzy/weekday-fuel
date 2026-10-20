@@ -19,6 +19,7 @@ import android.widget.ProgressBar
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -28,6 +29,8 @@ import androidx.webkit.JavaScriptReplyProxy
 import androidx.webkit.WebViewAssetLoader
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
+import dev.weekdayfuel.app.backup.BackupFiles
+import dev.weekdayfuel.app.backup.BackupMessages
 import dev.weekdayfuel.app.coles.ColesPricesState
 import dev.weekdayfuel.app.coles.ColesSession
 import dev.weekdayfuel.app.coles.ColesTrolleyJson
@@ -44,7 +47,10 @@ import dev.weekdayfuel.app.woolworths.TrolleyJson
 import dev.weekdayfuel.app.woolworths.TrolleyScriptState
 import dev.weekdayfuel.app.woolworths.WoolworthsSession
 import dev.weekdayfuel.app.woolworths.WoolworthsUrls
+import java.time.Instant
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -64,6 +70,55 @@ class MainActivity : ComponentActivity() {
     /** Set when the user tapped Update but first had to grant "install unknown apps". */
     private var pendingUpdate: GithubApkReleaseInfo? = null
     private var updateInProgress = false
+
+    private var pendingBackupJson: String? = null
+    private val backupFiles by lazy { BackupFiles(this) }
+
+    private val createBackup =
+        registerForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+            if (uri == null) {
+                pendingBackupJson = null
+                replyToPage(BackupMessages.error("", false))
+                return@registerForActivityResult
+            }
+            val json = pendingBackupJson
+            pendingBackupJson = null
+            if (json == null) {
+                replyToPage(BackupMessages.error(getString(R.string.backup_save_failed), false))
+                return@registerForActivityResult
+            }
+            lifecycleScope.launch {
+                val reply =
+                    withContext(Dispatchers.IO) {
+                        runCatching {
+                            backupFiles.remember(uri)
+                            backupFiles.write(uri, json)
+                            val name = backupFiles.displayName(uri).orEmpty()
+                            BackupMessages.saved(name, Instant.now().toString())
+                        }.getOrElse { BackupMessages.error(getString(R.string.backup_save_failed), false) }
+                    }
+                replyToPage(reply)
+            }
+        }
+
+    private val openBackup =
+        registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+            if (uri == null) {
+                replyToPage(BackupMessages.error("", false))
+                return@registerForActivityResult
+            }
+            lifecycleScope.launch {
+                val reply =
+                    withContext(Dispatchers.IO) {
+                        runCatching {
+                            val json = backupFiles.read(uri)
+                            val name = backupFiles.displayName(uri).orEmpty()
+                            BackupMessages.opened(json, name)
+                        }.getOrElse { BackupMessages.error(getString(R.string.backup_read_failed), false) }
+                    }
+                replyToPage(reply)
+            }
+        }
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -231,6 +286,43 @@ class MainActivity : ComponentActivity() {
                     replyToPage(HostMessages.pricesFailure(getString(R.string.woolworths_bad_request)))
                 }
             }
+            "backupSave" -> handleBackupSave(msg)
+            "backupOpen" -> openBackup.launch(arrayOf("application/json", "*/*"))
+            "backupInfo" -> {
+                val remembered = backupFiles.rememberedUri()
+                val name = remembered?.let { backupFiles.displayName(it) }
+                replyToPage(BackupMessages.info(name))
+            }
+        }
+    }
+
+    private fun handleBackupSave(msg: JSONObject) {
+        val json = msg.optString("json")
+        if (json.isEmpty()) {
+            replyToPage(BackupMessages.error(getString(R.string.backup_save_failed), false))
+            return
+        }
+        val newFile = msg.optBoolean("newFile")
+        val suggestedName = msg.optString("name").ifEmpty { "WeekdayFuel-backup.json" }
+        val remembered = backupFiles.rememberedUri()
+        if (newFile || remembered == null) {
+            pendingBackupJson = json
+            createBackup.launch(suggestedName)
+            return
+        }
+        lifecycleScope.launch {
+            val reply =
+                withContext(Dispatchers.IO) {
+                    runCatching {
+                        backupFiles.write(remembered, json)
+                        val name = backupFiles.displayName(remembered).orEmpty()
+                        BackupMessages.saved(name, Instant.now().toString())
+                    }.getOrElse {
+                        val name = backupFiles.displayName(remembered).orEmpty().ifEmpty { suggestedName }
+                        BackupMessages.error(getString(R.string.backup_update_failed, name), true)
+                    }
+                }
+            replyToPage(reply)
         }
     }
 

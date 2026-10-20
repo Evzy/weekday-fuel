@@ -27,4 +27,7 @@
     <string name="coles_login_cancelled">Log in to Coles, then tap Send again.</string>
     <string name="coles_bad_lines">Couldn\'t read the shop list to send to Coles. Try again.</string>
     <string name="coles_trolley_failed">Couldn\'t send to the Coles trolley. Check your connection and try again.</string>
+    <string name="backup_save_failed">Couldn\'t save the backup. Try again.</string>
+    <string name="backup_read_failed">Couldn\'t read that file.</string>
+    <string name="backup_update_failed">Couldn\'t update %1$s. Save as a new file instead.</string>
 </resources>
