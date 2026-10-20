@@ -4,12 +4,88 @@ const { cartLines, removalLines, colesCartLines, colesRemovalLines, shopFingerpr
 
 const W = "https://www.woolworths.com.au/shop/productdetails/";
 const YOG = { name: "Chobani Greek Yoghurt 907g", url: W + "717518", stockcode: 717518, size: 907, price: 8.8 };
+const YOG500 = { name: "Chobani Greek Yoghurt 500g", url: W + "6093769", stockcode: 6093769, size: 500, price: 6.5 };
+const EGG12 = { name: "12 pack", url: W + "6013278", stockcode: 6013278, size: 12, price: 6 };
+const EGG6 = { name: "6 pack", url: W + "6013276", stockcode: 6013276, size: 6, price: 4 };
 const HAM = { name: "D'Orsogna Ham Shaved From The Deli", url: W + "175734", stockcode: 175734, perKg: true, size: 1, price: 28 };
 const COLES_BREAST = { name: "Coles Chicken Breast Large", url: "https://www.coles.com.au/product/breast-1", size: 1400, price: 16.8 };
 const row = (id, woolies, coles = null) => ({ id, name: "Plain " + id, woolies, coles });
 
 const TRAY = { name: "Woolworths Breast tray", url: W + "969723", stockcode: 969723, size: 1500, sizeLabel: "1.5–2.2kg tray", price: 24.2 };
 const COLES_SMALL = { name: "Coles Chicken Breast Small", url: "https://www.coles.com.au/product/coles-breast-small-2263168", size: 600, price: 7.2 };
+
+test("mixed Woolworths parts become one trolley line each without duplicate stockcodes", () => {
+  const mixed = {
+    product: EGG12,
+    quantity: 1,
+    cost: 10,
+    buy: "1 × 12 eggs + 1 × 6 eggs",
+    parts: [
+      { product: EGG12, quantity: 1, cost: 6 },
+      { product: EGG6, quantity: 1, cost: 4 },
+    ],
+  };
+  const { lines } = cartLines([row("eggs", mixed), row("yog", { product: YOG, quantity: 1 })], {});
+  assert.deepEqual(
+    lines.map((l) => [l.stockcode, l.quantity]),
+    [
+      [6013278, 1],
+      [6013276, 1],
+      [717518, 1],
+    ],
+  );
+  assert.equal(lines.filter((l) => l.stockcode === 6013278).length, 1);
+});
+
+test("mixed Woolworths removals keep every part stockcode", () => {
+  const mixed = {
+    product: EGG12,
+    quantity: 1,
+    parts: [
+      { product: EGG12, quantity: 1, cost: 6 },
+      { product: EGG6, quantity: 1, cost: 4 },
+    ],
+  };
+  const rows = [row("eggs", mixed)];
+  assert.deepEqual(removalLines({ 6013278: 1, 6013276: 1, 717518: 2 }, rows), [{ stockcode: 717518, quantity: 0 }]);
+  assert.deepEqual(removalLines({ 6013278: 1, 6013276: 1 }, rows), []);
+});
+
+test("mixed Coles parts become separate trolley lines and merge by product id", () => {
+  const small = { name: "Small", url: "https://www.coles.com.au/product/small-2263168", size: 600, price: 7.2 };
+  const large = { name: "Large", url: "https://www.coles.com.au/product/large-2263179", size: 1400, price: 15.4 };
+  const mixed = {
+    product: large,
+    quantity: 1,
+    parts: [
+      { product: large, quantity: 1, cost: 15.4 },
+      { product: small, quantity: 1, cost: 7.2 },
+    ],
+  };
+  const { lines } = colesCartLines([row("breast", null, mixed)], {}, {}, idOf);
+  assert.deepEqual(
+    lines.map((l) => [l.productId, l.quantity]),
+    [
+      ["2263179", 1],
+      ["2263168", 1],
+    ],
+  );
+  const twoRows = colesCartLines([row("a", null, mixed), row("b", null, { product: CM, quantity: 1 })], {}, {}, idOf).lines;
+  assert.equal(twoRows.filter((l) => l.productId === "3329137").length, 1);
+});
+
+test("mixed Coles removals keep every part product id", () => {
+  const mixed = {
+    product: COLES_SMALL,
+    quantity: 2,
+    parts: [
+      { product: COLES_SMALL, quantity: 1, cost: 7.2 },
+      { product: CB, quantity: 1, cost: 16.8 },
+    ],
+  };
+  const rows = [row("breast", null, mixed)];
+  assert.deepEqual(colesRemovalLines({ 2263168: 1, 2263179: 1, 5077283: 2 }, rows, idOf), [{ productId: "5077283", quantity: 0 }]);
+});
 
 test("a Woolworths line becomes a trolley line with its pack count", () => {
   const { lines, manual } = cartLines([row("yog", { product: YOG, quantity: 2 })], {});

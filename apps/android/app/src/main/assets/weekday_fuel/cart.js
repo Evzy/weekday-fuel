@@ -2,6 +2,48 @@
 (function (root) {
   "use strict";
 
+  function wooliesPartLines(row, line) {
+    var out = [];
+    if (line.parts && line.parts.length) {
+      line.parts.forEach(function (part) {
+        var p = part.product;
+        var quantity = Math.round(part.quantity * 1000) / 1000;
+        out.push({
+          itemId: row.id,
+          stockcode: p.stockcode,
+          quantity: quantity,
+          name: p.perKg ? p.name + " (" + Math.round(quantity * 1000) + "g)" : p.name,
+          url: p.url,
+        });
+      });
+      return out;
+    }
+    var p = line.product;
+    var quantity = Math.round(line.quantity * 1000) / 1000;
+    out.push({
+      itemId: row.id,
+      stockcode: p.stockcode,
+      quantity: quantity,
+      name: p.perKg ? p.name + " (" + Math.round(quantity * 1000) + "g)" : p.name,
+      url: p.url,
+    });
+    return out;
+  }
+
+  function mergeWooliesLines(lines, add) {
+    add.forEach(function (l) {
+      var found = null;
+      for (var i = 0; i < lines.length; i++) {
+        if (lines[i].stockcode === l.stockcode) {
+          found = lines[i];
+          break;
+        }
+      }
+      if (found) found.quantity = Math.round((found.quantity + l.quantity) * 1000) / 1000;
+      else lines.push(l);
+    });
+  }
+
   function cartLines(rows, ticks, haveIt) {
     var lines = [];
     var manual = [];
@@ -13,24 +55,25 @@
         else manual.push({ itemId: row.id, name: row.coles ? row.coles.product.name : row.name, reason: row.coles ? "coles" : "nostore" });
         return;
       }
-      var p = line.product;
-      var quantity = Math.round(line.quantity * 1000) / 1000;
-      lines.push({
-        itemId: row.id,
-        stockcode: p.stockcode,
-        quantity: quantity,
-        name: p.perKg ? p.name + " (" + Math.round(quantity * 1000) + "g)" : p.name,
-        url: p.url,
-      });
+      mergeWooliesLines(lines, wooliesPartLines(row, line));
     });
     return { lines: lines, manual: manual };
+  }
+
+  function markWooliesKeep(keep, row) {
+    var line = row.woolies;
+    if (line && line.parts && line.parts.length) {
+      line.parts.forEach(function (part) {
+        keep[part.product.stockcode] = true;
+      });
+    } else if (line && line.product) keep[line.product.stockcode] = true;
+    if (row.wooliesUnavailable) keep[row.wooliesUnavailable.stockcode] = true;
   }
 
   function removalLines(lastLines, rows) {
     var keep = {};
     rows.forEach(function (row) {
-      if (row.woolies) keep[row.woolies.product.stockcode] = true;
-      if (row.wooliesUnavailable) keep[row.wooliesUnavailable.stockcode] = true;
+      markWooliesKeep(keep, row);
     });
     return Object.keys(lastLines || {})
       .filter(function (code) {
@@ -78,29 +121,51 @@
     rows.forEach(function (row) {
       if (ticks[row.id] || (haveIt && haveIt[row.id])) return;
       var line = row.coles;
-      var id = line ? idOf(line.product) : null;
-      if (!id) {
+      if (!line) {
         if (row.colesUnavailable) manual.push({ itemId: row.id, name: row.colesUnavailable.name, reason: "unavailable" });
         else manual.push({ itemId: row.id, name: row.woolies ? row.woolies.product.name : row.name, reason: row.woolies ? "woolies" : "nostore" });
         return;
       }
-      if (byId[id]) {
-        byId[id].quantity += line.quantity;
-        return;
+      var parts = line.parts && line.parts.length ? line.parts : [{ product: line.product, quantity: line.quantity }];
+      var added = false;
+      parts.forEach(function (part) {
+        var pid = idOf(part.product);
+        if (!pid) return;
+        added = true;
+        if (byId[pid]) {
+          byId[pid].quantity += part.quantity;
+          return;
+        }
+        byId[pid] = { itemId: row.id, productId: pid, quantity: part.quantity, name: part.product.name, url: part.product.url };
+        lines.push(byId[pid]);
+      });
+      if (!added) {
+        if (row.colesUnavailable) manual.push({ itemId: row.id, name: row.colesUnavailable.name, reason: "unavailable" });
+        else manual.push({ itemId: row.id, name: row.woolies ? row.woolies.product.name : row.name, reason: row.woolies ? "woolies" : "nostore" });
       }
-      byId[id] = { itemId: row.id, productId: id, quantity: line.quantity, name: line.product.name, url: line.product.url };
-      lines.push(byId[id]);
     });
     return { lines: lines, manual: manual };
+  }
+
+  function markColesKeep(keep, row, idOf) {
+    var line = row.coles;
+    if (line && line.parts && line.parts.length) {
+      line.parts.forEach(function (part) {
+        var id = idOf(part.product);
+        if (id) keep[id] = true;
+      });
+    } else if (line && line.product) {
+      var a = idOf(line.product);
+      if (a) keep[a] = true;
+    }
+    var b = row.colesUnavailable && idOf(row.colesUnavailable);
+    if (b) keep[b] = true;
   }
 
   function colesRemovalLines(lastLines, rows, idOf) {
     var keep = {};
     rows.forEach(function (row) {
-      var a = row.coles && idOf(row.coles.product);
-      var b = row.colesUnavailable && idOf(row.colesUnavailable);
-      if (a) keep[a] = true;
-      if (b) keep[b] = true;
+      markColesKeep(keep, row, idOf);
     });
     return Object.keys(lastLines || {})
       .filter(function (id) {

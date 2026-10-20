@@ -593,6 +593,41 @@ test("shopHaveIt prefers trolley haveIt, then the sent record", () => {
   assert.deepEqual(I.shopHaveIt({}, null), {});
 });
 
+test("buysFromRows sums mixed pack parts when not sent", () => {
+  const mixed = {
+    id: "eggs",
+    sec: 1,
+    woolies: {
+      product: { stockcode: 6013278, size: 12 },
+      quantity: 1,
+      parts: [
+        { product: { stockcode: 6013278, size: 12 }, quantity: 1 },
+        { product: { stockcode: 6013276, size: 6 }, quantity: 1 },
+      ],
+    },
+    coles: null,
+  };
+  assert.deepEqual(I.buysFromRows([mixed], "woolies", {}, {}), [{ item: "eggs", amount: 18 }]);
+});
+
+test("buysFromRows sums all sent parts for a mixed line", () => {
+  const mixed = {
+    id: "eggs",
+    sec: 1,
+    woolies: {
+      product: { stockcode: 6013278, size: 12 },
+      quantity: 1,
+      buy: "1 × 12 + 1 × 6",
+      parts: [
+        { product: { stockcode: 6013278, size: 12 }, quantity: 1 },
+        { product: { stockcode: 6013276, size: 6 }, quantity: 1 },
+      ],
+    },
+    coles: null,
+  };
+  assert.deepEqual(I.buysFromRows([mixed], "woolies", {}, {}, { sent: { 6013278: 1, 6013276: 1 }, colesSent: {}, colesId: catalogueColesId }), [{ item: "eggs", amount: 18 }]);
+});
+
 test("buysFromRows handles deli, packs, missed store, ticks and haveIt", () => {
   const deli = { id: "ham", woolies: { product: { perKg: true, size: 1 }, quantity: 0.25, cost: 7, buy: "250g" }, coles: null };
   const pack = { id: "cheese", woolies: { product: { size: 500 }, quantity: 2, cost: 18, buy: "2 packs" }, coles: { product: { size: 500 }, quantity: 2, cost: 14, buy: "2 packs" } };

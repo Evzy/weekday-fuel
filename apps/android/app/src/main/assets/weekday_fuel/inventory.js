@@ -651,8 +651,11 @@
 
   function amountFromSent(row, sent, colesSent, colesId) {
     if (!ord || !ord.sentLineQty) return null;
-    var m = ord.sentLineQty(row, sent, colesSent, colesId);
-    return m ? buyAmount(m.product, m.qty) : null;
+    var parts = ord.sentLineQty(row, sent, colesSent, colesId);
+    if (!parts || !parts.length) return null;
+    var sum = 0;
+    for (var i = 0; i < parts.length; i++) sum += buyAmount(parts[i].product, parts[i].qty);
+    return sum;
   }
 
   function buysFromRows(rows, store, ticks, haveIt, opts) {
@@ -676,9 +679,14 @@
       if (row.sec === 2) return;
       var line = row[store] || row[other];
       if (!line || !line.product) return;
-      var qty = line.quantity;
-      if (!isQty(qty)) return;
-      out.push({ item: row.id, amount: buyAmount(line.product, qty) });
+      var amount = 0;
+      if (line.parts && line.parts.length) {
+        line.parts.forEach(function (pt) {
+          if (isQty(pt.quantity)) amount += buyAmount(pt.product, pt.quantity);
+        });
+      } else if (isQty(line.quantity)) amount = buyAmount(line.product, line.quantity);
+      if (!(amount > 0)) return;
+      out.push({ item: row.id, amount: amount });
     });
     return out;
   }

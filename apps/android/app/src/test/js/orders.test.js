@@ -239,16 +239,22 @@ test("two Coles rows sharing the same chosen small pack match one sent large pac
   assert.equal(o.groups.ordered[0].note, "pack size changed since sending");
 });
 
-test("when the chosen pack and an alternate were both sent, the chosen line has no note and the alternate is not in this shop", () => {
+test("when several sent packs belong to one row, snapshot lists them in one ordered line", () => {
   const wOpts = {
     ...OPTS,
     product: (code) => (code === 969723 ? TRAY : code === 6078624 ? PACK650 : code === 999 ? { name: "Old cheese", price: 5 } : null),
   };
   const w = O.snapshot([wBreast], {}, { 6078624: 2, 969723: 1 }, wOpts);
-  assert.deepEqual(w.groups.ordered, [
-    item("Woolworths Chicken Breast 650g", "2 × 650g", 18.8, "woolies", null),
-    item("Woolworths Breast tray", "1 × 1.5–2.2kg tray", 24.2, "woolies", "not in this shop", ""),
-  ]);
+  assert.equal(w.groups.ordered.length, 1);
+  assert.deepEqual(w.groups.ordered[0], {
+    name: "Woolworths Chicken Breast 650g",
+    buy: "2 packs + 1 × 1.5–2.2kg tray",
+    cost: 43,
+    store: "woolies",
+    note: "pack size changed since sending",
+    for: "For toasty",
+  });
+  assert.ok(!w.groups.ordered.some((i) => i.note === "not in this shop"));
   const cOpts = {
     ...COPTS,
     colesSent: { 2263168: 2, 2263179: 1 },
@@ -256,10 +262,46 @@ test("when the chosen pack and an alternate were both sent, the chosen line has 
     colesProduct: (id) => (id === "2263179" ? COLES_LARGE : id === "8991361" ? { name: "Dare 500mL", price: 4.65 } : null),
   };
   const c = O.snapshot([cBreastPack], {}, {}, cOpts);
-  assert.deepEqual(c.groups.ordered, [
-    item("Coles Chicken Breast Small", "2 × 600g", 17.4, "coles", null),
-    item("Coles Chicken Breast Large", "1 pack", 15.4, "coles", "not in this shop", ""),
+  assert.equal(c.groups.ordered.length, 1);
+  assert.equal(c.groups.ordered[0].note, "pack size changed since sending");
+  assert.match(c.groups.ordered[0].buy, /pack/);
+  assert.equal(c.groups.ordered[0].buy.split(" + ").length, 2);
+});
+
+const EGG12 = { name: "12 pack", url: "https://www.woolworths.com.au/shop/productdetails/6013278/x", stockcode: 6013278, size: 12, price: 6 };
+const EGG6 = { name: "6 pack", url: "https://www.woolworths.com.au/shop/productdetails/6013276/x", stockcode: 6013276, size: 6, price: 4 };
+const mixedEggs = ROW(
+  "eggs",
+  1,
+  {
+    product: EGG12,
+    quantity: 1,
+    cost: 10,
+    buy: "1 × 12 eggs + 1 × 6 eggs",
+    parts: [
+      { product: EGG12, quantity: 1, cost: 6 },
+      { product: EGG6, quantity: 1, cost: 4 },
+    ],
+    alts: [{ name: "18 pack", stockcode: 6013280, size: 18, price: 11 }],
+  },
+  null,
+);
+
+test("sentLineQty returns every sent part; snapshot keeps one row with the shop buy text", () => {
+  assert.deepEqual(O.sentLineQty(mixedEggs, { 6013278: 1, 6013276: 1 }, {}, null), [
+    { product: EGG12, qty: 1 },
+    { product: EGG6, qty: 1 },
   ]);
+  const o = O.snapshot([mixedEggs], {}, { 6013278: 1, 6013276: 1 }, OPTS);
+  assert.deepEqual(o.groups.ordered, [item("12 pack", "1 × 12 eggs + 1 × 6 eggs", 10, "woolies")]);
+  assert.ok(!o.groups.ordered.some((i) => i.note === "not in this shop"));
+});
+
+test("mixed snapshot notes pack size changed when sent ids differ from planned parts", () => {
+  const o = O.snapshot([mixedEggs], {}, { 6013278: 1, 6013280: 1 }, OPTS);
+  assert.equal(o.groups.ordered.length, 1);
+  assert.equal(o.groups.ordered[0].note, "pack size changed since sending");
+  assert.ok(!o.groups.ordered.some((i) => i.note === "not in this shop"));
 });
 
 test("mergeSentOrderRows adds have-free sent rows missing from the live shop list", () => {

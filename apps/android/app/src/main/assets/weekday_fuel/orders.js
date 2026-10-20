@@ -20,40 +20,138 @@
     return typeof q === "number" && isFinite(q) && q > 0;
   }
 
-  /* Same sent-line checks as snapshot / inventory stock-in. Returns { product, qty } or null. */
-  function sentLineQty(row, sent, colesSent, colesId) {
-    if (!row || typeof row !== "object") return null;
-    var w = row.woolies;
-    var gone = row.wooliesUnavailable;
-    var c = row.coles;
-    var cGone = row.colesUnavailable;
-    var idFn = typeof colesId === "function" ? colesId : function () { return null; };
-    var cId = c ? idFn(c.product) : null;
-    var cGoneId = cGone ? idFn(cGone) : null;
+  function productId(product, store, colesId) {
+    if (!product) return null;
+    if (store === "coles") {
+      var idFn = typeof colesId === "function" ? colesId : function () { return null; };
+      return idFn(product);
+    }
+    return product.stockcode;
+  }
+
+  function wooliesSentParts(w, gone, sent) {
+    var out = [];
+    var seen = {};
     var s = sent || {};
+    function tryAdd(prod) {
+      if (!prod || prod.stockcode == null || seen[prod.stockcode]) return;
+      if (!isQty(s[prod.stockcode])) return;
+      seen[prod.stockcode] = true;
+      out.push({ product: prod, qty: s[prod.stockcode] });
+    }
+    if (w) {
+      if (w.parts && w.parts.length) w.parts.forEach(function (p) { tryAdd(p.product); });
+      else tryAdd(w.product);
+      if (w.alts) {
+        for (var ai = 0; ai < w.alts.length; ai++) tryAdd(w.alts[ai]);
+      }
+    }
+    if (gone) tryAdd(gone);
+    return out;
+  }
+
+  function colesSentParts(c, cGone, colesSent, colesId) {
+    var out = [];
+    var seen = {};
     var cs = colesSent || {};
-    if (w && isQty(s[w.product.stockcode])) return { product: w.product, qty: s[w.product.stockcode] };
-    if (w && w.alts) {
-      for (var ai = 0; ai < w.alts.length; ai++) {
-        var wAlt = w.alts[ai];
-        if (isQty(s[wAlt.stockcode])) return { product: wAlt, qty: s[wAlt.stockcode] };
+    var idFn = typeof colesId === "function" ? colesId : function () { return null; };
+    function tryAdd(prod) {
+      if (!prod) return;
+      var id = idFn(prod);
+      if (id == null || seen[id]) return;
+      if (!isQty(cs[id])) return;
+      seen[id] = true;
+      out.push({ product: prod, qty: cs[id] });
+    }
+    if (c) {
+      if (c.parts && c.parts.length) c.parts.forEach(function (p) { tryAdd(p.product); });
+      else tryAdd(c.product);
+      if (c.alts) {
+        for (var ci = 0; ci < c.alts.length; ci++) tryAdd(c.alts[ci]);
       }
     }
-    if (gone && isQty(s[gone.stockcode])) return { product: gone, qty: s[gone.stockcode] };
-    if (cId && isQty(cs[cId])) return { product: c.product, qty: cs[cId] };
-    if (c && c.alts) {
-      for (var ci = 0; ci < c.alts.length; ci++) {
-        var cAlt = c.alts[ci];
-        var altId = idFn(cAlt);
-        if (altId && isQty(cs[altId])) return { product: cAlt, qty: cs[altId] };
-      }
-    }
-    if (cGoneId && isQty(cs[cGoneId])) return { product: cGone, qty: cs[cGoneId] };
-    return null;
+    if (cGone) tryAdd(cGone);
+    return out;
+  }
+
+  /* Same sent-line checks as snapshot / inventory stock-in. Returns [{ product, qty }, …]. */
+  function sentLineQty(row, sent, colesSent, colesId) {
+    if (!row || typeof row !== "object") return [];
+    var wParts = wooliesSentParts(row.woolies, row.wooliesUnavailable, sent);
+    if (wParts.length) return wParts;
+    return colesSentParts(row.coles, row.colesUnavailable, colesSent, colesId);
   }
 
   function rowHasSentLine(row, sent, colesSent, colesId) {
-    return sentLineQty(row, sent, colesSent, colesId) !== null;
+    return sentLineQty(row, sent, colesSent, colesId).length > 0;
+  }
+
+  function packChangedSinceSending(line, parts, store, colesId) {
+    if (!line || !parts.length) return false;
+    var plan = {};
+    if (line.parts && line.parts.length) {
+      line.parts.forEach(function (p) {
+        var id = productId(p.product, store, colesId);
+        if (id != null) plan[String(id)] = true;
+      });
+    } else if (line.product) {
+      var pid = productId(line.product, store, colesId);
+      if (pid != null) plan[String(pid)] = true;
+    }
+    var sentMap = {};
+    parts.forEach(function (p) {
+      var id = productId(p.product, store, colesId);
+      if (id != null) sentMap[String(id)] = true;
+    });
+    var planKeys = Object.keys(plan).sort();
+    var sentKeys = Object.keys(sentMap).sort();
+    if (planKeys.length !== sentKeys.length) return true;
+    for (var i = 0; i < planKeys.length; i++) if (planKeys[i] !== sentKeys[i]) return true;
+    return false;
+  }
+
+  function orderedFromSentParts(line, parts, store, forText, colesId) {
+    var changed = packChangedSinceSending(line, parts, store, colesId);
+    var note = changed ? "pack size changed since sending" : null;
+    if (!changed && line && parts.length === 1) {
+      var oneId = productId(parts[0].product, store, colesId);
+      var lineId = productId(line.product, store, colesId);
+      if (oneId != null && String(oneId) === String(lineId)) return orderedItem(line, line.product, parts[0].qty, null, forText, store);
+    }
+    if (!changed && line && line.parts && line.parts.length === parts.length) {
+      var exact = true;
+      for (var i = 0; i < line.parts.length; i++) {
+        var lp = line.parts[i];
+        var lid = productId(lp.product, store, colesId);
+        var sp = null;
+        for (var j = 0; j < parts.length; j++) {
+          if (String(productId(parts[j].product, store, colesId)) === String(lid)) {
+            sp = parts[j];
+            break;
+          }
+        }
+        if (!sp || Math.abs(sp.qty - lp.quantity) > 1e-9) {
+          exact = false;
+          break;
+        }
+      }
+      if (exact) return orderedItem(line, line.product, line.quantity, null, forText, store);
+    }
+    if (changed && parts.length === 1) {
+      return orderedItem(null, parts[0].product, parts[0].qty, note, forText, store);
+    }
+    var buy = parts
+      .map(function (p) {
+        return amount(p.product, p.qty);
+      })
+      .join(" + ");
+    var cost = round2(
+      parts.reduce(function (sum, p) {
+        return sum + p.qty * p.product.price;
+      }, 0),
+    );
+    var name = line && line.product && (!changed || parts.length > 1) ? String(line.product.name) : String(parts[0].product.name);
+    return { name: name, buy: buy, cost: cost, store: store, note: note, for: forText };
   }
 
   function mergeSentOrderRows(rows, haveFreeRows, sent, colesSent, colesId) {
@@ -117,54 +215,64 @@
       var f = String(forText(row) || "");
       var w = row.woolies;
       var gone = row.wooliesUnavailable;
-      if (w) used[w.product.stockcode] = true;
-      if (gone) used[gone.stockcode] = true;
       var c = row.coles;
       var cGone = row.colesUnavailable;
-      var cId = c ? colesId(c.product) : null;
-      var cGoneId = cGone ? colesId(cGone) : null;
-      if (cId) usedColes[cId] = true;
-      if (cGoneId) usedColes[cGoneId] = true;
-      if (w && isQty(sent[w.product.stockcode])) {
-        groups.ordered.push(orderedItem(w, w.product, sent[w.product.stockcode], null, f));
+      if (c && c.parts && c.parts.length) {
+        c.parts.forEach(function (p) {
+          var markId = colesId(p.product);
+          if (markId) usedColes[markId] = true;
+        });
+      } else if (c && c.product) {
+        var markColes = colesId(c.product);
+        if (markColes) usedColes[markColes] = true;
+      }
+      var wParts = wooliesSentParts(w, null, sent);
+      if (wParts.length) {
+        wParts.forEach(function (p) {
+          used[p.product.stockcode] = true;
+        });
+        if (!w && gone && wParts.length === 1 && wParts[0].product === gone) {
+          groups.ordered.push(orderedItem(null, gone, wParts[0].qty, "was unavailable online", f));
+        } else {
+          groups.ordered.push(orderedFromSentParts(w, wParts, "woolies", f, colesId));
+        }
         return;
       }
-      if (w && w.alts) {
-        for (var ai = 0; ai < w.alts.length; ai++) {
-          var wAlt = w.alts[ai];
-          if (isQty(sent[wAlt.stockcode])) {
-            used[wAlt.stockcode] = true;
-            groups.ordered.push(orderedItem(null, wAlt, sent[wAlt.stockcode], "pack size changed since sending", f));
-            return;
-          }
-        }
-      }
       if (gone && isQty(sent[gone.stockcode])) {
+        used[gone.stockcode] = true;
         groups.ordered.push(orderedItem(null, gone, sent[gone.stockcode], "was unavailable online", f));
         return;
       }
-      if (cId && isQty(colesSent[cId])) {
-        if (colesOrdered[cId]) return;
-        colesOrdered[cId] = true;
-        groups.ordered.push(orderedItem(c, c.product, colesSent[cId], null, f, "coles"));
-        return;
-      }
-      if (c && c.alts) {
-        for (var ci = 0; ci < c.alts.length; ci++) {
-          var cAlt = c.alts[ci];
-          var altId = colesId(cAlt);
-          if (altId && isQty(colesSent[altId])) {
-            if (colesOrdered[altId]) return;
-            colesOrdered[altId] = true;
-            usedColes[altId] = true;
-            groups.ordered.push(orderedItem(null, cAlt, colesSent[altId], "pack size changed since sending", f, "coles"));
-            return;
+      var cParts = colesSentParts(c, null, colesSent, colesId);
+      if (cParts.length) {
+        var skipColes = false;
+        for (var ci = 0; ci < cParts.length; ci++) {
+          var cid = colesId(cParts[ci].product);
+          if (cid && colesOrdered[cid]) {
+            skipColes = true;
+            break;
           }
         }
+        if (skipColes) return;
+        cParts.forEach(function (p) {
+          var id = colesId(p.product);
+          if (id) {
+            colesOrdered[id] = true;
+            usedColes[id] = true;
+          }
+        });
+        if (!c && cGone && cParts.length === 1 && cParts[0].product === cGone) {
+          groups.ordered.push(orderedItem(null, cGone, cParts[0].qty, "was unavailable online", f, "coles"));
+        } else {
+          groups.ordered.push(orderedFromSentParts(c, cParts, "coles", f, colesId));
+        }
+        return;
       }
+      var cGoneId = cGone ? colesId(cGone) : null;
       if (cGoneId && isQty(colesSent[cGoneId])) {
         if (colesOrdered[cGoneId]) return;
         colesOrdered[cGoneId] = true;
+        usedColes[cGoneId] = true;
         groups.ordered.push(orderedItem(null, cGone, colesSent[cGoneId], "was unavailable online", f, "coles"));
         return;
       }
