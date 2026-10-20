@@ -205,6 +205,7 @@ a.link{text-decoration:none;display:inline-block;color:var(--accent);border-colo
 <script src="orders.js"></script>
 <script src="bought.js"></script>
 <script src="inventory.js"></script>
+<script src="gap.js"></script>
 <script src="macros.js"></script>
 <script src="staples.js"></script>
 <script src="plans.js"></script>
@@ -659,7 +660,7 @@ const clone=o=>JSON.parse(JSON.stringify(o));
 function deepMerge(base,over){const out=clone(base);if(!over)return out;for(const k in over){if(k==="trial"){out[k]=clone(over[k]);continue}if(over[k]&&typeof over[k]==="object"&&!Array.isArray(over[k])&&out[k]&&typeof out[k]==="object")out[k]=deepMerge(out[k],over[k]);else out[k]=over[k];}return out}
 
 /* ---------- state + storage ---------- */
-const state={tab:"today",tabBefore:null,tabStack:[],date:iso(new Date()),settings:clone(DEFAULT_SETTINGS),days:{},weights:{},mealFilter:"all",sheet:null,addPick:null,weekAddDate:null,armed:null,unlocked:{},dayNote:null,openItem:null,kOpen:null,kAddItem:null,kitchenError:null,kitchenHint:null,kitchenHintWhere:null,trolley:null,prices:null,colesPrices:null,pricesTried:0,checkout:null,coLast:null,openOrder:null,orderError:false,weekNote:null,mealNote:null,scrollMealNote:false,scrollWeekDay:null,todayExtrasOpen:false,shopViewStep:null,shopExpandDays:{},shopAtHomeOpen:false,backup:{busy:null,error:null,needNewFile:false,remembered:null,pending:null}};
+const state={tab:"today",tabBefore:null,tabStack:[],date:iso(new Date()),settings:clone(DEFAULT_SETTINGS),days:{},weights:{},mealFilter:"all",sheet:null,addPick:null,weekAddDate:null,armed:null,unlocked:{},dayNote:null,openItem:null,kOpen:null,kAddItem:null,kitchenError:null,kitchenHint:null,kitchenHintWhere:null,trolley:null,prices:null,colesPrices:null,pricesTried:0,checkout:null,coLast:null,openOrder:null,orderError:false,weekNote:null,mealNote:null,scrollMealNote:false,scrollWeekDay:null,todayExtrasOpen:false,shopViewStep:null,shopExpandDays:{},shopAtHomeOpen:false,backup:{busy:null,error:null,needNewFile:false,remembered:null,pending:null},gapOptions:null,gapUndo:null};
 let db=null;
 let restoring=false;
 const BACKUP_KEY="weekdayfuel.backup",BEFORE_KEY="weekdayfuel.beforeRestore";
@@ -979,6 +980,272 @@ function todayFit(date,quiet){
   if(changed.length)state.todayNote="Portions refit: "+changed.join(", ");
   else if(!quiet)state.todayNote="Already the closest fit";
 }
+function gapTargetOn(date,daysMap){
+  const base={k:S().kcal[S().mode]+S().adjust,p:S().protein};
+  const dm=daysMap||state.days;
+  const adj=dm[date]&&dm[date].adj;
+  if(adj&&Number.isFinite(adj.k))return {k:base.k+adj.k,p:base.p};
+  return base;
+}
+function gapScoreTotals(k,p,date,daysMap){
+  const tg=gapTargetOn(date,daysMap);
+  return Math.abs(k-tg.k)+Math.max(0,tg.p-p)*12;
+}
+function gapMealUnfixed(m,date){
+  if(mealImpliedAte(m,date))return false;
+  if(WeekdayFuelBought.isBought(m)&&!dayUnlocked(date))return false;
+  return true;
+}
+function gapWeekEnd(today){return addDays(monday(today),6)}
+function gapSpreadDates(today){
+  const end=gapWeekEnd(today),out=[];
+  for(let d=addDays(today,1);d<=end;d=addDays(d,1)){
+    if(!tracked(d))continue;
+    const day=state.days[d];
+    if(!dayHasMeals(day||dayOf(d)))continue;
+    out.push(d);
+  }
+  return out;
+}
+function gapKitchenFree(){
+  const inv=lsInv();
+  if(!inv)return {};
+  const st=WeekdayFuelInventory.stock(inv,state.days,CAT,new Date(),staplesOn);
+  const res=WeekdayFuelInventory.reserved(inv,state.days,CAT,iso(new Date()),shopDays(),staplesOn);
+  return WeekdayFuelInventory.free(st,res);
+}
+function gapMacrosFor(id,amount){
+  const m=WeekdayFuelStaples.macros(id,amount,CAT,MACROS);
+  if(!m)return null;
+  return {k:Math.round(m.k),p:Math.round(m.p*10)/10};
+}
+function gapCloneDay(date,daysMap){
+  const src=daysMap[date]||dayOf(date);
+  return clone(src);
+}
+function gapSimulateSpread(today,gapK,dates){
+  if(!dates.length)return null;
+  const saved=clone(state.days);
+  const splits=WeekdayFuelGap.spreadSplit(gapK,dates);
+  try{
+    splits.forEach(({date,k})=>{
+      const day=gapCloneDay(date,state.days);
+      const prev=day.adj&&Number.isFinite(day.adj.k)?day.adj.k:0;
+      day.adj={k:prev+k,from:today};
+      fitTiers(day,0,date,{bought:true});
+      state.days[date]=day;
+    });
+    let sum=0;
+    dates.forEach(d=>{
+      const day=state.days[d]||dayOf(d);
+      const t=totals(day,d);
+      const tg=target(d);
+      sum+=Math.abs(t.k-tg.k);
+    });
+    if(sum>=Math.abs(gapK)/2)return null;
+    const perDay=splits.length?Math.trunc(gapK/splits.length):0;
+    return {splits,perDay,sum};
+  }finally{
+    state.days=saved;
+  }
+}
+function gapSimulateForward(today,cand){
+  const daysMap=clone(state.days);
+  const srcDay=gapCloneDay(cand.date,daysMap);
+  const meals=(srcDay.meals||[]).slice();
+  const meal=meals[cand.index];
+  if(!meal)return null;
+  meals.splice(cand.index,1);
+  srcDay.meals=meals;
+  fitTiers(srcDay,0,cand.date,{bought:true});
+  daysMap[cand.date]=srcDay;
+  const todayDay=gapCloneDay(today,daysMap);
+  todayDay.meals=(todayDay.meals||[]).slice();
+  const moved=clone(meal);
+  moved.slot="Extra";
+  todayDay.meals.push(moved);
+  fitTiers(todayDay,0,today,{bought:true});
+  daysMap[today]=todayDay;
+  const before=gapScoreTotals(totals(dayOf(today),today).k,totals(dayOf(today),today).p,today);
+  const afterT=totals(todayDay,today);
+  const after=gapScoreTotals(afterT.k,afterT.p,today,daysMap);
+  if(after>=before)return null;
+  const srcT=totals(srcDay,cand.date);
+  return {todayK:afterT.k,todayP:afterT.p,srcK:srcT.k,score:after,meal:moved,fromDate:cand.date,fromIndex:cand.index};
+}
+function gapToggleStapleOnClone(day,date,stapleId){
+  const st=stapleEntryFor(stapleId,date);
+  if(!st||!WeekdayFuelStaples.onDay(st,date,day))return false;
+  day.fx=day.fx||{};
+  day.fx[stapleId]=false;
+  return true;
+}
+function gapSimulateSkipStaple(today,stapleId){
+  const day=gapCloneDay(today,state.days);
+  if(!gapToggleStapleOnClone(day,today,stapleId))return null;
+  fitTiers(day,0,today,{bought:true});
+  const t=totals(day,today);
+  const tg=gapTargetOn(today);
+  const before=gapScoreTotals(totals(dayOf(today),today).k,totals(dayOf(today),today).p,today);
+  const score=gapScoreTotals(t.k,t.p,today);
+  if(score>=before)return null;
+  return {after:t,score,stapleId};
+}
+function todayGapMeta(today,day,t,tg){
+  if(!dayEditable(today)||!tracked(today)||!dayHasMeals(day))return null;
+  const diff=tg.k-t.k;
+  if(Math.abs(diff)<=100)return null;
+  const n=Math.abs(Math.round(diff));
+  const meals=(day.meals||[]).filter(m=>MEAL[m.id]);
+  const unfixed=meals.filter(m=>gapMealUnfixed(m,today));
+  const shortfall=diff>0;
+  const extreme=unfixed.length&&unfixed.every(m=>m.t===(shortfall?"X":"L"));
+  let text;
+  if(shortfall)text=extreme?`${n} kcal short even at Loaded`:`${n} kcal short`;
+  else text=extreme?`${n} kcal over even at Light`:`${n} kcal over`;
+  return {diff,n,shortfall,text,gapK:diff};
+}
+function buildGapOptions(today){
+  const day=dayOf(today);
+  const tg=target(today);
+  const t=totals(day,today);
+  const meta=todayGapMeta(today,day,t,tg);
+  if(!meta)return [];
+  const opts=[];
+  if(meta.shortfall){
+    WeekdayFuelGap.snackOptions({free:gapKitchenFree(),macrosFor:gapMacrosFor,total:{k:t.k,p:t.p},target:tg}).forEach(o=>{
+      opts.push({type:"snack",label:o.snack.label,after:o.after,snack:o.snack,k:o.k,p:o.p});
+    });
+    const dates=gapSpreadDates(today);
+    const spread=dates.length?gapSimulateSpread(today,meta.gapK,dates):null;
+    if(spread){
+      const first=dates[0],last=dates[dates.length-1];
+      const range=first===last?dayShort(first):`${dayShort(first)}–${dayShort(last)}`;
+      const sign=meta.gapK>0?"+":"−";
+      opts.push({type:"spread",label:`Make up ${meta.n} kcal over ${range} (${sign}${Math.abs(spread.perDay)} a day)`,after:{k:t.k,p:t.p},splits:spread.splits,perDay:spread.perDay,gapK:meta.gapK});
+    }
+    const weekEnd=gapWeekEnd(today);
+    const cands=WeekdayFuelGap.forwardCandidates({today,weekEnd,days:state.days,isBought:WeekdayFuelBought.isBought,isEaten:()=>false}).filter(c=>tracked(c.date)&&!mealImpliedAte(c.meal,c.date));
+    const forwards=[];
+    cands.forEach(c=>{
+      const sim=gapSimulateForward(today,c);
+      if(!sim)return;
+      const meal=MEAL[c.meal.id];
+      const name=meal?meal.name:c.meal.id;
+      forwards.push({type:"forward",label:`Have ${dayShort(c.date)}'s ${name} today → Today ${r0(sim.todayK)} · ${dayShort(c.date)} ${r0(sim.srcK)}`,after:{k:sim.todayK,p:sim.todayP},fromDate:c.date,fromIndex:c.index,score:sim.score});
+    });
+    forwards.sort((a,b)=>a.score-b.score);
+    forwards.slice(0,2).forEach(f=>opts.push(f));
+  }else{
+    staplesActiveOn(today).forEach(s=>{
+      const it=CAT.item(s.id);
+      if(!it||!WeekdayFuelStaples.onDay(s,today,day))return;
+      const sim=gapSimulateSkipStaple(today,s.id);
+      if(!sim)return;
+      opts.push({type:"skipStaple",label:`Skip ${stapleShortName(it)} today`,after:sim.after,stapleId:s.id});
+    });
+    opts.sort((a,b)=>gapScoreTotals(a.after.k,a.after.p,today)-gapScoreTotals(b.after.k,b.after.p,today));
+    const dates=gapSpreadDates(today);
+    const spread=dates.length?gapSimulateSpread(today,meta.gapK,dates):null;
+    if(spread){
+      const first=dates[0],last=dates[dates.length-1];
+      const range=first===last?dayShort(first):`${dayShort(first)}–${dayShort(last)}`;
+      opts.push({type:"spread",label:`Spread ${meta.n} kcal over ${range} (${spread.perDay} a day)`,after:{k:t.k,p:t.p},splits:spread.splits,perDay:spread.perDay,gapK:meta.gapK});
+    }
+  }
+  return opts;
+}
+function gapSnapshotFor(opt,today){
+  const snap={};
+  const touch=d=>{snap[d]=clone(state.days[d]||dayOf(d))};
+  if(opt.type==="snack"||opt.type==="skipStaple")touch(today);
+  else if(opt.type==="spread")opt.splits.forEach(s=>touch(s.date));
+  else if(opt.type==="forward"){touch(today);touch(opt.fromDate)}
+  return snap;
+}
+function applyGapOption(idx,today){
+  const opt=state.gapOptions&&state.gapOptions[idx];
+  if(!opt)return;
+  state.gapUndo=gapSnapshotFor(opt,today);
+  if(opt.type==="snack"){
+    const d=ensureDay(today);
+    d.extras=d.extras||[];
+    d.extras.push({n:opt.snack.label,k:opt.k,p:opt.p,uses:opt.snack.items.map(it=>({id:it.id,amount:it.amount}))});
+    saveDay(today);
+    state.todayNote=`Added ${opt.snack.label}`;
+  }else if(opt.type==="spread"){
+    opt.splits.forEach(({date,k})=>{
+      const d=ensureDay(date);
+      const prev=d.adj&&Number.isFinite(d.adj.k)?d.adj.k:0;
+      d.adj={k:prev+k,from:today};
+      fitTiers(d,0,date,{bought:true});
+      saveDay(date);
+    });
+    state.todayNote=`Spread ${Math.abs(Math.round(opt.gapK))} kcal over the week`;
+  }else if(opt.type==="forward"){
+    const src=ensureDay(opt.fromDate);
+    const meals=(src.meals||[]).slice();
+    const meal=meals.splice(opt.fromIndex,1)[0];
+    src.meals=meals;
+    fitTiers(src,0,opt.fromDate,{bought:true});
+    saveDay(opt.fromDate);
+    const d=ensureDay(today);
+    d.meals=(d.meals||[]).slice();
+    const moved=clone(meal);
+    moved.slot="Extra";
+    d.meals.push(moved);
+    fitTiers(d,0,today,{bought:true});
+    saveDay(today);
+    const mealName=MEAL[moved.id]?MEAL[moved.id].name:moved.id;
+    state.todayNote=`Brought ${mealName} forward from ${dayShort(opt.fromDate)}`;
+  }else if(opt.type==="skipStaple"){
+    const d=ensureDay(today);
+    gapToggleStapleOnClone(d,today,opt.stapleId);
+    fitTiers(d,0,today,{bought:true});
+    saveDay(today);
+    const it=CAT.item(opt.stapleId);
+    state.todayNote=`Skipped ${it?stapleShortName(it):opt.stapleId} today`;
+  }
+  state.sheet=null;
+  state.gapOptions=null;
+}
+function undoGap(){
+  if(!state.gapUndo)return;
+  Object.keys(state.gapUndo).forEach(d=>{
+    state.days[d]=clone(state.gapUndo[d]);
+    saveDay(d);
+  });
+  state.gapUndo=null;
+  state.todayNote=null;
+}
+function renderGapSheetBody(today){
+  state.gapOptions=buildGapOptions(today);
+  const meta=todayGapMeta(today,dayOf(today),totals(dayOf(today),today),target(today));
+  let h=`<p class="small muted" style="margin:0">Tap a row to apply. Nothing changes until you choose.</p>`;
+  if(!state.gapOptions.length){
+    h+=`<p class="muted" style="margin:8px 0 0">No suggestions right now${meta&&meta.shortfall?" — try Fit portions or add kitchen stock":""}.</p>`;
+    return h;
+  }
+  const snacks=state.gapOptions.filter(o=>o.type==="snack");
+  const spreads=state.gapOptions.filter(o=>o.type==="spread");
+  const forwards=state.gapOptions.filter(o=>o.type==="forward");
+  const skips=state.gapOptions.filter(o=>o.type==="skipStaple");
+  const row=(o,i)=>`<button type="button" class="pick" data-act="gapapply" data-v="${i}"><span class="grow"><b>${esc(o.label)}</b><br><span class="small muted">→ <span class="num">${r0(o.after.k)}</span> kcal · <span class="num">${r0(o.after.p)}</span>g protein</span></span></button>`;
+  const idx=t=>state.gapOptions.indexOf(t);
+  if(snacks.length){
+    h+=`<div class="stack" style="gap:6px;margin-top:10px"><div class="eyebrow">Spare at home</div>${snacks.map(o=>row(o,idx(o))).join("")}</div>`;
+  }
+  if(spreads.length){
+    h+=`<div class="stack" style="gap:6px;margin-top:10px"><div class="eyebrow">Spread over the week</div>${spreads.map(o=>row(o,idx(o))).join("")}</div>`;
+  }
+  if(forwards.length){
+    h+=`<div class="stack" style="gap:6px;margin-top:10px"><div class="eyebrow">Bring a meal forward</div>${forwards.map(o=>row(o,idx(o))).join("")}</div>`;
+  }
+  if(skips.length){
+    h+=`<div class="stack" style="gap:6px;margin-top:10px"><div class="eyebrow">Skip a staple</div>${skips.map(o=>row(o,idx(o))).join("")}</div>`;
+  }
+  return h;
+}
 function recentIds(date,back){const s=new Set();for(let i=1;i<=back;i++){const d=state.days[addDays(date,-i)];if(d&&d.meals)d.meals.forEach(m=>s.add(m.id))}return s}
 function randomPick(list,avoid){const pool=list.filter(m=>!avoid.has(m.id));const src=pool.length?pool:list;return src[Math.floor(Math.random()*src.length)]}
 function suggestDay(date){
@@ -1245,7 +1512,9 @@ function renderToday(){
     const canFit=dayPip(day,today)!=="good"&&meals.some(m=>MEAL[m.id]&&!mealImpliedAte(m,today));
     const fitBtn=canFit?`<button type="button" class="ghost" data-act="todayfit" data-d="${esc(today)}">Fit portions</button>`:"";
     h+=`<div class="panel stack" style="gap:10px">${compactMacro(t.k,tg.k," kcal","")}${compactMacro(t.p,tg.p," g protein","p")}${fitBtn}</div>`;
-    if(state.todayNote)h+=`<div class="hint" id="today-note"><span>${esc(state.todayNote)}</span></div>`;
+    const gapMeta=todayGapMeta(today,day,t,tg);
+    if(gapMeta)h+=`<div class="special"><span>${esc(gapMeta.text)} · </span><button type="button" class="ghost" data-act="gapopen">Close the gap</button></div>`;
+    if(state.todayNote)h+=`<div class="hint" id="today-note"><span>${esc(state.todayNote)}</span>${state.gapUndo?` <button type="button" class="ghost" data-act="gapundo">Undo</button>`:""}</div>`;
     h+=renderStapleChipsToday(today,day);
     h+=`<div class="panel stack" style="gap:4px">`+meals.map((m,i)=>{
       const meal=MEAL[m.id];if(!meal)return "";
@@ -1774,6 +2043,13 @@ function renderSheet(){
     root.dataset.sheet=state.sheet;
     return;
   }
+  if(state.sheet==="gap"){
+    const today=iso(new Date());
+    const body=renderGapSheetBody(today);
+    root.innerHTML=`<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="Close the gap"><div class="row between" style="margin-bottom:10px"><span class="eyebrow">Today</span><button class="ghost" data-act="close">Close</button></div><h2>Close the gap</h2><div class="stack" style="gap:8px">${body}</div></div></div>`;
+    root.dataset.sheet=state.sheet;
+    return;
+  }
   if(state.sheet==="weekmenu"){
     const todayIso=iso(new Date());
     const clearSkipKeys=clearUnboughtSkipMealKeys();
@@ -1921,7 +2197,7 @@ document.addEventListener("click",e=>{
   state.kitchenError=null;
   state.weekNote=null;
   if(act!=="weektile")state.mealNote=null;
-  state.todayNote=null;
+  if(act!=="gapopen"&&act!=="gapapply"&&act!=="gapundo"&&act!=="close"){state.todayNote=null;state.gapUndo=null}
   if(act!=="weektile"&&act!=="daymenu"&&act!=="weekmenu")state.dayNote=null;
   const date=actionDate(el);
   switch(act){
@@ -1950,6 +2226,9 @@ document.addEventListener("click",e=>{
     case "untrack":{if(!dayEditable(date)||dayHasBoughtMeals(date))break;const d=ensureDay(date);d.track=false;saveDay(date);state.sheet=null;break}
     case "stapletog":{const sd=el.dataset.d||date;if(!dayEditable(sd))break;toggleStapleDay(v,sd);if(el.dataset.fit)todayFit(sd,true);break}
     case "todayfit":todayFit(date,false);break;
+    case "gapopen":state.sheet="gap";break;
+    case "gapapply":{const today=iso(new Date());applyGapOption(+v,today);break}
+    case "gapundo":undoGap();break;
     case "stapleedit":openStapleSheet(v);break;
     case "stapleadd":openStapleSheet(null);break;
     case "stapdays":{syncStapleSheetDraft();if(state.stapleSheetDraft)state.stapleSheetDraft.days=v;break}
