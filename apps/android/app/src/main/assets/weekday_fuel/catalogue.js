@@ -179,7 +179,7 @@
       woolies: { name: "San Remo Macaroni Pasta No 38 500g", url: "https://www.woolworths.com.au/shop/productdetails/44025/san-remo-macaroni-pasta-no-38", stockcode: 44025, size: 500, price: 2.3, checked: "2026-10-15" },
     },
     {
-      id: "potato", sec: 2, name: "Washed potatoes", short: "Potatoes", unit: "g", note: "", same: false,
+      id: "potato", sec: 2, keeps: 21, name: "Washed potatoes", short: "Potatoes", unit: "g", note: "", same: false,
       coles: {
         name: "Coles Potatoes Washed 2kg", url: "https://www.coles.com.au/product/coles-potatoes-washed-2kg-1206748", size: 2000, price: 6, checked: "2026-10-15",
         packs: [{ name: "Coles Baby Washed Potatoes 1Kg", url: "https://www.coles.com.au/product/coles-baby-washed-potatoes-1kg-2488485", size: 1000, price: 4.5, checked: "2026-10-20" }],
