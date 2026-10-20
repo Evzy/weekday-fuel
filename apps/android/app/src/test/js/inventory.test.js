@@ -1044,12 +1044,23 @@ test("reserved includes extras uses on today and future days", () => {
 
 test("gapSpareReserved holds span gap-day staples so that stock is not spare", () => {
   const base = I.addEvents(null, [{ k: "buy", item: "dare", amount: 5, order: "o1" }], START);
-  const today = "2026-10-21";
-  const staplesOn = (d) => (d === "2026-10-21" ? [{ id: "dare", amount: 1 }] : []);
-  const st = I.stock(base, {}, cat, new Date(2026, 9, 21, 12, 0, 0), staplesOn);
+  const today = "2026-10-20";
+  const gapDay = "2026-10-21";
+  const staplesOn = (d) => (d === gapDay ? [{ id: "dare", amount: 1 }] : []);
+  const st = I.stock(base, {}, cat, new Date(2026, 9, 20, 12, 0, 0), staplesOn);
   const res = I.gapSpareReserved(base, {}, cat, today, "2026-10-22", ["2026-10-20", "2026-10-22"], staplesOn);
   assert.equal(res.dare, 1);
-  assert.equal(I.free(st, res).dare, 3);
+  assert.equal(I.free(st, res).dare, 4);
+});
+
+test("gapSpareReserved does not reserve today's staples", () => {
+  const base = I.addEvents(null, [{ k: "buy", item: "dare", amount: 5, order: "o1" }], START);
+  const today = "2026-10-21";
+  const staplesOn = (d) => (d === today ? [{ id: "dare", amount: 1 }] : []);
+  const st = I.stock(base, {}, cat, new Date(2026, 9, 21, 12, 0, 0), staplesOn);
+  const res = I.gapSpareReserved(base, {}, cat, today, "2026-10-22", [], staplesOn);
+  assert.equal(res.dare, undefined);
+  assert.equal(I.free(st, res).dare, 4);
 });
 
 test("shop reserved staples start tomorrow; stock already consumed today's staple", () => {
@@ -1074,10 +1085,11 @@ test("gapSpareReserved covers meals staples and today extras through week end", 
     },
     "2026-10-21": { meals: [{ id: "toasty", t: "S" }] },
   };
-  const staplesOn = (d) => (d === today ? [{ id: "dare", amount: 1 }] : []);
+  const staplesOn = (d) => (d === "2026-10-21" ? [{ id: "dare", amount: 1 }] : []);
   const r = I.gapSpareReserved(base, days, cat, today, weekEnd, [], staplesOn);
   assert.ok(r.breast > 0, "bought meal today reserves ingredients");
   assert.equal(r.dare, 1);
+  assert.equal(I.gapSpareReserved(base, days, cat, today, weekEnd, [], (d) => (d === today ? [{ id: "dare", amount: 1 }] : [])).dare, undefined);
   assert.equal(r.grenade, 1);
 });
 

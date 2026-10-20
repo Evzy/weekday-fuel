@@ -486,7 +486,7 @@
     while (compareDate(d, end) <= 0) {
       var day = days && days[d];
       reserveMealsForDay(out, cat, day, d, today, shopDaySet, first, last, startDate);
-      if (typeof staplesOn === "function") {
+      if (typeof staplesOn === "function" && compareDate(d, today) > 0) {
         var dayStaples = staplesOn(d);
         if (Array.isArray(dayStaples)) {
           dayStaples.forEach(function (s) {
