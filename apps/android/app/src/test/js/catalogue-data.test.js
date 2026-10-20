@@ -66,13 +66,13 @@ test("every meal's items exist and every non-fixture item is used by a meal", ()
   for (const it of cat.ITEMS) if (it.sec !== 0) assert.ok(cat.usedIn(it.id).length, it.id + " is never used");
 });
 
-test("only meat items use alternate packs", () => {
-  const meat = new Set(["breast", "thigh", "mince", "ham"]);
+test("pack-size alternates are only on meat and the researched smaller-shop items", () => {
+  const withPacks = new Set(["breast", "thigh", "mince", "ham", "eggs", "yog", "cheese", "spinach", "potato", "passata", "fzpeas"]);
   for (const it of cat.ITEMS) {
     for (const store of ["coles", "woolies"]) {
       const p = it[store];
       if (!p || !p.packs) continue;
-      assert.ok(meat.has(it.id), it.id + " has " + store + " packs");
+      assert.ok(withPacks.has(it.id), it.id + " has " + store + " packs");
     }
   }
 });
