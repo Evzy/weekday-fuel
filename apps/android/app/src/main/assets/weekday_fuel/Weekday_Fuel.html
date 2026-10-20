@@ -821,7 +821,21 @@ async function initStore(){
 
 /* ---------- domain logic ---------- */
 const S=()=>state.settings;
-const target=()=>({k:S().kcal[S().mode]+S().adjust,p:S().protein});
+function target(date){
+  const base={k:S().kcal[S().mode]+S().adjust,p:S().protein};
+  if(!date)return base;
+  const adj=state.days[date]&&state.days[date].adj;
+  if(adj&&Number.isFinite(adj.k))return {k:base.k+adj.k,p:base.p};
+  return base;
+}
+function targetAdjLabel(date){
+  const day=state.days[date];
+  const adj=day&&day.adj;
+  if(!adj||!Number.isFinite(adj.k)||adj.k===0)return "";
+  const sign=adj.k>0?"+":"−";
+  const from=adj.from?dayShort(adj.from):"";
+  return ` · ${sign}${Math.abs(Math.round(adj.k))} from ${esc(from)}`;
+}
 function dayOf(date){
   if(state.days[date])return state.days[date];
   return {meals:[],extras:[],track:false};
@@ -881,7 +895,7 @@ function rmArmKey(date,mealId){return "rm"+date+":"+mealId}
 function dayHasBoughtMeals(date){return ((state.days[date]&&state.days[date].meals)||[]).some(WeekdayFuelBought.isBought)}
 function dayHasMeals(day){return !!(day&&day.meals&&day.meals.length)}
 function dayPip(day,date){
-  const tg=target(),on=tracked(date);
+  const tg=target(date),on=tracked(date);
   if(!on)return "off";
   if(!dayHasMeals(day))return "";
   const t=totals(day,date),off=Math.abs(t.k-tg.k);
@@ -945,7 +959,7 @@ function fitTiers(day,locked,date,opts){
   const fixed=(m,i)=>i<lk||mealImpliedAte(m,date)||(WeekdayFuelBought.isBought(m)&&!unlocked);
   const ms=all.filter((m,i)=>MEAL[m.id]&&!fixed(m,i));if(!ms.length)return [];
   const base=totals({fx:day.fx,meals:all.filter((m,i)=>fixed(m,i)),extras:day.extras},date);
-  const tg=target();let best=null;
+  const tg=date?target(date):target();let best=null;
   const keys=["L","S","X"];const n=ms.length;const combos=Math.pow(3,n);
   for(let i=0;i<combos;i++){
     let k=base.k,p=base.p,x=i;const pick=[];
@@ -1064,7 +1078,7 @@ function renderMealSheetBody(date,i){
   const dd=` data-d="${esc(date)}"`;
   const inCart=date>=iso(new Date());
   const v=meal.t[m.t];
-  const tg=target();
+  const tg=target(date);
   const dt=totals(day,date);
   const tierDial=locked?"":`<div class="dial" role="group" aria-label="Portion">${TIERS.map(([k,l])=>`<button type="button" aria-pressed="${m.t===k}" data-act="tier" data-i="${i}" data-v="${k}"${dd}>${l}</button>`).join("")}</div>`;
   const key=rmArmKey(date,m.id);
@@ -1222,7 +1236,7 @@ function renderToday(){
     return h;
   }
   const meals=day.meals||[];
-  const tg=target();
+  const tg=target(today);
   const t=totals(day,today);
   if(!meals.length){
     h+=`<div class="panel"><p class="muted" style="margin:0">Nothing planned. <button type="button" class="ghost" data-act="planweek">Plan my week →</button></p></div>`;
@@ -1250,7 +1264,6 @@ function renderToday(){
 function renderWeek(){
   const today=iso(new Date());
   const end=weekDisplayEnd(today);
-  const tg=target();
   const {N,M}=weekTally(today);
   let h=`<div class="row between" style="align-items:flex-start"><div><div class="eyebrow">Week</div><h2>${esc(dayShort(today))} – ${esc(dayShort(end))}</h2></div><button type="button" class="ghost" data-act="weekmenu" aria-label="Week menu">⋯</button></div>`;
   if(state.weekNote)h+=`<div class="hint" id="week-note"><span>${esc(state.weekNote)}</span></div>`;
@@ -1273,12 +1286,12 @@ function renderWeek(){
       return;
     }
     if(!tracked(d))return;
-    const day=dayOf(d),t=totals(day,d),pip=dayPip(day,d);
+    const day=dayOf(d),t=totals(day,d),pip=dayPip(day,d),dayTg=target(d);
     const fit=dayShowFit(d,day);
     const meals=day.meals||[];
     const boughtLine=dayHasBoughtMeals(d)?`<div class="small"><b>${esc(boughtShopLabel(meals))}</b></div>`:"";
     const dayHint=state.dayNote&&state.dayNote.date===d?`<div class="hint"><span>${esc(dayShort(d))}: ${esc(state.dayNote.msg)}</span></div>`:"";
-    h+=`<div class="panel stack" id="week-day-${esc(d)}" style="gap:8px"><div class="row between" style="align-items:flex-start;gap:8px"><div class="grow"><div class="row between" style="gap:6px"><h2 style="margin:0">${esc(dayShort(d))}</h2><button type="button" class="ghost" data-act="daymenu" data-d="${esc(d)}" aria-label="Day menu">⋯</button></div><div class="small muted"><span class="num">${r0(t.k)}</span> / ${tg.k} kcal · <span class="num">${r0(t.p)}</span>g protein${fit?` · <button type="button" class="ghost" data-act="fit" data-d="${esc(d)}">Fit portions</button>`:""}</div>${boughtLine}</div><span class="pip ${pip}" style="width:36px;height:6px;border-radius:3px;margin-top:6px"></span></div>${dayHint}`;
+    h+=`<div class="panel stack" id="week-day-${esc(d)}" style="gap:8px"><div class="row between" style="align-items:flex-start;gap:8px"><div class="grow"><div class="row between" style="gap:6px"><h2 style="margin:0">${esc(dayShort(d))}</h2><button type="button" class="ghost" data-act="daymenu" data-d="${esc(d)}" aria-label="Day menu">⋯</button></div><div class="small muted"><span class="num">${r0(t.k)}</span> / ${dayTg.k} kcal${targetAdjLabel(d)} · <span class="num">${r0(t.p)}</span>g protein${fit?` · <button type="button" class="ghost" data-act="fit" data-d="${esc(d)}">Fit portions</button>`:""}</div>${boughtLine}</div><span class="pip ${pip}" style="width:36px;height:6px;border-radius:3px;margin-top:6px"></span></div>${dayHint}`;
     if(meals.length)h+=`<div class="stack" style="gap:4px">`+meals.map((m,i)=>renderWeekMealLine(m,i,d)).join("")+`</div>`;
     if(day.extras&&day.extras.length){
       h+=`<div class="stack" style="gap:4px">`+day.extras.map((x,i)=>`<div class="wli"><span class="grow small">${esc(x.n||"Extra")}</span><span class="num small">${r0(x.k)} kcal · ${r0(x.p)}g P</span><button class="ghost" data-act="rmx" data-i="${i}" data-d="${esc(d)}">Remove</button></div>`).join("")+`</div>`;

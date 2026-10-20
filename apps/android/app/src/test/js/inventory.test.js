@@ -878,6 +878,35 @@ test("meals before start are ignored even with pre-start buys in the log", () =>
   assert.equal(I.stock(base, days, cat, NOW, staplesNone).breast.amount, 400);
 });
 
+test("extras uses consume stock at end of that day, not before", () => {
+  const base = I.addEvents(null, [{ k: "buy", item: "yog", amount: 500, order: "o1" }], START);
+  const day = "2026-10-18";
+  const days = {
+    [day]: {
+      extras: [{ n: "Snack", k: 200, p: 10, uses: [{ id: "yog", amount: 200 }] }],
+    },
+  };
+  const beforeEod = new Date(2026, 9, 18, 10, 0, 0);
+  const afterEod = new Date(2026, 9, 19, 8, 0, 0);
+  assert.equal(I.stock(base, days, cat, beforeEod, staplesNone).yog.amount, 500);
+  assert.equal(I.stock(base, days, cat, afterEod, staplesNone).yog.amount, 300);
+});
+
+test("extras uses ignore invalid entries and extras without uses", () => {
+  const base = I.addEvents(null, [{ k: "buy", item: "honey", amount: 100, order: "o1" }], START);
+  const days = {
+    "2026-10-18": {
+      extras: [
+        { n: "No uses", k: 50, p: 0 },
+        { n: "Bad uses", k: 50, p: 0, uses: [{ id: "", amount: 10 }, { id: "honey", amount: 0 }] },
+        { n: "Good", k: 30, p: 0, uses: [{ id: "honey", amount: 40 }] },
+      ],
+    },
+  };
+  const after = new Date(2026, 9, 19, 12, 0, 0);
+  assert.equal(I.stock(base, days, cat, after, staplesNone).honey.amount, 60);
+});
+
 test("prune keeps an event exactly at the cutoff and drops one millisecond before", () => {
   const when = new Date(2026, 9, 20, 12, 0, 0);
   const cutoff = new Date(when.getFullYear(), when.getMonth(), when.getDate());

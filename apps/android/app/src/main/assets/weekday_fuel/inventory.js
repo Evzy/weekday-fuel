@@ -325,6 +325,22 @@
       });
     });
 
+    Object.keys(days || {}).forEach(function (date) {
+      if (!DATE.test(date)) return;
+      var dayExtras = days[date];
+      if (!dayExtras || !Array.isArray(dayExtras.extras)) return;
+      var useAt = endOfDay(date);
+      var useMs = atMs(useAt);
+      if (isNaN(useMs) || useMs > nowTs || useMs < startMs) return;
+      dayExtras.extras.forEach(function (extra) {
+        if (!extra || !Array.isArray(extra.uses)) return;
+        extra.uses.forEach(function (u) {
+          if (!u || typeof u.id !== "string" || !(u.amount > 0)) return;
+          actions.push({ ts: useMs, at: useAt, kind: "use", item: u.id, amount: u.amount });
+        });
+      });
+    });
+
     var d = startDate;
     while (compareDate(d, endDate) <= 0) {
       var mid = parseLocalDate(d).toISOString();
