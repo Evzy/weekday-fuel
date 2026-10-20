@@ -14,4 +14,9 @@ Ideas agreed for later. Each gets a brainstorm and spec before it's built.
 2. **Spread the gap over the next days.** Targets matter most as a weekly average. Offer "Make up 170 kcal over Wed–Thu" and nudge those days' portions up (they're often not Loaded yet). No food moves, no shop changes.
 3. **Bring a later meal or part of one forward** (Evan's idea). Move or add a bought meal from a later day to today, then refit the days it came from. Most powerful, but it changes later days' food, so it needs a clear preview and undo.
 
-**Also consider.** Show the shortfall plainly ("170 kcal short even at Loaded") so a refit that can't hit the goal doesn't look like it worked. And the reverse case: adding a staple on a day already over target, with every meal already Light.
+**Also consider (Today).** Show the shortfall plainly ("170 kcal short even at Loaded") so a refit that can't hit the goal doesn't look like it worked. And the reverse case: adding a staple on a day already over target, with every meal already Light.
+
+## Shop: mix pack sizes in one line (raised 2026-10-20)
+
+The chooser buys one pack size per item. Mixing is sometimes cheaper: 15 eggs is 2 x 12 = $13.40 but 12 + 6 = $11.60; 1250g yoghurt is 2 x 907g = $17.60 but 907g + 500g = $15.30. Needs the trolley send, sent record, orders matching and stock to handle two products for one item.
+
