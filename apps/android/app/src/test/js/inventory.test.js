@@ -674,6 +674,39 @@ test("buysFromRows counts manual deli without a sent line when row is in the fin
   );
 });
 
+test("buysFromUnmatchedSent stocks sent food when its shop row is gone", () => {
+  const eggCat = create(
+    ITEMS.concat([
+      {
+        id: "eggs",
+        sec: 1,
+        keeps: 28,
+        name: "Eggs",
+        unit: "eggs",
+        note: "",
+        same: false,
+        coles: null,
+        woolies: { name: "12 pack", url: W + "6013278", stockcode: 6013278, size: 12, price: 6, checked: "2026-10-15" },
+      },
+    ]),
+    { ...AMOUNTS, schnitzel: { eggs: 2 } },
+  );
+  const ctx = { sent: { 6013278: 1 }, colesSent: {}, colesId: catalogueColesId };
+  assert.deepEqual(I.buysFromUnmatchedSent({ 6013278: 1 }, [], eggCat, "woolies", catalogueColesId, ctx), [{ item: "eggs", amount: 12 }]);
+});
+
+test("buysFromUnmatchedSent ignores codes already matched by rows and unknown codes", () => {
+  const row = {
+    id: "honey",
+    sec: 2,
+    woolies: { product: { stockcode: 753976, size: 375 }, quantity: 1, cost: 5, buy: "1 jar" },
+    coles: null,
+  };
+  const ctx = { sent: { 753976: 2, 999999: 1 }, colesSent: {}, colesId: catalogueColesId };
+  assert.deepEqual(I.buysFromUnmatchedSent({ 753976: 2, 999999: 1 }, [row], cat, "woolies", catalogueColesId, ctx), []);
+  assert.deepEqual(I.buysFromRows([row], "woolies", {}, {}, ctx), [{ item: "honey", amount: 750 }]);
+});
+
 test("buysFromRows stocks colesUnavailable from colesSent", () => {
   const gone = {
     id: "yog",

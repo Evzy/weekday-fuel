@@ -661,6 +661,78 @@
     return sum;
   }
 
+  function productCode(product, store, colesId) {
+    if (!product) return null;
+    if (store === "coles") {
+      var idFn = typeof colesId === "function" ? colesId : function () { return null; };
+      var cid = idFn(product);
+      return cid == null ? null : String(cid);
+    }
+    if (product.stockcode == null) return null;
+    return String(product.stockcode);
+  }
+
+  function sentCodesUsedByRows(rows, store, sent, colesSent, colesId) {
+    var used = nullMap();
+    if (!ord || !ord.sentLineQty) return used;
+    (Array.isArray(rows) ? rows : []).forEach(function (row) {
+      ord.sentLineQty(row, sent, colesSent, colesId).forEach(function (p) {
+        var code = productCode(p.product, store, colesId);
+        if (code != null) used[code] = true;
+      });
+    });
+    return used;
+  }
+
+  function eachCatalogProduct(cat, fn) {
+    var items = cat && cat.ITEMS ? cat.ITEMS : [];
+    items.forEach(function (it) {
+      function walk(prod) {
+        if (prod) fn(it.id, prod);
+      }
+      walk(it.woolies);
+      walk(it.coles);
+      if (it.woolies && it.woolies.packs) it.woolies.packs.forEach(walk);
+      if (it.coles && it.coles.packs) it.coles.packs.forEach(walk);
+      if (it.swaps) {
+        it.swaps.forEach(function (sw) {
+          walk(sw.woolies);
+          walk(sw.coles);
+        });
+      }
+      walk(it.wooliesUnavailable);
+      walk(it.colesUnavailable);
+    });
+  }
+
+  function lookupItemProduct(cat, code, store, colesId) {
+    var hit = null;
+    eachCatalogProduct(cat, function (itemId, prod) {
+      if (hit) return;
+      if (productCode(prod, store, colesId) === String(code)) hit = { item: itemId, product: prod };
+    });
+    return hit;
+  }
+
+  function buysFromUnmatchedSent(sent, rows, cat, store, colesId, rowCtx) {
+    var lines = sent && typeof sent === "object" ? sent : {};
+    var ctx = rowCtx || {};
+    var wSent = ctx.sent && typeof ctx.sent === "object" ? ctx.sent : {};
+    var cSent = ctx.colesSent && typeof ctx.colesSent === "object" ? ctx.colesSent : {};
+    var idFn = typeof colesId === "function" ? colesId : function () { return null; };
+    var used = sentCodesUsedByRows(rows, store, wSent, cSent, idFn);
+    var out = [];
+    Object.keys(lines).forEach(function (code) {
+      var qty = lines[code];
+      if (!isQty(qty)) return;
+      if (used[String(code)]) return;
+      var hit = lookupItemProduct(cat, code, store, idFn);
+      if (!hit) return;
+      out.push({ item: hit.item, amount: buyAmount(hit.product, qty) });
+    });
+    return out;
+  }
+
   function buysFromRows(rows, store, ticks, haveIt, opts) {
     var o = opts || {};
     var sent = o.sent && typeof o.sent === "object" ? o.sent : {};
@@ -708,6 +780,7 @@
     free: free,
     freeForShop: freeForShop,
     buysFromRows: buysFromRows,
+    buysFromUnmatchedSent: buysFromUnmatchedSent,
     shopHaveIt: shopHaveIt,
     impliedAte: impliedAte,
     endOfDay: endOfDay,
