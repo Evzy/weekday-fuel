@@ -248,7 +248,7 @@ test("when several sent packs belong to one row, snapshot lists them in one orde
   assert.equal(w.groups.ordered.length, 1);
   assert.deepEqual(w.groups.ordered[0], {
     name: "Woolworths Chicken Breast 650g",
-    buy: "2 packs + 1 × 1.5–2.2kg tray",
+    buy: "2 × 650g + 1 × 1.5–2.2kg tray",
     cost: 43,
     store: "woolies",
     note: "pack size changed since sending",
@@ -264,8 +264,8 @@ test("when several sent packs belong to one row, snapshot lists them in one orde
   const c = O.snapshot([cBreastPack], {}, {}, cOpts);
   assert.equal(c.groups.ordered.length, 1);
   assert.equal(c.groups.ordered[0].note, "pack size changed since sending");
-  assert.match(c.groups.ordered[0].buy, /pack/);
-  assert.equal(c.groups.ordered[0].buy.split(" + ").length, 2);
+  assert.match(c.groups.ordered[0].buy, /600g/);
+  assert.match(c.groups.ordered[0].buy, /1400g/);
 });
 
 const EGG12 = { name: "12 pack", url: "https://www.woolworths.com.au/shop/productdetails/6013278/x", stockcode: 6013278, size: 12, price: 6 };

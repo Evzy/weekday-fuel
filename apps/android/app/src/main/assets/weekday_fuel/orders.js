@@ -20,6 +20,23 @@
     return typeof q === "number" && isFinite(q) && q > 0;
   }
 
+  function singular(unit) {
+    return String(unit || "")
+      .replace(/(ch|sh|x)es$/, "$1")
+      .replace(/s$/, "");
+  }
+
+  function packLabelFor(product, unit) {
+    if (product.sizeLabel) return product.sizeLabel;
+    return product.size + (/^(g|mL)$/.test(unit) ? unit : " " + unit);
+  }
+
+  function partBuyText(product, qty, unit) {
+    if (product.perKg) return Math.round(qty * 1000) + "g";
+    if (product.size === 1) return qty + " " + (qty === 1 ? singular(unit) : unit);
+    return qty + " × " + packLabelFor(product, unit);
+  }
+
   function productId(product, store, colesId) {
     if (!product) return null;
     if (store === "coles") {
@@ -110,7 +127,8 @@
     return false;
   }
 
-  function orderedFromSentParts(line, parts, store, forText, colesId) {
+  function orderedFromSentParts(line, parts, store, forText, colesId, unit) {
+    var u = typeof unit === "string" ? unit : "pack";
     var changed = packChangedSinceSending(line, parts, store, colesId);
     var note = changed ? "pack size changed since sending" : null;
     if (!changed && line && parts.length === 1) {
@@ -142,7 +160,7 @@
     }
     var buy = parts
       .map(function (p) {
-        return amount(p.product, p.qty);
+        return partBuyText(p.product, p.qty, u);
       })
       .join(" + ");
     var cost = round2(
@@ -234,7 +252,7 @@
         if (!w && gone && wParts.length === 1 && wParts[0].product === gone) {
           groups.ordered.push(orderedItem(null, gone, wParts[0].qty, "was unavailable online", f));
         } else {
-          groups.ordered.push(orderedFromSentParts(w, wParts, "woolies", f, colesId));
+          groups.ordered.push(orderedFromSentParts(w, wParts, "woolies", f, colesId, row.unit));
         }
         return;
       }
@@ -264,7 +282,7 @@
         if (!c && cGone && cParts.length === 1 && cParts[0].product === cGone) {
           groups.ordered.push(orderedItem(null, cGone, cParts[0].qty, "was unavailable online", f, "coles"));
         } else {
-          groups.ordered.push(orderedFromSentParts(c, cParts, "coles", f, colesId));
+          groups.ordered.push(orderedFromSentParts(c, cParts, "coles", f, colesId, row.unit));
         }
         return;
       }

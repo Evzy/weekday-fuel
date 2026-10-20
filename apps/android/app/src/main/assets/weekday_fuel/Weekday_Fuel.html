@@ -431,16 +431,27 @@ function shopSnapshotCovered(){
   const {lines,colesLines,colesId,byId}=shopSentCtx();
   return shopCovered().filter(c=>{const full=byId[c.id];return !full||!WeekdayFuelOrders.rowHasSentLine(full,lines,colesLines,colesId)});
 }
+function storeLinePartFingerprint(line,colesIdFn){
+  if(!line)return "";
+  const bits=[];
+  if(line.parts&&line.parts.length){
+    line.parts.forEach(p=>{
+      const id=colesIdFn?colesIdFn(p.product):packPickId(p.product);
+      if(id!=null&&id!=="")bits.push(String(id)+":"+p.quantity);
+    });
+  }else if(line.product){
+    const id=colesIdFn?colesIdFn(line.product):packPickId(line.product);
+    if(id!=null&&id!=="")bits.push(String(id)+":"+line.quantity);
+  }
+  return bits.sort().join("+");
+}
 function shopFingerprint(){
   const base=WeekdayFuelCart.shopFingerprint(picks(),dayMeals(),stapleNeedMap());
   const used=shopRowsApply(shopRowsRaw()).used;
   const usedJson=Object.keys(used).length?JSON.stringify(used):"";
   if(shopHave()===null)return base+usedJson;
-  const rows=shopRows(),cov=shopCovered();
-  const rowFp=rows.map(r=>{
-    const co=r.coles,wo=r.woolies;
-    return [r.id,r.have||0,co&&co.product?packPickId(co.product):"",wo&&wo.product?packPickId(wo.product):""];
-  });
+  const rows=shopRows(),cov=shopCovered(),cid=WeekdayFuelCatalogue.colesId;
+  const rowFp=rows.map(r=>[r.id,r.have||0,storeLinePartFingerprint(r.coles,cid),storeLinePartFingerprint(r.woolies,null)]);
   return base+"|"+JSON.stringify(rowFp)+"|"+JSON.stringify(cov.map(c=>c.id))+usedJson;
 }
 function shopOrderEmpty(){
@@ -1720,19 +1731,29 @@ const shopNeedText=r=>WeekdayFuelCatalogue.shopNeedLabel(r,shopAmountFmt);
 function packPickId(product){if(!product)return "";if(product.stockcode!=null)return String(product.stockcode);if(typeof product.url==="string")return product.url;return ""}
 function packProductKey(a,b){if(!a||!b)return false;const k=packPickId(a);return k!==""&&k===packPickId(b)}
 function packLabelFor(product,unit){if(product.sizeLabel)return product.sizeLabel;return product.size+(/^(g|mL)$/.test(unit)?unit:" "+unit)}
+function packAutoLine(itemId){
+  const st=store(),pp=clone(S().packPick||{});
+  if(pp[st]){const n=Object.assign({},pp[st]);delete n[itemId];if(Object.keys(n).length)pp[st]=n;else delete pp[st]}
+  const pickArg=Object.keys(pp).length?pp:undefined;
+  const row=CAT.shopList(picks(),stapleNeedMap(),dayMeals(),shopHave(),pickArg).find(r=>r.id===itemId);
+  return row&&row[st];
+}
 function renderPackSheetBody(itemId){
   const st=store(),rows=shopRows(),row=rows.find(r=>r.id===itemId);
   const line=row&&row[st],it=CAT.item(itemId);
   if(!line||!it||!line.candidates||line.candidates.length<=1)return "";
   const unit=it.unit,ov=S().packPick&&S().packPick[st]&&S().packPick[st][itemId];
   const ovKnown=ov!=null&&ov!==""&&line.candidates.some(c=>{const pid=packPickId(c.product);return pid!==""&&(pid===String(ov)||c.product.stockcode!=null&&c.product.stockcode==ov)});
+  const autoLine=packAutoLine(itemId)||line;
   const picks=line.candidates.map(c=>{
     const pid=packPickId(c.product);
-    const chosen=packProductKey(c.product,line.product);
+    const chosen=ovKnown&&pid!==""&&(pid===String(ov)||c.product.stockcode!=null&&c.product.stockcode==ov);
     const lbl=esc(c.quantity+" × "+packLabelFor(c.product,unit)+" · "+money(c.cost))+(chosen?" ✓":"");
     return `<button type="button" class="pick" data-act="packpick" data-v="${esc(pid)}">${lbl}</button>`;
   }).join("");
-  return `<div class="stack" style="gap:8px">${picks}<button type="button" class="pick" data-act="packauto">${esc("Auto (cheapest)")}${!ov||!ovKnown?" ✓":""}</button></div>`;
+  const autoOn=!ov||!ovKnown;
+  const autoLbl=esc("Auto (cheapest mix)")+" · "+esc(autoLine.buy)+" · "+money(autoLine.cost)+(autoOn?" ✓":"");
+  return `<div class="stack" style="gap:8px"><button type="button" class="pick" data-act="packauto">${autoLbl}</button>${picks}</div>`;
 }
 function shopLineBuyExtra(line,unit){
   if(!line)return {buy:"",leftover:""};
