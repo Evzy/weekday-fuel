@@ -1604,7 +1604,7 @@ document.addEventListener("click",e=>{
     case "backupopen":if(!window.WeekdayFuelHost)break;state.backup.busy="opening";state.backup.error=null;WeekdayFuelHost.postMessage(JSON.stringify({type:"backupOpen"}));break;
     case "restorecancel":state.backup.pending=null;state.armed=null;break;
     case "restorego":{const pend=state.backup.pending;if(!pend)break;if(state.armed!=="restore"){state.armed="restore";break}state.armed=null;const cur=WeekdayFuelBackup.build(lsAdapter,new Date(),APP_VERSION);try{localStorage.setItem(BEFORE_KEY,cur)}catch(e){state.backup.error="Couldn't keep a copy of your current data, so nothing was changed.";break}if(applyBackupRestore(pend.backup))location.reload();else{const rb=WeekdayFuelBackup.parse(cur);if(rb.ok)applyBackupRestore(rb.backup);restoring=false;state.backup.error="Restore failed; your data was put back."}break}
-    case "undorestore":{if(state.armed!=="undorestore"){state.armed="undorestore";break}state.armed=null;let raw;try{raw=localStorage.getItem(BEFORE_KEY)}catch(e){raw=null}if(!raw)break;const parsed=WeekdayFuelBackup.parse(raw);if(!parsed.ok){state.backup.error=parsed.error;break}if(applyBackupRestore(parsed.backup)){try{localStorage.removeItem(BEFORE_KEY)}catch(e){}location.reload()}else{restoring=false;state.backup.error="Restore failed; your data was put back."}break}
+    case "undorestore":{if(state.armed!=="undorestore"){state.armed="undorestore";break}state.armed=null;let raw;try{raw=localStorage.getItem(BEFORE_KEY)}catch(e){raw=null}if(!raw)break;const parsed=WeekdayFuelBackup.parse(raw);if(!parsed.ok){state.backup.error=parsed.error;break}if(applyBackupRestore(parsed.backup)){try{localStorage.removeItem(BEFORE_KEY)}catch(e){}location.reload()}else{restoring=false;state.backup.error="Couldn't undo the restore. Try again."}break}
     default:return;
   }
   render();
@@ -1690,7 +1690,6 @@ function installHostListener(){
   h.addEventListener("message",onHostPageMessage);
 }
 installHostListener();
-window.__wfInstallHost=installHostListener;
 initStore();
 })();
 </script>
