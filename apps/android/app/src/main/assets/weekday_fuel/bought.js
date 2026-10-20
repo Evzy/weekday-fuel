@@ -115,7 +115,7 @@
     return Object.keys(set).length ? set : null;
   }
 
-  function clearUnbought(days, skipDates) {
+  function clearUnbought(days, skipDates, todayIso) {
     if (!days || typeof days !== "object") return { days: days, changed: [], cleared: 0 };
     var skip = skipDateSet(skipDates);
     var out = days;
@@ -123,6 +123,7 @@
     var cleared = 0;
     Object.keys(days).forEach(function (date) {
       if (date === "__proto__") return;
+      if (typeof todayIso === "string" && todayIso && date < todayIso) return;
       if (skip && skip[date]) return;
       var day = days[date];
       if (!day || !Array.isArray(day.meals)) return;

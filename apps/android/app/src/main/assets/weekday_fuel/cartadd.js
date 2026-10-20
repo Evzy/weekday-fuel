@@ -56,31 +56,32 @@
     return m && typeof m.bought === "string" && m.bought !== "";
   }
 
-  function isEaten(m) {
+  function defaultIsEaten(m) {
     return m && typeof m.ate === "string";
   }
 
-  function isLocked(m, isBought) {
-    return isBought(m) || isEaten(m);
+  function isLocked(m, isBought, isEatenFn) {
+    var eaten = isEatenFn || defaultIsEaten;
+    return isBought(m) || eaten(m);
   }
 
-  function place(meal, dayMeals, isBought) {
+  function place(meal, dayMeals, isBought, isEatenFn) {
     dayMeals = dayMeals || [];
     var slot = naturalSlot(meal, dayMeals);
     if (slot === "snack") return { action: "add", slot: slot };
     var existing = firstInSlot(dayMeals, slot);
     if (!existing) return { action: "add", slot: slot };
-    if (isLocked(existing, isBought)) return { action: "locked", slot: slot, existing: existing };
+    if (isLocked(existing, isBought, isEatenFn)) return { action: "locked", slot: slot, existing: existing };
     return { action: "ask", slot: slot, existing: existing };
   }
 
-  function apply(dayMeals, mealId, slot, mode, isBought) {
+  function apply(dayMeals, mealId, slot, mode, isBought, isEatenFn) {
     var boughtFn = isBought || defaultIsBought;
     var meals = (dayMeals || []).slice();
     if (mode === "replace") {
       for (var i = 0; i < meals.length; i++) {
         var m = meals[i];
-        if (m && m.slot === slot && !isLocked(m, boughtFn)) {
+        if (m && m.slot === slot && !isLocked(m, boughtFn, isEatenFn)) {
           meals.splice(i, 1);
           break;
         }

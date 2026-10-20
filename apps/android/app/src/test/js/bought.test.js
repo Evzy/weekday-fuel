@@ -108,6 +108,18 @@ test("clearUnbought skipDates as a set-like object", () => {
   assert.deepEqual(r.changed, []);
 });
 
+test("clearUnbought keeps all meals on dates before today", () => {
+  const days = {
+    "2026-10-18": day([meal("bowl"), meal("wrap")]),
+    "2026-10-20": day([meal("toasty")]),
+  };
+  const r = B.clearUnbought(days, null, "2026-10-19");
+  assert.equal(r.cleared, 1);
+  assert.deepEqual(r.changed, ["2026-10-20"]);
+  assert.equal(r.days["2026-10-18"].meals.length, 2);
+  assert.equal(r.days["2026-10-20"].meals.length, 0);
+});
+
 test("clearUnbought removes uneaten unbought meals and counts them", () => {
   const days = {
     "2026-10-20": day([

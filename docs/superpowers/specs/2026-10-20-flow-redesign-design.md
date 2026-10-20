@@ -29,7 +29,8 @@ Friction, worst first:
 ## Auto-eaten
 
 - A planned meal on a date before today with no `ate` counts as eaten at the end of its day (local 23:59 of that date) for stock purposes. Meals with a recorded `ate` keep it. Removed meals are gone, so they aren't counted.
-- Computed in `inventory.js` `stock()` (and anywhere else that reads `ate` to mean "consumed", e.g. `reserved()` / `dayMeals()` filters): no stored data changes. Only meals on or after the Kitchen's `start` count, as now.
+- Computed in `inventory.js` `stock()` (and anywhere else that reads `ate` to mean "consumed", e.g. `reserved()` filters): no stored data changes. Only meals on or after the Kitchen's `start` count, as now.
+- The shop-list filter in `dayMeals()` deliberately still uses stored `ate` only (not `impliedAte`), so past days are not cart days and auto-eaten history does not shrink the live cart list.
 - `ate` is no longer offered in the UI. Existing `ate` values stay valid.
 - "Something else" entries have no recipe, so they don't touch stock (as now).
 

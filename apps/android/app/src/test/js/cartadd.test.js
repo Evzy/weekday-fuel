@@ -19,6 +19,12 @@ test("naturalSlot", () => {
   assert.equal(C.naturalSlot(BS, []), "breakfast");
 });
 
+test("place treats custom isEaten like stored ate", () => {
+  const implied = (m) => m && m.implied;
+  const breakfast = m("a", "breakfast", { implied: true });
+  assert.deepEqual(C.place(B, [breakfast], isBought, implied), { action: "locked", slot: "breakfast", existing: breakfast });
+});
+
 test("place: add, ask, locked, snack always adds", () => {
   assert.deepEqual(C.place(B, [], isBought), { action: "add", slot: "breakfast" });
   const lunch = m("a", "lunch"),

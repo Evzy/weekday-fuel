@@ -568,6 +568,17 @@ test("pending is always empty (auto-eaten replaces the pending list)", () => {
   assert.deepEqual(I.pending(base, days, "2026-10-20"), []);
 });
 
+test("bought past meal consumes after its order buy lands", () => {
+  const buyAt = iso(new Date(2026, 9, 19, 10, 0, 0));
+  const base = I.addEvents(null, [{ k: "buy", item: "breast", amount: 600, order: "o1", at: buyAt }], START);
+  const pastDay = "2026-10-18";
+  const days = { [pastDay]: { meals: [{ id: "tenderwrap", t: "S", bought: "o1" }] } };
+  const beforeConsume = I.stock(base, days, cat, new Date(2026, 9, 19, 9, 30, 0), staplesNone);
+  assert.equal(beforeConsume.breast, undefined);
+  const afterConsume = I.stock(base, days, cat, new Date(2026, 9, 19, 11, 0, 0), staplesNone);
+  assert.equal(afterConsume.breast.amount, 400);
+});
+
 test("impliedAte and auto-eaten stock consumption", () => {
   const today = "2026-10-20";
   assert.equal(I.impliedAte({ ate: "2026-10-15T12:00:00.000Z" }, "2026-10-15", today), "2026-10-15T12:00:00.000Z");

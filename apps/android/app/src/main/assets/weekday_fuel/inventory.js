@@ -266,6 +266,17 @@
     return m.t === "L" || m.t === "X" ? m.t : "S";
   }
 
+  function orderBuyMs(inv, orderId) {
+    if (!inv || !Array.isArray(inv.events) || typeof orderId !== "string" || !orderId) return null;
+    var ms = null;
+    inv.events.forEach(function (e) {
+      if (e.k !== "buy" || e.order !== orderId) return;
+      var t = atMs(e.at);
+      if (!isNaN(t) && (ms == null || t > ms)) ms = t;
+    });
+    return ms;
+  }
+
   function stock(inv, days, cat, now, staplesOn) {
     if (!inv || !isStart(inv.start)) return {};
     var startMs = atMs(inv.start);
@@ -295,6 +306,13 @@
         var ateAt = impliedAte(m, date, todayDate);
         if (!ateAt) return;
         var ateMs = atMs(ateAt);
+        if (typeof m.bought === "string" && m.bought) {
+          var buyMs = orderBuyMs(inv, m.bought);
+          if (buyMs != null && buyMs > ateMs) {
+            ateMs = buyMs;
+            ateAt = new Date(buyMs).toISOString();
+          }
+        }
         if (isNaN(ateMs) || ateMs > nowTs || ateMs < startMs) return;
         if (!m.id) return;
         var tier = mealTier(m);
