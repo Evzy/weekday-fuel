@@ -288,11 +288,14 @@ class MainActivity : ComponentActivity() {
             }
             "backupSave" -> handleBackupSave(msg)
             "backupOpen" -> openBackup.launch(arrayOf("application/json", "*/*"))
-            "backupInfo" -> {
-                val remembered = backupFiles.rememberedUri()
-                val name = remembered?.let { backupFiles.displayName(it) }
-                replyToPage(BackupMessages.info(name))
-            }
+            "backupInfo" ->
+                lifecycleScope.launch {
+                    val name =
+                        withContext(Dispatchers.IO) {
+                            runCatching { backupFiles.rememberedUri()?.let { backupFiles.displayName(it) } }.getOrNull()
+                        }
+                    replyToPage(BackupMessages.info(name))
+                }
         }
     }
 

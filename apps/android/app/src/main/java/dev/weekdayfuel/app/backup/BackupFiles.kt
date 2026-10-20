@@ -33,15 +33,18 @@ class BackupFiles(context: Context) {
         prefs.edit().putString(KEY_URI, uri.toString()).apply()
     }
 
-    fun displayName(uri: Uri): String? {
-        appContext.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
-            if (cursor.moveToFirst()) {
-                val idx = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-                if (idx >= 0) return cursor.getString(idx)
+    /** Null when the provider can't answer (file deleted, permission gone, offline). */
+    fun displayName(uri: Uri): String? =
+        runCatching {
+            appContext.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val idx = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                    if (idx >= 0) cursor.getString(idx) else null
+                } else {
+                    null
+                }
             }
-        }
-        return null
-    }
+        }.getOrNull()
 
     fun write(uri: Uri, json: String) {
         appContext.contentResolver.openOutputStream(uri, "wt")?.use { out ->
