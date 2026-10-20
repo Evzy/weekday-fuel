@@ -447,9 +447,17 @@ function nextShopBtn(w){
   if(trolleyBusy())return "";
   let save=true;try{save=!shopOrderEmpty()}catch(e){}
   const armed=state.armed==="nextshop";
-  const label=armed?(save?"Tap again to save this order and clear days, meals and ticks":"Tap again to clear days, meals and ticks"):(save?"Save order and start next shop":"Start next shop");
+  const label=armed?(save?"Tap again to finish this shop":"Tap again to finish this shop"):"Finish this shop";
   return `<button class="ghost ${armed?"warn":""}" data-act="nextshop" data-w="${w}">${label}</button>`;
 }
+function shopStoreTotals(){const ticks=lsTicks(),rows=shopRows();return {coles:CAT.storeTotals(rows,"coles",ticks),woolies:CAT.storeTotals(rows,"woolies",ticks)}}
+function shopPaid(){const st=store(),t=state.trolley;if(t&&t.store===st&&t.checkedOut)return true;if(st==="woolies"&&state.checkout&&state.checkout.paid)return true;return false}
+function shopDerivedStep(){const st=store(),sent=sentFor(st),t=state.trolley;if(shopPaid())return 4;if(sent&&!shopPaid())return 3;if(t&&t.store===st&&["adding","login","done","error"].indexOf(t.phase)>=0)return 2;return 1}
+function shopMaxStep(){if(shopPaid())return 4;if(sentFor(store()))return 3;const t=state.trolley;if(t&&["adding","login","done","error"].indexOf(t.phase)>=0)return 2;return 1}
+function shopEffectiveStep(){const max=shopMaxStep(),u=state.shopViewStep;if(u!=null&&u>=1&&u<=4&&u<=max)return u;return shopDerivedStep()}
+function shopChangedBanner(){const sent=sentFor(store());if(!sent)return null;const now=WeekdayFuelBought.toBuyKeys(state.days,shopDays(),WeekdayFuelBought.isBought);if(Array.isArray(sent.meals)&&sent.meals.length){if(!WeekdayFuelBought.changedSince(sent.meals,now))return null;const n=WeekdayFuelBought.addedSince(sent.meals,now);return n>0?{kind:"added",n}:{kind:"changed"}}if(sent.fingerprint!==shopFingerprint())return {kind:"changed"};return null}
+function renderShopStepBar(view,max){const labs=["Review","Send","Check out","Done"];return `<div class="shopsteps small" style="display:flex;flex-wrap:wrap;gap:6px;margin:8px 0">${labs.map((lab,i)=>{const n=i+1,on=n===view,ok=n<=max;return ok?`<button type="button" class="ghost${on?" warn":""}" data-act="shopstep" data-v="${n}">${on?`<b>${n} ${esc(lab)}</b>`:`${n} ${esc(lab)}`}</button>`:`<span class="muted">${n} ${esc(lab)}</span>`}).join(" · ")}</div>`}
+function shopItemShortName(it){if(!it)return "";if(it.short)return it.short;const n=it.name.replace(/,.*/,"").trim();return n.length>22?n.slice(0,22):n}
 const CO_URL="https://www.woolworths.com.au/checkout",WOOLIES_LOGIN_URL="https://www.woolworths.com.au/shop/securelogin";
 const coBusy=()=>!!state.checkout&&(state.checkout.phase==="loading"||state.checkout.phase==="saving");
 const CO_MSG={book:"checkoutBook",subs:"checkoutSubs",options:"checkoutOptions",address:"checkoutAddress"};
@@ -585,7 +593,7 @@ const clone=o=>JSON.parse(JSON.stringify(o));
 function deepMerge(base,over){const out=clone(base);if(!over)return out;for(const k in over){if(k==="trial"){out[k]=clone(over[k]);continue}if(over[k]&&typeof over[k]==="object"&&!Array.isArray(over[k])&&out[k]&&typeof out[k]==="object")out[k]=deepMerge(out[k],over[k]);else out[k]=over[k];}return out}
 
 /* ---------- state + storage ---------- */
-const state={tab:"today",tabBefore:null,tabStack:[],date:iso(new Date()),settings:clone(DEFAULT_SETTINGS),days:{},weights:{},mealFilter:"all",sheet:null,addPick:null,weekAddDate:null,armed:null,unlocked:{},dayNote:null,openItem:null,kOpen:null,kAddItem:null,kitchenError:null,kitchenHint:null,kitchenHintWhere:null,trolley:null,prices:null,colesPrices:null,pricesTried:0,checkout:null,coLast:null,openOrder:null,orderError:false,weekNote:null,mealNote:null,scrollMealNote:false,scrollWeekDay:null,todayExtrasOpen:false,backup:{busy:null,error:null,needNewFile:false,remembered:null,pending:null}};
+const state={tab:"today",tabBefore:null,tabStack:[],date:iso(new Date()),settings:clone(DEFAULT_SETTINGS),days:{},weights:{},mealFilter:"all",sheet:null,addPick:null,weekAddDate:null,armed:null,unlocked:{},dayNote:null,openItem:null,kOpen:null,kAddItem:null,kitchenError:null,kitchenHint:null,kitchenHintWhere:null,trolley:null,prices:null,colesPrices:null,pricesTried:0,checkout:null,coLast:null,openOrder:null,orderError:false,weekNote:null,mealNote:null,scrollMealNote:false,scrollWeekDay:null,todayExtrasOpen:false,shopViewStep:null,shopExpandDays:{},shopAtHomeOpen:false,backup:{busy:null,error:null,needNewFile:false,remembered:null,pending:null}};
 let db=null;
 let restoring=false;
 const BACKUP_KEY="weekdayfuel.backup",BEFORE_KEY="weekdayfuel.beforeRestore";
@@ -932,7 +940,7 @@ function suggestWeek(){
   const haveCost=shopHave();
   const first=changed[0],last=changed[changed.length-1];
   const wdm=w.dates.flatMap(d=>r.days[d].map(m=>({day:d,meal:m.id,t:m.t})));
-  const weekCost=CAT.storeTotals(CAT.shopList({},0,wdm,haveCost),s,{}).total;
+  const weekCost=shopStoreTotals()[s].total;
   state.weekNote=`Planned ${dayShort(first)}${last!==first?"–"+dayShort(last):""}: ${r.distinct} different meals, about ${money(weekCost)} of groceries at ${STORE_NAME[s]}. They're in your cart.`;
   state.tab="week";
 }
@@ -1467,21 +1475,72 @@ function renderPastOrders(){
 function cartMeals(d){
   return ((state.days[d]&&state.days[d].meals)||[]).filter(m=>MEAL[m.id]&&!WeekdayFuelBought.isBought(m)&&m.shop!==false);
 }
-function renderCartDays(sdays){
+function renderShopDayLines(sdays){
   const today=iso(new Date());
   const trackedWe=d=>isWeekend(d)&&!!(state.days[d]&&state.days[d].track);
   const nm=m=>esc(MEAL[m.id].name);
-  let prev=null,h=`<div class="panel stack" style="gap:10px"><h3>Meals in this cart</h3>`;
+  let prev=null,h=`<div class="stack" style="gap:6px">`;
   sdays.forEach(d=>{
     const ms=cartMeals(d);
     if(prev){const g=WeekdayFuelCartAdd.gapLabel(prev,d,trackedWe);if(g)h+=`<div class="small muted" style="text-align:center">· ${esc(g)} ·</div>`}
     prev=d;
     const f=WeekdayFuelCartAdd.dayFlags(d,ms.length,today,trackedWe);
     const flags=[f.few!=null?`Only ${f.few} meal${f.few===1?"":"s"}`:"",f.ahead||""].filter(Boolean).map(t=>`<span class="tag">${esc(t)}</span>`).join(" ");
+    const open=!!(state.shopExpandDays&&state.shopExpandDays[d]);
     const slot=s=>{const xs=ms.filter(m=>m.slot===s);return `<div class="small"><span class="muted">${s[0].toUpperCase()+s.slice(1)} ·</span> ${xs.length?xs.map(nm).join(", "):"–"}</div>`};
     const extras=ms.filter(m=>!["breakfast","lunch","dinner"].includes(m.slot));
-    h+=`<div class="stack" style="gap:2px"><div class="row between"><button class="pname" data-act="openday" data-v="${d}"><b>${esc(dayShort(d))}</b> ${flags}</button><button class="ghost" data-act="leaveout" data-v="${d}">Leave out</button></div>${slot("breakfast")}${slot("lunch")}${slot("dinner")}${extras.length?`<div class="small"><span class="muted">Also ·</span> ${extras.map(nm).join(", ")}</div>`:""}</div>`;
+    const detail=open?`<div class="stack" style="gap:2px;padding:4px 0 4px 8px">${slot("breakfast")}${slot("lunch")}${slot("dinner")}${extras.length?`<div class="small"><span class="muted">Also ·</span> ${extras.map(nm).join(", ")}</div>`:""}<button type="button" class="ghost" data-act="leaveout" data-d="${esc(d)}">Leave out</button></div>`:"";
+    h+=`<div class="stack" style="gap:2px"><button type="button" class="pname" data-act="shopday" data-v="${esc(d)}" aria-expanded="${open}"><b>${esc(dayShort(d))}</b> · ${ms.length} meal${ms.length===1?"":"s"} ${flags}</button>${detail}</div>`;
   });
+  return h+`</div>`;
+}
+function renderShopItems(st,rows,ticks){
+  let h="";
+  [["Staples",0],["Fresh",1],["Pantry & freezer",2]].forEach(([t,sec])=>{
+    const rs=rows.filter(r=>r.sec===sec&&r[st]);if(!rs.length)return;
+    h+=`<div class="eyebrow" style="margin-top:8px">${esc(t)}</div>`;
+    rs.forEach(r=>{
+      const line=r[st],id=r.id,open=state.openItem===id,it=pricedItem(id);
+      const name=esc(shopItemShortName(it)),buy=line?esc(line.buy):"",price=line?money(line.cost):"";
+      const spec=shopRowSpecialHtml(r,st);
+      h+=`<div class="si ${ticks[id]?"done":""}"><input type="checkbox" id="tick-${esc(id)}" aria-label="Got ${esc(it.name)}" data-act="tick" data-v="${esc(id)}" ${ticks[id]?"checked":""}><button type="button" class="itembtn grow row between" data-act="openitem" data-v="${esc(id)}" aria-expanded="${open}"><span class="small grow">${name} ${buy} · ${price}</span></button></div>`;
+      if(open)h+=`<div class="itemdetail stack" style="gap:6px;padding:0 0 10px 28px">${spec}${forLine(r)}${it.note?`<div class="small">${esc(it.note)}</div>`:""}${macroLine(id)}${productLinks(CAT.item(r.id),{coles:r.coles&&r.coles.product,woolies:r.woolies&&r.woolies.product})}${swapDetailBlock(it)}</div>`;
+    });
+  });
+  return h;
+}
+function renderShopAtHome(rows,ticks,covered){
+  const n=rows.filter(r=>ticks[r.id]).length+covered.length;
+  if(!n)return "";
+  const open=!!state.shopAtHomeOpen;
+  let inner="";
+  if(open){
+    covered.forEach(r=>{inner+=`<div class="small">${esc(r.name)} · ${esc(shopNeedText(r))}</div>`});
+    rows.filter(r=>ticks[r.id]).forEach(r=>{inner+=`<div class="small">${esc(r.name)}</div>`});
+  }
+  return `<div class="stack" style="gap:4px;margin-top:8px"><button type="button" class="ghost row between" data-act="shopathome" aria-expanded="${open}">Already at home (${n})</button>${inner}<p class="small" style="margin:0"><button class="ghost" data-act="view" data-v="kitchen">At home</button></p></div>`;
+}
+function renderShopStoreSwitch(st,tot){
+  return `<div class="dial" role="group" aria-label="Store" style="grid-template-columns:repeat(2,1fr);margin:8px 0">${STORES.map(s=>{const miss=tot[s].missed.length?` · ${tot[s].missed.length} missing`:"";return `<button type="button" aria-pressed="${st===s}" data-act="store" data-v="${s}">${esc(STORE_NAME[s])} ${money(tot[s].total)}${miss?esc(miss):""}</button>`}).join("")}</div>`;
+}
+function renderTrolleyStep(rows,ticks,s){
+  const t=state.trolley&&state.trolley.store===s?state.trolley:null;
+  if(!t||t.phase==="pantry")return "";
+  const N=STORE_NAME[s],k=TROLLEY[s].key;
+  let h=`<div class="panel stack">`;
+  if(t.phase==="login")h+=`<div class="small">Log in to ${esc(N)} in the window that opened. ${s==="coles"?"Once you're in, sending carries on when the next Coles page loads.":"Sending carries on by itself once you're in."}</div>`;
+  else if(t.phase==="adding")h+=s==="coles"?`<div class="small">Sending to Coles…</div>`:`<div class="small num">Adding ${t.completed} of ${t.total}…</div>`;
+  else if(t.phase==="error")h+=`<div class="small">${esc(t.message||"")}</div><div class="row"><button class="btn" data-act="pantrycheck">Try again</button><button class="ghost" data-act="trolleyreset">Close</button></div>`;
+  else{
+    const byId=Object.fromEntries(rows.map(r=>[r.id,r])),byCode=Object.fromEntries(t.lines.map(l=>[l[k],l]));
+    const isRm=r=>!!byCode[r[k]]&&byCode[r[k]].quantity===0,adds=t.results.filter(r=>!isRm(r)),rms=t.results.filter(isRm);
+    const added=adds.filter(r=>r.added),failed=adds.filter(r=>!r.added),removed=rms.filter(r=>r.added),stuck=rms.filter(r=>!r.added);
+    h+=`<div class="small">${adds.length?`<b>Added ${added.length}</b> of ${adds.length}`:""}${rms.length?` · <b>Removed ${removed.length}</b> of ${rms.length}`:""}</div>`;
+    const lineRow=(r,note)=>{const l=byCode[r[k]]||{name:String(r[k])};return `<div class="row between"><span class="small grow">${esc(l.name)}${note?` <span class="muted">· ${esc(note)}</span>`:""}</span>${!r.added&&l.url?`<button class="ghost" data-act="${TROLLEY[s].open}" data-v="${esc(l.url)}">Open ↗</button>`:""}</div>`};
+    if(added.length)h+=`<div class="eyebrow">In your trolley</div>${added.map(r=>lineRow(r,"")).join("")}`;
+    if(failed.length)h+=`<div class="eyebrow">Couldn't add</div>${failed.map(r=>lineRow(r,r.reason||"")).join("")}`;
+    if(t.manual.length)h+=`<div class="eyebrow">Add these yourself</div>${t.manual.map(m=>`<div class="small">${esc(m.name)}</div>`).join("")}`;
+  }
   return h+`</div>`;
 }
 function renderExtraServes(pk){
@@ -1490,39 +1549,61 @@ function renderExtraServes(pk){
   return `<div class="panel stack"><div class="row between"><h3>Extra serves from before</h3><button class="ghost" data-act="clearpicks">Clear</button></div>${ids.map(id=>`<div class="small">${esc(MEAL[id].name)} × ${pk[id]}</div>`).join("")}</div>`;
 }
 function renderShop(){
-  if(state.checkout&&window.WeekdayFuelHost)return renderCheckout();
-  const ticks=lsTicks(),pk=picks(),sdays=shopDays();
+  const ticks=lsTicks(),pk=picks(),sdays=shopDays(),rows=shopRows(),covered=shopCovered(),st=store(),ot=other(st);
   const cartMealCount=sdays.reduce((a,d)=>a+cartMeals(d).length,0);
   const pickServes=Object.keys(pk).filter(id=>(pk[id]||0)>0&&MEAL[id]).reduce((a,id)=>a+(pk[id]||0),0);
-  const rows=shopRows(),covered=shopCovered(),dm=dayMeals();
   const sentN=Object.keys((lsSent()||{lines:{}}).lines||{}).length+Object.keys((lsColesSent()||{lines:{}}).lines||{}).length;
   const cartEmpty=!sdays.length&&!pickServes&&!rows.length&&!covered.length&&!sentN;
-  const summary=sdays.length?`${dayShort(sdays[0])}${sdays[sdays.length-1]!==sdays[0]?" – "+dayShort(sdays[sdays.length-1]):""} · ${cartMealCount} meal${cartMealCount===1?"":"s"}`:cartEmpty?"":"Your cart is empty";
-  let h=`<div><div class="eyebrow">Coles or Woolworths</div><h2>Your cart</h2></div>`;
-  if(summary)h+=`<p class="small muted" style="margin:0">${esc(summary)}</p>`;
-  h+=`<p class="small" style="margin:4px 0 0"><button class="ghost" data-act="view" data-v="kitchen">At home</button></p>`;
-  if(cartEmpty){
+  const tot=shopStoreTotals(),view=shopEffectiveStep(),max=shopMaxStep();
+  let h=`<div><div class="eyebrow">Shop</div><h2>Your cart</h2></div>`;
+  h+=renderShopStepBar(view,max);
+  if(cartEmpty&&view===1){
     h+=`<div class="empty stack" style="gap:10px"><div>Your cart is empty. Plan your week, then add meals from the Meals tab.</div><div><button class="btn" data-act="planweek">Plan my week</button></div></div>`;
     return h+renderPastOrders();
   }
-  if(sdays.length)h+=renderCartDays(sdays);
-  h+=renderExtraServes(pk);
-  const st=store(),ot=other(st);
-  const tot={coles:CAT.storeTotals(rows,"coles",ticks),woolies:CAT.storeTotals(rows,"woolies",ticks)};
-  const serveCount=dm.length+pickServes;
-  h+=`<div class="panel vs">${STORES.map(s=>`<div><span class="small" style="display:block;color:var(--${s});font-weight:700">${STORE_NAME[s]}${tot[s].missed.length?` · ${tot[s].missed.length} missed`:""}</span><b>${money(tot[s].total)}</b></div>`).join("")}</div>`;
-  h+=`<div class="row between"><div class="dial" role="group" aria-label="Store" style="grid-template-columns:repeat(2,auto)">${STORES.map(s=>`<button aria-pressed="${st===s}" data-act="store" data-v="${s}">${STORE_NAME[s]}</button>`).join("")}</div><span class="small">Left to buy <b class="num" style="color:var(--good)">${money(tot[st].left)}</b></span></div>`;
-  h+=`<div class="small muted">${serveCount} serve${serveCount===1?"":"s"} · ${rows.length} items. Tick what you've got; ticked items stay out of the trolley. ${priceLabel()}</div>`;
-  [["Staples",0],["Fresh",1],["Pantry & freezer (check what you already have)",2]].forEach(([t,sec])=>{
-    const rs=rows.filter(r=>r.sec===sec&&r[st]);if(!rs.length)return;
-    h+=`<div class="panel shopsec"><h3 style="margin-bottom:4px">${t}</h3>${rs.map(r=>{const line=r[st],p=line&&line.product;const tray=p&&p.sizeLabel&&!p.live?` <span class="muted">· price checked ${esc(fmtShort(p.checked))}; charged at the heaviest weight, the difference refunded</span>`:"";const spec=shopRowSpecialHtml(r,st);const swapped=!!(r.woolies&&r.woolies.swap)||!!(r.coles&&r.coles.swap);const rowIt=swapped?Object.assign({},CAT.item(r.id),{same:false}):CAT.item(r.id);return itemRow(rowIt,{coles:r.coles&&r.coles.cost,woolies:r.woolies&&r.woolies.cost},`<span class="buy small"><b>Buy:</b> ${esc(line.buy)}${tray} <span class="muted">· ${esc(shopNeedText(r))}</span></span>${spec}${forLine(r)}`,{coles:r.coles&&r.coles.product,woolies:r.woolies&&r.woolies.product})}).join("")}</div>`;
-  });
-  if(covered.length)h+=`<div class="panel shopsec"><h3 style="margin-bottom:4px">Covered by what you have</h3>${covered.map(r=>`<div class="si"><div class="grow"><span class="grow">${esc(r.name)}</span><span class="small muted" style="display:block">${esc(shopNeedText(r))}</span>${forLine(r)}</div></div>`).join("")}</div>`;
-  const miss=rows.filter(r=>!r[st]);
-  if(miss.length)h+=`<div class="panel stack"><h3>Missed at ${STORE_NAME[st]}</h3><div class="small muted">${STORE_NAME[st]} doesn't ${miss.some(r=>unavailable(r,st))?"have these online right now":"sell these"}. Get them at ${STORE_NAME[ot]}.</div>${miss.map(r=>{const o=r[ot];return `<div class="row between"><span class="small">${esc(o?o.product.name:r.name)}${unavailable(r,st)?` <span class="muted">· instead of ${esc(unavailable(r,st).name)}, unavailable online now</span>`:""}${o?` <span class="muted">· ${esc(o.buy)}</span>`:""}${forLine(r)}</span>${o?`<span class="num small" style="color:var(--${ot})">${money(o.cost)}</span>`:""}</div>`}).join("")}</div>`;
-  h+=renderTrolley(rows,ticks,st);
-  h+=`<div class="row"><button class="ghost" data-act="untickall">Clear ticks</button>${nextShopBtn("list")}</div>${orderHint("list")}`;
-  return h+renderPastOrders();
+  const summary=sdays.length?`${dayShort(sdays[0])}${sdays[sdays.length-1]!==sdays[0]?" – "+dayShort(sdays[sdays.length-1]):""} · ${cartMealCount} meal${cartMealCount===1?"":"s"}`:"";
+  if(view===1){
+    if(summary)h+=`<p class="small muted" style="margin:0">${esc(summary)}</p>`;
+    h+=renderShopStoreSwitch(st,tot);
+    const chg=shopChangedBanner(),paid=shopPaid(),sent=sentFor(st);
+    if(chg&&!paid)h+=`<div class="hint stack" style="gap:6px"><span>${chg.kind==="added"?`${chg.n} meal${chg.n===1?"":"s"} added since you sent`:"Your meals changed since you sent"}</span><button class="btn alt" data-act="pantrycheck">Send these too</button></div>`;
+    else if(chg&&paid)h+=`<div class="hint stack" style="gap:4px"><button class="ghost" disabled>Finish this shop first</button><span class="small muted">New meals will be in your next shop.</span></div>`;
+    else if(sent&&!paid&&sent.fingerprint!==shopFingerprint()&&!Array.isArray(sent.meals))h+=`<div class="hint"><span>Trolley out of date: your shop changed since you sent it.</span></div>`;
+    if(sdays.length)h+=renderShopDayLines(sdays);
+    h+=renderExtraServes(pk);
+    h+=`<div class="panel stack" style="gap:4px;margin-top:8px">${renderShopItems(st,rows,ticks)}</div>`;
+    h+=renderShopAtHome(rows,ticks,covered);
+    const miss=rows.filter(r=>!r[st]);
+    if(miss.length)h+=`<div class="small muted" style="margin-top:8px">${esc(STORE_NAME[st])} doesn't sell ${miss.length} item${miss.length===1?"":"s"} online — try ${esc(STORE_NAME[ot])}.</div>`;
+    h+=`<p class="small muted" style="margin:8px 0 0">${priceLabel()}</p>`;
+    if(state.trolley&&state.trolley.phase==="pantry"&&window.WeekdayFuelHost)h+=renderTrolley(rows,ticks,st);
+    else if(window.WeekdayFuelHost){
+      const ts=trolleySend(rows,{},st);
+      h+=`<div class="row" style="margin-top:10px"><button class="btn" data-act="pantrycheck" ${ts.lines.length?"":"disabled"}>Send to ${esc(STORE_NAME[st])} trolley</button></div>`;
+    }else{
+      h+=`<p class="small muted" style="margin-top:10px">Shopping in store? Tick as you go, then Finish this shop.</p><div class="row">${nextShopBtn("list")}</div>${orderHint("list")}`;
+    }
+    h+=`<div class="row" style="margin-top:6px"><button class="ghost" data-act="untickall">Clear ticks</button></div>`;
+  }else if(view===2){
+    h+=renderTrolleyStep(rows,ticks,st);
+    const sent=sentFor(st);
+    h+=`<div class="row" style="margin-top:10px"><button class="btn" data-act="shopstep" data-v="3" ${sent?"":"disabled"}>Check out</button></div>`;
+  }else if(view===3){
+    if(st==="coles"){
+      h+=`<div class="small muted">Open Coles checkout and pay, then tap I've paid.</div>`;
+      h+=`<div class="row" style="margin-top:8px"><button class="btn" data-act="colescheckout">Checkout</button><button class="btn" data-act="shoppaid">I've paid</button></div>`;
+    }else{
+      if(!state.checkout)h+=`<div class="row" style="margin-top:8px"><button class="btn" data-act="checkout">Check out</button></div>`;
+      if(state.checkout)h+=renderCheckout();
+      h+=`<div class="row" style="margin-top:8px"><button class="btn" data-act="shoppaid">I've paid</button></div>`;
+    }
+  }else{
+    h+=`<p class="small muted" style="margin:0">Marks these meals bought and adds the food to At home.</p>`;
+    h+=`<div class="row" style="margin-top:10px">${nextShopBtn("done")}</div>${orderHint("done")}`;
+    h+=renderPastOrders();
+  }
+  if(view!==4&&view!==1)h+=renderPastOrders();
+  return h;
 }
 function lsBackupMeta(){try{const v=JSON.parse(localStorage.getItem(BACKUP_KEY)||"null");return v&&typeof v.at==="string"&&typeof v.name==="string"?v:null}catch(e){return null}}
 function backupDaysAgo(at){const t=Date.parse(at);if(!isFinite(t))return 0;return Math.max(0,Math.floor((Date.now()-t)/86400000))}
@@ -1773,7 +1854,7 @@ document.addEventListener("click",e=>{
     case "swap":{if(!dayEditable(date))break;const d=ensureDay(date);const m=d.meals[i];if(mealLocked(m,date))break;if(WeekdayFuelBought.isBought(m)&&dayUnlocked(date))state.dayNote={date,msg:"This meal's food was bought for the original meal."};swapMeal(date,i);closeMealSheetIfInvalid();break}
     case "mealshop":{if(!dayEditable(date))break;const d=ensureDay(date);const m=d.meals[i];if(mealLocked(m,date))break;if(m.shop===false)delete m.shop;else m.shop=false;saveDay(date);shopCtx=null;break}
     case "openday":state.tab="week";state.sheet=null;window.scrollTo(0,0);scrollWeekDay(v);break;
-    case "nextshop":if(trolleyBusy())break;if(state.armed!=="nextshop"){state.armed="nextshop";break}state.armed=null;{let saved;try{saved=trySaveOrder()}catch(e){saved=false}if(!saved){state.orderError={where:el.dataset.w,msg:"Couldn't save the order. Nothing was cleared."};break}if(saved!==true){const orderId=saved;try{const st=store(),haveIt=WeekdayFuelInventory.shopHaveIt(state.trolley,sentFor(st)),buys=WeekdayFuelInventory.buysFromRows(shopOrderRows(),st,lsTicks(),haveIt,{sent:(lsSent()||{}).lines||{},colesSent:(lsColesSent()||{}).lines||{},colesId:WeekdayFuelCatalogue.colesId});if(buys.length){const events=buys.map(b=>({k:"buy",item:b.item,amount:b.amount,order:orderId})),inv=WeekdayFuelInventory.addEvents(lsInv(),events,new Date().toISOString());if(!lsSetInv(inv))state.orderError={where:"kitchen",msg:"Saved the order, but couldn't update the kitchen stock."}}}catch(e){state.orderError={where:"kitchen",msg:"Saved the order, but couldn't update the kitchen stock."}}try{const sentKeys=sentMealKeysUnion();const mark=sentKeys.length?WeekdayFuelBought.markBoughtKeys(state.days,sentKeys,orderId):WeekdayFuelBought.markBought(state.days,shopDays(),orderId);state.days=mark.days;mark.changed.forEach(d=>saveDay(d))}catch(e){}}state.settings.trial={};saveSettings();lsSetTicks({});lsSetSent(null);lsSetColesSent(null);lsSetSpecials(null);state.trolley=null;state.checkout=null;state.coLast=null;break}
+    case "nextshop":if(trolleyBusy())break;if(state.armed!=="nextshop"){state.armed="nextshop";break}state.armed=null;{let saved;try{saved=trySaveOrder()}catch(e){saved=false}if(!saved){state.orderError={where:el.dataset.w,msg:"Couldn't save the order. Nothing was cleared."};break}if(saved!==true){const orderId=saved;try{const st=store(),haveIt=WeekdayFuelInventory.shopHaveIt(state.trolley,sentFor(st)),buys=WeekdayFuelInventory.buysFromRows(shopOrderRows(),st,lsTicks(),haveIt,{sent:(lsSent()||{}).lines||{},colesSent:(lsColesSent()||{}).lines||{},colesId:WeekdayFuelCatalogue.colesId});if(buys.length){const events=buys.map(b=>({k:"buy",item:b.item,amount:b.amount,order:orderId})),inv=WeekdayFuelInventory.addEvents(lsInv(),events,new Date().toISOString());if(!lsSetInv(inv))state.orderError={where:"kitchen",msg:"Saved the order, but couldn't update the kitchen stock."}}}catch(e){state.orderError={where:"kitchen",msg:"Saved the order, but couldn't update the kitchen stock."}}try{const sentKeys=sentMealKeysUnion();const mark=sentKeys.length?WeekdayFuelBought.markBoughtKeys(state.days,sentKeys,orderId):WeekdayFuelBought.markBought(state.days,shopDays(),orderId);state.days=mark.days;mark.changed.forEach(d=>saveDay(d))}catch(e){}}state.settings.trial={};saveSettings();lsSetTicks({});lsSetSent(null);lsSetColesSent(null);lsSetSpecials(null);state.trolley=null;state.checkout=null;state.coLast=null;state.shopViewStep=null;state.shopExpandDays={};break}
     case "openorder":state.openOrder=state.openOrder===v?null:v;break;
     case "delorder":{if(state.armed!=="order"+v){state.armed="order"+v;break}state.armed=null;if(!lsSetOrders(WeekdayFuelOrders.removeOrder(lsOrders(),v))){state.orderError={where:"del"+v,msg:"Couldn't delete the order."};break}const inv=lsInv();if(inv&&!lsSetInv(WeekdayFuelInventory.removeOrder(inv,v)))state.orderError={where:"kitchen",msg:"Deleted the order, but couldn't update the kitchen stock."};try{const un=WeekdayFuelBought.unmarkBought(state.days,v);state.days=un.days;un.changed.forEach(d=>saveDay(d))}catch(e){}if(state.openOrder===v)state.openOrder=null;break}
     case "rm":{if(!dayEditable(date))break;const d=ensureDay(date);const m=d.meals[i];if(mealLocked(m,date))break;const mid=v||m.id;const key=rmArmKey(date,mid);if(state.armed===key){d.meals.splice(i,1);saveDay(date);state.armed=null;state.sheet=null}else state.armed=key;break}
@@ -1795,6 +1876,10 @@ document.addEventListener("click",e=>{
     case "tick":{const t=lsTicks();t[v]=el.checked;lsSetTicks(t);break}
     case "untickall":lsSetTicks({});break;
     case "openitem":state.openItem=state.openItem===v?null:v;break;
+    case "shopstep":{const n=+v;if(n>=1&&n<=shopMaxStep())state.shopViewStep=n;break}
+    case "shopday":{state.shopExpandDays=state.shopExpandDays||{};if(state.shopExpandDays[v])delete state.shopExpandDays[v];else state.shopExpandDays[v]=true;break}
+    case "shopathome":state.shopAtHomeOpen=!state.shopAtHomeOpen;break;
+    case "shoppaid":{if(state.checkout)state.checkout.paid=true;if(state.trolley)state.trolley.checkedOut=true;state.shopViewStep=null;break}
 
     case "leaveout":{const ld=el.dataset.d||v;const day=ensureDay(ld);(day.meals||[]).forEach(m=>{if(!WeekdayFuelBought.isBought(m))m.shop=false});saveDay(ld);state.sheet=null;shopCtx=null;break}
     case "store":if(trolleyBusy())break;state.settings.store=v;saveSettings();if(state.trolley&&state.trolley.store!==v)state.trolley=null;break;
@@ -1907,11 +1992,13 @@ function onHostPageMessage(e){
   const ty=m.type.slice(pre.length);
   if(ty==="Login"){if(!live)return;t.phase="login"}
   else if(ty==="Progress"){if(t.phase!=="adding"&&t.phase!=="login")return;t.phase="adding";t.completed=m.completed;t.total=m.total}
-  else if(ty==="Done"){if(!live)return;t.phase="done";t.results=Array.isArray(m.results)?m.results:[];const old=sentFor(s),rec={at:new Date().toISOString(),fingerprint:t.fingerprint,lines:WeekdayFuelCart.sentAfter(old&&old.lines,t.lines,t.results,TROLLEY[s].key)};if(t.haveIt&&typeof t.haveIt==="object")rec.haveIt=Object.assign({},t.haveIt);rec.meals=Array.isArray(t.meals)?t.meals.slice():WeekdayFuelBought.toBuyKeys(state.days,shopDays(),WeekdayFuelBought.isBought);setSentFor(s,rec)}
+  else if(ty==="Done"){if(!live)return;t.phase="done";t.results=Array.isArray(m.results)?m.results:[];const old=sentFor(s),rec={at:new Date().toISOString(),fingerprint:t.fingerprint,lines:WeekdayFuelCart.sentAfter(old&&old.lines,t.lines,t.results,TROLLEY[s].key)};if(t.haveIt&&typeof t.haveIt==="object")rec.haveIt=Object.assign({},t.haveIt);rec.meals=Array.isArray(t.meals)?t.meals.slice():WeekdayFuelBought.toBuyKeys(state.days,shopDays(),WeekdayFuelBought.isBought);setSentFor(s,rec);state.shopViewStep=null}
   else if(ty==="Error"){if(!live)return;t.phase="error";t.message=m.message||(s==="coles"?"Couldn't send to the Coles trolley.":"Something went wrong sending to Woolworths. Try again.")}
   else return;
   if(state.tab==="shop")render();
 }
+if(typeof window.WeekdayFuelHost==="undefined"&&/\bstubhost=1\b/.test(location.search)){
+  (function(){const L=[];window.WeekdayFuelHost={postMessage(msg){try{const m=JSON.parse(msg);if(m.type==="sendTrolley"&&Array.isArray(m.lines)){let c=0,total=m.lines.length;const tick=()=>{c++;L.forEach(fn=>fn({data:JSON.stringify({type:"trolleyProgress",completed:c,total})}));if(c<total)setTimeout(tick,15);else{const results=m.lines.filter(l=>l.quantity>0).map(l=>Object.assign({},l,{added:true}));L.forEach(fn=>fn({data:JSON.stringify({type:"trolleyDone",results})}))}};setTimeout(tick,15)}}catch(e){}},addEventListener(t,fn){if(t==="message")L.push(fn)}}})()}
 function installHostListener(){
   const h=window.WeekdayFuelHost;
   if(!h||h.__wfHostBound)return;
