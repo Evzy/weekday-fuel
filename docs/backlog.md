@@ -2,7 +2,7 @@
 
 Ideas agreed for later. Each gets a brainstorm and spec before it's built.
 
-## Today: close the gap when portions can't (raised 2026-10-20)
+## Done in v0.26.0: Today: close the gap when portions can't (raised 2026-10-20)
 
 **Problem.** Skipping a staple on Today refits portions, but when every remaining meal is already Loaded the day still falls short (seen: Dare skipped, all meals Loaded, 2329 / 2500 kcal). The app only says "Portions refit".
 
