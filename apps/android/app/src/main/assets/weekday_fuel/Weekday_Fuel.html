@@ -584,32 +584,36 @@ const clone=o=>JSON.parse(JSON.stringify(o));
 function deepMerge(base,over){const out=clone(base);if(!over)return out;for(const k in over){if(k==="trial"){out[k]=clone(over[k]);continue}if(over[k]&&typeof over[k]==="object"&&!Array.isArray(over[k])&&out[k]&&typeof out[k]==="object")out[k]=deepMerge(out[k],over[k]);else out[k]=over[k];}return out}
 
 /* ---------- state + storage ---------- */
-const state={tab:"today",tabBeforeTargets:null,date:iso(new Date()),settings:clone(DEFAULT_SETTINGS),days:{},weights:{},adding:null,mealFilter:"all",sheet:null,addPick:null,armed:null,unlocked:{},dayNote:null,openItem:null,kOpen:null,kAddItem:null,kitchenError:null,kitchenHint:null,kitchenHintWhere:null,trolley:null,prices:null,colesPrices:null,pricesTried:0,checkout:null,coLast:null,openOrder:null,orderError:false,weekNote:null,mealNote:null,scrollMealNote:false};
+const state={tab:"today",tabBeforeTargets:null,date:iso(new Date()),settings:clone(DEFAULT_SETTINGS),days:{},weights:{},adding:null,mealFilter:"all",sheet:null,addPick:null,armed:null,unlocked:{},dayNote:null,openItem:null,kOpen:null,kAddItem:null,kitchenError:null,kitchenHint:null,kitchenHintWhere:null,trolley:null,prices:null,colesPrices:null,pricesTried:0,checkout:null,coLast:null,openOrder:null,orderError:false,weekNote:null,mealNote:null,scrollMealNote:false,backup:{busy:null,error:null,needNewFile:false,remembered:null,pending:null}};
 let db=null;
+let restoring=false;
+const BACKUP_KEY="weekdayfuel.backup",BEFORE_KEY="weekdayfuel.beforeRestore";
+const APP_VERSION="unknown";
+const lsAdapter={keys(){const out=[];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k)out.push(k)}return out},get:k=>localStorage.getItem(k),set:(k,v)=>localStorage.setItem(k,v),remove:k=>localStorage.removeItem(k)};
 const LS="weekdayfuel.v1";
 const SPECIALS_KEY=LS+".specials";
 function lsSpecials(){try{const v=JSON.parse(localStorage.getItem(SPECIALS_KEY)||"{}");return v&&typeof v==="object"&&!Array.isArray(v)?v:{}}catch(e){return {}}}
-function lsSetSpecials(v){try{if(v&&Object.keys(v).length)localStorage.setItem(SPECIALS_KEY,JSON.stringify(v));else localStorage.removeItem(SPECIALS_KEY)}catch(e){}}
+function lsSetSpecials(v){if(restoring)return;try{if(v&&Object.keys(v).length)localStorage.setItem(SPECIALS_KEY,JSON.stringify(v));else localStorage.removeItem(SPECIALS_KEY)}catch(e){}}
 function mutedSwaps(){const m=S().mutedAlts;return Array.isArray(m)?m:[]}
 function lsGet(){try{return JSON.parse(localStorage.getItem(LS)||"null")}catch(e){return null}}
-function lsSave(){try{localStorage.setItem(LS,JSON.stringify({settings:state.settings,days:state.days,weights:state.weights}))}catch(e){}}
+function lsSave(){if(restoring)return;try{localStorage.setItem(LS,JSON.stringify({settings:state.settings,days:state.days,weights:state.weights}))}catch(e){}}
 function lsTicks(){try{return JSON.parse(localStorage.getItem(LS+".shop")||"{}")}catch(e){return {}}}
-function lsSetTicks(t){try{localStorage.setItem(LS+".shop",JSON.stringify(t))}catch(e){}}
+function lsSetTicks(t){if(restoring)return;try{localStorage.setItem(LS+".shop",JSON.stringify(t))}catch(e){}}
 /* Last trolley send: {at, fingerprint, lines: {stockcode: quantity now in the trolley}} */
 const SENT=LS+".sent";
 function lsSent(){try{const s=JSON.parse(localStorage.getItem(SENT)||"null");return s&&typeof s.fingerprint==="string"&&s.lines&&typeof s.lines==="object"?s:null}catch(e){return null}}
-function lsSetSent(s){invalidateShopDays();try{s?localStorage.setItem(SENT,JSON.stringify(s)):localStorage.removeItem(SENT)}catch(e){}}
+function lsSetSent(s){if(restoring)return;invalidateShopDays();try{s?localStorage.setItem(SENT,JSON.stringify(s)):localStorage.removeItem(SENT)}catch(e){}}
 const COLES_SENT=LS+".colesSent";
 function lsColesSent(){try{const s=JSON.parse(localStorage.getItem(COLES_SENT)||"null");return s&&typeof s.fingerprint==="string"&&s.lines&&typeof s.lines==="object"?s:null}catch(e){return null}}
-function lsSetColesSent(s){invalidateShopDays();try{s?localStorage.setItem(COLES_SENT,JSON.stringify(s)):localStorage.removeItem(COLES_SENT)}catch(e){}}
+function lsSetColesSent(s){if(restoring)return;invalidateShopDays();try{s?localStorage.setItem(COLES_SENT,JSON.stringify(s)):localStorage.removeItem(COLES_SENT)}catch(e){}}
 const sentFor=s=>s==="coles"?lsColesSent():lsSent();
 const setSentFor=(s,v)=>s==="coles"?lsSetColesSent(v):lsSetSent(v);
 const TROLLEY={woolies:{key:"stockcode",send:"sendTrolley",open:"openwoolies"},coles:{key:"productId",send:"sendColesTrolley",open:"opencoles"}};
 const ORDERS=LS+".orders";
 function lsOrders(){try{return WeekdayFuelOrders.parseOrders(localStorage.getItem(ORDERS)||"[]")}catch(e){return []}}
-function lsSetOrders(list){try{localStorage.setItem(ORDERS,JSON.stringify(list));return true}catch(e){return false}}
+function lsSetOrders(list){if(restoring)return false;try{localStorage.setItem(ORDERS,JSON.stringify(list));return true}catch(e){return false}}
 function lsInv(){try{const raw=localStorage.getItem(WeekdayFuelInventory.KEY);return raw?WeekdayFuelInventory.parse(raw):null}catch(e){return null}}
-function lsSetInv(inv){try{const pruned=WeekdayFuelInventory.prune(inv,new Date(),state.days,CAT,staplesOn);localStorage.setItem(WeekdayFuelInventory.KEY,JSON.stringify(pruned));return true}catch(e){return false}}
+function lsSetInv(inv){if(restoring)return false;try{const pruned=WeekdayFuelInventory.prune(inv,new Date(),state.days,CAT,staplesOn);localStorage.setItem(WeekdayFuelInventory.KEY,JSON.stringify(pruned));return true}catch(e){return false}}
 function kitchenSave(ev){
   const it=CAT.item(ev.item);
   if(!it)return false;
@@ -684,7 +688,7 @@ function maybeRefreshPrices(){
 function onPrices(m){
   if(m.type==="pricesDone"&&goodAt(m.at)&&m.prices&&typeof m.prices==="object"){
     const old=livePrices();
-    try{localStorage.setItem(PRICES_KEY,JSON.stringify({at:m.at,prices:Object.assign({},old&&old.prices,m.prices)}));state.prices=null}catch(e){state.prices="error"}
+    try{if(!restoring)localStorage.setItem(PRICES_KEY,JSON.stringify({at:m.at,prices:Object.assign({},old&&old.prices,m.prices)}));state.prices=null}catch(e){state.prices="error"}
     CAT=buildCat();
   }else state.prices="error";
 }
@@ -692,13 +696,14 @@ function onColesPrices(m){
   if(m.type==="colesPricesDone"&&goodAt(m.at)&&m.prices&&typeof m.prices==="object"){
     const old=colesPrices(),s=m.store&&typeof m.store==="object"?m.store:{};
     const store={id:typeof s.id==="string"?s.id:null,name:typeof s.name==="string"&&s.name?s.name:null};
-    try{localStorage.setItem(COLES_PRICES_KEY,JSON.stringify({at:m.at,store,prices:Object.assign({},old&&old.prices,m.prices)}));state.colesPrices=null}catch(e){state.colesPrices="error"}
+    try{if(!restoring)localStorage.setItem(COLES_PRICES_KEY,JSON.stringify({at:m.at,store,prices:Object.assign({},old&&old.prices,m.prices)}));state.colesPrices=null}catch(e){state.colesPrices="error"}
     CAT=buildCat();
   }else state.colesPrices="error";
 }
 
 const timers={};
 function queueWrite(path,body){
+  if(restoring)return;
   lsSave();
   if(!db)return;
   clearTimeout(timers[path]);
@@ -1363,12 +1368,61 @@ function renderShop(){
   h+=`<div class="row"><button class="ghost" data-act="untickall">Clear ticks</button>${nextShopBtn("list")}</div>${orderHint("list")}`;
   return h+renderPastOrders();
 }
+function lsBackupMeta(){try{const v=JSON.parse(localStorage.getItem(BACKUP_KEY)||"null");return v&&typeof v.at==="string"&&typeof v.name==="string"?v:null}catch(e){return null}}
+function backupDaysAgo(at){const t=Date.parse(at);if(!isFinite(t))return 0;return Math.max(0,Math.floor((Date.now()-t)/86400000))}
+function postBackupInfo(){if(window.WeekdayFuelHost)WeekdayFuelHost.postMessage(JSON.stringify({type:"backupInfo"}))}
+function backupPostSave(newFile){if(!window.WeekdayFuelHost)return;state.backup.busy="saving";state.backup.error=null;state.backup.needNewFile=false;WeekdayFuelHost.postMessage(JSON.stringify({type:"backupSave",json:WeekdayFuelBackup.build(lsAdapter,new Date(),APP_VERSION),name:"WeekdayFuel-backup-"+iso(new Date())+".json",newFile:!!newFile}))}
+function onBackupHostMessage(m){
+  if(m.type==="backupInfo")state.backup.remembered=typeof m.name==="string"&&m.name?m.name:null;
+  else if(m.type==="backupSaved"){
+    try{localStorage.setItem(BACKUP_KEY,JSON.stringify({name:m.name,at:m.at}))}catch(e){}
+    try{localStorage.removeItem(BEFORE_KEY)}catch(e){}
+    state.backup.remembered=typeof m.name==="string"&&m.name?m.name:null;
+    state.backup.error=null;state.backup.needNewFile=false;
+  }else if(m.type==="backupError"){
+    state.backup.error=m.message||null;state.backup.needNewFile=!!m.needNewFile;
+  }else if(m.type==="backupOpened"){
+    const r=WeekdayFuelBackup.parse(typeof m.json==="string"?m.json:"");
+    if(!r.ok){state.backup.error=r.error;state.backup.pending=null}
+    else{state.backup.pending={backup:r.backup,summary:WeekdayFuelBackup.summary(r.backup)};state.backup.error=null;state.backup.needNewFile=false}
+  }
+  state.backup.busy=null;
+}
+function applyBackupRestore(backup){
+  restoring=true;
+  try{WeekdayFuelBackup.applyPlan(lsAdapter,WeekdayFuelBackup.restorePlan(lsAdapter,backup));return true}catch(e){return false}
+}
+function renderBackupPanel(){
+  const b=state.backup,busy=!!b.busy;
+  let h=`<div class="panel stack" style="gap:10px"><div class="eyebrow">Backup</div>`;
+  if(typeof WeekdayFuelHost==="undefined"){
+    h+=`<p class="small muted" style="margin:0">Backups need the Android app.</p>`;
+    try{if(localStorage.getItem(BEFORE_KEY))h+=`<button class="ghost${state.armed==="undorestore"?" warn":""}" data-act="undorestore"${busy?" disabled":""}>${state.armed==="undorestore"?"Tap again to undo restore":"Undo restore"}</button>`}catch(e){}
+    return h+`</div>`;
+  }
+  const meta=lsBackupMeta();
+  if(meta){
+    const n=backupDaysAgo(meta.at);
+    h+=`<p class="small muted" style="margin:0">Last backup: ${esc(fmtShort(meta.at))} (${n===1?"1 day ago":n+" days ago"}) · ${esc(meta.name)}</p>`;
+  }else h+=`<p class="small muted" style="margin:0">No backup yet. Save one to Google Drive so you can restore it on a new phone.</p>`;
+  const upd=b.remembered?`<button class="btn alt" data-act="backupupdate"${busy?" disabled":""}>${b.busy==="saving"?"Saving…":"Update backup"}</button>`:"";
+  h+=`<div class="row" style="gap:8px;flex-wrap:wrap">${upd}<button class="btn alt" data-act="backupnew"${busy?" disabled":""}>${b.busy==="saving"?"Saving…":"Save as a new file"}</button><button class="btn alt" data-act="backupopen"${busy?" disabled":""}>${b.busy==="opening"?"Opening…":"Restore from a file"}</button></div>`;
+  if(b.error)h+=`<div class="hint"><span>${esc(b.error)}</span></div>`;
+  if(b.needNewFile)h+=`<p class="small muted" style="margin:0">Save as a new file instead.</p>`;
+  if(b.pending){
+    h+=`<p class="small" style="margin:0">${esc(WeekdayFuelBackup.summaryText(b.pending.summary,fmtShort))}</p>`;
+    h+=`<div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn${state.armed==="restore"?" warn":""}" data-act="restorego"${busy?" disabled":""}>${state.armed==="restore"?"Tap again to replace everything":"Replace everything on this phone"}</button><button class="ghost" data-act="restorecancel"${busy?" disabled":""}>Cancel</button></div>`;
+  }
+  try{if(localStorage.getItem(BEFORE_KEY))h+=`<button class="ghost${state.armed==="undorestore"?" warn":""}" data-act="undorestore"${busy?" disabled":""}>${state.armed==="undorestore"?"Tap again to undo restore":"Undo restore"}</button>`}catch(e){}
+  return h+`</div>`;
+}
 function renderTargets(){
   const s=S();
   let h=`<div class="row between" style="align-items:flex-start"><div><div class="eyebrow">Your numbers</div><h2>Targets</h2></div><button type="button" class="ghost" data-act="targetback">Back</button></div>`;
   h+=`<div class="panel stack"><div class="eyebrow">Phase</div><div class="chips">${Object.keys(MODES).map(k=>`<button class="chip" aria-pressed="${s.mode===k}" data-act="mode" data-v="${k}">${MODES[k].label}</button>`).join("")}</div>
   <div class="grid2"><label class="f">Mini-cut kcal<input class="num" type="number" id="k-cut" data-set="kcal.cut" value="${s.kcal.cut}"></label><label class="f">Recomp kcal<input class="num" type="number" id="k-recomp" data-set="kcal.recomp" value="${s.kcal.recomp}"></label><label class="f">Lean bulk kcal<input class="num" type="number" id="k-bulk" data-set="kcal.bulk" value="${s.kcal.bulk}"></label><label class="f">Protein g (every day)<input class="num" type="number" id="prot" data-set="protein" value="${s.protein}"></label><label class="f">Weekday adjustment<input class="num" type="number" step="50" id="adj" data-set="adjust" value="${s.adjust}"></label></div>
   <div class="small muted">Now: <b class="num">${target().k} kcal</b>, <b class="num">${s.protein}g</b> protein. Weigh-in can nudge weekdays ±150 kcal.</div></div>`;
+  h+=renderBackupPanel();
   return h;
 }
 function renderSheet(){
@@ -1452,7 +1506,7 @@ document.addEventListener("click",e=>{
   const el=e.target.closest("[data-act]");if(!el)return;
   const act=el.dataset.act,v=el.dataset.v,i=+el.dataset.i;
   if(act==="close"&&el.classList.contains("scrim")&&e.target!==el)return;
-  if(act!=="rm"&&act!=="rmw"&&act!=="nextshop"&&act!=="delorder"&&act!=="clearunbought")state.armed=null;
+  if(act!=="rm"&&act!=="rmw"&&act!=="nextshop"&&act!=="delorder"&&act!=="clearunbought"&&act!=="restorego"&&act!=="undorestore")state.armed=null;
   state.orderError=false;
   state.kitchenError=null;
   state.weekNote=null;
@@ -1460,8 +1514,8 @@ document.addEventListener("click",e=>{
   state.dayNote=null;
   const date=state.date;
   switch(act){
-    case "tab":if(v==="targets"){if(state.tab!=="targets")state.tabBeforeTargets=state.tab;state.tab="targets";break}state.tab=v;state.adding=null;state.planStart=null;state.kOpen=null;state.kitchenHint=null;state.kitchenHintWhere=null;window.scrollTo(0,0);if(v==="shop"&&!coBusy())maybeRefreshPrices();break;
-    case "targets":if(state.tab!=="targets")state.tabBeforeTargets=state.tab;state.tab="targets";window.scrollTo(0,0);break;
+    case "tab":if(v==="targets"){if(state.tab!=="targets")state.tabBeforeTargets=state.tab;state.tab="targets";postBackupInfo();break}state.tab=v;state.adding=null;state.planStart=null;state.kOpen=null;state.kitchenHint=null;state.kitchenHintWhere=null;window.scrollTo(0,0);if(v==="shop"&&!coBusy())maybeRefreshPrices();break;
+    case "targets":if(state.tab!=="targets")state.tabBeforeTargets=state.tab;state.tab="targets";postBackupInfo();window.scrollTo(0,0);break;
     case "targetback":state.tab=state.tabBeforeTargets&&state.tabBeforeTargets!=="targets"?state.tabBeforeTargets:"today";state.tabBeforeTargets=null;window.scrollTo(0,0);break;
     case "kitem":state.kOpen=state.kOpen===v?null:v;state.kitchenHint=null;state.kitchenHintWhere=null;break;
     case "kused":if(CAT.item(v)&&kitchenSave({k:"set",item:v,amount:0,why:"used"})){state.kitchenHint=null;state.kitchenHintWhere=null}break;
@@ -1545,6 +1599,12 @@ document.addEventListener("click",e=>{
     case "codone":state.coLast=(state.checkout&&state.checkout.result)||state.coLast;state.checkout=null;break;
     case "openwoolies":if(coBusy())return;WeekdayFuelHost.postMessage(JSON.stringify({type:"openWoolworths",url:v}));return;
     case "opencoles":WeekdayFuelHost.postMessage(JSON.stringify({type:"openColes",url:v}));return;
+    case "backupupdate":backupPostSave(false);break;
+    case "backupnew":backupPostSave(true);break;
+    case "backupopen":if(!window.WeekdayFuelHost)break;state.backup.busy="opening";state.backup.error=null;WeekdayFuelHost.postMessage(JSON.stringify({type:"backupOpen"}));break;
+    case "restorecancel":state.backup.pending=null;state.armed=null;break;
+    case "restorego":{const pend=state.backup.pending;if(!pend)break;if(state.armed!=="restore"){state.armed="restore";break}state.armed=null;const cur=WeekdayFuelBackup.build(lsAdapter,new Date(),APP_VERSION);try{localStorage.setItem(BEFORE_KEY,cur)}catch(e){state.backup.error="Couldn't keep a copy of your current data, so nothing was changed.";break}if(applyBackupRestore(pend.backup))location.reload();else{const rb=WeekdayFuelBackup.parse(cur);if(rb.ok)applyBackupRestore(rb.backup);restoring=false;state.backup.error="Restore failed; your data was put back."}break}
+    case "undorestore":{if(state.armed!=="undorestore"){state.armed="undorestore";break}state.armed=null;let raw;try{raw=localStorage.getItem(BEFORE_KEY)}catch(e){raw=null}if(!raw)break;const parsed=WeekdayFuelBackup.parse(raw);if(!parsed.ok){state.backup.error=parsed.error;break}if(applyBackupRestore(parsed.backup)){try{localStorage.removeItem(BEFORE_KEY)}catch(e){}location.reload()}else{restoring=false;state.backup.error="Restore failed; your data was put back."}break}
     default:return;
   }
   render();
@@ -1604,26 +1664,33 @@ document.addEventListener("input",e=>{
 });
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&state.sheet){state.sheet=null;render()}});
 
-if(window.WeekdayFuelHost){
-  WeekdayFuelHost.addEventListener("message",e=>{
-    let m;try{m=JSON.parse(e.data)}catch(_){return}
-    if(!m)return;
-    if(m.type==="pricesDone"||m.type==="pricesError"){onPrices(m);if(state.tab==="shop")render();return}
-    if(m.type==="colesPricesDone"||m.type==="colesPricesError"){onColesPrices(m);if(state.tab==="shop")render();return}
-    if(m.type==="checkoutDone"||m.type==="checkoutError"){onCheckout(m);if(state.tab==="shop")render();return}
-    const t=state.trolley;if(!t)return;
-    const live=(t.phase==="adding"||t.phase==="login")&&Array.isArray(t.lines);
-    const s=t.store==="coles"?"coles":"woolies",pre=s==="coles"?"colesTrolley":"trolley";
-    if(typeof m.type!=="string"||!m.type.startsWith(pre))return;
-    const ty=m.type.slice(pre.length);
-    if(ty==="Login"){if(!live)return;t.phase="login"}
-    else if(ty==="Progress"){if(t.phase!=="adding"&&t.phase!=="login")return;t.phase="adding";t.completed=m.completed;t.total=m.total}
-    else if(ty==="Done"){if(!live)return;t.phase="done";t.results=Array.isArray(m.results)?m.results:[];const old=sentFor(s),rec={at:new Date().toISOString(),fingerprint:t.fingerprint,lines:WeekdayFuelCart.sentAfter(old&&old.lines,t.lines,t.results,TROLLEY[s].key)};if(t.haveIt&&typeof t.haveIt==="object")rec.haveIt=Object.assign({},t.haveIt);if(!lsSent()&&!lsColesSent()){const days=Array.isArray(t.days)&&t.days.length?t.days:shopDays();const fz={};days.forEach(d=>fz[d]=true);state.settings.shopDays=fz;saveSettings()}setSentFor(s,rec)}
-    else if(ty==="Error"){if(!live)return;t.phase="error";t.message=m.message||(s==="coles"?"Couldn't send to the Coles trolley.":"Something went wrong sending to Woolworths. Try again.")}
-    else return;
-    if(state.tab==="shop")render();
-  });
+function onHostPageMessage(e){
+  let m;try{m=JSON.parse(e.data)}catch(_){return}
+  if(!m)return;
+  if(m.type==="backupInfo"||m.type==="backupSaved"||m.type==="backupError"||m.type==="backupOpened"){onBackupHostMessage(m);if(state.tab==="targets")render();return}
+  if(m.type==="pricesDone"||m.type==="pricesError"){onPrices(m);if(state.tab==="shop")render();return}
+  if(m.type==="colesPricesDone"||m.type==="colesPricesError"){onColesPrices(m);if(state.tab==="shop")render();return}
+  if(m.type==="checkoutDone"||m.type==="checkoutError"){onCheckout(m);if(state.tab==="shop")render();return}
+  const t=state.trolley;if(!t)return;
+  const live=(t.phase==="adding"||t.phase==="login")&&Array.isArray(t.lines);
+  const s=t.store==="coles"?"coles":"woolies",pre=s==="coles"?"colesTrolley":"trolley";
+  if(typeof m.type!=="string"||!m.type.startsWith(pre))return;
+  const ty=m.type.slice(pre.length);
+  if(ty==="Login"){if(!live)return;t.phase="login"}
+  else if(ty==="Progress"){if(t.phase!=="adding"&&t.phase!=="login")return;t.phase="adding";t.completed=m.completed;t.total=m.total}
+  else if(ty==="Done"){if(!live)return;t.phase="done";t.results=Array.isArray(m.results)?m.results:[];const old=sentFor(s),rec={at:new Date().toISOString(),fingerprint:t.fingerprint,lines:WeekdayFuelCart.sentAfter(old&&old.lines,t.lines,t.results,TROLLEY[s].key)};if(t.haveIt&&typeof t.haveIt==="object")rec.haveIt=Object.assign({},t.haveIt);if(!lsSent()&&!lsColesSent()){const days=Array.isArray(t.days)&&t.days.length?t.days:shopDays();const fz={};days.forEach(d=>fz[d]=true);state.settings.shopDays=fz;saveSettings()}setSentFor(s,rec)}
+  else if(ty==="Error"){if(!live)return;t.phase="error";t.message=m.message||(s==="coles"?"Couldn't send to the Coles trolley.":"Something went wrong sending to Woolworths. Try again.")}
+  else return;
+  if(state.tab==="shop")render();
 }
+function installHostListener(){
+  const h=window.WeekdayFuelHost;
+  if(!h||h.__wfHostBound)return;
+  h.__wfHostBound=true;
+  h.addEventListener("message",onHostPageMessage);
+}
+installHostListener();
+window.__wfInstallHost=installHostListener;
 initStore();
 })();
 </script>
