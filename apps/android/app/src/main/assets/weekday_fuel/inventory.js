@@ -487,14 +487,11 @@
       var day = days && days[d];
       reserveMealsForDay(out, cat, day, d, today, shopDaySet, first, last, startDate);
       if (typeof staplesOn === "function") {
-        var inShopSpan = first && last && compareDate(d, first) >= 0 && compareDate(d, last) <= 0;
-        if (!inShopSpan) {
-          var dayStaples = staplesOn(d);
-          if (Array.isArray(dayStaples)) {
-            dayStaples.forEach(function (s) {
-              if (s && s.id && s.amount > 0) addReserve(out, s.id, s.amount);
-            });
-          }
+        var dayStaples = staplesOn(d);
+        if (Array.isArray(dayStaples)) {
+          dayStaples.forEach(function (s) {
+            if (s && s.id && s.amount > 0) addReserve(out, s.id, s.amount);
+          });
         }
       }
       d = nextDate(d);
@@ -672,11 +669,59 @@
     return String(product.stockcode);
   }
 
+  function wooliesRowSentParts(row, sent) {
+    var out = [];
+    var seen = {};
+    var s = sent || {};
+    function tryAdd(prod) {
+      if (!prod || prod.stockcode == null || seen[prod.stockcode]) return;
+      if (!isQty(s[prod.stockcode])) return;
+      seen[prod.stockcode] = true;
+      out.push({ product: prod, qty: s[prod.stockcode] });
+    }
+    var w = row && row.woolies;
+    if (w) {
+      if (w.parts && w.parts.length) w.parts.forEach(function (p) { tryAdd(p.product); });
+      else tryAdd(w.product);
+      if (w.alts) {
+        for (var ai = 0; ai < w.alts.length; ai++) tryAdd(w.alts[ai]);
+      }
+    }
+    if (row && row.wooliesUnavailable) tryAdd(row.wooliesUnavailable);
+    return out;
+  }
+
+  function colesRowSentParts(row, colesSent, colesId) {
+    var out = [];
+    var seen = {};
+    var cs = colesSent || {};
+    var idFn = typeof colesId === "function" ? colesId : function () { return null; };
+    function tryAdd(prod) {
+      if (!prod) return;
+      var id = idFn(prod);
+      if (id == null || seen[id]) return;
+      if (!isQty(cs[id])) return;
+      seen[id] = true;
+      out.push({ product: prod, qty: cs[id] });
+    }
+    var c = row && row.coles;
+    if (c) {
+      if (c.parts && c.parts.length) c.parts.forEach(function (p) { tryAdd(p.product); });
+      else tryAdd(c.product);
+      if (c.alts) {
+        for (var ci = 0; ci < c.alts.length; ci++) tryAdd(c.alts[ci]);
+      }
+    }
+    if (row && row.colesUnavailable) tryAdd(row.colesUnavailable);
+    return out;
+  }
+
+  /* Codes consumed by finish rows on the store being finished (Woolworths stockcodes or Coles ids only). */
   function sentCodesUsedByRows(rows, store, sent, colesSent, colesId) {
     var used = nullMap();
-    if (!ord || !ord.sentLineQty) return used;
     (Array.isArray(rows) ? rows : []).forEach(function (row) {
-      ord.sentLineQty(row, sent, colesSent, colesId).forEach(function (p) {
+      var parts = store === "coles" ? colesRowSentParts(row, colesSent, colesId) : wooliesRowSentParts(row, sent);
+      parts.forEach(function (p) {
         var code = productCode(p.product, store, colesId);
         if (code != null) used[code] = true;
       });
@@ -714,8 +759,9 @@
     return hit;
   }
 
-  function buysFromUnmatchedSent(sent, rows, cat, store, colesId, rowCtx) {
-    var lines = sent && typeof sent === "object" ? sent : {};
+  /* sentLines = sent record for the store being finished only (Woolworths lines or Coles lines). */
+  function buysFromUnmatchedSent(sentLines, rows, cat, store, colesId, rowCtx) {
+    var lines = sentLines && typeof sentLines === "object" ? sentLines : {};
     var ctx = rowCtx || {};
     var wSent = ctx.sent && typeof ctx.sent === "object" ? ctx.sent : {};
     var cSent = ctx.colesSent && typeof ctx.colesSent === "object" ? ctx.colesSent : {};
@@ -751,7 +797,10 @@
       }
       if (hi[row.id]) return;
       if (t[row.id]) return;
-      if (row.sec === 2) return;
+      if (row.sec === 2) {
+        var keepIt = o.cat && typeof o.cat.item === "function" ? o.cat.item(row.id) : null;
+        if (!keepIt || typeof keepIt.keeps !== "number" || !(keepIt.keeps > 0)) return;
+      }
       var line = row[store] || row[other];
       if (!line || !line.product) return;
       var amount = 0;

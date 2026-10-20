@@ -695,6 +695,36 @@ test("buysFromUnmatchedSent stocks sent food when its shop row is gone", () => {
   assert.deepEqual(I.buysFromUnmatchedSent({ 6013278: 1 }, [], eggCat, "woolies", catalogueColesId, ctx), [{ item: "eggs", amount: 12 }]);
 });
 
+test("buysFromUnmatchedSent uses only the finished store's sent codes", () => {
+  const eggCat = create(
+    ITEMS.concat([
+      {
+        id: "eggs",
+        sec: 1,
+        keeps: 28,
+        name: "Eggs",
+        unit: "eggs",
+        note: "",
+        same: false,
+        coles: { name: "12 pack", url: C + "eggs-6013278", size: 12, price: 6, checked: "2026-10-15" },
+        woolies: { name: "6 pack", url: W + "6013276", stockcode: 6013276, size: 6, price: 4, checked: "2026-10-15" },
+      },
+    ]),
+    AMOUNTS,
+  );
+  const ctx = { sent: { 6013276: 1 }, colesSent: { 6013278: 1 }, colesId: catalogueColesId };
+  const dualRow = {
+    id: "eggs",
+    sec: 1,
+    woolies: { product: { stockcode: 6013276, size: 6 }, quantity: 1 },
+    coles: { product: { url: C + "eggs-6013278", size: 12 }, quantity: 1 },
+  };
+  assert.deepEqual(I.buysFromUnmatchedSent({ 6013278: 1 }, [], eggCat, "coles", catalogueColesId, ctx), [{ item: "eggs", amount: 12 }]);
+  assert.deepEqual(I.buysFromUnmatchedSent({ 6013276: 1 }, [], eggCat, "woolies", catalogueColesId, ctx), [{ item: "eggs", amount: 6 }]);
+  assert.deepEqual(I.buysFromUnmatchedSent({ 6013278: 1 }, [dualRow], eggCat, "coles", catalogueColesId, ctx), []);
+  assert.deepEqual(I.buysFromUnmatchedSent({ 6013276: 1 }, [dualRow], eggCat, "woolies", catalogueColesId, ctx), []);
+});
+
 test("buysFromUnmatchedSent ignores codes already matched by rows and unknown codes", () => {
   const row = {
     id: "honey",
@@ -705,6 +735,21 @@ test("buysFromUnmatchedSent ignores codes already matched by rows and unknown co
   const ctx = { sent: { 753976: 2, 999999: 1 }, colesSent: {}, colesId: catalogueColesId };
   assert.deepEqual(I.buysFromUnmatchedSent({ 753976: 2, 999999: 1 }, [row], cat, "woolies", catalogueColesId, ctx), []);
   assert.deepEqual(I.buysFromRows([row], "woolies", {}, {}, ctx), [{ item: "honey", amount: 750 }]);
+});
+
+test("buysFromRows stocks sec-2 items that have keeps when finishing a shop row", () => {
+  const realCat = require("../../main/assets/weekday_fuel/catalogue.js");
+  const potato = realCat.item("potato");
+  const row = {
+    id: "potato",
+    sec: 2,
+    woolies: { product: potato.woolies, quantity: 1, cost: 6.5, buy: "1 bag" },
+    coles: { product: potato.coles, quantity: 1, cost: 6, buy: "1 bag" },
+  };
+  const opts = { sent: {}, colesSent: {}, colesId: catalogueColesId, cat: realCat };
+  assert.deepEqual(I.buysFromRows([row], "woolies", {}, {}, opts), [{ item: "potato", amount: 2000 }]);
+  assert.deepEqual(I.buysFromRows([row], "coles", {}, {}, opts), [{ item: "potato", amount: 2000 }]);
+  assert.deepEqual(I.buysFromRows([{ id: "rice", sec: 2, woolies: { product: { stockcode: 123, size: 1 }, quantity: 1 } }], "woolies", {}, {}, opts), []);
 });
 
 test("buysFromRows stocks colesUnavailable from colesSent", () => {
@@ -997,11 +1042,25 @@ test("reserved includes extras uses on today and future days", () => {
   assert.equal(rPast.grenade, undefined);
 });
 
-test("gapSpareReserved skips staples on days covered by the shop span", () => {
-  const base = inv([]);
+test("gapSpareReserved holds span gap-day staples so that stock is not spare", () => {
+  const base = I.addEvents(null, [{ k: "buy", item: "dare", amount: 5, order: "o1" }], START);
+  const today = "2026-10-21";
   const staplesOn = (d) => (d === "2026-10-21" ? [{ id: "dare", amount: 1 }] : []);
-  const r = I.gapSpareReserved(base, {}, cat, "2026-10-21", "2026-10-22", ["2026-10-20", "2026-10-22"], staplesOn);
+  const st = I.stock(base, {}, cat, new Date(2026, 9, 21, 12, 0, 0), staplesOn);
+  const res = I.gapSpareReserved(base, {}, cat, today, "2026-10-22", ["2026-10-20", "2026-10-22"], staplesOn);
+  assert.equal(res.dare, 1);
+  assert.equal(I.free(st, res).dare, 3);
+});
+
+test("shop reserved staples start tomorrow; stock already consumed today's staple", () => {
+  const base = I.addEvents(null, [{ k: "buy", item: "dare", amount: 5, order: "o1" }], START);
+  const today = "2026-10-20";
+  const noon = new Date(2026, 9, 20, 12, 0, 0);
+  const staplesOn = (d) => (d === today || d === "2026-10-21" ? [{ id: "dare", amount: 1 }] : []);
+  assert.equal(I.stock(base, {}, cat, noon, staplesOn).dare.amount, 4);
+  const r = I.reserved(base, {}, cat, today, ["2026-10-21"], staplesOn);
   assert.equal(r.dare, undefined);
+  assert.equal(I.freeForShop(I.stock(base, {}, cat, noon, staplesOn), r, cat, today).dare, 4);
 });
 
 test("gapSpareReserved covers meals staples and today extras through week end", () => {
