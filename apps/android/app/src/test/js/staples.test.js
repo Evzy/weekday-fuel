@@ -97,6 +97,21 @@ test("cost uses deli perKg pricing", () => {
   assert.ok(S.cost("ham", 100, cat, "woolies") > 0);
 });
 
+test("spanDates fills every calendar day from first to last shop day", () => {
+  assert.deepEqual(S.spanDates([]), []);
+  assert.deepEqual(S.spanDates(["2026-10-23"]), ["2026-10-23"]);
+  assert.deepEqual(S.spanDates(["2026-10-23", "2026-10-19"]), ["2026-10-19", "2026-10-20", "2026-10-21", "2026-10-22", "2026-10-23"]);
+});
+
+test("needs counts weekday staples on gap days inside the shop span", () => {
+  const staples = S.parse(S.DEFAULTS, cat);
+  const shopOnly = S.needs(staples, ["2026-10-20", "2026-10-22"], {});
+  const withGap = S.needs(staples, S.spanDates(["2026-10-20", "2026-10-22"]), {});
+  assert.equal(shopOnly.dare, 2);
+  assert.equal(withGap.dare, 3);
+  assert.equal(withGap.grenade, 3);
+});
+
 test("needs sums staple amounts over shop dates", () => {
   const staples = S.parse(S.DEFAULTS, cat);
   const days = {

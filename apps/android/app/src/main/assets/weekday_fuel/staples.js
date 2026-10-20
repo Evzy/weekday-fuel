@@ -297,6 +297,23 @@
     return { days: out, changed: changed, changedDates: changedDates };
   }
 
+  function spanDates(dates) {
+    var list = (Array.isArray(dates) ? dates : []).filter(function (d) {
+      return DATE.test(d);
+    });
+    if (!list.length) return [];
+    list.sort();
+    var first = list[0];
+    var last = list[list.length - 1];
+    var out = [];
+    var d = first;
+    while (compareDate(d, last) <= 0) {
+      out.push(d);
+      d = addDays(d, 1);
+    }
+    return out;
+  }
+
   function needs(staples, dates, daysMap) {
     var out = Object.create(null);
     (Array.isArray(dates) ? dates : []).forEach(function (date) {
@@ -322,6 +339,7 @@
     applyEdit: applyEdit,
     applyRemove: applyRemove,
     addDays: addDays,
+    spanDates: spanDates,
     migrateLegacyFx: migrateLegacyFx,
   };
   if (typeof module === "object" && module.exports) module.exports = api;

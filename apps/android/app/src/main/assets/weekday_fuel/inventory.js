@@ -487,11 +487,14 @@
       var day = days && days[d];
       reserveMealsForDay(out, cat, day, d, today, shopDaySet, first, last, startDate);
       if (typeof staplesOn === "function") {
-        var dayStaples = staplesOn(d);
-        if (Array.isArray(dayStaples)) {
-          dayStaples.forEach(function (s) {
-            if (s && s.id && s.amount > 0) addReserve(out, s.id, s.amount);
-          });
+        var inShopSpan = first && last && compareDate(d, first) >= 0 && compareDate(d, last) <= 0;
+        if (!inShopSpan) {
+          var dayStaples = staplesOn(d);
+          if (Array.isArray(dayStaples)) {
+            dayStaples.forEach(function (s) {
+              if (s && s.id && s.amount > 0) addReserve(out, s.id, s.amount);
+            });
+          }
         }
       }
       d = nextDate(d);

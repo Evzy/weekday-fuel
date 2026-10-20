@@ -407,7 +407,7 @@ function renderStapleSheetBody(){
   return `<form class="stack" id="stapform" style="gap:12px"><div class="eyebrow">${isNew?"Add":esc(short)} staple</div><label class="f">Item<select id="stap-item"${isNew?"":" disabled"} required>${choose}${opts}</select></label><label class="f">Amount<span id="stap-unit">${unit?` (${esc(unit)})`:""}</span><input id="stap-amt" class="num" type="number" step="any" min="0" required value="${draft.amount||""}"></label>${err}<div class="f"><span class="small muted" style="display:block;margin-bottom:4px">Schedule</span><div class="dial" role="group" aria-label="Staple days"><button type="button" aria-pressed="${days==="all"?"true":"false"}" data-act="stapdays" data-v="all">Every day</button><button type="button" aria-pressed="${days==="weekdays"?"true":"false"}" data-act="stapdays" data-v="weekdays">Weekdays</button></div></div><div class="row" style="gap:8px;flex-wrap:wrap">${!isNew?`<button type="button" class="ghost warn" data-act="stapremove" data-v="${esc(draft.id)}">Remove</button>`:""}<button type="submit" class="btn" ${canSave?"":"disabled"}>Save</button><button type="button" class="ghost" data-act="close">Cancel</button></div></form>`;
 }
 function staplesOn(date,day){return WeekdayFuelStaples.forDay(staplesList(),date,day||dayOf(date))}
-function stapleNeedMap(){const sd=shopDays();if(!sd.length)return {};return WeekdayFuelStaples.needs(staplesList(),sd,state.days)}
+function stapleNeedMap(){const sd=WeekdayFuelStaples.spanDates(shopDays());if(!sd.length)return {};return WeekdayFuelStaples.needs(staplesList(),sd,state.days)}
 function shopPackPick(){return S().packPick||undefined}
 function shopRowsRaw(){return CAT.shopList(picks(),stapleNeedMap(),dayMeals(),shopHave(),shopPackPick())}
 function sentProductIds(st){const rec=sentFor(st);if(!rec||!rec.lines)return null;const ids=[];Object.keys(rec.lines).forEach(k=>{if(rec.lines[k]>0)ids.push(String(k))});return ids.length?ids:null}
@@ -520,7 +520,7 @@ function sentShopDayMeals(){
   return out.length?out:null;
 }
 function sentShopDates(){const dm=sentShopDayMeals();if(!dm)return[];const s={};dm.forEach(d=>{s[d.day]=true});return Object.keys(s).sort()}
-function stapleNeedMapForDates(dates){if(!dates.length)return{};return WeekdayFuelStaples.needs(staplesList(),dates,state.days)}
+function stapleNeedMapForDates(dates){const sd=WeekdayFuelStaples.spanDates(dates);if(!sd.length)return{};return WeekdayFuelStaples.needs(staplesList(),sd,state.days)}
 function shopRowsForSentFinish(){
   const dm=sentShopDayMeals();if(!dm)return null;
   const dates=sentShopDates();

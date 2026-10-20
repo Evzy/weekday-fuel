@@ -964,6 +964,13 @@ test("reserved includes extras uses on today and future days", () => {
   assert.equal(rPast.grenade, undefined);
 });
 
+test("gapSpareReserved skips staples on days covered by the shop span", () => {
+  const base = inv([]);
+  const staplesOn = (d) => (d === "2026-10-21" ? [{ id: "dare", amount: 1 }] : []);
+  const r = I.gapSpareReserved(base, {}, cat, "2026-10-21", "2026-10-22", ["2026-10-20", "2026-10-22"], staplesOn);
+  assert.equal(r.dare, undefined);
+});
+
 test("gapSpareReserved covers meals staples and today extras through week end", () => {
   const base = inv([]);
   const today = "2026-10-20";
