@@ -115,6 +115,100 @@
     return Object.keys(set).length ? set : null;
   }
 
+  function mealKey(date, index, id) {
+    return date + "|" + index + "|" + id;
+  }
+
+  function parseMealKey(k) {
+    if (typeof k !== "string") return null;
+    var parts = k.split("|");
+    if (parts.length !== 3) return null;
+    var index = +parts[1];
+    if (!parts[0] || !parts[2] || !isFinite(index)) return null;
+    return { date: parts[0], index: index, id: parts[2] };
+  }
+
+  function toBuyKeys(days, dates, isBoughtFn) {
+    var isBought = typeof isBoughtFn === "function" ? isBoughtFn : isBought;
+    var keys = [];
+    (Array.isArray(dates) ? dates : []).forEach(function (date) {
+      var day = days && days[date];
+      if (!day || !Array.isArray(day.meals)) return;
+      day.meals.forEach(function (m, i) {
+        if (!m || !m.id) return;
+        if (isBought(m) || m.shop === false) return;
+        keys.push(mealKey(date, i, m.id));
+      });
+    });
+    keys.sort();
+    return keys;
+  }
+
+  function markBoughtKeys(days, keys, orderId) {
+    if (!days || typeof days !== "object" || typeof orderId !== "string" || !orderId || !Array.isArray(keys)) {
+      return { days: days, changed: [] };
+    }
+    var want = Object.create(null);
+    keys.forEach(function (k) {
+      var p = parseMealKey(k);
+      if (p) want[p.date + "\0" + p.index + "\0" + p.id] = true;
+    });
+    var out = days;
+    var changed = [];
+    Object.keys(days).forEach(function (date) {
+      if (date === "__proto__") return;
+      var day = days[date];
+      if (!day || !Array.isArray(day.meals)) return;
+      var touched = false;
+      var meals = day.meals.map(function (m, i) {
+        if (!m || !want[date + "\0" + i + "\0" + m.id] || isBought(m)) return m;
+        touched = true;
+        var copy = cloneMeal(m);
+        copy.bought = orderId;
+        return copy;
+      });
+      if (!touched) return;
+      if (out === days) out = Object.assign({}, days);
+      var newDay = cloneDay(day);
+      newDay.meals = meals;
+      out[date] = newDay;
+      changed.push(date);
+    });
+    return { days: out, changed: changed };
+  }
+
+  function sameKeys(a, b) {
+    if (!Array.isArray(a) || !Array.isArray(b)) return false;
+    if (a.length !== b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] !== b[i]) return false;
+    }
+    return true;
+  }
+
+  function keySet(arr) {
+    var s = Object.create(null);
+    (Array.isArray(arr) ? arr : []).forEach(function (k) {
+      if (typeof k === "string" && k) s[k] = true;
+    });
+    return s;
+  }
+
+  function changedSince(sentKeys, nowKeys) {
+    var a = (Array.isArray(sentKeys) ? sentKeys.slice() : []).sort();
+    var b = (Array.isArray(nowKeys) ? nowKeys.slice() : []).sort();
+    return !sameKeys(a, b);
+  }
+
+  function addedSince(sentKeys, nowKeys) {
+    var sent = keySet(sentKeys);
+    var n = 0;
+    (Array.isArray(nowKeys) ? nowKeys : []).forEach(function (k) {
+      if (!sent[k]) n += 1;
+    });
+    return n;
+  }
+
   function clearUnbought(days, skipDates, todayIso) {
     if (!days || typeof days !== "object") return { days: days, changed: [], cleared: 0 };
     var skip = skipDateSet(skipDates);
@@ -146,9 +240,16 @@
   var api = {
     isBought: isBought,
     markBought: markBought,
+    markBoughtKeys: markBoughtKeys,
     unmarkBought: unmarkBought,
     backfillBought: backfillBought,
     clearUnbought: clearUnbought,
+    mealKey: mealKey,
+    parseMealKey: parseMealKey,
+    toBuyKeys: toBuyKeys,
+    sameKeys: sameKeys,
+    changedSince: changedSince,
+    addedSince: addedSince,
   };
   if (typeof module === "object" && module.exports) module.exports = api;
   else root.WeekdayFuelBought = api;

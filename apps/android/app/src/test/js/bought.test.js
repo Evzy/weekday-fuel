@@ -137,3 +137,43 @@ test("clearUnbought removes uneaten unbought meals and counts them", () => {
   assert.equal(r.days["2026-10-21"].meals.length, 0);
   assert.equal(days["2026-10-20"].meals.length, 4);
 });
+
+test("mealKey and parseMealKey round-trip", () => {
+  const k = B.mealKey("2026-10-20", 2, "bowl");
+  assert.equal(k, "2026-10-20|2|bowl");
+  assert.deepEqual(B.parseMealKey(k), { date: "2026-10-20", index: 2, id: "bowl" });
+  assert.equal(B.parseMealKey("bad"), null);
+  assert.equal(B.parseMealKey("a|b"), null);
+});
+
+test("toBuyKeys skips bought and shop false and sorts", () => {
+  const days = {
+    "2026-10-21": day([meal("wrap"), meal("bowl", { shop: false }), meal("toasty", { bought: "o1" })]),
+    "2026-10-20": day([meal("bowl")]),
+  };
+  assert.deepEqual(B.toBuyKeys(days, ["2026-10-21", "2026-10-20"], B.isBought), [
+    "2026-10-20|0|bowl",
+    "2026-10-21|0|wrap",
+  ]);
+});
+
+test("markBoughtKeys marks only matching keys and skips stale keys", () => {
+  const days = {
+    "2026-10-20": day([meal("bowl"), meal("wrap")]),
+  };
+  const r = B.markBoughtKeys(days, ["2026-10-20|0|bowl", "2026-10-20|1|wrong", "2026-10-20|5|bowl"], "ord3");
+  assert.deepEqual(r.changed, ["2026-10-20"]);
+  assert.equal(r.days["2026-10-20"].meals[0].bought, "ord3");
+  assert.equal(r.days["2026-10-20"].meals[1].bought, undefined);
+});
+
+test("sameKeys, changedSince, and addedSince compare meal key sets", () => {
+  const a = ["2026-10-20|0|a", "2026-10-21|1|b"];
+  const b = ["2026-10-20|0|a", "2026-10-22|0|c"];
+  assert.equal(B.sameKeys(a, a), true);
+  assert.equal(B.sameKeys(a, b), false);
+  assert.equal(B.changedSince(a, b), true);
+  assert.equal(B.changedSince(a, a.slice()), false);
+  assert.equal(B.addedSince(a, b), 1);
+  assert.equal(B.addedSince(b, a), 1);
+});
