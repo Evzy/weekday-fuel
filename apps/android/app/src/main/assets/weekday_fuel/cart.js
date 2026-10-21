@@ -270,6 +270,32 @@
     });
   }
 
+  function planRemovedPhrase(n) {
+    if (!n) return "";
+    return n === 1 ? "Removed 1 item that wasn't in your plan" : "Removed " + n + " items that weren't in your plan";
+  }
+
+  function planRemoveFailPhrase(n, storeLabel) {
+    if (!n) return "";
+    var store = storeLabel || "the store";
+    return n === 1
+      ? "Couldn't remove 1 item not in your plan — remove it on " + store + "."
+      : "Couldn't remove " + n + " items not in your plan — remove them on " + store + ".";
+  }
+
+  function checkoutCleanNoteFromExtras(results, nameByStockcode) {
+    var x = planExtraStats(results);
+    var names = [];
+    (results || []).forEach(function (r) {
+      if (!r.extra || !r.added) return;
+      var key = r.stockcode != null ? String(r.stockcode) : r.productId != null ? String(r.productId) : null;
+      if (!key) return;
+      var nm = nameByStockcode && nameByStockcode[key];
+      if (nm) names.push(nm);
+    });
+    return { removed: x.removed, fail: x.fail, names: names };
+  }
+
   function sentAfter(lastLines, lines, results, key) {
     var k = key || "stockcode";
     var out = Object.assign({}, lastLines || {});
@@ -297,6 +323,9 @@
     planCodes: planCodes,
     planExtraStats: planExtraStats,
     lineResults: lineResults,
+    planRemovedPhrase: planRemovedPhrase,
+    planRemoveFailPhrase: planRemoveFailPhrase,
+    checkoutCleanNoteFromExtras: checkoutCleanNoteFromExtras,
   };
   if (typeof module === "object" && module.exports) module.exports = api;
   else root.WeekdayFuelCart = api;

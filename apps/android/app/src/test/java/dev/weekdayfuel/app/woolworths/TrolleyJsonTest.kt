@@ -40,6 +40,11 @@ class TrolleyJsonTest {
     }
 
     @Test
+    fun parseLinesAcceptsEmptyArrayForKeepOnlySends() {
+        assertEquals(emptyList(), TrolleyJson.parseLines(JSONArray("[]")))
+    }
+
+    @Test
     fun parseLinesKeepsZeroForRemovalsAndDropsNegatives() {
         val lines =
             TrolleyJson.parseLines(

@@ -1,6 +1,6 @@
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
-const { cartLines, removalLines, colesCartLines, colesRemovalLines, shopFingerprint, sentAfter, emptyLines, planCodes, planExtraStats } = require("../../main/assets/weekday_fuel/cart.js");
+const { cartLines, removalLines, colesCartLines, colesRemovalLines, shopFingerprint, sentAfter, emptyLines, planCodes, planExtraStats, planRemovedPhrase, planRemoveFailPhrase, checkoutCleanNoteFromExtras } = require("../../main/assets/weekday_fuel/cart.js");
 
 const W = "https://www.woolworths.com.au/shop/productdetails/";
 const YOG = { name: "Chobani Greek Yoghurt 907g", url: W + "717518", stockcode: 717518, size: 907, price: 8.8 };
@@ -280,6 +280,24 @@ test("planCodes lists Coles product ids from parts and skips rows without Coles 
   const rows = [row("w", { product: YOG, quantity: 1 }), row("c", null, mixed)];
   assert.deepEqual(planCodes(rows, "coles", idOf).sort(), ["2263168", "2263179"].sort());
   assert.deepEqual(planCodes([], "coles", idOf), []);
+});
+
+test("plan removed and fail phrases use singular and plural wording", () => {
+  assert.equal(planRemovedPhrase(0), "");
+  assert.equal(planRemovedPhrase(1), "Removed 1 item that wasn't in your plan");
+  assert.equal(planRemovedPhrase(2), "Removed 2 items that weren't in your plan");
+  assert.equal(planRemoveFailPhrase(1, "Woolworths"), "Couldn't remove 1 item not in your plan — remove it on Woolworths.");
+  assert.equal(planRemoveFailPhrase(3, "Coles"), "Couldn't remove 3 items not in your plan — remove them on Coles.");
+});
+
+test("checkoutCleanNoteFromExtras names only successful extra removals", () => {
+  const results = [
+    { stockcode: 888888, added: true, extra: true },
+    { stockcode: 999999, added: false, extra: true },
+    { stockcode: 717518, added: true },
+  ];
+  const note = checkoutCleanNoteFromExtras(results, { 888888: "Extra Snack", 999999: "Stuck item" });
+  assert.deepEqual(note, { removed: 1, fail: 1, names: ["Extra Snack"] });
 });
 
 test("sentAfter ignores extra results", () => {

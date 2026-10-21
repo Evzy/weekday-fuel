@@ -246,6 +246,17 @@ test("with keep, de-duplicates stockcodes across available and unavailable", asy
   assert.equal(s.results.length, 2);
 });
 
+test("with keep and no lines, every off-plan trolley code is removed as extra", async () => {
+  const { api, calls } = load((url, init, urls) => (url === urls.loginStatus ? response(200, BOOTSTRAP_TROLLEY) : accepted(init)));
+  api.start([], [717518, 72280]);
+  const s = await settle(api);
+  assert.equal(calls.length, 3);
+  assert.deepEqual(s.results, [
+    { stockcode: 111111, outcome: "removed", extra: true },
+    { stockcode: 999999, outcome: "removed", extra: true },
+  ]);
+});
+
 test("a failed extra removal is reported with extra true", async () => {
   const { api } = load((url, init, urls) => {
     if (url === urls.loginStatus) return response(200, BOOTSTRAP_TROLLEY);
