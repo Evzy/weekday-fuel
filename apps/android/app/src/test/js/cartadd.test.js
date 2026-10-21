@@ -39,8 +39,8 @@ test("place: add, ask, locked, snack always adds", () => {
     slot: "lunch",
     existing: lunch,
     options: [
-      { slot: "lunch", existing: lunch },
-      { slot: "dinner", existing: dinner },
+      { slot: "lunch", existing: lunch, index: 0 },
+      { slot: "dinner", existing: dinner, index: 1 },
     ],
   });
   const boughtB = m("c", "breakfast", { bought: "o1" });
@@ -62,7 +62,7 @@ test("place options: one main slot locked, breakfast unlocks, snack unaffected",
     action: "ask",
     slot: "lunch",
     existing: lunch,
-    options: [{ slot: "dinner", existing: dinner }],
+    options: [{ slot: "dinner", existing: dinner, index: 1 }],
   });
   const lunch2 = m("a", "lunch", { bought: "o1" }),
     dinner2 = m("b", "dinner", { ate: "2026-10-19" });
@@ -79,8 +79,8 @@ test("place options: one main slot locked, breakfast unlocks, snack unaffected",
     slot: "breakfast",
     existing: b1,
     options: [
-      { slot: "breakfast", existing: b1 },
-      { slot: "breakfast", existing: b2 },
+      { slot: "breakfast", existing: b1, index: 0 },
+      { slot: "breakfast", existing: b2, index: 1 },
     ],
   });
   assert.deepEqual(C.place(SN, [m("x", "snack")], isBought), { action: "add", slot: "snack" });
@@ -103,6 +103,17 @@ test("apply extra keeps, replace removes first unbought uneaten, sorted and pure
   assert.equal(r2.meals[0], lb);
   const r3 = C.apply([], "toasty", "breakfast", "add");
   assert.deepEqual(r3.meals, [{ id: "toasty", slot: "breakfast", t: "S" }]);
+});
+
+test("apply replace by targetIndex removes the chosen same-slot meal", () => {
+  const b1 = m("toasty", "breakfast");
+  const b2 = m("eggmuffin", "breakfast");
+  const r = C.apply([b1, b2], "oats", "breakfast", "replace", isBought, undefined, 1);
+  assert.deepEqual(r.meals.map((x) => x.id), ["toasty", "oats"]);
+  const l1 = m("wrap", "lunch");
+  const l2 = m("mac", "lunch");
+  const r2 = C.apply([l1, l2], "new", "lunch", "replace", isBought, undefined, 1);
+  assert.deepEqual(r2.meals.map((x) => x.id), ["wrap", "new"]);
 });
 
 test("apply replace skips an eaten meal in slot", () => {

@@ -60,7 +60,7 @@
       for (i = 0; i < dayMeals.length; i++) {
         var m = dayMeals[i];
         if (!m || (m.slot !== "lunch" && m.slot !== "dinner")) continue;
-        if (!isLocked(m, isBought, isEatenFn)) opts.push({ slot: m.slot, existing: m });
+        if (!isLocked(m, isBought, isEatenFn)) opts.push({ slot: m.slot, existing: m, index: i });
       }
       return opts;
     }
@@ -68,7 +68,7 @@
       for (i = 0; i < dayMeals.length; i++) {
         var b = dayMeals[i];
         if (!b || b.slot !== "breakfast") continue;
-        if (!isLocked(b, isBought, isEatenFn)) opts.push({ slot: "breakfast", existing: b });
+        if (!isLocked(b, isBought, isEatenFn)) opts.push({ slot: "breakfast", existing: b, index: i });
       }
     }
     return opts;
@@ -101,15 +101,26 @@
     return { action: "ask", slot: slot, existing: existing, options: options };
   }
 
-  function apply(dayMeals, mealId, slot, mode, isBought, isEatenFn) {
+  function apply(dayMeals, mealId, slot, mode, isBought, isEatenFn, targetIndex) {
     var boughtFn = isBought || defaultIsBought;
+    var eatenFn = isEatenFn || defaultIsEaten;
     var meals = (dayMeals || []).slice();
     if (mode === "replace") {
-      for (var i = 0; i < meals.length; i++) {
-        var m = meals[i];
-        if (m && m.slot === slot && !isLocked(m, boughtFn, isEatenFn)) {
-          meals.splice(i, 1);
-          break;
+      var removed = false;
+      if (typeof targetIndex === "number" && targetIndex >= 0 && targetIndex < meals.length) {
+        var target = meals[targetIndex];
+        if (target && target.slot === slot && !isLocked(target, boughtFn, eatenFn)) {
+          meals.splice(targetIndex, 1);
+          removed = true;
+        }
+      }
+      if (!removed) {
+        for (var i = 0; i < meals.length; i++) {
+          var m = meals[i];
+          if (m && m.slot === slot && !isLocked(m, boughtFn, eatenFn)) {
+            meals.splice(i, 1);
+            break;
+          }
         }
       }
     }
