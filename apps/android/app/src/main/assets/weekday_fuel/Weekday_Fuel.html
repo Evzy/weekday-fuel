@@ -340,9 +340,13 @@ function staplesPersistParsed(list){state.settings.staples=list.map(s=>{const e=
 function stapleMacroItems(){return CAT.ITEMS.filter(it=>MACROS[it.id])}
 function stapleDefaultAmount(it){if(!it)return 1;return(it.unit==="g"||it.unit==="mL")?100:1}
 function stapleShortName(it){if(!it)return "";if(it.short)return it.short;const n=it.name.replace(/,.*$/,"").trim();return n.length>14?n.slice(0,14):n}
-function stapleChipText(s,it,on){
-  const short=stapleShortName(it);
-  const mac=WeekdayFuelStaples.macros(s.id,s.amount,CAT,MACROS);
+function stapleChoiceId(day,stapleId){return day&&day.stapleChoice&&day.stapleChoice[stapleId]}
+function stapleChipText(s,it,on,date,day){
+  day=day|| (date?dayOf(date):null);
+  const pick=stapleChoiceId(day,s.id);
+  const swap=pick&&it.swaps?it.swaps.find(sw=>sw.id===pick):null;
+  const short=swap&&swap.short?swap.short:stapleShortName(it);
+  const mac=WeekdayFuelStaples.choiceMacros(s.id,s.amount,pick||null,CAT,MACROS);
   const k=mac?r0(mac.k):"?";
   let label=short;
   if(it.unit==="g"||it.unit==="mL"){if(s.amount!==1)label=short+" "+s.amount+it.unit}
@@ -350,6 +354,24 @@ function stapleChipText(s,it,on){
   const text=(on?"✓ ":"")+label+" · "+k;
   const tip=short+(s.amount!==1?" "+s.amount+(it.unit==="g"||it.unit==="mL"?it.unit:""):"")+" · "+k+" kcal";
   return {text,tip};
+}
+function renderStapleChooseBody(stapleId,date){
+  const it=CAT.item(stapleId);if(!it||!it.swaps||!it.swaps.length)return "";
+  const day=dayOf(date);
+  const cur=stapleChoiceId(day,stapleId);
+  const st=stapleEntryFor(stapleId,date)||staplesActiveOn(date).find(x=>x.id===stapleId);
+  const amt=st?st.amount:1;
+  const regMac=WeekdayFuelStaples.macros(stapleId,amt,CAT,MACROS);
+  const regLabel=stapleShortName(it);
+  const row=(swapId,short,chosen)=>{
+    const mac=WeekdayFuelStaples.choiceMacros(stapleId,amt,swapId||null,CAT,MACROS);
+    const k=mac?r0(mac.k):"?",p=mac?r0(mac.p):"?";
+    const mark=chosen?" ✓":"";
+    return `<button type="button" class="pick" data-act="staplepick" data-staple="${esc(stapleId)}" data-swap="${swapId?esc(swapId):""}" data-d="${esc(date)}"><span class="grow">${esc(short)}${mark}</span><span class="small num">${k} kcal · ${p}g P</span></button>`;
+  };
+  let h=row(null,regLabel,!cur);
+  it.swaps.forEach(sw=>{h+=row(sw.id,sw.short||sw.name,cur===sw.id)});
+  return h;
 }
 function syncStapleSheetDraft(){
   const draft=state.stapleSheetDraft;if(!draft)return;
@@ -386,8 +408,9 @@ function renderStapleChipsToday(date,day){
   const chips=list.map(s=>{
     const it=CAT.item(s.id);if(!it)return "";
     const on=WeekdayFuelStaples.onDay(s,date,day);
-    const chip=stapleChipText(s,it,on);
-    return `<button type="button" class="chip" aria-pressed="${on?"true":"false"}" data-act="stapletog" data-fit="1" data-v="${esc(s.id)}" data-d="${esc(date)}" title="${esc(chip.tip)}" aria-label="${esc(chip.tip)}">${esc(chip.text)}</button>`;
+    const chip=stapleChipText(s,it,on,date,day);
+    const chooseBtn=dayEditable(date)&&it.swaps&&it.swaps.length?`<button type="button" class="chipedit" data-act="staplechoose" data-v="${esc(s.id)}" data-d="${esc(date)}" aria-label="Choose ${esc(stapleShortName(it))}">▾</button>`:"";
+    return `<span class="chipwrap"><button type="button" class="chip" aria-pressed="${on?"true":"false"}" data-act="stapletog" data-fit="1" data-v="${esc(s.id)}" data-d="${esc(date)}" title="${esc(chip.tip)}" aria-label="${esc(chip.tip)}">${esc(chip.text)}</button>${chooseBtn}</span>`;
   }).join("");
   return `<div class="stack" style="gap:8px"><div class="eyebrow">Staples · tap to skip or add, portions refit</div><div class="chips">${chips}</div></div>`;
 }
@@ -887,7 +910,8 @@ function totals(day,date){
   const t={k:0,p:0,c:0,f:0,cost:0};
   if(date){
     staplesOn(date,day).forEach(s=>{
-      const m=WeekdayFuelStaples.macros(s.id,s.amount,CAT,MACROS);
+      const pick=stapleChoiceId(day,s.id);
+      const m=WeekdayFuelStaples.choiceMacros(s.id,s.amount,pick||null,CAT,MACROS);
       if(m){t.k+=m.k;t.p+=m.p;t.c+=m.c;t.f+=m.f}
       const c=WeekdayFuelStaples.cost(s.id,s.amount,CAT,store());
       if(c!=null)t.cost+=c;
@@ -1068,8 +1092,10 @@ function gapDayBurden(day,date,daysMap,gapK){
   if(gapK>0)return Math.max(0,tg.k-t.k);
   return Math.max(0,t.k-tg.k);
 }
-function gapMacrosFor(id,amount){
-  const m=WeekdayFuelStaples.macros(id,amount,CAT,MACROS);
+function gapMacrosFor(id,amount,date){
+  const day=date?dayOf(date):null;
+  const pick=day?stapleChoiceId(day,id):null;
+  const m=WeekdayFuelStaples.choiceMacros(id,amount,pick||null,CAT,MACROS);
   if(!m)return null;
   return {k:Math.round(m.k),p:Math.round(m.p*10)/10};
 }
@@ -2249,7 +2275,7 @@ function renderSheet(){
     const staples=staplesActiveOn(date).map(s=>{
       const it=CAT.item(s.id);if(!it)return "";
       const on=WeekdayFuelStaples.onDay(s,date,day);
-      const chip=stapleChipText(s,it,on);
+      const chip=stapleChipText(s,it,on,date,day);
       return `<button type="button" class="chip" aria-pressed="${on?"true":"false"}" data-act="stapletog" data-v="${esc(s.id)}" data-d="${esc(date)}" title="${esc(chip.tip)}">${esc(chip.text)}</button>`;
     }).join("");
     const leave=dayHasUnboughtInCart(date)?`<button type="button" class="pick" data-act="leaveout" data-d="${esc(date)}">Leave the day out of the cart</button>`:"";
@@ -2285,6 +2311,16 @@ function renderSheet(){
   if(state.sheet.startsWith("staple:")){
     const title=state.sheet==="staple:new"?"Add staple":"Edit staple";
     root.innerHTML=`<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(title)}"><div class="row between" style="margin-bottom:10px"><span class="eyebrow">Staple</span><button class="ghost" data-act="close">Close</button></div>${renderStapleSheetBody()}</div></div>`;
+    root.dataset.sheet=state.sheet;
+    return;
+  }
+  if(state.sheet.startsWith("staplechoose:")){
+    const parts=state.sheet.split(":");
+    const stapleId=parts[1],date=parts[2]||iso(new Date());
+    const it=CAT.item(stapleId);
+    const body=renderStapleChooseBody(stapleId,date);
+    if(!body){state.sheet=null;root.innerHTML="";return}
+    root.innerHTML=`<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="Choose ${esc(it?stapleShortName(it):stapleId)}"><div class="row between" style="margin-bottom:10px"><span class="eyebrow">Today</span><button type="button" class="ghost" data-act="close">Close</button></div><div class="eyebrow">${esc(it?stapleShortName(it):"")}</div><div class="stack" style="gap:6px">${body}</div></div></div>`;
     root.dataset.sheet=state.sheet;
     return;
   }
@@ -2417,6 +2453,8 @@ document.addEventListener("click",e=>{
     case "gapundo":undoGap();break;
     case "spreadundo":undoSpread(iso(new Date()));break;
     case "stapleedit":openStapleSheet(v);break;
+    case "staplechoose":{const sd=el.dataset.d||date;if(!dayEditable(sd))break;state.sheet="staplechoose:"+v+":"+sd;break}
+    case "staplepick":{const sd=el.dataset.d,sid=el.dataset.staple;if(!sd||!sid||!dayEditable(sd))break;const d=ensureDay(sd);d.stapleChoice=d.stapleChoice||{};const swap=el.dataset.swap;if(swap)d.stapleChoice[sid]=swap;else delete d.stapleChoice[sid];if(!Object.keys(d.stapleChoice).length)delete d.stapleChoice;if(d.fx&&d.fx[sid]===false){delete d.fx[sid];if(!Object.keys(d.fx).length)delete d.fx}saveDay(sd);state.sheet=null;todayFit(sd);break}
     case "stapleadd":openStapleSheet(null);break;
     case "stapdays":{syncStapleSheetDraft();if(state.stapleSheetDraft)state.stapleSheetDraft.days=v;break}
     case "stapremove":{staplesPersistParsed(WeekdayFuelStaples.applyRemove(staplesSeedList(),v,iso(new Date()),CAT));state.sheet=null;state.stapleSheetDraft=null;state.stapleSheetError=null;break}

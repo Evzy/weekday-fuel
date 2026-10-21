@@ -347,9 +347,14 @@
       var midTs = atMs(mid);
       if (midTs <= nowTs) {
         var dayStaples = staplesCb(d);
-        if (Array.isArray(dayStaples)) dayStaples.forEach(function (s) {
-          if (s && s.id && s.amount > 0 && !s.out) actions.push({ ts: midTs, at: mid, kind: "use", item: s.id, amount: s.amount });
-        });
+        if (Array.isArray(dayStaples)) {
+          var dayRec = days && days[d];
+          dayStaples.forEach(function (s) {
+            if (!s || !s.id || !(s.amount > 0) || s.out) return;
+            if (dayRec && dayRec.stapleChoice && dayRec.stapleChoice[s.id]) return;
+            actions.push({ ts: midTs, at: mid, kind: "use", item: s.id, amount: s.amount });
+          });
+        }
       }
       d = nextDate(d);
     }
@@ -488,9 +493,12 @@
       reserveMealsForDay(out, cat, day, d, today, shopDaySet, first, last, startDate);
       if (typeof staplesOn === "function" && compareDate(d, today) > 0) {
         var dayStaples = staplesOn(d);
+        var dayRec = days && days[d];
         if (Array.isArray(dayStaples)) {
           dayStaples.forEach(function (s) {
-            if (s && s.id && s.amount > 0 && !s.out) addReserve(out, s.id, s.amount);
+            if (!s || !s.id || !(s.amount > 0) || s.out) return;
+            if (dayRec && dayRec.stapleChoice && dayRec.stapleChoice[s.id]) return;
+            addReserve(out, s.id, s.amount);
           });
         }
       }
@@ -564,8 +572,11 @@
       var fd = nextDate(today);
       while (compareDate(fd, first) < 0 && compareDate(fd, capDate) <= 0) {
         var dayStaples = staplesOn(fd);
+        var dayRec = days && days[fd];
         if (Array.isArray(dayStaples)) dayStaples.forEach(function (s) {
-          if (s && s.id && s.amount > 0 && !s.out) addReserve(out, s.id, s.amount);
+          if (!s || !s.id || !(s.amount > 0) || s.out) return;
+          if (dayRec && dayRec.stapleChoice && dayRec.stapleChoice[s.id]) return;
+          addReserve(out, s.id, s.amount);
         });
         fd = nextDate(fd);
       }

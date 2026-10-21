@@ -221,6 +221,22 @@ test("needs skips out staples", () => {
   assert.equal(n.grenade, 2);
 });
 
+test("choiceMacros uses swap per times amount with c/f fallback", () => {
+  const dare750 = S.choiceMacros("dare", 1, "dare-750", cat, MACROS);
+  assert.equal(dare750.k, 444);
+  assert.equal(dare750.p, 45);
+  assert.equal(dare750.c, 38.3);
+  assert.equal(dare750.f, 12);
+  const base = S.macros("dare", 1, cat, MACROS);
+  const mocha = S.choiceMacros("dare", 1, "dare-mocha", cat, MACROS);
+  assert.equal(mocha.k, 292);
+  assert.ok(Math.abs(mocha.c - base.c * (292 / base.k)) < 0.05);
+  assert.equal(S.choiceMacros("dare", 1, "nope", cat, MACROS).k, base.k);
+  const two = S.choiceMacros("dare", 2, "dare-750", cat, MACROS);
+  assert.equal(two.k, 888);
+  assert.equal(two.p, 90);
+});
+
 test("out staples are not reserved from stock", () => {
   const START = "2026-10-10T08:00:00.000Z";
   const base = I.addEvents(null, [{ k: "buy", item: "dare", amount: 10, order: "o1" }], START);

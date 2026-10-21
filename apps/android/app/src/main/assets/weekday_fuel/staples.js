@@ -228,6 +228,36 @@
     return out;
   }
 
+  function findSwap(item, swapId) {
+    if (!item || !Array.isArray(item.swaps) || typeof swapId !== "string" || !swapId) return null;
+    for (var i = 0; i < item.swaps.length; i++) {
+      if (item.swaps[i].id === swapId) return item.swaps[i];
+    }
+    return null;
+  }
+
+  function choiceMacros(id, amount, swapId, cat, macroTable) {
+    var it = cat && typeof cat.item === "function" ? cat.item(id) : null;
+    if (!it || !(amount > 0)) return null;
+    if (!swapId) return macros(id, amount, cat, macroTable);
+    var swap = findSwap(it, swapId);
+    if (!swap || !swap.per) return macros(id, amount, cat, macroTable);
+    var base = macros(id, amount, cat, macroTable);
+    if (!base) return null;
+    var per = swap.per;
+    var k = round2(per.k * amount);
+    var p = round2(per.p * amount);
+    var c;
+    var f;
+    if (per.c != null && isFinite(per.c)) c = round2(per.c * amount);
+    else if (base.c != null && base.k > 0) c = round2(base.c * (k / base.k));
+    else c = base.c;
+    if (per.f != null && isFinite(per.f)) f = round2(per.f * amount);
+    else if (base.f != null && base.k > 0) f = round2(base.f * (k / base.k));
+    else f = base.f;
+    return { k: k, p: p, c: c, f: f };
+  }
+
   function macros(id, amount, cat, macroTable) {
     var row = macroTable && macroTable[id];
     var it = cat && typeof cat.item === "function" ? cat.item(id) : null;
@@ -340,6 +370,7 @@
     onDay: onDay,
     forDay: forDay,
     macros: macros,
+    choiceMacros: choiceMacros,
     cost: cost,
     needs: needs,
     activeStaples: activeStaples,
