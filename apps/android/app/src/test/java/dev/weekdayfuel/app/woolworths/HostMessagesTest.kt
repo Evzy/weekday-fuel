@@ -36,6 +36,20 @@ class HostMessagesTest {
         assertTrue(results.getJSONObject(0).isNull("reason"))
         assertFalse(results.getJSONObject(1).getBoolean("added"))
         assertEquals("HTTP 500", results.getJSONObject(1).getString("reason"))
+        assertFalse(results.getJSONObject(0).has("extra"))
+    }
+
+    @Test
+    fun doneIncludesExtraOnlyWhenTrue() {
+        val state =
+            TrolleyScriptState(
+                TrolleyPhase.DONE, 2, 2,
+                listOf(TrolleyLineResult(111L, true, null, true), TrolleyLineResult(717518L, true, null, false)),
+                null,
+            )
+        val results = JSONObject(HostMessages.finished(state)).getJSONArray("results")
+        assertTrue(results.getJSONObject(0).getBoolean("extra"))
+        assertFalse(results.getJSONObject(1).has("extra"))
     }
 
     @Test
@@ -133,6 +147,14 @@ class HostMessagesTest {
         assertTrue(r.getJSONObject(0).getBoolean("added"))
         assertFalse(r.getJSONObject(0).has("reason"))
         assertEquals("Product is unavailable", r.getJSONObject(1).getString("reason"))
+        assertFalse(r.getJSONObject(0).has("extra"))
+        val withExtra =
+            JSONObject(
+                HostMessages.colesTrolley(
+                    ColesTrolleyState(ColesTrolleyPhase.DONE, listOf(ColesTrolleyResult("132045", true, null, true)), null),
+                ),
+            ).getJSONArray("results")
+        assertTrue(withExtra.getJSONObject(0).getBoolean("extra"))
         val err = JSONObject(HostMessages.colesTrolley(ColesTrolleyState(ColesTrolleyPhase.ERROR, emptyList(), null)))
         assertEquals("colesTrolleyError", err.getString("type"))
         assertEquals("Couldn't send to the Coles trolley.", err.getString("message"))

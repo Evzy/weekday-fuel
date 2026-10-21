@@ -29,7 +29,8 @@ object HostMessages {
                         JSONObject()
                             .put("stockcode", it.stockcode)
                             .put("added", it.added)
-                            .put("reason", it.reason ?: JSONObject.NULL),
+                            .put("reason", it.reason ?: JSONObject.NULL)
+                            .apply { if (it.extra) put("extra", true) },
                     )
                 }
             }
@@ -64,7 +65,15 @@ object HostMessages {
         val results =
             JSONArray().apply {
                 state.results.forEach {
-                    put(JSONObject().put("productId", it.productId).put("added", it.added).apply { if (it.reason != null) put("reason", it.reason) })
+                    put(
+                        JSONObject()
+                            .put("productId", it.productId)
+                            .put("added", it.added)
+                            .apply {
+                                if (it.reason != null) put("reason", it.reason)
+                                if (it.extra) put("extra", true)
+                            },
+                    )
                 }
             }
         return JSONObject().put("type", "colesTrolleyDone").put("results", results).toString()

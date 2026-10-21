@@ -6,7 +6,7 @@ import org.json.JSONTokener
 
 data class TrolleyLine(val stockcode: Long, val quantity: Double)
 
-data class TrolleyLineResult(val stockcode: Long, val added: Boolean, val reason: String?)
+data class TrolleyLineResult(val stockcode: Long, val added: Boolean, val reason: String?, val extra: Boolean = false)
 
 enum class TrolleyPhase { IDLE, CHECKING, LOGGED_OUT, ADDING, DONE, ERROR }
 
@@ -20,6 +20,7 @@ data class TrolleyScriptState(
 
 object TrolleyJson {
     const val MAX_KEEP = 300
+    private const val MAX_SAFE_INTEGER = 9007199254740991.0
 
     fun parseKeep(arr: JSONArray): List<Long>? {
         if (arr.length() > MAX_KEEP) return null
@@ -27,7 +28,7 @@ object TrolleyJson {
         for (i in 0 until arr.length()) {
             val v = arr.opt(i) as? Number ?: return null
             val d = v.toDouble()
-            if (d != kotlin.math.floor(d) || d <= 0 || d > Long.MAX_VALUE) return null
+            if (d != kotlin.math.floor(d) || d <= 0 || d > MAX_SAFE_INTEGER) return null
             out.add(d.toLong())
         }
         return out
@@ -69,7 +70,12 @@ object TrolleyJson {
             results =
                 (0 until results.length()).map { i ->
                     val r = results.getJSONObject(i)
-                    TrolleyLineResult(r.getLong("stockcode"), r.optString("outcome").let { it == "added" || it == "removed" }, r.stringOrNull("reason"))
+                    TrolleyLineResult(
+                        r.getLong("stockcode"),
+                        r.optString("outcome").let { it == "added" || it == "removed" },
+                        r.stringOrNull("reason"),
+                        r.optBoolean("extra"),
+                    )
                 },
             error = o.stringOrNull("error"),
         )

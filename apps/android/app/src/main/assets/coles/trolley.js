@@ -56,15 +56,19 @@
     return r.json();
   }
 
-  /* productId -> {orderItemId, quantity} for what's in the trolley now. */
+  /* productId -> {orderItemId, quantity}; noOrderItem lists ids in the read without orderItemId. */
   async function readTrolley(url, key) {
     var body = await call(url, { credentials: "include", headers: headers(key, { "x-api-version": "3" }) });
     if (!body || !Array.isArray(body.items)) throw new Error("coles trolley response has no items");
     var have = {};
+    var noOrderItem = [];
     body.items.forEach(function (i) {
-      if (i && i.productId != null && i.orderItemId != null) have[String(i.productId)] = { orderItemId: String(i.orderItemId), quantity: i.quantity };
+      if (!i || i.productId == null) return;
+      var pid = String(i.productId);
+      if (i.orderItemId != null) have[pid] = { orderItemId: String(i.orderItemId), quantity: i.quantity };
+      else noOrderItem.push(pid);
     });
-    return have;
+    return { have: have, noOrderItem: noOrderItem };
   }
 
   function allowedIds(keep, lines) {
@@ -105,20 +109,37 @@
     });
   }
 
+  async function patchActions(url, key, actions) {
+    return fetch(url, {
+      method: "PATCH",
+      credentials: "include",
+      headers: headers(key),
+      body: JSON.stringify({ ageGateVerified: false, swapBehaviour: false, items: [{ actions: actions }] }),
+    });
+  }
+
   async function run(lines, key, storeId, keep) {
     state = { phase: "fetching", results: [], error: null };
     var url = "/api/bff/trolley/store/" + storeId;
     try {
-      var have = await readTrolley(url, key);
+      var read = await readTrolley(url, key);
+      var have = read.have;
       var results = {};
       var extraActions = [];
+      var extraOrphans = [];
       var lineActions = [];
       if (keep) {
         var ok = allowedIds(keep, lines);
         Object.keys(have).forEach(function (pid) {
           if (!ok[pid]) extraActions.push({ productId: pid, quantity: 0, orderItemId: have[pid].orderItemId });
         });
+        read.noOrderItem.forEach(function (pid) {
+          if (!ok[pid]) extraOrphans.push(pid);
+        });
       }
+      extraOrphans.forEach(function (pid) {
+        results[pid] = { productId: pid, added: false, reason: "no orderItemId", extra: true };
+      });
       lines.forEach(function (l) {
         var h = have[l.productId];
         if (l.quantity === 0 ? !h : !!h && h.quantity === l.quantity) {
@@ -130,20 +151,21 @@
         if (h) a.orderItemId = h.orderItemId;
         lineActions.push(a);
       });
-      var actions = extraActions.concat(lineActions);
-      if (actions.length) {
-        var patchRes = await fetch(url, {
-          method: "PATCH",
-          credentials: "include",
-          headers: headers(key),
-          body: JSON.stringify({ ageGateVerified: false, swapBehaviour: false, items: [{ actions: actions }] }),
-        });
-        if (patchRes.status === 401 || patchRes.status === 403) throw LOGIN;
-        var body = patchRes.ok ? await patchRes.json() : null;
-        if (extraActions.length) applyPatchResults(extraActions, body, patchRes.ok ? null : patchRes.status, results, true);
-        if (lineActions.length) applyPatchResults(lineActions, body, patchRes.ok ? null : patchRes.status, results, false);
+      if (lineActions.length) {
+        var linePatch = await patchActions(url, key, lineActions);
+        if (linePatch.status === 401 || linePatch.status === 403) throw LOGIN;
+        var lineBody = linePatch.ok ? await linePatch.json() : null;
+        applyPatchResults(lineActions, lineBody, linePatch.ok ? null : linePatch.status, results, false);
       }
-      var ordered = extraActions.map(function (a) { return results[a.productId]; }).concat(lines.map(function (l) { return results[l.productId]; }));
+      if (extraActions.length) {
+        var extraPatch = await patchActions(url, key, extraActions);
+        if (extraPatch.status === 401 || extraPatch.status === 403) throw LOGIN;
+        var extraBody = extraPatch.ok ? await extraPatch.json() : null;
+        applyPatchResults(extraActions, extraBody, extraPatch.ok ? null : extraPatch.status, results, true);
+      }
+      var ordered = extraOrphans.map(function (pid) { return results[pid]; })
+        .concat(extraActions.map(function (a) { return results[a.productId]; }))
+        .concat(lines.map(function (l) { return results[l.productId]; }));
       state = { phase: "done", results: ordered, error: null };
     } catch (e) {
       state = e === LOGIN ? { phase: "needsLogin", results: [], error: null } : { phase: "error", results: [], error: String((e && e.message) || e) };

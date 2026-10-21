@@ -9,7 +9,7 @@ A product is **in the plan** for a store when its code (Woolworths stockcode, Co
 ## Send (both stores)
 
 - The page adds `keep: [codes]` to the send message (`TROLLEY[s].send`): every in-plan code for that store, computed from `shopRows()` at send time (not only the lines being sent, so "Send these too" top-ups keep earlier sends).
-- The host passes `keep` through to the store script unchanged (Kotlin message models get an optional list; absent = old behaviour, nothing extra removed). Validation: array of positive safe integers (Woolworths) / non-empty id strings or integers as the Coles script already accepts for product ids, at most 300 entries.
+- The host passes `keep` through to the store script unchanged (Kotlin message models get an optional list; absent = old behaviour, nothing extra removed). Validation: array of positive safe integers for Woolworths (each ≤ 9007199254740991) / array of product id strings for Coles (same 4–7 digit rule as line `productId`), at most 300 entries.
 - Store scripts, after the login check and their existing trolley read, before setting quantities:
   - Woolworths `trolley.js`: read trolley codes from `/api/ui/v2/bootstrap` `TrolleyRequest.AvailableItems[].Stockcode` (and `UnavailableItems` if present); for each code not in `keep` and not in the send lines, send quantity 0 with the existing update request.
   - Coles `trolley.js`: from `readTrolley`, for each product id not in `keep` and not in the send lines, set quantity 0 through the existing set path (orderItemId).

@@ -14,11 +14,16 @@
   function trolleyStockcodes(json) {
     var tr = json && json.TrolleyRequest;
     if (!tr) return [];
+    var seen = {};
     var out = [];
     function push(items) {
       if (!items || !items.length) return;
       for (var i = 0; i < items.length; i++) {
-        if (items[i] && items[i].Stockcode != null) out.push(items[i].Stockcode);
+        if (!items[i] || items[i].Stockcode == null) continue;
+        var code = items[i].Stockcode;
+        if (seen[code]) continue;
+        seen[code] = true;
+        out.push(code);
       }
     }
     push(tr.AvailableItems);

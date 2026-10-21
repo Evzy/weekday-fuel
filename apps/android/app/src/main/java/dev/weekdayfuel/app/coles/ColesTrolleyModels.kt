@@ -8,7 +8,7 @@ data class ColesTrolleyLine(val productId: String, val quantity: Int)
 
 enum class ColesTrolleyPhase { IDLE, FETCHING, NOT_READY, NEEDS_LOGIN, DONE, ERROR }
 
-data class ColesTrolleyResult(val productId: String, val added: Boolean, val reason: String?)
+data class ColesTrolleyResult(val productId: String, val added: Boolean, val reason: String?, val extra: Boolean = false)
 
 data class ColesTrolleyState(val phase: ColesTrolleyPhase, val results: List<ColesTrolleyResult>, val error: String?)
 
@@ -69,7 +69,12 @@ object ColesTrolleyJson {
             results =
                 (0 until results.length()).mapNotNull { i ->
                     val r = results.optJSONObject(i) ?: return@mapNotNull null
-                    ColesTrolleyResult(r.optString("productId"), r.optBoolean("added"), if (r.isNull("reason")) null else r.optString("reason"))
+                    ColesTrolleyResult(
+                        r.optString("productId"),
+                        r.optBoolean("added"),
+                        if (r.isNull("reason")) null else r.optString("reason"),
+                        r.optBoolean("extra"),
+                    )
                 },
             error = if (o.isNull("error")) null else o.optString("error"),
         )

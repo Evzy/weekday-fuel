@@ -226,6 +226,26 @@ test("without keep, no extra removal requests", async () => {
   assert.equal(calls.length, 3);
 });
 
+test("with keep, de-duplicates stockcodes across available and unavailable", async () => {
+  const dupBootstrap = {
+    ShopperRequest: { IsGuest: false },
+    TrolleyRequest: {
+      AvailableItems: [{ Stockcode: 111111 }],
+      UnavailableItems: [{ Stockcode: 111111 }, { Stockcode: 999999 }],
+    },
+  };
+  const { api, calls } = load((url, init, urls) => {
+    if (url === urls.loginStatus) return response(200, dupBootstrap);
+    return response(200, { UpdatedItems: [] });
+  });
+  api.start([], []);
+  const s = await settle(api);
+  assert.equal(s.total, 2);
+  const updates = calls.slice(1).map((c) => JSON.parse(c.init.body).items[0].stockcode);
+  assert.deepEqual(updates, [111111, 999999]);
+  assert.equal(s.results.length, 2);
+});
+
 test("a failed extra removal is reported with extra true", async () => {
   const { api } = load((url, init, urls) => {
     if (url === urls.loginStatus) return response(200, BOOTSTRAP_TROLLEY);

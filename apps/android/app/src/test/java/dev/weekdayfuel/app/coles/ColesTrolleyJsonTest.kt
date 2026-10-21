@@ -51,6 +51,13 @@ class ColesTrolleyJsonTest {
     }
 
     @Test
+    fun parsesExtraOnScriptResult() {
+        val raw = """{"phase":"done","results":[{"productId":"3329137","added":true,"extra":true}],"error":null}"""
+        val state = ColesTrolleyJson.parseScriptState(JSONObject.quote(raw))!!
+        assertEquals(ColesTrolleyResult("3329137", true, null, true), state.results[0])
+    }
+
+    @Test
     fun keepToJsonRoundTrips() {
         val keep = listOf("3329137", "5077283")
         assertEquals(keep, ColesTrolleyJson.parseKeep(JSONArray(ColesTrolleyJson.keepToJson(keep))))

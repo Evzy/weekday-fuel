@@ -83,11 +83,23 @@ class TrolleyJsonTest {
 
     @Test
     fun parseKeepRejectsInvalid() {
-        for (bad in listOf("""[0]""", """[-1]""", """[1.5]""", """["717518"]""")) {
+        for (bad in listOf("""[0]""", """[-1]""", """[1.5]""", """["717518"]""", """[9007199254740992]""")) {
             assertNull(bad, TrolleyJson.parseKeep(JSONArray(bad)))
         }
         val over = JSONArray().apply { repeat(301) { put(1) } }
         assertNull(TrolleyJson.parseKeep(over))
+    }
+
+    @Test
+    fun parseKeepAcceptsMaxSafeInteger() {
+        assertEquals(listOf(9007199254740991L), TrolleyJson.parseKeep(JSONArray("""[9007199254740991]""")))
+    }
+
+    @Test
+    fun parsesExtraOnScriptResult() {
+        val raw = """{"phase":"done","total":1,"completed":1,"results":[{"stockcode":111,"outcome":"removed","extra":true}],"error":null}"""
+        val state = TrolleyJson.parseScriptState(JSONObject.quote(raw))!!
+        assertEquals(TrolleyLineResult(111L, true, null, true), state.results[0])
     }
 
     @Test
