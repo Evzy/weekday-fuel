@@ -6,11 +6,11 @@ Date: 2026-10-21. Builds on the existing weekly verdict (`verdict()` in `Weekday
 
 This week's 7-day average vs the 7 days before it, each needing at least 3 weigh-ins. With `MODES` as today, evaluated in order:
 
+- **bulk** and 0 ≤ delta < 0.1 → +150, "Not gaining yet" (runs first; otherwise bulk `lo` = 0.1 labels a small gain "Dropping faster than planned");
 - delta below `mode.lo` → +150, "Dropping faster than planned";
 - **cut** and delta > 0 → −150, "Trending up";
 - **cut** and −0.25 < delta ≤ 0 → −150, "Cut has stalled" (must run after **cut** delta > 0 and before `delta > mode.hi`; the earlier single rule "cut and delta > −0.25" made "Cut has stalled" unreachable for any gain);
 - delta above `mode.hi` → −150, "Gaining faster than planned" (bulk) or "Trending up" (recomp);
-- bulk and delta < 0.1 → +150, "Not gaining yet" (unreachable with bulk `lo` = 0.1 because `delta < lo` fires first; kept as-is);
 - otherwise on track, no change.
 
 The body text keeps its current wording.

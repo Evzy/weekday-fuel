@@ -119,11 +119,24 @@ test("bulk: gaining faster than planned", () => {
   assert.equal(v.adj, -150);
 });
 
-test("bulk: not gaining yet", () => {
+test("bulk: a small gain reads not gaining yet", () => {
   const today = "2026-10-21";
-  const modes = Object.assign({}, MODES, { bulk: Object.assign({}, MODES.bulk, { lo: -10 }) });
-  const v = verdict(twoWeeks(today, 81.04, 81), today, "bulk", modes, null, { fmtDay });
+  const v = verdict(twoWeeks(today, 81.04, 81), today, "bulk", MODES, null, { fmtDay });
   assert.equal(v.head, "Not gaining yet");
+  assert.equal(v.adj, 150);
+});
+
+test("bulk: no change reads not gaining yet", () => {
+  const today = "2026-10-21";
+  const v = verdict(twoWeeks(today, 81, 81), today, "bulk", MODES, null, { fmtDay });
+  assert.equal(v.head, "Not gaining yet");
+  assert.equal(v.adj, 150);
+});
+
+test("bulk: a loss reads dropping faster than planned", () => {
+  const today = "2026-10-21";
+  const v = verdict(twoWeeks(today, 80.8, 81), today, "bulk", MODES, null, { fmtDay });
+  assert.equal(v.head, "Dropping faster than planned");
   assert.equal(v.adj, 150);
 });
 

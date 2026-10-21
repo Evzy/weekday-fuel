@@ -66,7 +66,11 @@
     var adj = 0;
     var head;
     var st = "good";
-    if (delta < mode.lo) {
+    if (modeKey === "bulk" && delta >= 0 && delta < 0.1) {
+      adj = +150;
+      st = "bad";
+      head = "Not gaining yet";
+    } else if (delta < mode.lo) {
       adj = +150;
       st = "bad";
       head = "Dropping faster than planned";
@@ -82,10 +86,6 @@
       adj = -150;
       st = "bad";
       head = modeKey === "bulk" ? "Gaining faster than planned" : "Trending up";
-    } else if (modeKey === "bulk" && delta < 0.1) {
-      adj = +150;
-      st = "bad";
-      head = "Not gaining yet";
     } else {
       head = "On track for " + mode.label.toLowerCase();
     }
