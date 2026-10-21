@@ -536,6 +536,16 @@ function legacyFinishShopDays(){
 function shopEffectiveStep(){const max=shopMaxStep(),u=state.shopViewStep;if(u!=null&&u>=1&&u<=4&&u<=max)return u;return shopDerivedStep()}
 function shopChangedBanner(){const sent=sentFor(store());if(!sent)return null;const buyKeysNow=WeekdayFuelBought.toBuyKeys(state.days,shopDays(),WeekdayFuelBought.isBought);if(Array.isArray(sent.meals)&&sent.meals.length){if(!WeekdayFuelBought.changedSince(sent.meals,buyKeysNow))return null;const n=WeekdayFuelBought.addedSince(sent.meals,buyKeysNow);return n>0?{kind:"added",n}:{kind:"changed"}}if(sent.fingerprint!==shopFingerprint())return {kind:"changed"};return null}
 function renderShopStepBar(view,max){const labs=["Review","Send","Check out","Done"];return `<div class="shopsteps small" style="display:flex;flex-wrap:wrap;gap:6px;margin:8px 0">${labs.map((lab,i)=>{const n=i+1,on=n===view,ok=n<=max;return ok?`<button type="button" class="ghost${on?" warn":""}" data-act="shopstep" data-v="${n}">${on?`<b>${n} ${esc(lab)}</b>`:`${n} ${esc(lab)}`}</button>`:`<span class="muted">${n} ${esc(lab)}</span>`}).join(" · ")}</div>`}
+function sentHasEmptiable(st){const rec=sentFor(st);if(!rec||!rec.lines)return false;return Object.keys(rec.lines).some(k=>{const q=rec.lines[k];return typeof q==="number"&&isFinite(q)&&q>0})}
+function startOverUnboughtN(){return WeekdayFuelBought.clearUnbought(state.days,null,iso(new Date()),null).cleared}
+function shopStartOverCanShow(){if(sentHasEmptiable("woolies")||sentHasEmptiable("coles"))return true;if(state.trolley)return true;const ticks=lsTicks();if(Object.keys(ticks).some(k=>ticks[k]))return true;return startOverUnboughtN()>0}
+function startOverStoreOrder(){const cur=store(),rest=other(cur),out=[];[cur,rest].forEach(s=>{if(sentHasEmptiable(s))out.push(s)});return out}
+function startOverLines(s){const raw=WeekdayFuelCart.emptyLines((sentFor(s)||{}).lines,s);return raw.map(l=>{if(s==="coles"){const p=colesProduct(l.productId);return Object.assign({},l,{name:p?p.name:"Product "+l.productId,url:p?p.url:null})}const p=wooliesProduct(l.stockcode);return Object.assign({},l,{name:p?p.name:"Product "+l.stockcode,url:p?p.url:null})})}
+function startOverAccumulateFails(t,results){const k=TROLLEY[t.store].key,out=[];(results||[]).forEach(r=>{const line=(t.lines||[]).find(l=>String(l[k])===String(r[k]));if(line&&line.quantity===0&&!r.added)out.push(r)});return out}
+function startOverNoteMsg(acc){let msg="Shop reset.";if(!window.WeekdayFuelHost)return msg;const e=acc&&acc.emptied?acc.emptied:{};const w=e.woolies||0,c=e.coles||0;if(w&&!c)msg=`Shop reset. Emptied ${w} product${w===1?"":"s"} from your Woolworths trolley.`;else if(c&&!w)msg=`Shop reset. Emptied ${c} product${c===1?"":"s"} from your Coles trolley.`;else if(w&&c)msg=`Shop reset. Emptied ${w} product${w===1?"":"s"} from your Woolworths trolley and ${c} from your Coles trolley.`;const fails=acc&&acc.fail?acc.fail:[];if(fails.length){const names=fails.map(r=>r.name||String(r[TROLLEY.woolies.key]||r[TROLLEY.coles.key]||"")).filter(Boolean);if(names.length)msg+=` Couldn't remove: ${names.join(", ")}.`}return msg}
+function finishStartOverAppSide(acc){const today=iso(new Date()),cleared=WeekdayFuelBought.clearUnbought(state.days,null,today,null);state.days=cleared.days;cleared.changed.forEach(d=>saveDay(d));lsSetSent(null);lsSetColesSent(null);state.trolley=null;state.checkout=null;lsSetTicks({});state.shopViewStep=null;state.armed=null;state.orderError={where:"startover",msg:startOverNoteMsg(acc||{})}}
+function startStartOverSend(s,queue,acc){acc=acc||{fail:[],emptied:{}};const lines=startOverLines(s);if(!lines.length){if(queue.length)startStartOverSend(queue[0],queue.slice(1),acc);else finishStartOverAppSide(acc);return}acc.emptied=Object.assign({},acc.emptied);acc.emptied[s]=lines.length;state.shopViewStep=2;state.trolley={store:s,phase:"adding",completed:0,total:lines.length,lines:lines,manual:[],startOver:true,startOverQueue:queue,startOverFail:acc.fail,startOverEmptied:acc.emptied};WeekdayFuelHost.postMessage(JSON.stringify({type:TROLLEY[s].send,lines:lines}))}
+function renderShopStartOver(){if(!shopStartOverCanShow())return "";if(shopPaid())return `<div style="margin:4px 0"><button type="button" class="ghost" disabled>Paid — Finish this shop instead</button></div>`;const st=store(),ot=other(st),n=startOverUnboughtN(),both=startOverStoreOrder().length>=2,armed=state.armed==="startover",busy=trolleyBusy();let label=armed?`Tap again: empty the ${STORE_NAME[st]} trolley and clear ${n} unbought meal${n===1?"":"s"}`:"Start over";if(armed&&both)label+=` and the ${STORE_NAME[ot]} trolley`;return `<div style="margin:4px 0"><button type="button" class="ghost${armed?" warn":""}" data-act="startover"${busy?" disabled":""}>${esc(label)}</button></div>${orderHint("startover")}`}
 function shopItemShortName(it){if(!it)return "";if(it.short)return it.short;const n=it.name.replace(/,.*/,"").trim();return n.length>22?n.slice(0,22):n}
 const CO_URL="https://www.woolworths.com.au/checkout",WOOLIES_LOGIN_URL="https://www.woolworths.com.au/shop/securelogin";
 const coBusy=()=>!!state.checkout&&(state.checkout.phase==="loading"||state.checkout.phase==="saving");
@@ -1957,7 +1967,7 @@ function renderTrolleyStep(rows,ticks,s){
   let h=`<div class="panel stack">`;
   if(t.phase==="login")h+=`<div class="small">Log in to ${esc(N)} in the window that opened. ${s==="coles"?"Once you're in, sending carries on when the next Coles page loads.":"Sending carries on by itself once you're in."}</div>`;
   else if(t.phase==="adding")h+=s==="coles"?`<div class="small">Sending to Coles…</div>`:`<div class="small num">Adding ${t.completed} of ${t.total}…</div>`;
-  else if(t.phase==="error")h+=`<div class="small">${esc(t.message||"")}</div><div class="row"><button class="btn" data-act="pantrycheck">Try again</button><button class="ghost" data-act="trolleyreset">Close</button></div>`;
+  else if(t.phase==="error")h+=`<div class="small">${esc(t.message||"")}</div><div class="row"><button class="btn" data-act="${t.startOver?"startoverretry":"pantrycheck"}">Try again</button><button class="ghost" data-act="trolleyreset">Close</button></div>`;
   else{
     const byId=Object.fromEntries(rows.map(r=>[r.id,r])),byCode=Object.fromEntries(t.lines.map(l=>[l[k],l]));
     const isRm=r=>!!byCode[r[k]]&&byCode[r[k]].quantity===0,adds=t.results.filter(r=>!isRm(r)),rms=t.results.filter(isRm);
@@ -1992,6 +2002,8 @@ function renderShop(){
   const tot=shopStoreTotals(),view=shopEffectiveStep(),max=shopMaxStep();
   let h=`<div><div class="eyebrow">Shop</div><h2>Your cart</h2></div>`;
   h+=renderShopStepBar(view,max);
+  h+=renderShopStartOver();
+  if(state.orderError&&state.orderError.where==="startover")h+=orderHint("startover");
   h+=renderTrolleyPantryBlock(rows,ticks,st);
   if(cartEmpty&&view===1){
     h+=`<div class="empty stack" style="gap:10px"><div>Your cart is empty. Plan your week, then add meals from the Meals tab.</div><div><button class="btn" data-act="planweek">Plan my week</button></div></div>`;
@@ -2259,7 +2271,7 @@ document.addEventListener("click",e=>{
   const el=e.target.closest("[data-act]");if(!el)return;
   const act=el.dataset.act,v=el.dataset.v,i=+el.dataset.i;
   if(act==="close"&&el.classList.contains("scrim")&&e.target!==el)return;
-  if(act!=="rm"&&act!=="rmw"&&act!=="nextshop"&&act!=="delorder"&&act!=="clearunbought"&&act!=="restorego"&&act!=="undorestore")state.armed=null;
+  if(act!=="rm"&&act!=="rmw"&&act!=="nextshop"&&act!=="delorder"&&act!=="clearunbought"&&act!=="restorego"&&act!=="undorestore"&&act!=="startover")state.armed=null;
   state.orderError=false;
   state.kitchenError=null;
   state.weekNote=null;
@@ -2348,6 +2360,8 @@ document.addEventListener("click",e=>{
     case "swapundo":specialsKeepStore(v,store());shopCtx=null;break;
     case "swapreset":{const c=lsSpecials();delete c[v];lsSetSpecials(c);shopCtx=null;break}
     case "swapmute":{const k=v;const m=mutedSwaps().slice();const i=m.indexOf(k);if(i>=0)m.splice(i,1);else m.push(k);state.settings.mutedAlts=m;saveSettings();shopCtx=null;break}
+    case "startover":{if(trolleyBusy())break;if(shopPaid())break;if(!shopStartOverCanShow())break;if(state.armed!=="startover"){state.armed="startover";break}state.armed=null;state.orderError=null;if(window.WeekdayFuelHost){const order=startOverStoreOrder();if(order.length)startStartOverSend(order[0],order.slice(1));else finishStartOverAppSide({fail:[],emptied:{}})}else finishStartOverAppSide({fail:[],emptied:{}});break}
+    case "startoverretry":{const t=state.trolley;if(!t||!t.startOver||t.phase!=="error")break;state.trolley=Object.assign({},t,{phase:"adding",completed:0,message:null});WeekdayFuelHost.postMessage(JSON.stringify({type:TROLLEY[t.store].send,lines:t.lines}));break}
     case "pantrycheck":{if(trolleyBusy())break;const rows=shopRows(),s=store(),last=sentFor(s),sent=last&&last.fingerprint===shopFingerprint()?last:null;if(pantryRows(rows,lsTicks()).length||trolleySend(rows,{},s).lines.some(l=>l.quantity===0))state.trolley={store:s,phase:"pantry",haveIt:Object.assign({},WeekdayFuelInventory.shopHaveIt(null,sent))};else sendTrolley(Object.assign({},WeekdayFuelInventory.shopHaveIt(null,sent)));break}
     case "haveit":if(state.trolley&&state.trolley.phase==="pantry")state.trolley.haveIt[v]=el.checked;break;
     case "sendtrolley":if(trolleyBusy())break;sendTrolley(state.trolley&&state.trolley.haveIt||{});break;
@@ -2450,7 +2464,7 @@ function onHostPageMessage(e){
   const ty=m.type.slice(pre.length);
   if(ty==="Login"){if(!live)return;t.phase="login"}
   else if(ty==="Progress"){if(t.phase!=="adding"&&t.phase!=="login")return;t.phase="adding";t.completed=m.completed;t.total=m.total}
-  else if(ty==="Done"){if(!live)return;t.phase="done";t.reviewed=false;t.results=Array.isArray(m.results)?m.results:[];const old=sentFor(s),rec={at:new Date().toISOString(),fingerprint:t.fingerprint,lines:WeekdayFuelCart.sentAfter(old&&old.lines,t.lines,t.results,TROLLEY[s].key)};if(t.haveIt&&typeof t.haveIt==="object")rec.haveIt=Object.assign({},t.haveIt);rec.meals=Array.isArray(t.meals)?t.meals.slice():WeekdayFuelBought.toBuyKeys(state.days,shopDays(),WeekdayFuelBought.isBought);setSentFor(s,rec);state.shopViewStep=null}
+  else if(ty==="Done"){if(!live)return;t.results=Array.isArray(m.results)?m.results:[];if(t.startOver){const acc={fail:(t.startOverFail||[]).concat(startOverAccumulateFails(t,t.results)),emptied:Object.assign({},t.startOverEmptied||{})};const q=t.startOverQueue||[];if(q.length){startStartOverSend(q[0],q.slice(1),acc);if(state.tab==="shop")render();return}finishStartOverAppSide(acc);if(state.tab==="shop")render();return}t.phase="done";t.reviewed=false;const old=sentFor(s),rec={at:new Date().toISOString(),fingerprint:t.fingerprint,lines:WeekdayFuelCart.sentAfter(old&&old.lines,t.lines,t.results,TROLLEY[s].key)};if(t.haveIt&&typeof t.haveIt==="object")rec.haveIt=Object.assign({},t.haveIt);rec.meals=Array.isArray(t.meals)?t.meals.slice():WeekdayFuelBought.toBuyKeys(state.days,shopDays(),WeekdayFuelBought.isBought);setSentFor(s,rec);state.shopViewStep=null}
   else if(ty==="Error"){if(!live)return;t.phase="error";t.message=m.message||(s==="coles"?"Couldn't send to the Coles trolley.":"Something went wrong sending to Woolworths. Try again.")}
   else return;
   if(state.tab==="shop")render();

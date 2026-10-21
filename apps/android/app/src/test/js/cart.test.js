@@ -1,6 +1,6 @@
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
-const { cartLines, removalLines, colesCartLines, colesRemovalLines, shopFingerprint, sentAfter } = require("../../main/assets/weekday_fuel/cart.js");
+const { cartLines, removalLines, colesCartLines, colesRemovalLines, shopFingerprint, sentAfter, emptyLines } = require("../../main/assets/weekday_fuel/cart.js");
 
 const W = "https://www.woolworths.com.au/shop/productdetails/";
 const YOG = { name: "Chobani Greek Yoghurt 907g", url: W + "717518", stockcode: 717518, size: 907, price: 8.8 };
@@ -236,6 +236,21 @@ test("sentAfter can key Coles lines by productId", () => {
   const lines = [{ productId: "3329137", quantity: 2 }, { productId: "5077283", quantity: 0 }, { productId: "2263179", quantity: 1 }];
   const results = [{ productId: "3329137", added: true }, { productId: "5077283", added: true }, { productId: "2263179", added: false }];
   assert.deepEqual(sentAfter({ 5077283: 2, 1111: 1 }, lines, results, "productId"), { 1111: 1, 3329137: 2 });
+});
+
+test("emptyLines turns every positive sent code into a quantity-zero removal", () => {
+  const w = emptyLines({ 717518: 2, 72280: 0, 175734: 0.3 }, "woolies").sort((a, b) => a.stockcode - b.stockcode);
+  assert.deepEqual(w, [
+    { stockcode: 175734, quantity: 0 },
+    { stockcode: 717518, quantity: 0 },
+  ]);
+  const c = emptyLines({ 3329137: 1, 2263179: 3 }, "coles").sort((a, b) => a.productId.localeCompare(b.productId));
+  assert.deepEqual(c, [
+    { productId: "2263179", quantity: 0 },
+    { productId: "3329137", quantity: 0 },
+  ]);
+  assert.deepEqual(emptyLines(null, "woolies"), []);
+  assert.deepEqual(emptyLines({}, "coles"), []);
 });
 
 test("a planned meal's Light or Loaded portion is part of the fingerprint, and Standard keys are unchanged", () => {

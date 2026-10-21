@@ -200,6 +200,19 @@
       });
   }
 
+  function emptyLines(sentLines, store) {
+    var lines = sentLines && typeof sentLines === "object" ? sentLines : {};
+    return Object.keys(lines)
+      .filter(function (code) {
+        var q = lines[code];
+        return typeof q === "number" && isFinite(q) && q > 0;
+      })
+      .map(function (code) {
+        if (store === "coles") return { productId: String(code), quantity: 0 };
+        return { stockcode: Number(code), quantity: 0 };
+      });
+  }
+
   function sentAfter(lastLines, lines, results, key) {
     var k = key || "stockcode";
     var out = Object.assign({}, lastLines || {});
@@ -215,7 +228,7 @@
     return out;
   }
 
-  var api = { cartLines: cartLines, removalLines: removalLines, colesCartLines: colesCartLines, colesRemovalLines: colesRemovalLines, shopFingerprint: shopFingerprint, sentAfter: sentAfter };
+  var api = { cartLines: cartLines, removalLines: removalLines, colesCartLines: colesCartLines, colesRemovalLines: colesRemovalLines, shopFingerprint: shopFingerprint, sentAfter: sentAfter, emptyLines: emptyLines };
   if (typeof module === "object" && module.exports) module.exports = api;
   else root.WeekdayFuelCart = api;
 })(this);
