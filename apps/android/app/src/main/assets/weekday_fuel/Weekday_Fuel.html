@@ -206,6 +206,7 @@ a.link{text-decoration:none;display:inline-block;color:var(--accent);border-colo
 <script src="bought.js"></script>
 <script src="inventory.js"></script>
 <script src="gap.js"></script>
+<script src="trend.js"></script>
 <script src="macros.js"></script>
 <script src="staples.js"></script>
 <script src="plans.js"></script>
@@ -1468,20 +1469,7 @@ function doAddMeal(mode){
 function weightSeries(){return Object.keys(state.weights).filter(k=>state.weights[k]&&isFinite(state.weights[k].kg)).sort().map(k=>({d:k,kg:+state.weights[k].kg}))}
 function avgWindow(endDate,days){const start=addDays(endDate,-(days-1));const v=weightSeries().filter(x=>x.d>=start&&x.d<=endDate);if(!v.length)return null;return {avg:v.reduce((a,b)=>a+b.kg,0)/v.length,n:v.length}}
 function verdict(){
-  const today=iso(new Date());
-  const cur=avgWindow(today,7),prev=avgWindow(addDays(today,-7),7);
-  const mode=MODES[S().mode];
-  if(!cur||cur.n<3)return {state:"wait",head:"Keep weighing in",body:"Log at least 3 weigh-ins this week and the trend will show here. Weigh first thing in the morning, after the toilet, before food or the Dare."};
-  if(!prev||prev.n<3)return {state:"wait",head:"7-day average: "+cur.avg.toFixed(1)+" kg",body:"You need one more week of weigh-ins to compare against. Keep logging."};
-  const delta=cur.avg-prev.avg;
-  let adj=0,head,st="good";
-  if(delta<mode.lo){adj=+150;st="bad";head="Dropping faster than planned"}
-  else if(delta>mode.hi){adj=-150;st="bad";head=S().mode==="bulk"?"Gaining faster than planned":"Trending up"}
-  else if(S().mode==="cut"&&delta>-0.25){adj=-150;st="bad";head="Cut has stalled"}
-  else if(S().mode==="bulk"&&delta<0.1){adj=+150;st="bad";head="Not gaining yet"}
-  else head="On track for "+mode.label.toLowerCase();
-  const body="This week averaged "+cur.avg.toFixed(1)+" kg vs "+prev.avg.toFixed(1)+" kg last week ("+(delta>=0?"+":"")+delta.toFixed(2)+" kg). Target pace for "+mode.label.toLowerCase()+" is "+(mode.rate>0?"+":"")+mode.rate.toFixed(2)+" kg/week."+(adj?" Suggest moving weekday calories "+(adj>0?"up":"down")+" "+Math.abs(adj)+" kcal.":" Keep weekdays where they are.");
-  return {state:st,head,body,adj,delta};
+  return WeekdayFuelTrend.verdict(state.weights,iso(new Date()),S().mode,MODES,S().adjustChange||null,{fmtDay});
 }
 
 function normalizeTab(){
