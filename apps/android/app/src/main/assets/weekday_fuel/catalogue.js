@@ -92,7 +92,13 @@
     },
     {
       id: "eggs", sec: 1, keeps: 28, name: "Free range eggs, 12 pack", short: "Eggs", unit: "eggs", unitSize: 58, note: "The old Woolworths link (582362) is unavailable; 6013278 replaces it", same: false,
-      coles: { name: "Coles Free Range Eggs 12 Pack 700g", url: "https://www.coles.com.au/product/coles-free-range-eggs-12-pack-700g-9453478", size: 12, price: 6.9, checked: "2026-10-15" },
+      coles: {
+        name: "Coles Free Range Eggs 12 Pack 700g", url: "https://www.coles.com.au/product/coles-free-range-eggs-12-pack-700g-9453478", size: 12, price: 6.9, checked: "2026-10-15",
+        packs: [
+          { name: "Sunny Queen Free Range X Large Eggs 6 Pack 350g", url: "https://www.coles.com.au/product/sunny-queen-free-range-x-large-eggs-6-pack-350g-5484210", size: 6, price: 5.2, checked: "2026-10-21" },
+          { name: "Sunny Queen Free Range X-large Eggs 30 Pack 1.75kg", url: "https://www.coles.com.au/product/sunny-queen-free-range-x-large-eggs-30-pack-1.75kg-5341257", size: 30, price: 17, checked: "2026-10-21" },
+        ],
+      },
       woolies: {
         name: "Woolworths 12 Pack Extra Large Free Range Eggs 700g", url: "https://www.woolworths.com.au/shop/productdetails/6013278/woolworths-12-pack-extra-large-free-range-eggs", stockcode: 6013278, size: 12, price: 6.7, checked: "2026-10-15",
         packs: [{ name: "Woolworths 6 Pack Extra Large Free Range Eggs 350g", url: "https://www.woolworths.com.au/shop/productdetails/133245/woolworths-6-pack-extra-large-free-range-eggs", stockcode: 133245, size: 6, price: 4.9, checked: "2026-10-20" }],

@@ -191,7 +191,7 @@ Rule applied: same brand family or the store brand already used, macros within ~
 
 ### Not stocked, one line each
 
-- eggs, Coles: no Coles-brand free range 6, 18 or 30 pack with extra large eggs (see rejected).
+- eggs, Coles: no Coles-brand free range 6, 18 or 30 pack with extra large eggs (see rejected); the Sunny Queen XL 6 and 30 packs are used instead (2026-10-21).
 - eggs, Woolworths: no Woolworths-brand extra large 18 or 30 pack.
 - yog, Coles: Chobani Natural Light only in 160g and 907g at Coles.
 - cheese, Coles: light tasty shredded only in 700g; no 250g or 1kg.
@@ -219,11 +219,19 @@ Rule applied: same brand family or the store brand already used, macros within ~
 | passata | Woolworths | 400 | 3.70 | 290301 |
 | passata | Coles | 400 | 3.70 | 2349503 |
 | fzpeas | Woolworths | 500 | 2.75 | 754170 |
+| eggs | Coles | 6 | 5.20 | 5484210 |
+| eggs | Coles | 30 | 17.00 | 5341257 |
+
+### Added 2026-10-21 (Evan approved the brand change)
+
+| item | store | product | URL | id | size | $ | price source |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| eggs | Coles | Sunny Queen Free Range X Large Eggs 6 Pack 350g | https://www.coles.com.au/product/sunny-queen-free-range-x-large-eggs-6-pack-350g-5484210 | 5484210 | 6 eggs | 5.20 | Coles page; same 58g XL eggs as the 12 pack, different brand |
+| eggs | Coles | Sunny Queen Free Range X-large Eggs 30 Pack 1.75kg | https://www.coles.com.au/product/sunny-queen-free-range-x-large-eggs-30-pack-1.75kg-5341257 | 5341257 | 30 eggs | 17.00 | Coles page "other options" (trackers show $19.50 on 7 Oct); id from the Coles app link |
 
 ### Rejected
 
 - Eggs, Woolworths 18 Large Free Range Eggs 900g (233889) and Coles Free Range Eggs 6 pack 300g (2680008): 50g eggs, about 14% less per egg than the 58g extra large eggs the item counts.
-- Eggs, Sunny Queen Free Range X Large 6 pack 350g at Coles (5484210, $5.20) and Sunny Queen XL 30 pack 1.75kg ($17.00–19.50): same egg size, but a different brand from the Coles-brand carton. Evan's call; the 30 pack is dearer per egg than the 12 anyway.
 - Cheese, Coles Dairy Shredded Tasty 250g: full-fat tasty, not light. Coles and Woolworths light tasty 1kg and 250g blocks: block, not shredded.
 - Bread, Abbott's Bakery Gluten Free Farmhouse Wholemeal 500g: different recipe (5.6g protein per 100g) and $7.90.
 - Spinach, Coles Salad Family Spinach 280g ($5.00) and Coles Jumbo Value Pack Baby Spinach 400g ($6.00): both exist, but no search result showed their product-page id, so they can't be recorded with a verified URL.
