@@ -41,7 +41,7 @@ class TrolleyJsonTest {
 
     @Test
     fun parseLinesAcceptsEmptyArrayForKeepOnlySends() {
-        assertEquals(emptyList(), TrolleyJson.parseLines(JSONArray("[]")))
+        assertEquals(listOf<TrolleyLine>(), TrolleyJson.parseLines(JSONArray("[]")))
     }
 
     @Test
