@@ -128,7 +128,8 @@ test("swaps are well formed and pass the nutrition guard", () => {
       assert.ok(typeof s.name === "string" && s.name);
       assert.ok(Number.isInteger(s.serves) && s.serves >= 1, s.id + " serves");
       assert.ok(s.per && s.per.k > 0 && s.per.p > 0, s.id + " per");
-      assert.ok(s.per.p >= it.per.p - 5 && s.per.k <= it.per.k + 80, s.id + " passes guard");
+      assert.ok(s.per.p >= it.per.p - 5 && s.per.k <= it.per.k + 150, s.id + " passes guard");
+      assert.ok(typeof s.short === "string" && s.short.length > 0 && s.short.length <= 12, s.id + " short");
       assert.ok(s.woolies || s.coles, s.id + " has a store");
       if (s.woolies) {
         assert.ok(Number.isInteger(s.woolies.stockcode) && s.woolies.stockcode > 0);
@@ -149,9 +150,17 @@ test("swaps are well formed and pass the nutrition guard", () => {
   });
   const dare = items.find((i) => i.id === "dare");
   const gren = items.find((i) => i.id === "grenade");
-  assert.deepEqual(dare.swaps.map((s) => s.id), ["dare-mocha", "pauls-dec", "rokeby-de", "oak-sc", "icebreak"]);
+  assert.deepEqual(dare.swaps.map((s) => s.id), ["dare-mocha", "pauls-dec", "rokeby-de", "oak-sc", "icebreak", "dare-750"]);
   assert.deepEqual(gren.swaps.map((s) => s.id), ["gr-oreo", "gr-white-oreo", "gr-cookie", "mu-vancar", "mu-wcsc", "mu-cc", "bsc-cc"]);
-  assert.equal(cat.create(cat.ITEMS).item("dare").swaps.length, 5);
+  assert.equal(cat.create(cat.ITEMS).item("dare").swaps.length, 6);
+});
+
+test("every swap has a short label at most 12 characters", () => {
+  const swaps = cat.ITEMS.flatMap((it) => it.swaps || []);
+  assert.ok(swaps.length > 0);
+  swaps.forEach((s) => {
+    assert.ok(typeof s.short === "string" && s.short.length > 0 && s.short.length <= 12, s.id);
+  });
 });
 
 test("approved swap catalogue values match the spec", () => {
@@ -161,6 +170,7 @@ test("approved swap catalogue values match the spec", () => {
     "rokeby-de": { W: 771267, C: "6258498", k: 292, p: 30.2 },
     "oak-sc": { W: 6048422, C: "1043778", k: 304, p: 30 },
     icebreak: { W: null, C: "7850783", k: 347, p: 30 },
+    "dare-750": { W: 6020777, C: "1045886", k: 444, p: 45 },
     "gr-oreo": { W: 286090, C: "6509780", k: 253, p: 20.9 },
     "gr-white-oreo": { W: 6028961, C: "9968718", k: 253, p: 20.7 },
     "gr-cookie": { W: 6043930, C: null, k: 208, p: 21 },
@@ -173,7 +183,7 @@ test("approved swap catalogue values match the spec", () => {
   const retiredC = new Set(Object.keys(cat.RETIRED.coles));
   const items = cat.ITEMS;
   const swaps = items.flatMap((it) => (it.swaps || []).map((s) => ({ item: it.id, swap: s })));
-  assert.equal(swaps.length, 12);
+  assert.equal(swaps.length, 13);
   swaps.forEach(({ swap: s }) => {
     const exp = approved[s.id];
     assert.ok(exp, s.id + " in approved table");

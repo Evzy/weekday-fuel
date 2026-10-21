@@ -71,6 +71,7 @@
     var e = { id: s.id, amount: s.amount, days: s.days };
     if (s.from) e.from = s.from;
     if (s.until) e.until = s.until;
+    if (s.out === true) e.out = true;
     return e;
   }
 
@@ -86,6 +87,7 @@
     var e = { id: s.id, amount: amount, days: s.days };
     if (from) e.from = from;
     if (until) e.until = until;
+    if (s.out === true) e.out = true;
     return e;
   }
 
@@ -163,12 +165,9 @@
     var idx = findActiveIndex(raw, id, today);
     var y = addDays(today, -1);
     if (idx < 0) {
-      raw.push({
-        id: id,
-        amount: patch.amount,
-        days: patch.days,
-        from: today,
-      });
+      var neu = { id: id, amount: patch.amount, days: patch.days, from: today };
+      if (patch.out === true) neu.out = true;
+      raw.push(neu);
       return parse(raw, cat);
     }
     var old = raw[idx];
@@ -178,8 +177,12 @@
       days: patch.days || old.days,
       from: today,
     };
+    if (patch.out === true) next.out = true;
+    else if (patch.out === false) { /* leave out unset */ }
+    else if (old.out === true) next.out = true;
     if (old.from && compareDate(old.from, today) >= 0) {
       raw[idx] = Object.assign({}, old, next);
+      if (patch.out === false) delete raw[idx].out;
       delete raw[idx].until;
     } else {
       raw[idx] = Object.assign({}, old, { until: y });
@@ -216,7 +219,11 @@
   function forDay(staples, date, day) {
     var out = [];
     (staples || []).forEach(function (s) {
-      if (onDay(s, date, day)) out.push({ id: s.id, amount: s.amount });
+      if (onDay(s, date, day)) {
+        var row = { id: s.id, amount: s.amount };
+        if (s.out === true) row.out = true;
+        out.push(row);
+      }
     });
     return out;
   }
@@ -320,6 +327,7 @@
       if (!DATE.test(date)) return;
       var day = (daysMap && daysMap[date]) || {};
       forDay(staples, date, day).forEach(function (s) {
+        if (s.out) return;
         out[s.id] = (out[s.id] || 0) + s.amount;
       });
     });

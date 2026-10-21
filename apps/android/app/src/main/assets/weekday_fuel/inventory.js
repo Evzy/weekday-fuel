@@ -348,7 +348,7 @@
       if (midTs <= nowTs) {
         var dayStaples = staplesCb(d);
         if (Array.isArray(dayStaples)) dayStaples.forEach(function (s) {
-          if (s && s.id && s.amount > 0) actions.push({ ts: midTs, at: mid, kind: "use", item: s.id, amount: s.amount });
+          if (s && s.id && s.amount > 0 && !s.out) actions.push({ ts: midTs, at: mid, kind: "use", item: s.id, amount: s.amount });
         });
       }
       d = nextDate(d);
@@ -490,7 +490,7 @@
         var dayStaples = staplesOn(d);
         if (Array.isArray(dayStaples)) {
           dayStaples.forEach(function (s) {
-            if (s && s.id && s.amount > 0) addReserve(out, s.id, s.amount);
+            if (s && s.id && s.amount > 0 && !s.out) addReserve(out, s.id, s.amount);
           });
         }
       }
@@ -565,7 +565,7 @@
       while (compareDate(fd, first) < 0 && compareDate(fd, capDate) <= 0) {
         var dayStaples = staplesOn(fd);
         if (Array.isArray(dayStaples)) dayStaples.forEach(function (s) {
-          if (s && s.id && s.amount > 0) addReserve(out, s.id, s.amount);
+          if (s && s.id && s.amount > 0 && !s.out) addReserve(out, s.id, s.amount);
         });
         fd = nextDate(fd);
       }

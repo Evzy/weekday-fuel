@@ -201,6 +201,35 @@ test("applyAdd edits when id is already active on that date", () => {
   assert.equal(next.filter((s) => s.id === "dare").length, 2);
 });
 
+test("parse keeps out only when true and round-trips applyEdit", () => {
+  const withOut = S.parse([staple("dare", 1, "weekdays", { out: true }), staple("grenade", 1, "weekdays", { out: "yes" })], cat);
+  assert.equal(withOut.length, 2);
+  assert.equal(withOut[0].out, true);
+  assert.equal(withOut[1].out, undefined);
+  const edited = S.applyEdit(S.DEFAULTS, "dare", { amount: 1, days: "weekdays", out: true }, "2026-10-19", cat);
+  const dare = S.activeStaples(edited, "2026-10-19").find((s) => s.id === "dare");
+  assert.equal(dare.out, true);
+  const cleared = S.applyEdit(edited, "dare", { amount: 1, days: "weekdays", out: false }, "2026-10-20", cat);
+  const dare2 = S.activeStaples(cleared, "2026-10-20").find((s) => s.id === "dare");
+  assert.equal(dare2.out, undefined);
+});
+
+test("needs skips out staples", () => {
+  const staples = S.parse([staple("dare", 1, "weekdays", { out: true }), staple("grenade", 1, "weekdays")], cat);
+  const n = S.needs(staples, ["2026-10-19", "2026-10-20"], {});
+  assert.equal(n.dare, undefined);
+  assert.equal(n.grenade, 2);
+});
+
+test("out staples are not reserved from stock", () => {
+  const START = "2026-10-10T08:00:00.000Z";
+  const base = I.addEvents(null, [{ k: "buy", item: "dare", amount: 10, order: "o1" }], START);
+  const staples = S.parse([staple("dare", 1, "weekdays", { out: true, from: "2026-10-10" })], cat);
+  const staplesOn = (d) => S.forDay(staples, d, {});
+  const r = I.reserved(base, {}, cat, "2026-10-18", ["2026-10-21"], staplesOn);
+  assert.equal(r.dare, undefined);
+});
+
 test("migrateLegacyFx strips default fx flags only", () => {
   const days = {
     "2026-10-19": { meals: [], fx: { dare: true, grenade: true } },

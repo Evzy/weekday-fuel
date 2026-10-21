@@ -229,6 +229,14 @@ Rule applied: same brand family or the store brand already used, macros within ~
 | eggs | Coles | Sunny Queen Free Range X Large Eggs 6 Pack 350g | https://www.coles.com.au/product/sunny-queen-free-range-x-large-eggs-6-pack-350g-5484210 | 5484210 | 6 eggs | 5.20 | Coles page; same 58g XL eggs as the 12 pack, different brand |
 | eggs | Coles | Sunny Queen Free Range X-large Eggs 30 Pack 1.75kg | https://www.coles.com.au/product/sunny-queen-free-range-x-large-eggs-30-pack-1.75kg-5341257 | 5341257 | 30 eggs | 17.00 | Coles page "other options" (trackers show $19.50 on 7 Oct); id from the Coles app link |
 
+### dare swap: 750mL protein (2026-10-21)
+
+| swap id | short | Woolworths | stockcode | Coles id | $ | per serve k / p |
+| --- | --- | --- | --- | --- | --- | --- |
+| dare-750 | Dare 45g | Dare Protein Double Espresso Iced Coffee No Sugar Added 750mL | 6020777 | 1045886 | 5.80 | 444 / 45 |
+
+Label macros per 100mL: 248 kJ, 6.0g P, 5.1g C, 1.6g F (same recipe as 500mL). Checked 2026-10-21.
+
 ### Rejected
 
 - Eggs, Woolworths 18 Large Free Range Eggs 900g (233889) and Coles Free Range Eggs 6 pack 300g (2680008): 50g eggs, about 14% less per egg than the 58g extra large eggs the item counts.

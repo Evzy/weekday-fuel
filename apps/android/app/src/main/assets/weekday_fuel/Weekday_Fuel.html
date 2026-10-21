@@ -336,7 +336,7 @@ function staplesList(){return WeekdayFuelStaples.parse(S().staples==null?Weekday
 function staplesToday(){return WeekdayFuelStaples.activeStaples(staplesList(),iso(new Date()))}
 function staplesRaw(){const p=S().staples;if(p==null)return null;return Array.isArray(p)?p.slice():null}
 function staplesSeedList(){const raw=staplesRaw();return raw==null?WeekdayFuelStaples.DEFAULTS.map(s=>({id:s.id,amount:s.amount,days:s.days})):raw.slice()}
-function staplesPersistParsed(list){state.settings.staples=list.map(s=>{const e={id:s.id,amount:s.amount,days:s.days};if(s.from)e.from=s.from;if(s.until)e.until=s.until;return e});saveSettings()}
+function staplesPersistParsed(list){state.settings.staples=list.map(s=>{const e={id:s.id,amount:s.amount,days:s.days};if(s.from)e.from=s.from;if(s.until)e.until=s.until;if(s.out===true)e.out=true;return e});saveSettings()}
 function stapleMacroItems(){return CAT.ITEMS.filter(it=>MACROS[it.id])}
 function stapleDefaultAmount(it){if(!it)return 1;return(it.unit==="g"||it.unit==="mL")?100:1}
 function stapleShortName(it){if(!it)return "";if(it.short)return it.short;const n=it.name.replace(/,.*$/,"").trim();return n.length>14?n.slice(0,14):n}
@@ -356,12 +356,13 @@ function syncStapleSheetDraft(){
   const sel=$("#stap-item"),amt=$("#stap-amt");
   if(sel&&sel.value)draft.id=sel.value;
   if(amt&&amt.value!==""){const v=parseFloat(amt.value);if(isFinite(v))draft.amount=v}
+  const outEl=$("#stap-out");if(outEl)draft.out=!!outEl.checked;
 }
 function openStapleSheet(id){
   state.stapleSheetError=null;
   if(id){
     const cur=staplesActiveOn(state.date).find(s=>s.id===id);
-    state.stapleSheetDraft=cur?{id:cur.id,amount:cur.amount,days:cur.days}:null;
+    state.stapleSheetDraft=cur?{id:cur.id,amount:cur.amount,days:cur.days,out:!!cur.out}:null;
     state.sheet="staple:"+id;
   }else{
     state.stapleSheetDraft={id:"",amount:100,days:"weekdays"};
@@ -405,7 +406,8 @@ function renderStapleSheetBody(){
   }).join("");
   const canSave=draft.id&&isFinite(draft.amount)&&draft.amount>0;
   const err=state.stapleSheetError?`<span class="small" style="color:var(--bad)">${esc(state.stapleSheetError)}</span>`:"";
-  return `<form class="stack" id="stapform" style="gap:12px"><div class="eyebrow">${isNew?"Add":esc(short)} staple</div><label class="f">Item<select id="stap-item"${isNew?"":" disabled"} required>${choose}${opts}</select></label><label class="f">Amount<span id="stap-unit">${unit?` (${esc(unit)})`:""}</span><input id="stap-amt" class="num" type="number" step="any" min="0" required value="${draft.amount||""}"></label>${err}<div class="f"><span class="small muted" style="display:block;margin-bottom:4px">Schedule</span><div class="dial" role="group" aria-label="Staple days"><button type="button" aria-pressed="${days==="all"?"true":"false"}" data-act="stapdays" data-v="all">Every day</button><button type="button" aria-pressed="${days==="weekdays"?"true":"false"}" data-act="stapdays" data-v="weekdays">Weekdays</button></div></div><div class="row" style="gap:8px;flex-wrap:wrap">${!isNew?`<button type="button" class="ghost warn" data-act="stapremove" data-v="${esc(draft.id)}">Remove</button>`:""}<button type="submit" class="btn" ${canSave?"":"disabled"}>Save</button><button type="button" class="ghost" data-act="close">Cancel</button></div></form>`;
+  const outOn=!!draft.out;
+  return `<form class="stack" id="stapform" style="gap:12px"><div class="eyebrow">${isNew?"Add":esc(short)} staple</div><label class="f">Item<select id="stap-item"${isNew?"":" disabled"} required>${choose}${opts}</select></label><label class="f">Amount<span id="stap-unit">${unit?` (${esc(unit)})`:""}</span><input id="stap-amt" class="num" type="number" step="any" min="0" required value="${draft.amount||""}"></label><label class="f"><input type="checkbox" id="stap-out"${outOn?" checked":""}> Buy it while out (not in the shop)</label>${err}<div class="f"><span class="small muted" style="display:block;margin-bottom:4px">Schedule</span><div class="dial" role="group" aria-label="Staple days"><button type="button" aria-pressed="${days==="all"?"true":"false"}" data-act="stapdays" data-v="all">Every day</button><button type="button" aria-pressed="${days==="weekdays"?"true":"false"}" data-act="stapdays" data-v="weekdays">Weekdays</button></div></div><div class="row" style="gap:8px;flex-wrap:wrap">${!isNew?`<button type="button" class="ghost warn" data-act="stapremove" data-v="${esc(draft.id)}">Remove</button>`:""}<button type="submit" class="btn" ${canSave?"":"disabled"}>Save</button><button type="button" class="ghost" data-act="close">Cancel</button></div></form>`;
 }
 function staplesOn(date,day){return WeekdayFuelStaples.forDay(staplesList(),date,day||dayOf(date))}
 function stapleNeedMap(){const sd=WeekdayFuelStaples.spanDates(shopDays());if(!sd.length)return {};return WeekdayFuelStaples.needs(staplesList(),sd,state.days)}
@@ -2529,7 +2531,8 @@ document.addEventListener("submit",e=>{
     state.stapleSheetError=null;
     const seed=staplesSeedList();
     const isEdit=state.sheet!=="staple:new"||staplesToday().some(s=>s.id===id);
-    const parsed=isEdit?WeekdayFuelStaples.applyEdit(seed,id,{amount:amt,days},today,CAT):WeekdayFuelStaples.applyAdd(seed,{id,amount:amt,days},today,CAT);
+    const out=!!draft.out;
+    const parsed=isEdit?WeekdayFuelStaples.applyEdit(seed,id,{amount:amt,days,out},today,CAT):WeekdayFuelStaples.applyAdd(seed,{id,amount:amt,days,out:out||undefined},today,CAT);
     staplesPersistParsed(parsed);
     state.sheet=null;state.stapleSheetDraft=null;render();
   }
