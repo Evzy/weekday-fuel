@@ -213,11 +213,69 @@
       });
   }
 
+  function planCodes(rows, store, idOf) {
+    var seen = {};
+    var out = [];
+    function addCode(code) {
+      var key = store === "coles" ? String(code) : Number(code);
+      if (seen[key]) return;
+      seen[key] = true;
+      out.push(key);
+    }
+    (rows || []).forEach(function (row) {
+      if (store === "woolies") {
+        var line = row.woolies;
+        if (line && line.parts && line.parts.length) {
+          line.parts.forEach(function (part) {
+            if (part.product && part.product.stockcode != null) addCode(part.product.stockcode);
+          });
+        } else if (line && line.product && line.product.stockcode != null) addCode(line.product.stockcode);
+        if (row.wooliesUnavailable && row.wooliesUnavailable.stockcode != null) addCode(row.wooliesUnavailable.stockcode);
+        return;
+      }
+      if (store === "coles") {
+        var cl = row.coles;
+        if (cl && cl.parts && cl.parts.length) {
+          cl.parts.forEach(function (part) {
+            var id = idOf && idOf(part.product);
+            if (id) addCode(id);
+          });
+        } else if (cl && cl.product) {
+          var pid = idOf && idOf(cl.product);
+          if (pid) addCode(pid);
+        }
+        if (row.colesUnavailable && idOf) {
+          var uid = idOf(row.colesUnavailable);
+          if (uid) addCode(uid);
+        }
+      }
+    });
+    return out;
+  }
+
+  function planExtraStats(results) {
+    var removed = 0;
+    var fail = 0;
+    (results || []).forEach(function (r) {
+      if (!r.extra) return;
+      if (r.added) removed++;
+      else fail++;
+    });
+    return { removed: removed, fail: fail };
+  }
+
+  function lineResults(results) {
+    return (results || []).filter(function (r) {
+      return !r.extra;
+    });
+  }
+
   function sentAfter(lastLines, lines, results, key) {
     var k = key || "stockcode";
     var out = Object.assign({}, lastLines || {});
     var done = {};
     (results || []).forEach(function (r) {
+      if (r.extra) return;
       if (r.added) done[r[k]] = true;
     });
     lines.forEach(function (l) {
@@ -228,7 +286,18 @@
     return out;
   }
 
-  var api = { cartLines: cartLines, removalLines: removalLines, colesCartLines: colesCartLines, colesRemovalLines: colesRemovalLines, shopFingerprint: shopFingerprint, sentAfter: sentAfter, emptyLines: emptyLines };
+  var api = {
+    cartLines: cartLines,
+    removalLines: removalLines,
+    colesCartLines: colesCartLines,
+    colesRemovalLines: colesRemovalLines,
+    shopFingerprint: shopFingerprint,
+    sentAfter: sentAfter,
+    emptyLines: emptyLines,
+    planCodes: planCodes,
+    planExtraStats: planExtraStats,
+    lineResults: lineResults,
+  };
   if (typeof module === "object" && module.exports) module.exports = api;
   else root.WeekdayFuelCart = api;
 })(this);

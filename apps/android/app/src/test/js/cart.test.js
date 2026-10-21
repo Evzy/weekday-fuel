@@ -1,6 +1,6 @@
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
-const { cartLines, removalLines, colesCartLines, colesRemovalLines, shopFingerprint, sentAfter, emptyLines } = require("../../main/assets/weekday_fuel/cart.js");
+const { cartLines, removalLines, colesCartLines, colesRemovalLines, shopFingerprint, sentAfter, emptyLines, planCodes, planExtraStats } = require("../../main/assets/weekday_fuel/cart.js");
 
 const W = "https://www.woolworths.com.au/shop/productdetails/";
 const YOG = { name: "Chobani Greek Yoghurt 907g", url: W + "717518", stockcode: 717518, size: 907, price: 8.8 };
@@ -251,6 +251,42 @@ test("emptyLines turns every positive sent code into a quantity-zero removal", (
   ]);
   assert.deepEqual(emptyLines(null, "woolies"), []);
   assert.deepEqual(emptyLines({}, "coles"), []);
+});
+
+test("planCodes lists Woolworths part and deli stockcodes deduplicated", () => {
+  const deli = { product: HAM, quantity: 0.3, cost: 8.4, buy: "300g" };
+  const mixed = {
+    product: EGG12,
+    quantity: 1,
+    parts: [
+      { product: EGG12, quantity: 1 },
+      { product: EGG6, quantity: 1 },
+    ],
+  };
+  const rows = [row("ham", deli), row("eggs", mixed), row("nostore", null, { product: CM, quantity: 1 })];
+  assert.deepEqual(planCodes(rows, "woolies", idOf).sort(), [175734, 6013276, 6013278].sort((a, b) => a - b));
+});
+
+test("planCodes lists Coles product ids from parts and skips rows without Coles lines", () => {
+  const large = { name: "Large", url: "https://www.coles.com.au/product/large-2263179", size: 1400, price: 15.4 };
+  const mixed = {
+    product: large,
+    quantity: 1,
+    parts: [
+      { product: large, quantity: 1 },
+      { product: COLES_SMALL, quantity: 1 },
+    ],
+  };
+  const rows = [row("w", { product: YOG, quantity: 1 }), row("c", null, mixed)];
+  assert.deepEqual(planCodes(rows, "coles", idOf).sort(), ["2263168", "2263179"].sort());
+  assert.deepEqual(planCodes([], "coles", idOf), []);
+});
+
+test("sentAfter ignores extra results", () => {
+  const lines = [{ stockcode: 717518, quantity: 2 }];
+  const results = [{ stockcode: 717518, added: true }, { stockcode: 999, added: true, extra: true }];
+  assert.deepEqual(sentAfter({}, lines, results), { 717518: 2 });
+  assert.deepEqual(planExtraStats(results), { removed: 1, fail: 0 });
 });
 
 test("a planned meal's Light or Loaded portion is part of the fingerprint, and Standard keys are unchanged", () => {
