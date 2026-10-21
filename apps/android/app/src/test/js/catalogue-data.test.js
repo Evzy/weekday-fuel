@@ -42,6 +42,7 @@ test("every item is well formed", () => {
       const p = it[store];
       if (!p) continue;
       checkProduct(it.id + "." + store, p, store);
+      if (p.fallback) checkProduct(it.id + "." + store + ".fallback", p.fallback, store);
       if (p.packs) {
         assert.ok(Array.isArray(p.packs) && p.packs.length, it.id + "." + store + " packs");
         for (let i = 0; i < p.packs.length; i++) {
@@ -82,7 +83,7 @@ test("every Coles product URL ends with its id and all Coles ids are unique", ()
   for (const it of cat.ITEMS) {
     const p = it.coles;
     if (!p) continue;
-    for (const prod of [p].concat(p.packs || [])) {
+    for (const prod of [p].concat(p.packs || [], p.fallback ? [p.fallback] : [])) {
       const id = cat.colesId(prod);
       assert.ok(id, it.id + " Coles id");
       assert.ok(prod.url.endsWith("-" + id), it.id + " url ends with id");
@@ -97,7 +98,7 @@ test("every Woolworths stockcode is unique across main products and packs", () =
   for (const it of cat.ITEMS) {
     const p = it.woolies;
     if (!p) continue;
-    for (const prod of [p].concat(p.packs || [])) {
+    for (const prod of [p].concat(p.packs || [], p.fallback ? [p.fallback] : [])) {
       assert.ok(prod.stockcode, it.id + " Woolworths stockcode");
       codes.push(prod.stockcode);
     }
@@ -203,10 +204,10 @@ test("RETIRED keys are not current product ids and every entry has a name and ur
   const wooliesCodes = new Set();
   for (const it of cat.ITEMS) {
     if (it.coles) {
-      for (const p of [it.coles].concat(it.coles.packs || [])) colesIds.add(cat.colesId(p));
+      for (const p of [it.coles].concat(it.coles.packs || [], it.coles.fallback ? [it.coles.fallback] : [])) colesIds.add(cat.colesId(p));
     }
     if (it.woolies) {
-      for (const p of [it.woolies].concat(it.woolies.packs || [])) wooliesCodes.add(String(p.stockcode));
+      for (const p of [it.woolies].concat(it.woolies.packs || [], it.woolies.fallback ? [it.woolies.fallback] : [])) wooliesCodes.add(String(p.stockcode));
     }
   }
   for (const [id, entry] of Object.entries(cat.RETIRED.coles)) {

@@ -562,6 +562,80 @@ test("no live prices, or an unusable price, leaves items as they are", () => {
   assert.equal(live.find((i) => i.id === "cheese"), ITEMS[3]);
 });
 
+test("bread Woolworths fallback when Abbott's is unavailable", () => {
+  const catItems = require("../../main/assets/weekday_fuel/catalogue.js").ITEMS;
+  const abbott = catItems.find((i) => i.id === "bread").woolies;
+  const live = applyLivePrices(catItems, {
+    331591: { price: 5.2, was: null, special: false, available: false },
+    84129: { price: 4.8, was: null, special: false, available: true },
+  });
+  const bread = live.find((i) => i.id === "bread");
+  assert.equal(bread.woolies.stockcode, 84129);
+  assert.equal(bread.woolies.price, 4.8);
+  assert.equal(bread.woolies.fallbackFor, abbott.name);
+  assert.equal(bread.wooliesUnavailable, undefined);
+  const cat = require("../../main/assets/weekday_fuel/catalogue.js");
+  const row = byId(create(live, cat.AMOUNTS).shopList({ toasty: 1 }, 0)).bread;
+  assert.equal(row.woolies.product.stockcode, 84129);
+  assert.equal(row.wooliesUnavailable, null);
+});
+
+test("bread Woolworths keeps Abbott's when it is available", () => {
+  const catItems = require("../../main/assets/weekday_fuel/catalogue.js").ITEMS;
+  const live = applyLivePrices(catItems, {
+    331591: { price: 5.2, was: null, special: false, available: true },
+    84129: { price: 4.5, was: null, special: false, available: true },
+  });
+  assert.equal(live.find((i) => i.id === "bread").woolies.stockcode, 331591);
+});
+
+test("bread Woolworths stays unavailable when main and fallback are unavailable", () => {
+  const catItems = require("../../main/assets/weekday_fuel/catalogue.js").ITEMS;
+  const live = applyLivePrices(catItems, {
+    331591: { price: 5.2, was: null, special: false, available: false },
+    84129: { price: 5.2, was: null, special: false, available: false },
+  });
+  const bread = live.find((i) => i.id === "bread");
+  assert.equal(bread.woolies, null);
+  assert.equal(bread.wooliesUnavailable.stockcode, 331591);
+  const cat = require("../../main/assets/weekday_fuel/catalogue.js");
+  const c = create(live, cat.AMOUNTS);
+  assert.deepEqual(c.storeTotals(c.shopList({ toasty: 1 }, 0), "woolies", {}).missed, ["bread"]);
+});
+
+test("bread Coles fallback when Abbott's is unavailable", () => {
+  const catItems = require("../../main/assets/weekday_fuel/catalogue.js").ITEMS;
+  const abbott = catItems.find((i) => i.id === "bread").coles;
+  const live = applyColesPrices(catItems, {
+    7226034: { price: 5.2, was: null, special: false, available: false },
+    5969435: { price: 4.9, was: null, special: false, available: true },
+  });
+  const bread = live.find((i) => i.id === "bread");
+  assert.equal(colesId(bread.coles), "5969435");
+  assert.equal(bread.coles.price, 4.9);
+  assert.equal(bread.coles.fallbackFor, abbott.name);
+});
+
+test("bread Coles keeps Abbott's when it is available", () => {
+  const catItems = require("../../main/assets/weekday_fuel/catalogue.js").ITEMS;
+  const live = applyColesPrices(catItems, {
+    7226034: { price: 5.2, was: null, special: false, available: true },
+    5969435: { price: 4.5, was: null, special: false, available: true },
+  });
+  assert.equal(colesId(live.find((i) => i.id === "bread").coles), "7226034");
+});
+
+test("bread Coles stays unavailable when main and fallback are unavailable", () => {
+  const catItems = require("../../main/assets/weekday_fuel/catalogue.js").ITEMS;
+  const live = applyColesPrices(catItems, {
+    7226034: { price: 5.2, was: null, special: false, available: false },
+    5969435: { price: 5.2, was: null, special: false, available: false },
+  });
+  const bread = live.find((i) => i.id === "bread");
+  assert.equal(bread.coles, null);
+  assert.equal(colesId(bread.colesUnavailable), "7226034");
+});
+
 test("a product unavailable online counts as missed at Woolworths", () => {
   const live = applyLivePrices(ITEMS, { 729008: { price: 9, was: null, special: false, available: false } });
   const cheese = live.find((i) => i.id === "cheese");
@@ -616,6 +690,7 @@ test("an unknown meal in a planned day adds nothing", () => {
 test("colesId is the 4 to 7 digit number at the end of a Coles product URL", () => {
   assert.equal(colesId({ url: C + "dare-8991361" }), "8991361");
   assert.equal(colesId({ url: C + "abbott's-bakery-farmhouse-wholemeal-bread-750g-7226034" }), "7226034");
+  assert.equal(colesId({ url: C + "helga's-traditional-wholemeal-bread-750g-5969435" }), "5969435");
   assert.equal(colesId({ url: C + "dare" }), null);
   assert.equal(colesId({ url: C + "x-12" }), null);
   assert.equal(colesId({}), null);

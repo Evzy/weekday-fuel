@@ -134,9 +134,15 @@
       woolies: { name: "Mission Carb Balance Original Wraps 6 pack", url: "https://www.woolworths.com.au/shop/productdetails/919345/mission-carb-balance-original-wraps", stockcode: 919345, size: 6, price: 5.6, checked: "2026-10-15" },
     },
     {
-      id: "bread", sec: 1, keeps: 5, name: "Wholemeal sandwich loaf", short: "Bread", unit: "slices", unitSize: 45, note: "About 16 slices. Freeze half", same: true,
-      coles: { name: "Abbott's Bakery Farmhouse Wholemeal Bread 750g", url: "https://www.coles.com.au/product/abbott's-bakery-farmhouse-wholemeal-bread-750g-7226034", size: 16, price: 5.2, checked: "2026-10-15" },
-      woolies: { name: "Abbott's Bakery Farmhouse Wholemeal Bread Sandwich Slice Loaf 750g", url: "https://www.woolworths.com.au/shop/productdetails/331591/abbott-s-bakery-farmhouse-wholemeal-bread-sandwich-slice-loaf", stockcode: 331591, size: 16, price: 5.2, checked: "2026-10-15" },
+      id: "bread", sec: 1, keeps: 5, name: "Wholemeal sandwich loaf", short: "Bread", unit: "slices", unitSize: 45, note: "About 16 slices. Freeze half. Helga's fallback slices are ~10% lighter per slice (same macros in the plan)", same: true,
+      coles: {
+        name: "Abbott's Bakery Farmhouse Wholemeal Bread 750g", url: "https://www.coles.com.au/product/abbott's-bakery-farmhouse-wholemeal-bread-750g-7226034", size: 16, price: 5.2, checked: "2026-10-15",
+        fallback: { name: "Helga's Traditional Wholemeal Bread 750g", url: "https://www.coles.com.au/product/helga's-traditional-wholemeal-bread-750g-5969435", size: 16, price: 5.2, checked: "2026-10-21" },
+      },
+      woolies: {
+        name: "Abbott's Bakery Farmhouse Wholemeal Bread Sandwich Slice Loaf 750g", url: "https://www.woolworths.com.au/shop/productdetails/331591/abbott-s-bakery-farmhouse-wholemeal-bread-sandwich-slice-loaf", stockcode: 331591, size: 16, price: 5.2, checked: "2026-10-15",
+        fallback: { name: "Helga's Bread Traditional Wholemeal 750g", url: "https://www.woolworths.com.au/shop/productdetails/84129/helga-s-bread-traditional-wholemeal", stockcode: 84129, size: 16, price: 5.2, checked: "2026-10-21" },
+      },
     },
     {
       id: "muffin", sec: 1, keeps: 5, name: "English muffins", short: "Muffin", unit: "muffins", unitSize: 67, note: "The old Woolworths link (6083082) is unavailable", same: true,
@@ -530,6 +536,22 @@
     return Object.assign({}, p, { price: live.price, was: was, live: true });
   }
 
+  function wooliesFallbackProduct(mainP, prices) {
+    var fb = mainP && mainP.fallback;
+    if (!fb || fb.stockcode == null) return null;
+    var liveFb = prices[fb.stockcode];
+    if (liveFb && liveFb.available === false) return null;
+    var prod = fb;
+    if (liveFb && typeof liveFb.price === "number" && liveFb.price > 0) prod = liveWoolies(fb, liveFb);
+    return Object.assign({}, prod, { fallbackFor: mainP.name });
+  }
+
+  function wooliesWhenMainUnavailable(it, mainP, prices) {
+    var fb = wooliesFallbackProduct(mainP, prices);
+    if (fb) return Object.assign({}, it, { woolies: fb });
+    return Object.assign({}, it, { woolies: null, wooliesUnavailable: mainP });
+  }
+
   /* prices: { [stockcode]: { price, was, special, available } } read live from Woolworths. */
   function applyLivePrices(items, prices) {
     if (!prices) return items;
@@ -540,7 +562,7 @@
       var live = prices[p.stockcode];
       if (!hadPacks) {
         if (!live) return it;
-        if (live.available === false) return Object.assign({}, it, { woolies: null, wooliesUnavailable: p });
+        if (live.available === false) return wooliesWhenMainUnavailable(it, p, prices);
         if (!(typeof live.price === "number" && live.price > 0)) return it;
         var nextOnly = liveWoolies(p, live);
         return nextOnly === p ? it : Object.assign({}, it, { woolies: nextOnly });
@@ -562,7 +584,7 @@
       if (packs.length !== p.packs.length) packsMut = true;
       if (live && live.available === false) {
         if (packs.length) return Object.assign({}, it, { woolies: wooliesWithPacks(packs[0], packs.slice(1)) });
-        return Object.assign({}, it, { woolies: null, wooliesUnavailable: p });
+        return wooliesWhenMainUnavailable(it, p, prices);
       }
       var main = p;
       var mainMut = false;
@@ -586,6 +608,24 @@
     return Object.assign({}, p, { price: live.price, was: was, live: true });
   }
 
+  function colesFallbackProduct(mainP, prices) {
+    var fb = mainP && mainP.fallback;
+    if (!fb) return null;
+    var cid = colesId(fb);
+    if (!cid) return null;
+    var liveFb = prices[cid];
+    if (liveFb && liveFb.available === false) return null;
+    var prod = fb;
+    if (liveFb && typeof liveFb.price === "number" && liveFb.price > 0) prod = liveColes(fb, liveFb);
+    return Object.assign({}, prod, { fallbackFor: mainP.name });
+  }
+
+  function colesWhenMainUnavailable(it, mainP, prices) {
+    var fb = colesFallbackProduct(mainP, prices);
+    if (fb) return Object.assign({}, it, { coles: fb });
+    return Object.assign({}, it, { coles: null, colesUnavailable: mainP });
+  }
+
   /* prices: { [Coles product id]: { price, was, special, available } } read live from Coles. */
   function colesWithPacks(main, packs) {
     if (!packs.length) {
@@ -605,7 +645,7 @@
       var hadPacks = p.packs && p.packs.length;
       var live = prices[colesId(p)];
       if (!hadPacks) {
-        if (live && live.available === false) return Object.assign({}, it, { coles: null, colesUnavailable: p });
+        if (live && live.available === false) return colesWhenMainUnavailable(it, p, prices);
         var mainOnly = live ? liveColes(p, live) : p;
         return mainOnly === p ? it : Object.assign({}, it, { coles: mainOnly });
       }
@@ -625,7 +665,7 @@
       if (packs.length !== p.packs.length) packsMut = true;
       if (live && live.available === false) {
         if (packs.length) return Object.assign({}, it, { coles: colesWithPacks(packs[0], packs.slice(1)) });
-        return Object.assign({}, it, { coles: null, colesUnavailable: p });
+        return colesWhenMainUnavailable(it, p, prices);
       }
       var main = live ? liveColes(p, live) : p;
       if (main === p && !packsMut) return it;

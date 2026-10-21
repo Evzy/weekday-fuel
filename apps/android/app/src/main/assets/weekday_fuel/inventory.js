@@ -760,6 +760,8 @@
       }
       walk(it.woolies);
       walk(it.coles);
+      if (it.woolies && it.woolies.fallback) walk(it.woolies.fallback);
+      if (it.coles && it.coles.fallback) walk(it.coles.fallback);
       if (it.woolies && it.woolies.packs) it.woolies.packs.forEach(walk);
       if (it.coles && it.coles.packs) it.coles.packs.forEach(walk);
       if (it.swaps) {

@@ -807,8 +807,8 @@ function renderKitchen(){
   return h;
 }
 /* state.prices / state.colesPrices: null, "busy" or "error" */
-function colesIds(){const W=WeekdayFuelCatalogue,ids=[];W.ITEMS.forEach(i=>{if(!i.coles)return;[i.coles].concat(i.coles.packs||[]).forEach(p=>{const id=p&&W.colesId(p);if(id&&ids.indexOf(id)<0)ids.push(id)})});WeekdayFuelSpecials.swapIds(W.ITEMS,W.colesId).colesIds.forEach(id=>{if(ids.indexOf(id)<0)ids.push(id)});return ids}
-function wooliesStockcodes(){const W=WeekdayFuelCatalogue,codes=[];W.ITEMS.forEach(i=>{if(!i.woolies)return;[i.woolies].concat(i.woolies.packs||[]).forEach(p=>{const c=p&&p.stockcode;if(c&&codes.indexOf(c)<0)codes.push(c)})});WeekdayFuelSpecials.swapIds(W.ITEMS,W.colesId).stockcodes.forEach(c=>{if(codes.indexOf(c)<0)codes.push(c)});return codes}
+function colesIds(){const W=WeekdayFuelCatalogue,ids=[];W.ITEMS.forEach(i=>{if(!i.coles)return;[i.coles].concat(i.coles.packs||[],i.coles.fallback?[i.coles.fallback]:[]).forEach(p=>{const id=p&&W.colesId(p);if(id&&ids.indexOf(id)<0)ids.push(id)})});WeekdayFuelSpecials.swapIds(W.ITEMS,W.colesId).colesIds.forEach(id=>{if(ids.indexOf(id)<0)ids.push(id)});return ids}
+function wooliesStockcodes(){const W=WeekdayFuelCatalogue,codes=[];W.ITEMS.forEach(i=>{if(!i.woolies)return;[i.woolies].concat(i.woolies.packs||[],i.woolies.fallback?[i.woolies.fallback]:[]).forEach(p=>{const c=p&&p.stockcode;if(c&&codes.indexOf(c)<0)codes.push(c)})});WeekdayFuelSpecials.swapIds(W.ITEMS,W.colesId).stockcodes.forEach(c=>{if(codes.indexOf(c)<0)codes.push(c)});return codes}
 function refreshPrices(){
   if(!window.WeekdayFuelHost||state.prices==="busy"||state.colesPrices==="busy")return;
   state.prices="busy";state.colesPrices="busy";state.pricesTried=Date.now();
@@ -1946,8 +1946,8 @@ function itemRow(it,prices,extra,products){
 }
 const MANUAL_WHY={coles:"Coles only",woolies:"Woolworths only",nostore:"no online store page",unavailable:"unavailable online now",limit:"Coles limits each product to 99 online"};
 function sentWhen(at){const t=new Date(at);if(isNaN(t))return "earlier";const tm=t.toLocaleTimeString("en-AU",{hour:"numeric",minute:"2-digit"});return iso(t)===iso(new Date())?tm:fmtShort(iso(t))+" "+tm}
-function wooliesProduct(code){const W=WeekdayFuelCatalogue;for(const i of W.ITEMS){if(i.woolies){for(const p of [i.woolies].concat(i.woolies.packs||[]))if(p&&p.stockcode===+code)return p}if(i.swaps){for(const s of i.swaps)if(s.woolies&&s.woolies.stockcode===+code)return s.woolies}}const r=W.RETIRED&&W.RETIRED.woolies;return r&&r[String(code)]||null}
-function colesProduct(id){const W=WeekdayFuelCatalogue;for(const i of W.ITEMS){if(i.coles){for(const p of [i.coles].concat(i.coles.packs||[]))if(p&&W.colesId(p)===String(id))return p}if(i.swaps){for(const s of i.swaps)if(s.coles&&W.colesId(s.coles)===String(id))return s.coles}}const r=W.RETIRED&&W.RETIRED.coles;return r&&r[String(id)]||null}
+function wooliesProduct(code){const W=WeekdayFuelCatalogue;for(const i of W.ITEMS){if(i.woolies){for(const p of [i.woolies].concat(i.woolies.packs||[],i.woolies.fallback?[i.woolies.fallback]:[]))if(p&&p.stockcode===+code)return p}if(i.swaps){for(const s of i.swaps)if(s.woolies&&s.woolies.stockcode===+code)return s.woolies}}const r=W.RETIRED&&W.RETIRED.woolies;return r&&r[String(code)]||null}
+function colesProduct(id){const W=WeekdayFuelCatalogue;for(const i of W.ITEMS){if(i.coles){for(const p of [i.coles].concat(i.coles.packs||[],i.coles.fallback?[i.coles.fallback]:[]))if(p&&W.colesId(p)===String(id))return p}if(i.swaps){for(const s of i.swaps)if(s.coles&&W.colesId(s.coles)===String(id))return s.coles}}const r=W.RETIRED&&W.RETIRED.coles;return r&&r[String(id)]||null}
 const pantryRows=(rows,ticks)=>rows.filter(r=>r.sec===2&&!ticks[r.id]);
 /* A send: what's left to buy minus "I have it", plus quantity 0 for products the last send put in that the shop no longer needs */
 function trolleySend(rows,haveIt,s){
@@ -2061,7 +2061,8 @@ function renderShopItems(st,rows,ticks){
       const spec=shopRowSpecialHtml(r,st);
       const mainBtn=multi?`<button type="button" class="itembtn grow row between" data-act="openitem" data-v="${esc(id)}" aria-expanded="${open}"><span class="small grow">${name} · ${price}</span></button>`:`<button type="button" class="itembtn grow row between" data-act="openitem" data-v="${esc(id)}" aria-expanded="${open}"><span class="small grow">${name} ${buy}${leftover} · ${price}</span></button>`;
       const packBtn=multi?`<button type="button" class="ghost small" style="padding:0;min-height:0;text-align:left;align-self:flex-start" data-act="packsheet" data-v="${esc(id)}">${buy}${leftover}</button>`:"";
-      h+=`<div class="si ${ticks[id]?"done":""}"><input type="checkbox" id="tick-${esc(id)}" aria-label="Already have it: ${esc(it.name)}" data-act="tick" data-v="${esc(id)}" ${ticks[id]?"checked":""}><div class="grow stack" style="gap:2px">${mainBtn}${packBtn}</div></div>`;
+      const fbNote=line&&line.product&&line.product.fallbackFor?`<div class="small muted">${esc(it.short||shopItemShortName(it))} unavailable — ${esc(line.product.name)} instead</div>`:"";
+      h+=`<div class="si ${ticks[id]?"done":""}"><input type="checkbox" id="tick-${esc(id)}" aria-label="Already have it: ${esc(it.name)}" data-act="tick" data-v="${esc(id)}" ${ticks[id]?"checked":""}><div class="grow stack" style="gap:2px">${mainBtn}${packBtn}${fbNote}</div></div>`;
       if(open)h+=`<div class="itemdetail stack" style="gap:6px;padding:0 0 10px 28px">${spec}${forLine(r)}${it.note?`<div class="small">${esc(it.note)}</div>`:""}${macroLine(id)}${productLinks(CAT.item(r.id),{coles:r.coles&&r.coles.product,woolies:r.woolies&&r.woolies.product})}${swapDetailBlock(it)}</div>`;
     });
   });
