@@ -1239,8 +1239,10 @@ function applyGapOption(idx,today){
       saveDay(date);
     });
     const td=ensureDay(today);
-    const prevT=td.adj&&Number.isFinite(td.adj.k)?td.adj.k:0;
-    td.adj={k:prevT-total,from:today,spreadTo:range};
+    const prevAdj=td.adj;
+    const prevT=prevAdj&&Number.isFinite(prevAdj.k)?prevAdj.k:0;
+    const prevSplits=prevAdj&&Array.isArray(prevAdj.spreadSplits)?prevAdj.spreadSplits.slice():[];
+    td.adj={k:prevT-total,from:today,spreadTo:range,spreadSplits:prevSplits.concat(opt.splits.map(s=>({date:s.date,k:s.k})))};
     fitTiers(td,0,today,{bought:true});
     saveDay(today);
     state.todayNote=`Spread ${Math.abs(Math.round(total))} kcal over the week`;
@@ -1285,6 +1287,41 @@ function undoGap(){
     state.gapUndo=null;
     state.todayNote=null;
   }
+}
+function undoSpread(today){
+  const td=ensureDay(today);
+  const splits=td.adj&&td.adj.spreadSplits;
+  if(!splits||!splits.length)return;
+  let sum=0;
+  splits.forEach(split=>{
+    sum+=split.k;
+    const d=ensureDay(split.date);
+    if(d.adj&&Number.isFinite(d.adj.k)){
+      d.adj.k-=split.k;
+      if(Math.abs(d.adj.k)<0.5)delete d.adj;
+    }
+    if(dayEditable(split.date))fitTiers(d,0,split.date,{bought:true});
+    saveDay(split.date);
+  });
+  if(td.adj){
+    td.adj.k+=sum;
+    delete td.adj.spreadTo;
+    delete td.adj.spreadSplits;
+    if(Math.abs(td.adj.k)<0.5)delete td.adj;
+  }
+  if(dayEditable(today))fitTiers(td,0,today,{bought:true});
+  saveDay(today);
+  state.gapUndo=null;
+  state.todayNote="Spread undone";
+}
+function renderTodaySpreadAdj(today){
+  if(!dayEditable(today))return "";
+  const adj=state.days[today]&&state.days[today].adj;
+  if(!adj||!adj.spreadTo)return "";
+  const label=targetAdjLabel(today);
+  const undo=adj.spreadSplits&&adj.spreadSplits.length?`<button type="button" class="ghost" data-act="spreadundo">Undo spread</button>`:"";
+  if(!label&&!undo)return "";
+  return `<div class="small muted row" style="gap:8px;flex-wrap:wrap;align-items:center">${label}${undo}</div>`;
 }
 function renderGapSheetBody(today){
   state.gapOptions=buildGapOptions(today);
@@ -1623,7 +1660,7 @@ function renderToday(){
   }else{
     const canFit=dayPip(day,today)!=="good"&&meals.some(m=>MEAL[m.id]&&!mealImpliedAte(m,today));
     const fitBtn=canFit?`<button type="button" class="ghost" data-act="todayfit" data-d="${esc(today)}">Fit portions</button>`:"";
-    h+=`<div class="panel stack" style="gap:10px">${compactMacro(t.k,tg.k," kcal","")}${compactMacro(t.p,tg.p," g protein","p")}${fitBtn}</div>`;
+    h+=`<div class="panel stack" style="gap:10px">${compactMacro(t.k,tg.k," kcal","")}${compactMacro(t.p,tg.p," g protein","p")}${fitBtn}${renderTodaySpreadAdj(today)}</div>`;
     const gapMeta=todayGapMeta(today,day,t,tg);
     if(gapMeta)h+=`<div class="special"><span>${esc(gapMeta.text)} · </span><button type="button" class="ghost" data-act="gapopen">Close the gap</button></div>`;
     if(state.todayNote)h+=`<div class="hint" id="today-note"><span>${esc(state.todayNote)}</span>${state.gapUndo?` <button type="button" class="ghost" data-act="gapundo">Undo</button>`:""}</div>`;
@@ -2321,7 +2358,7 @@ document.addEventListener("click",e=>{
   state.kitchenError=null;
   state.weekNote=null;
   if(act!=="weektile")state.mealNote=null;
-  if(act!=="gapopen"&&act!=="gapapply"&&act!=="gapundo"&&act!=="trendapply"&&act!=="trendrefit"&&act!=="trendrefitno"&&!state.gapUndo)state.todayNote=null;
+  if(act!=="gapopen"&&act!=="gapapply"&&act!=="gapundo"&&act!=="spreadundo"&&act!=="trendapply"&&act!=="trendrefit"&&act!=="trendrefitno"&&!state.gapUndo)state.todayNote=null;
   if(act!=="weektile"&&act!=="daymenu"&&act!=="weekmenu")state.dayNote=null;
   const date=actionDate(el);
   switch(act){
@@ -2353,6 +2390,7 @@ document.addEventListener("click",e=>{
     case "gapopen":state.sheet="gap";break;
     case "gapapply":{const today=iso(new Date());applyGapOption(+v,today);break}
     case "gapundo":undoGap();break;
+    case "spreadundo":undoSpread(iso(new Date()));break;
     case "stapleedit":openStapleSheet(v);break;
     case "stapleadd":openStapleSheet(null);break;
     case "stapdays":{syncStapleSheetDraft();if(state.stapleSheetDraft)state.stapleSheetDraft.days=v;break}
