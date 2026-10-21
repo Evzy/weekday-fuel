@@ -86,7 +86,8 @@ class TrolleyJsonTest {
         for (bad in listOf("""[0]""", """[-1]""", """[1.5]""", """["717518"]""")) {
             assertNull(bad, TrolleyJson.parseKeep(JSONArray(bad)))
         }
-        assertNull(TrolleyJson.parseKeep(JSONArray("""[${"1,".repeat(301)}1]""")))
+        val over = JSONArray().apply { repeat(301) { put(1) } }
+        assertNull(TrolleyJson.parseKeep(over))
     }
 
     @Test

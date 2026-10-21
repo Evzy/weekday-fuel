@@ -46,7 +46,8 @@ class ColesTrolleyJsonTest {
         for (bad in listOf("""[3329137]""", """["12"]""", """["3329137\"]);alert(1);//"]""", """[null]""")) {
             assertNull(bad, ColesTrolleyJson.parseKeep(JSONArray(bad)))
         }
-        assertNull(ColesTrolleyJson.parseKeep(JSONArray("""[${"""\"3329137\",""".repeat(301)}\"3329137\"]""")))
+        val over = JSONArray().apply { repeat(301) { put("3329137") } }
+        assertNull(ColesTrolleyJson.parseKeep(over))
     }
 
     @Test
