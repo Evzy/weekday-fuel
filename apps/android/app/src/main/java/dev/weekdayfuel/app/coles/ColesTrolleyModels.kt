@@ -15,6 +15,20 @@ data class ColesTrolleyState(val phase: ColesTrolleyPhase, val results: List<Col
 object ColesTrolleyJson {
     private val ID = Regex("^\\d{4,7}$")
     const val MAX_QUANTITY = 99
+    const val MAX_KEEP = 300
+
+    fun parseKeep(arr: JSONArray): List<String>? {
+        if (arr.length() > MAX_KEEP) return null
+        val out = ArrayList<String>(arr.length())
+        for (i in 0 until arr.length()) {
+            val id = arr.opt(i) as? String ?: return null
+            if (!ID.matches(id)) return null
+            out.add(id)
+        }
+        return out
+    }
+
+    fun keepToJson(keep: List<String>): String = keep.joinToString(prefix = "[", postfix = "]", separator = ",") { """"$it"""" }
 
     /**
      * Null when any entry isn't `{productId: "<4-7 digits>", quantity: <whole number 0..99>}`; the lines go into injected

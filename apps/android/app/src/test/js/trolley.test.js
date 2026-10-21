@@ -174,3 +174,69 @@ test("a weighed line is not flagged when QuantityInTrolley uses another unit", a
   const s = await settle(api);
   assert.deepEqual(s.results, [{ stockcode: 175734, outcome: "added" }]);
 });
+
+const BOOTSTRAP_TROLLEY = {
+  ShopperRequest: { IsGuest: false },
+  TrolleyRequest: {
+    AvailableItems: [{ Stockcode: 111111 }, { Stockcode: 717518 }],
+    UnavailableItems: [{ Stockcode: 999999 }],
+  },
+};
+
+test("with keep, removes trolley codes outside keep and send lines", async () => {
+  const { api, calls } = load((url, init, urls) => {
+    if (url === urls.loginStatus) return response(200, BOOTSTRAP_TROLLEY);
+    return response(200, { UpdatedItems: [] });
+  });
+  api.start(LINES, [717518]);
+  const s = await settle(api);
+  assert.equal(s.phase, "done");
+  assert.equal(s.total, 4);
+  assert.equal(s.completed, 4);
+  const updates = calls.slice(1).map((c) => JSON.parse(c.init.body).items[0]);
+  assert.deepEqual(
+    updates.map((i) => [i.stockcode, i.quantity]),
+    [[111111, 0], [999999, 0], [717518, 2], [72280, 5]],
+  );
+  assert.deepEqual(s.results, [
+    { stockcode: 111111, outcome: "removed", extra: true },
+    { stockcode: 999999, outcome: "removed", extra: true },
+    { stockcode: 717518, outcome: "failed", reason: "not available" },
+    { stockcode: 72280, outcome: "failed", reason: "not available" },
+  ]);
+});
+
+test("with keep, codes in keep or send lines are not removed", async () => {
+  const { api, calls } = load((url, init, urls) => (url === urls.loginStatus ? response(200, BOOTSTRAP_TROLLEY) : accepted(init)));
+  api.start(LINES, [717518, 72280, 111111]);
+  const s = await settle(api);
+  assert.equal(s.total, 3);
+  assert.equal(calls.length, 4);
+  assert.deepEqual(s.results, [
+    { stockcode: 999999, outcome: "removed", extra: true },
+    { stockcode: 717518, outcome: "added" },
+    { stockcode: 72280, outcome: "added" },
+  ]);
+});
+
+test("without keep, no extra removal requests", async () => {
+  const { api, calls } = load((url, init, urls) => (url === urls.loginStatus ? response(200, BOOTSTRAP_TROLLEY) : accepted(init)));
+  api.start(LINES);
+  await settle(api);
+  assert.equal(calls.length, 3);
+});
+
+test("a failed extra removal is reported with extra true", async () => {
+  const { api } = load((url, init, urls) => {
+    if (url === urls.loginStatus) return response(200, BOOTSTRAP_TROLLEY);
+    const code = JSON.parse(init.body).items[0].stockcode;
+    if (code === 111111) return response(500, {});
+    return response(200, { UpdatedItems: [] });
+  });
+  api.start([], [717518]);
+  const s = await settle(api);
+  assert.deepEqual(s.results, [
+    { stockcode: 111111, outcome: "failed", reason: "HTTP 500", extra: true },
+    { stockcode: 999999, outcome: "removed", extra: true },
+  ]);
+});

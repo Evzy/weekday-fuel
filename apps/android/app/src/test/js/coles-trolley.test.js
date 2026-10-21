@@ -181,6 +181,69 @@ test("without the key or a store the page is not ready and nothing is requested"
   }
 });
 
+test("with keep, removes products outside keep and send lines", async () => {
+  const { api, calls } = load({
+    get: () => response(200, trolley([ITEM(3329137, 1, "9157373864"), ITEM(132045, 2, "111"), ITEM(5077283, 1, "222")])),
+    patch: () =>
+      response(200, patched([
+        { productId: "132045", quantity: 0, action: "DELETE" },
+        { productId: "5077283", quantity: 0, action: "DELETE" },
+        { productId: "3329137", orderItemId: "9157373864", quantity: 2, action: "UPDATE" },
+      ])),
+  });
+  api.start([{ productId: "3329137", quantity: 2 }], ["3329137"]);
+  const s = await settle(api);
+  assert.equal(s.phase, "done");
+  assert.deepEqual(calls[1].body.items[0].actions, [
+    { productId: "132045", quantity: 0, orderItemId: "111" },
+    { productId: "5077283", quantity: 0, orderItemId: "222" },
+    { productId: "3329137", quantity: 2, orderItemId: "9157373864" },
+  ]);
+  assert.deepEqual(s.results, [
+    { productId: "132045", added: true, extra: true },
+    { productId: "5077283", added: true, extra: true },
+    { productId: "3329137", added: true },
+  ]);
+});
+
+test("without keep, no extra removals in the PATCH", async () => {
+  const { api, calls } = load({
+    get: () => response(200, trolley([ITEM(3329137, 1, "9157373864"), ITEM(132045, 2, "111")])),
+    patch: () => response(200, patched([{ productId: "3329137", orderItemId: "9157373864", quantity: 2, action: "UPDATE" }])),
+  });
+  api.start([{ productId: "3329137", quantity: 2 }]);
+  await settle(api);
+  assert.deepEqual(calls[1].body.items[0].actions, [{ productId: "3329137", quantity: 2, orderItemId: "9157373864" }]);
+});
+
+test("with keep, products in keep or lines are untouched", async () => {
+  const { api, calls } = load({
+    get: () => response(200, trolley([ITEM(3329137, 2, "9157373864"), ITEM(132045, 2, "111")])),
+    patch: () => response(200, patched([{ productId: "3329137", orderItemId: "9157373864", quantity: 1, action: "UPDATE" }])),
+  });
+  api.start([{ productId: "3329137", quantity: 1 }], ["3329137", "132045"]);
+  await settle(api);
+  assert.equal(calls.length, 2);
+  assert.deepEqual(calls[1].body.items[0].actions, [{ productId: "3329137", quantity: 1, orderItemId: "9157373864" }]);
+});
+
+test("a failed extra removal is reported with extra true", async () => {
+  const { api } = load({
+    get: () => response(200, trolley([ITEM(132045, 2, "111"), ITEM(5077283, 1, "222")])),
+    patch: () =>
+      response(200, patched(
+        [{ productId: "5077283", quantity: 0, action: "DELETE" }],
+        [{ productId: "132045", quantity: 0, action: "DELETE", error: { message: "nope" } }],
+      )),
+  });
+  api.start([], ["9999999"]);
+  const s = await settle(api);
+  assert.deepEqual(s.results, [
+    { productId: "132045", added: false, reason: "nope", extra: true },
+    { productId: "5077283", added: true, extra: true },
+  ]);
+});
+
 test("ignores start() while fetching, can run again after, and re-injecting keeps the same API", async () => {
   const { api, calls } = load({ get: () => response(200, trolley([])), patch: () => response(200, patched([{ productId: "3329137", quantity: 1, action: "ADD" }])) });
   assert.equal(api.start([{ productId: "3329137", quantity: 1 }]), true);

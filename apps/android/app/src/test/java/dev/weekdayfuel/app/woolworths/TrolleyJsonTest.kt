@@ -74,4 +74,24 @@ class TrolleyJsonTest {
         assertTrue(json, json.contains(""""quantity":0.3"""))
         assertFalse(json, json.contains("2.0"))
     }
+
+    @Test
+    fun parseKeepAcceptsPositiveIntegersAndEmpty() {
+        assertEquals(listOf(717518L, 72280L), TrolleyJson.parseKeep(JSONArray("""[717518,72280]""")))
+        assertEquals(emptyList<Long>(), TrolleyJson.parseKeep(JSONArray("[]")))
+    }
+
+    @Test
+    fun parseKeepRejectsInvalid() {
+        for (bad in listOf("""[0]""", """[-1]""", """[1.5]""", """["717518"]""")) {
+            assertNull(bad, TrolleyJson.parseKeep(JSONArray(bad)))
+        }
+        assertNull(TrolleyJson.parseKeep(JSONArray("""[${"1,".repeat(301)}1]""")))
+    }
+
+    @Test
+    fun keepToJsonRoundTrips() {
+        val keep = listOf(717518L, 72280L)
+        assertEquals(keep, TrolleyJson.parseKeep(JSONArray(TrolleyJson.keepToJson(keep))))
+    }
 }

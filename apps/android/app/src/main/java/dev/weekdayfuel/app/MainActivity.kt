@@ -245,7 +245,17 @@ class MainActivity : ComponentActivity() {
                         replyToPage(HostMessages.failure(getString(R.string.woolworths_bad_request)))
                         return
                     }
-                woolworths.send(lines)
+                val keep =
+                    if (msg.has("keep")) {
+                        msg.optJSONArray("keep")?.let { TrolleyJson.parseKeep(it) }
+                            ?: run {
+                                replyToPage(HostMessages.failure(getString(R.string.woolworths_bad_request)))
+                                return
+                            }
+                    } else {
+                        null
+                    }
+                woolworths.send(lines, keep)
             }
             "openWoolworths" -> {
                 val url = msg.optString("url")
@@ -263,7 +273,17 @@ class MainActivity : ComponentActivity() {
                     replyToPage(HostMessages.colesTrolleyFailure(getString(R.string.coles_bad_lines)))
                     return
                 }
-                coles.send(lines)
+                val keep =
+                    if (msg.has("keep")) {
+                        msg.optJSONArray("keep")?.let { ColesTrolleyJson.parseKeep(it) }
+                            ?: run {
+                                replyToPage(HostMessages.colesTrolleyFailure(getString(R.string.coles_bad_lines)))
+                                return
+                            }
+                    } else {
+                        null
+                    }
+                coles.send(lines, keep)
             }
             "openColes" -> {
                 val uri = Uri.parse(msg.optString("url"))

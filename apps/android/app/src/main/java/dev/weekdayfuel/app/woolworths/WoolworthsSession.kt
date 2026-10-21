@@ -37,6 +37,7 @@ class WoolworthsSession(private val context: Context, private val openExternal: 
         context.assets.open(SCRIPT_ASSET).bufferedReader().use { it.readText() }
     }
     private var pending: List<TrolleyLine>? = null
+    private var pendingKeep: List<Long>? = null
     private var polling = false
     private var pageLoading = false
     private var lastCompleted = -1
@@ -95,8 +96,9 @@ class WoolworthsSession(private val context: Context, private val openExternal: 
     private fun onShopPage(): Boolean =
         webView.url?.let(Uri::parse)?.let { WoolworthsUrls.isShopPage(it.scheme, it.host) } == true
 
-    fun send(lines: List<TrolleyLine>) {
+    fun send(lines: List<TrolleyLine>, keep: List<Long>? = null) {
         pending = lines
+        pendingKeep = keep
         polling = false
         loginNotified = false
         handler.removeCallbacks(poller)
@@ -110,6 +112,7 @@ class WoolworthsSession(private val context: Context, private val openExternal: 
 
     fun cancel() {
         pending = null
+        pendingKeep = null
         polling = false
         loginNotified = false
         handler.removeCallbacks(poller)
@@ -174,7 +177,9 @@ class WoolworthsSession(private val context: Context, private val openExternal: 
         polling = true
         lastCompleted = -1
         // No reload when the script reports a run already in progress: it is polled, and a hung one is ended by the watchdog.
-        webView.evaluateJavascript("$script\nwindow.__weekdayFuelTrolley.start(${TrolleyJson.linesToJson(lines)});", null)
+        val keep = pendingKeep
+        val keepArg = if (keep != null) ",${TrolleyJson.keepToJson(keep)}" else ""
+        webView.evaluateJavascript("$script\nwindow.__weekdayFuelTrolley.start(${TrolleyJson.linesToJson(lines)}$keepArg);", null)
         handler.postDelayed(poller, POLL_MS)
     }
 

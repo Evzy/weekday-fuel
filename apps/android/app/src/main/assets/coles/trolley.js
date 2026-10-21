@@ -67,13 +67,58 @@
     return have;
   }
 
-  async function run(lines, key, storeId) {
+  function allowedIds(keep, lines) {
+    var s = {};
+    if (keep) {
+      for (var i = 0; i < keep.length; i++) s[String(keep[i])] = true;
+    }
+    lines.forEach(function (l) {
+      s[l.productId] = true;
+    });
+    return s;
+  }
+
+  function applyPatchResults(actions, body, httpStatus, results, extra) {
+    if (httpStatus != null) {
+      var httpReason = "HTTP " + httpStatus;
+      actions.forEach(function (a) {
+        results[a.productId] = { productId: a.productId, added: false, reason: httpReason };
+        if (extra) results[a.productId].extra = true;
+      });
+      return;
+    }
+    var ok = {};
+    var bad = {};
+    ((body && body.results) || []).forEach(function (g) {
+      ((g && g.actionedItems) || []).forEach(function (i) {
+        if (i && i.productId != null) ok[String(i.productId)] = true;
+      });
+      ((g && g.failedItems) || []).forEach(function (i) {
+        if (i && i.productId != null) bad[String(i.productId)] = (i.error && typeof i.error.message === "string" && i.error.message) || "not added";
+      });
+    });
+    actions.forEach(function (a) {
+      results[a.productId] = ok[a.productId]
+        ? { productId: a.productId, added: true }
+        : { productId: a.productId, added: false, reason: bad[a.productId] || "no answer for this product" };
+      if (extra) results[a.productId].extra = true;
+    });
+  }
+
+  async function run(lines, key, storeId, keep) {
     state = { phase: "fetching", results: [], error: null };
     var url = "/api/bff/trolley/store/" + storeId;
     try {
       var have = await readTrolley(url, key);
       var results = {};
-      var actions = [];
+      var extraActions = [];
+      var lineActions = [];
+      if (keep) {
+        var ok = allowedIds(keep, lines);
+        Object.keys(have).forEach(function (pid) {
+          if (!ok[pid]) extraActions.push({ productId: pid, quantity: 0, orderItemId: have[pid].orderItemId });
+        });
+      }
       lines.forEach(function (l) {
         var h = have[l.productId];
         if (l.quantity === 0 ? !h : !!h && h.quantity === l.quantity) {
@@ -83,8 +128,9 @@
         // Without orderItemId Coles adds to a product already in the trolley instead of setting it.
         var a = { productId: l.productId, quantity: l.quantity };
         if (h) a.orderItemId = h.orderItemId;
-        actions.push(a);
+        lineActions.push(a);
       });
+      var actions = extraActions.concat(lineActions);
       if (actions.length) {
         var patchRes = await fetch(url, {
           method: "PATCH",
@@ -93,36 +139,19 @@
           body: JSON.stringify({ ageGateVerified: false, swapBehaviour: false, items: [{ actions: actions }] }),
         });
         if (patchRes.status === 401 || patchRes.status === 403) throw LOGIN;
-        if (!patchRes.ok) {
-          var httpReason = "HTTP " + patchRes.status;
-          actions.forEach(function (a) {
-            results[a.productId] = { productId: a.productId, added: false, reason: httpReason };
-          });
-        } else {
-          var body = await patchRes.json();
-          var ok = {};
-          var bad = {};
-          ((body && body.results) || []).forEach(function (g) {
-            ((g && g.actionedItems) || []).forEach(function (i) {
-              if (i && i.productId != null) ok[String(i.productId)] = true;
-            });
-            ((g && g.failedItems) || []).forEach(function (i) {
-              if (i && i.productId != null) bad[String(i.productId)] = (i.error && typeof i.error.message === "string" && i.error.message) || "not added";
-            });
-          });
-          actions.forEach(function (a) {
-            results[a.productId] = ok[a.productId] ? { productId: a.productId, added: true } : { productId: a.productId, added: false, reason: bad[a.productId] || "no answer for this product" };
-          });
-        }
+        var body = patchRes.ok ? await patchRes.json() : null;
+        if (extraActions.length) applyPatchResults(extraActions, body, patchRes.ok ? null : patchRes.status, results, true);
+        if (lineActions.length) applyPatchResults(lineActions, body, patchRes.ok ? null : patchRes.status, results, false);
       }
-      state = { phase: "done", results: lines.map(function (l) { return results[l.productId]; }), error: null };
+      var ordered = extraActions.map(function (a) { return results[a.productId]; }).concat(lines.map(function (l) { return results[l.productId]; }));
+      state = { phase: "done", results: ordered, error: null };
     } catch (e) {
       state = e === LOGIN ? { phase: "needsLogin", results: [], error: null } : { phase: "error", results: [], error: String((e && e.message) || e) };
     }
   }
 
   window.__weekdayFuelColesTrolley = {
-    start: function (lines) {
+    start: function (lines, keep) {
       if (state.phase === "fetching") return false;
       var key = pageKey();
       var storeId = pageStore();
@@ -130,7 +159,7 @@
         state = { phase: "notReady", results: [], error: null };
         return true;
       }
-      run(lines, key, storeId);
+      run(lines, key, storeId, keep);
       return true;
     },
     state: function () { return JSON.stringify(state); },

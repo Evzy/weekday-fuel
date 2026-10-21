@@ -40,6 +40,7 @@ class ColesSession(private val context: Context) {
     private var pending: List<String>? = null
     private var polling = false
     private var pendingSend: List<ColesTrolleyLine>? = null
+    private var pendingSendKeep: List<String>? = null
     private var sendPolling = false
     private var loginNotified = false
     private var clearHistoryOnLoad = false
@@ -91,9 +92,10 @@ class ColesSession(private val context: Context) {
         webView.loadUrl(url)
     }
 
-    fun send(lines: List<ColesTrolleyLine>) {
+    fun send(lines: List<ColesTrolleyLine>, keep: List<String>? = null) {
         if (destroyed) return
         pendingSend = lines
+        pendingSendKeep = keep
         sendPolling = false
         loginNotified = false
         handler.removeCallbacks(sendPoller)
@@ -184,6 +186,7 @@ class ColesSession(private val context: Context) {
 
     private fun clearSend() {
         pendingSend = null
+        pendingSendKeep = null
         sendPolling = false
         loginNotified = false
         handler.removeCallbacks(sendPoller)
@@ -203,7 +206,9 @@ class ColesSession(private val context: Context) {
         handler.removeCallbacks(sendRetry)
         handler.removeCallbacks(sendPoller)
         sendPolling = true
-        webView.evaluateJavascript("$trolleyScript\nwindow.__weekdayFuelColesTrolley.start(${ColesTrolleyJson.linesToJson(lines)});", null)
+        val keep = pendingSendKeep
+        val keepArg = if (keep != null) ",${ColesTrolleyJson.keepToJson(keep)}" else ""
+        webView.evaluateJavascript("$trolleyScript\nwindow.__weekdayFuelColesTrolley.start(${ColesTrolleyJson.linesToJson(lines)}$keepArg);", null)
         handler.postDelayed(sendPoller, POLL_MS)
     }
 

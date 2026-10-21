@@ -36,6 +36,26 @@ class ColesTrolleyJsonTest {
     }
 
     @Test
+    fun parseKeepAcceptsProductIdsAndEmpty() {
+        assertEquals(listOf("3329137", "5077283"), ColesTrolleyJson.parseKeep(JSONArray("""["3329137","5077283"]""")))
+        assertEquals(emptyList<String>(), ColesTrolleyJson.parseKeep(JSONArray("[]")))
+    }
+
+    @Test
+    fun parseKeepRejectsInvalid() {
+        for (bad in listOf("""[3329137]""", """["12"]""", """["3329137\"]);alert(1);//"]""", """[null]""")) {
+            assertNull(bad, ColesTrolleyJson.parseKeep(JSONArray(bad)))
+        }
+        assertNull(ColesTrolleyJson.parseKeep(JSONArray("""[${"""\"3329137\",""".repeat(301)}\"3329137\"]""")))
+    }
+
+    @Test
+    fun keepToJsonRoundTrips() {
+        val keep = listOf("3329137", "5077283")
+        assertEquals(keep, ColesTrolleyJson.parseKeep(JSONArray(ColesTrolleyJson.keepToJson(keep))))
+    }
+
+    @Test
     fun parsesScriptStates() {
         assertNull(ColesTrolleyJson.parseScriptState(null))
         assertNull(ColesTrolleyJson.parseScriptState("null"))
