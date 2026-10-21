@@ -692,7 +692,7 @@ const clone=o=>JSON.parse(JSON.stringify(o));
 function deepMerge(base,over){const out=clone(base);if(!over)return out;for(const k in over){if(k==="trial"){out[k]=clone(over[k]);continue}if(over[k]&&typeof over[k]==="object"&&!Array.isArray(over[k])&&out[k]&&typeof out[k]==="object")out[k]=deepMerge(out[k],over[k]);else out[k]=over[k];}return out}
 
 /* ---------- state + storage ---------- */
-const state={tab:"today",tabBefore:null,tabStack:[],date:iso(new Date()),settings:clone(DEFAULT_SETTINGS),days:{},weights:{},mealFilter:"all",sheet:null,addPick:null,weekAddDate:null,armed:null,unlocked:{},dayNote:null,openItem:null,kOpen:null,kAddItem:null,kitchenError:null,kitchenHint:null,kitchenHintWhere:null,trolley:null,prices:null,colesPrices:null,pricesTried:0,checkout:null,coLast:null,openOrder:null,orderError:false,weekNote:null,mealNote:null,scrollMealNote:false,scrollWeekDay:null,todayExtrasOpen:false,shopViewStep:null,shopExpandDays:{},shopAtHomeOpen:false,backup:{busy:null,error:null,needNewFile:false,remembered:null,pending:null},gapOptions:null,gapUndo:null,suppressGapUndoClear:false,trendRefit:null,trendNote:null};
+const state={tab:"today",tabBefore:null,tabStack:[],date:iso(new Date()),settings:clone(DEFAULT_SETTINGS),days:{},weights:{},mealFilter:"all",sheet:null,addPick:null,addDone:null,weekAddDate:null,armed:null,unlocked:{},dayNote:null,openItem:null,kOpen:null,kAddItem:null,kitchenError:null,kitchenHint:null,kitchenHintWhere:null,trolley:null,prices:null,colesPrices:null,pricesTried:0,checkout:null,coLast:null,openOrder:null,orderError:false,weekNote:null,mealNote:null,scrollMealNote:false,scrollWeekDay:null,todayExtrasOpen:false,shopViewStep:null,shopExpandDays:{},shopAtHomeOpen:false,backup:{busy:null,error:null,needNewFile:false,remembered:null,pending:null},gapOptions:null,gapUndo:null,suppressGapUndoClear:false,trendRefit:null,trendNote:null};
 let db=null;
 let restoring=false;
 const BACKUP_KEY="weekdayfuel.backup",BEFORE_KEY="weekdayfuel.beforeRestore";
@@ -1491,11 +1491,16 @@ function applyPlan(id,start){
   state.weekNote=`Added ${r.added} meal${r.added===1?"":"s"}, ${dayShort(first)}${last!==first?" – "+dayShort(last):""}.${r.kept?` Kept ${r.kept} you'd already planned.`:""}`;
   state.tab="week";state.sheet=null;state.planStart=null;window.scrollTo(0,0);if(first)scrollWeekDay(first);
 }
+function addSlotLabel(sl){return sl.charAt(0).toUpperCase()+sl.slice(1)}
+function addDoneText(slots){return slots.map(addSlotLabel).join(", ")}
+function recordAddDone(d,slot){state.addDone=state.addDone||{};if(!state.addDone[d])state.addDone[d]=[];state.addDone[d].push(slot)}
+function flushAddDoneNote(){if(!state.addDone||!Object.keys(state.addDone).length)return;const dates=Object.keys(state.addDone).sort(),last=dates[dates.length-1],slots=state.addDone[last];state.dayNote={date:last,msg:dates.length===1?`Added ${addDoneText(slots)}. It's in your cart.`:`Added meals through ${dayShort(last)}.`};state.scrollWeekDay=last}
+function closeAddSheet(){flushAddDoneNote();state.addDone=null;state.addPick=null;state.weekAddDate=null;state.sheet=null}
 function doAddMeal(mode){
   const id=state.sheet&&state.sheet.slice(4),meal=MEAL[id],pick=state.addPick;
   if(!meal||!pick||!pick.date)return;
-  const d=pick.date,day=ensureDay(d),old=day.meals||[];
-  const slot=(pick.p&&pick.p.slot)||WeekdayFuelCartAdd.naturalSlot(meal,old);
+  const d=pick.date,day=ensureDay(d),old=day.meals||[],weekFlow=!!state.weekAddDate;
+  const slot=mode==="replace"?(pick.replaceSlot||(pick.p&&pick.p.slot)):mode==="add"?(pick.p&&pick.p.slot)||WeekdayFuelCartAdd.naturalSlot(meal,old):WeekdayFuelCartAdd.naturalSlot(meal,old);
   const r=WeekdayFuelCartAdd.apply(old,id,slot,mode==="replace"?"replace":"extra",WeekdayFuelBought.isBought,m=>cartAddIsEaten(m,d));
   const keep=r.meals.filter(m=>m!==r.added);
   day.meals=keep.concat([r.added]);
@@ -1503,10 +1508,14 @@ function doAddMeal(mode){
   day.meals=r.meals;
   saveDay(d);
   shopCtx=null;
-  state.dayNote={date:d,msg:`Added ${slot}. It's in your cart.`};
-  state.sheet=null;state.weekAddDate=null;
   state.addPick=null;
-  state.scrollWeekDay=d;
+  if(weekFlow){
+    state.dayNote={date:d,msg:`Added ${slot}. It's in your cart.`};
+    state.sheet=null;state.weekAddDate=null;
+    state.scrollWeekDay=d;
+    return;
+  }
+  recordAddDone(d,slot);
 }
 
 /* weight analytics */
@@ -2285,7 +2294,9 @@ function renderSheet(){
       if(!pick||pick.date!==d||!pick.p)return "";
       const sl=pick.p.slot,slCap=sl.charAt(0).toUpperCase()+sl.slice(1),ds=dayShort(d);
       if(pick.p.action==="ask"){
-        return `<div class="stack" style="gap:8px;margin:4px 0 8px 4px"><p class="small" style="margin:0">${esc(slCap)} on ${esc(ds)} already has ${esc(MEAL[pick.p.existing.id].name)}.</p><div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn" data-act="addgo" data-v="replace">Replace</button><button class="btn alt" data-act="addgo" data-v="extra">Add as an extra</button></div></div>`;
+        const opts=(pick.p.options&&pick.p.options.length)?pick.p.options:[{slot:pick.p.slot,existing:pick.p.existing}];
+        const btns=opts.map(o=>{const sc=addSlotLabel(o.slot),nm=MEAL[o.existing.id]?MEAL[o.existing.id].name:o.existing.id;return `<button class="btn" data-act="addgo" data-v="replace" data-slot="${esc(o.slot)}">Replace ${esc(sc)} (${esc(nm)})</button>`}).join("");
+        return `<div class="stack" style="gap:8px;margin:4px 0 8px 4px"><p class="small" style="margin:0">This day already has meals in those slots.</p><div class="row" style="gap:8px;flex-wrap:wrap">${btns}<button class="btn alt" data-act="addgo" data-v="extra">Add as an extra</button></div></div>`;
       }
       if(pick.p.action==="locked"){
         return `<div class="stack" style="gap:8px;margin:4px 0 8px 4px"><p class="small" style="margin:0">${esc(slCap)} on ${esc(ds)} is bought. Add as an extra?</p><button class="btn" data-act="addgo" data-v="extra">Add as an extra</button></div>`;
@@ -2299,16 +2310,17 @@ function renderSheet(){
       body=confirmForDay(d)||`<p class="small muted" style="margin:0">Adding to ${esc(dayShort(d))}…</p>`;
     }else{
       const strip=[];for(let i=0;i<14;i++){const dt=new Date(today+"T00:00:00");dt.setDate(dt.getDate()+i);strip.push(iso(dt))}
-      const addSlotLabel=(d,sl)=>{
+      const dayMealSlotShort=(d,sl)=>{
         const xs=((state.days[d]&&state.days[d].meals)||[]).filter(m=>m.slot===sl);
         const m0=xs[0];
         if(!m0||!MEAL[m0.id])return "–";
         const parts=MEAL[m0.id].name.split(/\s+/);
         return esc(parts.length>3?parts.slice(0,2).join(" "):MEAL[m0.id].name);
       };
-      body=`<div class="stack" style="gap:6px">${strip.map(d=>`<button class="pick" data-act="addday" data-v="${d}" aria-pressed="${pick&&pick.date===d}"><span><b>${esc(dayShort(d))}</b>${isWeekend(d)&&!tracked(d)?" · off":""}<br><span class="small muted">${addSlotLabel(d,"breakfast")} · ${addSlotLabel(d,"lunch")} · ${addSlotLabel(d,"dinner")}</span></span></button>${confirmForDay(d)}`).join("")}</div>`;
+      body=`<div class="stack" style="gap:6px">${strip.map(d=>{const done=state.addDone&&state.addDone[d];const tick=done?`<span class="small" style="color:var(--good);display:block">✓ Added ${esc(addDoneText(done))}</span>`:"";return `<button class="pick" data-act="addday" data-v="${d}" aria-pressed="${pick&&pick.date===d}"><span><b>${esc(dayShort(d))}</b>${isWeekend(d)&&!tracked(d)?" · off":""}<br><span class="small muted">${dayMealSlotShort(d,"breakfast")} · ${dayMealSlotShort(d,"lunch")} · ${dayMealSlotShort(d,"dinner")}</span>${tick}</span></button>${confirmForDay(d)}`}).join("")}</div>`;
     }
-    root.innerHTML=`<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(meal.name)}"><div class="row between" style="margin-bottom:10px"><div><div class="eyebrow">${esc(eyebrow)}</div><h2>${esc(meal.name)}</h2></div><button class="ghost" data-act="close">Close</button></div><div class="stack" style="gap:10px">${body}</div></div></div>`;
+    const addSheetDone=state.addDone&&Object.keys(state.addDone).length;
+    root.innerHTML=`<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(meal.name)}"><div class="row between" style="margin-bottom:10px"><div><div class="eyebrow">${esc(eyebrow)}</div><h2>${esc(meal.name)}</h2></div><button class="ghost" data-act="close">${addSheetDone&&!state.weekAddDate?"Done":"Close"}</button></div><div class="stack" style="gap:10px">${body}</div></div></div>`;
     root.dataset.sheet=state.sheet;
     return;
   }
@@ -2421,13 +2433,13 @@ document.addEventListener("click",e=>{
     case "recipe":state.sheet=v;state.sheetTier=TIERS.some(([k])=>k===el.dataset.t)?el.dataset.t:"S";break;
     case "sheettier":state.sheetTier=v;break;
     case "batch":state.sheet="batch:"+v;break;
-    case "addmeal":state.sheet="add:"+v;state.addPick=null;break;
+    case "addmeal":state.sheet="add:"+v;state.addPick=null;state.addDone=null;break;
     case "addday":{const id=state.sheet&&state.sheet.startsWith("add:")?state.sheet.slice(4):null,meal=id&&MEAL[id];if(!meal)break;const d=v,old=(state.days[d]&&state.days[d].meals)||[],p=WeekdayFuelCartAdd.place(meal,old,WeekdayFuelBought.isBought,m=>cartAddIsEaten(m,d));if(p.action==="add"){state.addPick={date:d,p};doAddMeal("add");break}state.addPick={date:d,p};break}
-    case "addgo":doAddMeal(v);break;
+    case "addgo":{if(v==="replace"&&el.dataset.slot&&state.addPick)state.addPick.replaceSlot=el.dataset.slot;doAddMeal(v);break}
     case "plan":state.sheet="plan:"+v;break;
     case "planstart":state.planStart=v;break;
     case "planapply":{const t=iso(new Date());applyPlan(v,state.planStart&&state.planStart>=t?state.planStart:WeekdayFuelPlans.defaultStart(t,state.days));break}
-    case "close":state.sheet=null;state.addPick=null;state.weekAddDate=null;state.stapleSheetDraft=null;state.stapleSheetError=null;break;
+    case "close":{if(state.sheet&&state.sheet.startsWith("add:")&&!state.weekAddDate)closeAddSheet();else{state.sheet=null;state.addPick=null;state.weekAddDate=null;state.addDone=null}state.stapleSheetDraft=null;state.stapleSheetError=null;break}
     case "mf":state.mealFilter=v==="remake"?"all":v;break;
     case "mode":state.settings.mode=v;saveSettings();break;
     case "applyadj":applyTrendAdjust(+v);break;
@@ -2544,7 +2556,7 @@ document.addEventListener("input",e=>{
   c.optSaved=false;const b=document.querySelector('[data-act="cooptsave"]');if(b&&!coBusy())b.disabled=false;
   const ok=document.getElementById("co-optsaved");if(ok)ok.remove();
 });
-document.addEventListener("keydown",e=>{if(e.key==="Escape"&&state.sheet){state.sheet=null;state.addPick=null;state.weekAddDate=null;render()}});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&state.sheet){if(state.sheet.startsWith("add:")&&!state.weekAddDate)closeAddSheet();else{state.sheet=null;state.addPick=null;state.weekAddDate=null;state.addDone=null}render()}});
 
 function onHostPageMessage(e){
   let m;try{m=JSON.parse(e.data)}catch(_){return}

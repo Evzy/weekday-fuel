@@ -52,6 +52,28 @@
     return null;
   }
 
+  function replaceOptions(meal, dayMeals, isBought, isEatenFn) {
+    var slots = (meal && meal.slots) || [];
+    var opts = [];
+    var i;
+    if (slots.indexOf("main") >= 0) {
+      for (i = 0; i < dayMeals.length; i++) {
+        var m = dayMeals[i];
+        if (!m || (m.slot !== "lunch" && m.slot !== "dinner")) continue;
+        if (!isLocked(m, isBought, isEatenFn)) opts.push({ slot: m.slot, existing: m });
+      }
+      return opts;
+    }
+    if (slots.indexOf("breakfast") >= 0) {
+      for (i = 0; i < dayMeals.length; i++) {
+        var b = dayMeals[i];
+        if (!b || b.slot !== "breakfast") continue;
+        if (!isLocked(b, isBought, isEatenFn)) opts.push({ slot: "breakfast", existing: b });
+      }
+    }
+    return opts;
+  }
+
   function defaultIsBought(m) {
     return m && typeof m.bought === "string" && m.bought !== "";
   }
@@ -71,8 +93,12 @@
     if (slot === "snack") return { action: "add", slot: slot };
     var existing = firstInSlot(dayMeals, slot);
     if (!existing) return { action: "add", slot: slot };
-    if (isLocked(existing, isBought, isEatenFn)) return { action: "locked", slot: slot, existing: existing };
-    return { action: "ask", slot: slot, existing: existing };
+    var options = replaceOptions(meal, dayMeals, isBought, isEatenFn);
+    if (isLocked(existing, isBought, isEatenFn)) {
+      if (!options.length) return { action: "locked", slot: slot, existing: existing, options: options };
+      return { action: "ask", slot: slot, existing: existing, options: options };
+    }
+    return { action: "ask", slot: slot, existing: existing, options: options };
   }
 
   function apply(dayMeals, mealId, slot, mode, isBought, isEatenFn) {

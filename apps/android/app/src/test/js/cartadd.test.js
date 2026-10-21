@@ -22,18 +22,67 @@ test("naturalSlot", () => {
 test("place treats custom isEaten like stored ate", () => {
   const implied = (m) => m && m.implied;
   const breakfast = m("a", "breakfast", { implied: true });
-  assert.deepEqual(C.place(B, [breakfast], isBought, implied), { action: "locked", slot: "breakfast", existing: breakfast });
+  assert.deepEqual(C.place(B, [breakfast], isBought, implied), {
+    action: "locked",
+    slot: "breakfast",
+    existing: breakfast,
+    options: [],
+  });
 });
 
 test("place: add, ask, locked, snack always adds", () => {
   assert.deepEqual(C.place(B, [], isBought), { action: "add", slot: "breakfast" });
   const lunch = m("a", "lunch"),
     dinner = m("b", "dinner");
-  assert.deepEqual(C.place(M, [lunch, dinner], isBought), { action: "ask", slot: "lunch", existing: lunch });
+  assert.deepEqual(C.place(M, [lunch, dinner], isBought), {
+    action: "ask",
+    slot: "lunch",
+    existing: lunch,
+    options: [
+      { slot: "lunch", existing: lunch },
+      { slot: "dinner", existing: dinner },
+    ],
+  });
   const boughtB = m("c", "breakfast", { bought: "o1" });
-  assert.deepEqual(C.place(B, [boughtB], isBought), { action: "locked", slot: "breakfast", existing: boughtB });
+  assert.deepEqual(C.place(B, [boughtB], isBought), {
+    action: "locked",
+    slot: "breakfast",
+    existing: boughtB,
+    options: [],
+  });
   const ateB = m("c", "breakfast", { ate: "2026-10-19" });
   assert.equal(C.place(B, [ateB], isBought).action, "locked");
+  assert.deepEqual(C.place(SN, [m("x", "snack")], isBought), { action: "add", slot: "snack" });
+});
+
+test("place options: one main slot locked, breakfast unlocks, snack unaffected", () => {
+  const lunch = m("a", "lunch", { bought: "o1" }),
+    dinner = m("b", "dinner");
+  assert.deepEqual(C.place(M, [lunch, dinner], isBought), {
+    action: "ask",
+    slot: "lunch",
+    existing: lunch,
+    options: [{ slot: "dinner", existing: dinner }],
+  });
+  const lunch2 = m("a", "lunch", { bought: "o1" }),
+    dinner2 = m("b", "dinner", { ate: "2026-10-19" });
+  assert.deepEqual(C.place(M, [lunch2, dinner2], isBought), {
+    action: "locked",
+    slot: "lunch",
+    existing: lunch2,
+    options: [],
+  });
+  const b1 = m("toasty", "breakfast"),
+    b2 = m("eggmuffin", "breakfast");
+  assert.deepEqual(C.place(B, [b1, b2], isBought), {
+    action: "ask",
+    slot: "breakfast",
+    existing: b1,
+    options: [
+      { slot: "breakfast", existing: b1 },
+      { slot: "breakfast", existing: b2 },
+    ],
+  });
   assert.deepEqual(C.place(SN, [m("x", "snack")], isBought), { action: "add", slot: "snack" });
 });
 
