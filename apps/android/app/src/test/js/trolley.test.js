@@ -164,3 +164,13 @@ test("when QuantityInTrolley is missing the line still counts as added", async (
   const s = await settle(api);
   assert.deepEqual(s.results, [{ stockcode: 717518, outcome: "added" }]);
 });
+
+test("a weighed line is not flagged when QuantityInTrolley uses another unit", async () => {
+  const { api } = load((url, init, urls) =>
+    url === urls.loginStatus
+      ? response(200, LOGGED_IN)
+      : response(200, { UpdatedItems: [{ Stockcode: 175734, Quantity: 300, QuantityInTrolley: 300 }] }));
+  api.start([{ stockcode: 175734, quantity: 0.3 }]);
+  const s = await settle(api);
+  assert.deepEqual(s.results, [{ stockcode: 175734, outcome: "added" }]);
+});

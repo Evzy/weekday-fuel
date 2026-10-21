@@ -61,7 +61,8 @@
       var hit = updatedItem(json, line.stockcode);
       if (!hit) return { stockcode: line.stockcode, outcome: "failed", reason: "not available" };
       var inTrolley = hit.QuantityInTrolley;
-      if (typeof inTrolley === "number" && isFinite(inTrolley) && Math.abs(inTrolley - line.quantity) > 1e-6) {
+      /* Weighed lines are sent in kilograms; their QuantityInTrolley unit is unconfirmed, so only whole counts are checked. */
+      if (Number.isInteger(line.quantity) && typeof inTrolley === "number" && isFinite(inTrolley) && Math.abs(inTrolley - line.quantity) > 1e-6) {
         return { stockcode: line.stockcode, outcome: "failed", reason: "trolley has " + formatTrolleyQty(inTrolley) };
       }
       return { stockcode: line.stockcode, outcome: "added" };
