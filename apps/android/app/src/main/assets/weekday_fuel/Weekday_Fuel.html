@@ -1318,7 +1318,7 @@ function renderTodaySpreadAdj(today){
   if(!dayEditable(today))return "";
   const adj=state.days[today]&&state.days[today].adj;
   if(!adj||!adj.spreadTo)return "";
-  const label=targetAdjLabel(today);
+  const label=targetAdjLabel(today).replace(/^ · /,"");
   const undo=adj.spreadSplits&&adj.spreadSplits.length?`<button type="button" class="ghost" data-act="spreadundo">Undo spread</button>`:"";
   if(!label&&!undo)return "";
   return `<div class="small muted row" style="gap:8px;flex-wrap:wrap;align-items:center">${label}${undo}</div>`;
@@ -1602,7 +1602,7 @@ function gauge(label,val,tgt,unit,cls){
 }
 function compactMacro(val,tgt,unit,cls){
   const pct=Math.min(100,tgt?val/tgt*100:0);
-  return `<div class="stack" style="gap:4px"><div class="small"><b class="num">${r0(val)}</b> / ${tgt}${unit}</div><div class="bar ${cls||""}" style="height:4px"><i style="width:${pct}%"></i></div></div>`;
+  return `<div class="stack" style="gap:4px"><div class="small"><b class="num">${r0(val)}</b> / ${r0(tgt)}${unit}</div><div class="bar ${cls||""}" style="height:4px"><i style="width:${pct}%"></i></div></div>`;
 }
 function tierLabel(t){const x=TIERS.find(([k])=>k===t);return x?x[1]:"Standard"}
 function renderSetupCard(){
