@@ -70,6 +70,10 @@
       adj = +150;
       st = "bad";
       head = "Dropping faster than planned";
+    } else if (modeKey === "cut" && delta > 0) {
+      adj = -150;
+      st = "bad";
+      head = "Trending up";
     } else if (modeKey === "cut" && delta > -0.25) {
       adj = -150;
       st = "bad";

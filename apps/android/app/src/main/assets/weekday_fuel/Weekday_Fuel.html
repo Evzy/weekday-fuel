@@ -685,7 +685,7 @@ const clone=o=>JSON.parse(JSON.stringify(o));
 function deepMerge(base,over){const out=clone(base);if(!over)return out;for(const k in over){if(k==="trial"){out[k]=clone(over[k]);continue}if(over[k]&&typeof over[k]==="object"&&!Array.isArray(over[k])&&out[k]&&typeof out[k]==="object")out[k]=deepMerge(out[k],over[k]);else out[k]=over[k];}return out}
 
 /* ---------- state + storage ---------- */
-const state={tab:"today",tabBefore:null,tabStack:[],date:iso(new Date()),settings:clone(DEFAULT_SETTINGS),days:{},weights:{},mealFilter:"all",sheet:null,addPick:null,weekAddDate:null,armed:null,unlocked:{},dayNote:null,openItem:null,kOpen:null,kAddItem:null,kitchenError:null,kitchenHint:null,kitchenHintWhere:null,trolley:null,prices:null,colesPrices:null,pricesTried:0,checkout:null,coLast:null,openOrder:null,orderError:false,weekNote:null,mealNote:null,scrollMealNote:false,scrollWeekDay:null,todayExtrasOpen:false,shopViewStep:null,shopExpandDays:{},shopAtHomeOpen:false,backup:{busy:null,error:null,needNewFile:false,remembered:null,pending:null},gapOptions:null,gapUndo:null,suppressGapUndoClear:false,trendRefit:null};
+const state={tab:"today",tabBefore:null,tabStack:[],date:iso(new Date()),settings:clone(DEFAULT_SETTINGS),days:{},weights:{},mealFilter:"all",sheet:null,addPick:null,weekAddDate:null,armed:null,unlocked:{},dayNote:null,openItem:null,kOpen:null,kAddItem:null,kitchenError:null,kitchenHint:null,kitchenHintWhere:null,trolley:null,prices:null,colesPrices:null,pricesTried:0,checkout:null,coLast:null,openOrder:null,orderError:false,weekNote:null,mealNote:null,scrollMealNote:false,scrollWeekDay:null,todayExtrasOpen:false,shopViewStep:null,shopExpandDays:{},shopAtHomeOpen:false,backup:{busy:null,error:null,needNewFile:false,remembered:null,pending:null},gapOptions:null,gapUndo:null,suppressGapUndoClear:false,trendRefit:null,trendNote:null};
 let db=null;
 let restoring=false;
 const BACKUP_KEY="weekdayfuel.backup",BEFORE_KEY="weekdayfuel.beforeRestore";
@@ -1480,32 +1480,49 @@ function trendRefitCandidates(today){
   });
   return out;
 }
+function plannedDayLabel(n){return n===1?"1 planned day":`${n} planned days`}
 function applyTrendAdjust(adj){
   const today=iso(new Date());
   state.settings.adjust=(state.settings.adjust||0)+(+adj);
   state.settings.adjustChange={at:today,by:+adj};
   saveSettings();
-  const dates=trendRefitCandidates(today),k=target(today).k;
-  if(!dates.length){state.trendRefit=null;state.todayNote=`Target is now ${k} kcal.`;return}
+  state.gapUndo=null;
+  state.todayNote=null;
+  state.trendNote=null;
+  const dates=trendRefitCandidates(today),k=target().k;
+  if(!dates.length){state.trendRefit=null;state.trendNote=`Target is now ${k} kcal.`;return}
   state.trendRefit={k,n:dates.length,dates};
 }
 function runTrendRefit(){
   const tr=state.trendRefit;if(!tr||!tr.dates||!tr.dates.length)return;
+  const dates=tr.dates.filter(d=>dayEditable(d)&&tracked(d)&&dayHasMeals(state.days[d]));
+  const n=dates.length;
   let changed=0;
-  tr.dates.forEach(date=>{const d=ensureDay(date);const ch=fitTiers(d,0,date,{bought:true});saveDay(date);if(ch.length)changed++});
-  state.todayNote=changed?`Re-fitted ${changed} of ${tr.n} days.`:"Portions already fit.";
+  dates.forEach(date=>{const d=ensureDay(date);const ch=fitTiers(d,0,date,{bought:true});saveDay(date);if(ch.length)changed++});
+  state.trendNote=changed?`Re-fitted ${changed} of ${n} day${n===1?"":"s"}.`:"Portions already fit.";
   state.trendRefit=null;
 }
 function renderTrendRefitPrompt(){
   const tr=state.trendRefit;if(!tr||!tr.n)return "";
-  return `<div class="panel stack" style="gap:8px;margin-top:8px"><div class="small">${esc(`Target is now ${tr.k} kcal. Re-fit portions on ${tr.n} planned day(s)?`)}</div><div class="row" style="gap:8px"><button type="button" class="btn" data-act="trendrefit">Re-fit</button><button type="button" class="ghost" data-act="trendrefitno">Not now</button></div></div>`;
+  return `<div class="panel stack" style="gap:8px;margin-top:8px"><div class="small">${esc(`Target is now ${tr.k} kcal. Re-fit portions on ${plannedDayLabel(tr.n)}?`)}</div><div class="row" style="gap:8px"><button type="button" class="btn" data-act="trendrefit">Re-fit</button><button type="button" class="ghost" data-act="trendrefitno">Not now</button></div></div>`;
+}
+function renderTrendNoteHtml(){
+  if(!state.trendNote)return "";
+  return `<div class="hint" id="trend-note"><span>${esc(state.trendNote)}</span></div>`;
 }
 function renderTodayTrendPanel(today){
   if(today!==iso(new Date()))return "";
-  if(state.trendRefit)return renderTrendRefitPrompt();
-  const v=verdict();if(!v.adj)return "";
-  const dir=v.adj>0?"Raise":"Drop";
-  return `<div class="panel stack" style="gap:8px;margin-top:8px"><div class="small">${esc(v.head)}. 7-day average ${v.cur.toFixed(1)} kg vs ${v.prev.toFixed(1)} kg. ${dir} weekdays 150 kcal?</div><div class="row" style="gap:8px"><button type="button" class="btn" data-act="trendapply" data-v="${v.adj}">Apply</button><button type="button" class="ghost" data-act="view" data-v="weigh">Details</button></div></div>`;
+  let h="";
+  if(state.trendRefit)h+=renderTrendRefitPrompt();
+  else{
+    const v=verdict();
+    if(v.adj){
+      const dir=v.adj>0?"Raise":"Drop";
+      h+=`<div class="panel stack" style="gap:8px;margin-top:8px"><div class="small">${esc(v.head)}. 7-day average ${v.cur.toFixed(1)} kg vs ${v.prev.toFixed(1)} kg. ${dir} weekdays 150 kcal?</div><div class="row" style="gap:8px"><button type="button" class="btn" data-act="trendapply" data-v="${v.adj}">Apply</button><button type="button" class="ghost" data-act="view" data-v="weigh">Details</button></div></div>`;
+    }
+  }
+  h+=renderTrendNoteHtml();
+  return h;
 }
 
 function normalizeTab(){
@@ -1699,7 +1716,8 @@ function renderWeigh(){
   const today=iso(new Date());const w=state.weights[today];const v=verdict();
   let h=`<div class="row between" style="align-items:flex-start"><div><div class="eyebrow">Daily weigh-in</div><h2>Morning, before the Dare</h2></div>${backBtn()}</div>`;
   h+=`<form class="panel row" id="wform" style="align-items:flex-end"><label class="f grow">Weight (kg)<input id="wkg" class="num" type="number" step="0.1" min="30" max="250" inputmode="decimal" placeholder="83.5" value="${w?w.kg:""}"></label><label class="f" style="width:160px">Date<input id="wdate" type="date" value="${today}" max="${today}"></label><button class="btn" type="submit">${w?"Update":"Save"}</button></form>`;
-  h+=`<div class="panel verdict"><div class="eyebrow">7-day trend</div><div class="head">${esc(v.head)}</div><div class="small">${esc(v.body)}</div>${v.hold?"":state.trendRefit?renderTrendRefitPrompt():v.adj?`<div class="row" style="margin-top:6px"><button class="btn" data-act="applyadj" data-v="${v.adj}">Apply ${v.adj>0?"+":""}${v.adj} kcal to weekdays</button><span class="small muted">Current adjustment: ${S().adjust>0?"+":""}${S().adjust}</span></div>`:""}</div>`;
+  h+=`<div class="panel verdict"><div class="eyebrow">7-day trend</div><div class="head">${esc(v.head)}</div><div class="small">${esc(v.body)}</div>${state.trendRefit?renderTrendRefitPrompt():v.hold?"":v.adj?`<div class="row" style="margin-top:6px"><button class="btn" data-act="applyadj" data-v="${v.adj}">Apply ${v.adj>0?"+":""}${v.adj} kcal to weekdays</button><span class="small muted">Current adjustment: ${S().adjust>0?"+":""}${S().adjust}</span></div>`:""}</div>`;
+  h+=renderTrendNoteHtml();
   const chart=chartSVG();
   h+=`<div class="panel stack"><div class="row between"><h3>Last 5 weeks</h3><span class="small muted">Line is the 7-day average</span></div>${chart||`<div class="empty">Chart appears after two weigh-ins — watch the average, not daily noise.</div>`}</div>`;
   const tbl=weekTable();
@@ -2307,7 +2325,7 @@ document.addEventListener("click",e=>{
   if(act!=="weektile"&&act!=="daymenu"&&act!=="weekmenu")state.dayNote=null;
   const date=actionDate(el);
   switch(act){
-    case "tab":state.tab=v;state.planStart=null;state.kOpen=null;state.kitchenHint=null;state.kitchenHintWhere=null;if(v!=="today"){state.todayExtrasOpen=false;state.trendRefit=null;state.todayNote=null}if(v==="week")state.date=iso(new Date());window.scrollTo(0,0);if(v==="shop"&&!coBusy())maybeRefreshPrices();break;
+    case "tab":state.tab=v;state.planStart=null;state.kOpen=null;state.kitchenHint=null;state.kitchenHintWhere=null;if(v!=="today"){state.todayExtrasOpen=false;state.trendRefit=null;state.trendNote=null;state.todayNote=null}if(v==="week")state.date=iso(new Date());window.scrollTo(0,0);if(v==="shop"&&!coBusy())maybeRefreshPrices();break;
     case "planweek":planWeekNav();break;
     case "setupdone":state.settings.setupDone=true;saveSettings();break;
     case "meal":{const dd=dayOf(date),m=(dd.meals||[])[i];if(m&&MEAL[m.id])state.sheet=mealSheetKey(date,i,m);break}

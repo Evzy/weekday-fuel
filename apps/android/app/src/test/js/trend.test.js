@@ -68,7 +68,7 @@ test("cut: dropping faster than planned", () => {
   assert.equal(v.prev, 82);
 });
 
-test("cut: has stalled", () => {
+test("cut: has stalled when loss is below target pace but not gaining", () => {
   const today = "2026-10-21";
   const v = verdict(twoWeeks(today, 81.0, 81.1), today, "cut", MODES, null, { fmtDay });
   assert.equal(v.head, "Cut has stalled");
@@ -79,9 +79,16 @@ test("cut: has stalled", () => {
   );
 });
 
-test("cut: large weekly gain still counts as stalled", () => {
+test("cut: trending up when the week gained weight", () => {
   const today = "2026-10-21";
   const v = verdict(twoWeeks(today, 81.5, 81), today, "cut", MODES, null, { fmtDay });
+  assert.equal(v.head, "Trending up");
+  assert.equal(v.adj, -150);
+});
+
+test("cut: flat week reads as stalled not trending up", () => {
+  const today = "2026-10-21";
+  const v = verdict(twoWeeks(today, 81, 81), today, "cut", MODES, null, { fmtDay });
   assert.equal(v.head, "Cut has stalled");
   assert.equal(v.adj, -150);
 });

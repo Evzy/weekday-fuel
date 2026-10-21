@@ -2,14 +2,15 @@
 
 Date: 2026-10-21. Builds on the existing weekly verdict (`verdict()` in `Weekday_Fuel.html`, shown only on the hidden Weigh view with an "Apply ±150 kcal to weekdays" button). Choices (chat): surface the suggestion on Today; suggest and tap, not automatic; after applying, hold the suggestion until 7 days have passed; offer to re-fit planned days, including bought meals.
 
-## Pace rules (unchanged)
+## Pace rules
 
-This week's 7-day average vs the 7 days before it, each needing at least 3 weigh-ins. With `MODES` as today:
+This week's 7-day average vs the 7 days before it, each needing at least 3 weigh-ins. With `MODES` as today, evaluated in order:
 
 - delta below `mode.lo` → +150, "Dropping faster than planned";
-- delta above `mode.hi` → −150, "Gaining faster than planned" (bulk) or "Trending up";
-- cut and delta > −0.25 → −150, "Cut has stalled";
-- bulk and delta < 0.1 → +150, "Not gaining yet";
+- **cut** and delta > 0 → −150, "Trending up";
+- **cut** and −0.25 < delta ≤ 0 → −150, "Cut has stalled" (must run after **cut** delta > 0 and before `delta > mode.hi`; the earlier single rule "cut and delta > −0.25" made "Cut has stalled" unreachable for any gain);
+- delta above `mode.hi` → −150, "Gaining faster than planned" (bulk) or "Trending up" (recomp);
+- bulk and delta < 0.1 → +150, "Not gaining yet" (unreachable with bulk `lo` = 0.1 because `delta < lo` fires first; kept as-is);
 - otherwise on track, no change.
 
 The body text keeps its current wording.
@@ -37,13 +38,13 @@ Additive optional field `settings.adjustChange = {at: "YYYY-MM-DD", by: ±150}`,
 
 1. `settings.adjust += adj`; `settings.adjustChange = {at: today, by: adj}`; `saveSettings()`.
 2. Count re-fit candidates: dates from today on where `dayHasMeals` and the day is editable (today only when `dayEditable(today)`).
-3. If there are any, set `state.trendRefit = {k: newTarget, n}` and show, in place of the suggestion panel (Today) or the button (Weigh view): "Target is now {k} kcal. Re-fit portions on {n} planned day(s)?" with **Re-fit** and **Not now**. With no candidates, show "Target is now {k} kcal." once.
+3. If there are any, set `state.trendRefit = {k: newTarget, n}` and show, in place of the suggestion panel (Today) or the button (Weigh view): "Target is now {k} kcal. Re-fit portions on 1 planned day?" or "... on {n} planned days?" with **Re-fit** and **Not now**. With no candidates, show "Target is now {k} kcal." once.
 
 The Weigh view's existing **Apply** button uses the same handler; during a hold it shows the hold sentence instead of the button.
 
 ## Re-fit
 
-For each candidate date: `fitTiers(day, 0, date, {bought: true})`, the same call as `todayFit`. Eaten meals stay fixed through `mealImpliedAte`; bought meals are re-fitted. Save each changed day. The note becomes "Re-fitted {changed} of {n} days." (or "Portions already fit." when none changed), cleared on the next tab switch like other notes. If the new portions need more food than was bought, the existing gap line and Shop top-up show it; this feature adds no shop logic.
+For each candidate date: `fitTiers(day, 0, date, {bought: true})`, the same call as `todayFit`. Eaten meals stay fixed through `mealImpliedAte`; bought meals are re-fitted. Save each changed day. The note becomes "Re-fitted {changed} of 1 day." / "of {n} days." (or "Portions already fit." when none changed), on `state.trendNote`, cleared on the next tab switch like other notes. If the new portions need more food than was bought, the existing gap line and Shop top-up show it; this feature adds no shop logic.
 
 ## Out of scope
 
