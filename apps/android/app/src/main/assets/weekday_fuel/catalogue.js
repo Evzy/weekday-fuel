@@ -113,7 +113,7 @@
     },
     {
       id: "cheese", sec: 1, keeps: 21, name: "Light tasty shredded cheese", short: "Cheese", unit: "g", note: "Keeps for weeks in the fridge", same: false,
-      coles: { name: "Coles Cheese Shredded Tasty Light 700g", url: "https://www.coles.com.au/product/coles-cheese-shredded-tasty-light-700g-8145346", size: 700, price: 11, checked: "2026-10-15" },
+      coles: { name: "Coles Cheese Shredded Tasty Light 700g", url: "https://www.coles.com.au/product/coles-cheese-shredded-tasty-light-700g-8145346", size: 700, price: 9.5, checked: "2026-10-20" },
       woolies: {
         name: "Woolworths Light Tasty Shredded Cheese 500g", url: "https://www.woolworths.com.au/shop/productdetails/729008/woolworths-light-tasty-shredded-cheese", stockcode: 729008, size: 500, price: 8.3, checked: "2026-10-15",
         packs: [{ name: "Woolworths Light Tasty Cheese Shredded 250g", url: "https://www.woolworths.com.au/shop/productdetails/728984/woolworths-light-tasty-cheese-shredded", stockcode: 728984, size: 250, price: 5, checked: "2026-10-20" }],
@@ -137,7 +137,7 @@
     {
       id: "spinach", sec: 1, keeps: 4, name: "Baby spinach", unit: "g", note: "The old link was the 280g bag", same: false,
       coles: {
-        name: "Coles Baby Spinach 120g", url: "https://www.coles.com.au/product/coles-baby-spinach-120g-1499340", size: 120, price: 3.3, checked: "2026-10-15",
+        name: "Coles Baby Spinach 120g", url: "https://www.coles.com.au/product/coles-baby-spinach-120g-1499340", size: 120, price: 3, checked: "2026-10-20",
         packs: [{ name: "Coles Baby Spinach 60g", url: "https://www.coles.com.au/product/coles-baby-spinach-60g-1499486", size: 60, price: 2.2, checked: "2026-10-20" }],
       },
       woolies: {
@@ -150,7 +150,7 @@
     },
     {
       id: "toms", sec: 1, keeps: 7, name: "Cherry tomatoes", unit: "g", note: "Coles shows the 250g punnet as currently unavailable", same: false,
-      coles: { name: "Coles Cherry Tomatoes 250g", url: "https://www.coles.com.au/product/coles-cherry-tomatoes-250g-4834736", size: 250, price: 3.7, checked: "2026-10-15" },
+      coles: { name: "Coles Cherry Tomatoes 250g", url: "https://www.coles.com.au/product/coles-cherry-tomatoes-250g-4834736", size: 250, price: 3, checked: "2026-10-20" },
       woolies: { name: "Woolworths Cherry Tomatoes Punnet 250g", url: "https://www.woolworths.com.au/shop/productdetails/149620/woolworths-cherry-tomatoes-punnet", stockcode: 149620, size: 250, price: 3.5, checked: "2026-10-15" },
     },
     {
