@@ -1,6 +1,6 @@
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
-const { verdict } = require("../../main/assets/weekday_fuel/trend.js");
+const { verdict, avgWindow } = require("../../main/assets/weekday_fuel/trend.js");
 
 const MODES = {
   cut: { label: "Mini-cut", rate: -0.5, lo: -0.8, hi: -0.25 },
@@ -28,14 +28,8 @@ function addIso(s, n) {
 }
 
 function twoWeeks(today, curKg, prevKg) {
-  const curStart = addIso(today, -6);
   const prevEnd = addIso(today, -7);
   return Object.assign(days(today, 7, curKg), days(prevEnd, 7, prevKg));
-}
-
-function suffix(body) {
-  const i = body.lastIndexOf(" kg/week.");
-  return body.slice(i + " kg/week.".length);
 }
 
 test("wait when fewer than 3 weigh-ins this week", () => {
@@ -66,15 +60,30 @@ test("cut: dropping faster than planned", () => {
   assert.equal(v.state, "bad");
   assert.equal(v.head, "Dropping faster than planned");
   assert.equal(v.adj, 150);
-  assert.equal(suffix(v.body), " Suggest moving weekday calories up 150 kcal.");
+  assert.equal(
+    v.body,
+    "This week averaged 80.0 kg vs 82.0 kg last week (-2.00 kg). Target pace for mini-cut is -0.50 kg/week. Suggest moving weekday calories up 150 kcal.",
+  );
+  assert.equal(v.cur, 80);
+  assert.equal(v.prev, 82);
 });
 
-test("cut: trending up when delta above hi", () => {
+test("cut: has stalled", () => {
+  const today = "2026-10-21";
+  const v = verdict(twoWeeks(today, 81.0, 81.1), today, "cut", MODES, null, { fmtDay });
+  assert.equal(v.head, "Cut has stalled");
+  assert.equal(v.adj, -150);
+  assert.equal(
+    v.body,
+    "This week averaged 81.0 kg vs 81.1 kg last week (-0.10 kg). Target pace for mini-cut is -0.50 kg/week. Suggest moving weekday calories down 150 kcal.",
+  );
+});
+
+test("cut: large weekly gain still counts as stalled", () => {
   const today = "2026-10-21";
   const v = verdict(twoWeeks(today, 81.5, 81), today, "cut", MODES, null, { fmtDay });
-  assert.equal(v.head, "Trending up");
+  assert.equal(v.head, "Cut has stalled");
   assert.equal(v.adj, -150);
-  assert.equal(suffix(v.body), " Suggest moving weekday calories down 150 kcal.");
 });
 
 test("recomp: on track", () => {
@@ -83,7 +92,10 @@ test("recomp: on track", () => {
   assert.equal(v.state, "good");
   assert.equal(v.head, "On track for recomp");
   assert.equal(v.adj, 0);
-  assert.equal(suffix(v.body), " Keep weekdays where they are.");
+  assert.equal(
+    v.body,
+    "This week averaged 81.0 kg vs 81.0 kg last week (+0.00 kg). Target pace for recomp is 0.00 kg/week. Keep weekdays where they are.",
+  );
 });
 
 test("recomp: trending up", () => {
@@ -106,10 +118,22 @@ test("bulk: not gaining yet", () => {
   const v = verdict(twoWeeks(today, 81.04, 81), today, "bulk", modes, null, { fmtDay });
   assert.equal(v.head, "Not gaining yet");
   assert.equal(v.adj, 150);
-  assert.equal(suffix(v.body), " Suggest moving weekday calories up 150 kcal.");
 });
 
-test("hold is active through day 6 after adjustChange.at and clears on day 7", () => {
+test("windowing ignores weigh-ins outside the two 7-day windows and bad kg values", () => {
+  const today = "2026-10-21";
+  const weights = Object.assign(twoWeeks(today, 81, 81), {
+    [addIso(today, -15)]: { kg: 50 },
+    [addIso(today, -3)]: { kg: "abc" },
+  });
+  const v = verdict(weights, today, "recomp", MODES, null, { fmtDay });
+  assert.equal(v.head, "On track for recomp");
+  assert.equal(v.cur, 81);
+  assert.equal(v.prev, 81);
+  assert.equal(avgWindow(weights, today, 7).n, 6);
+});
+
+test("hold is active through day 6 after adjustChange.at and cleared on day 7", () => {
   const changed = { at: "2026-10-15", by: -150 };
   const weights = twoWeeks("2026-10-21", 81.5, 81);
   const day6 = verdict(weights, "2026-10-21", "cut", MODES, changed, { fmtDay });
@@ -124,7 +148,7 @@ test("hold is active through day 6 after adjustChange.at and clears on day 7", (
 test("hold replaces the suggestion sentence in the body", () => {
   const changed = { at: "2026-10-15", by: -150 };
   const v = verdict(twoWeeks("2026-10-21", 81.5, 81), "2026-10-21", "cut", MODES, changed, { fmtDay });
-  assert.equal(suffix(v.body), " Changed -150 kcal on DAY(2026-10-15); next check from DAY(2026-10-22).");
+  assert.match(v.body, / Changed -150 kcal on DAY\(2026-10-15\); next check from DAY\(2026-10-22\)\.$/);
 });
 
 test("on track during a hold still reads on track and ends with the hold sentence", () => {
@@ -133,5 +157,19 @@ test("on track during a hold still reads on track and ends with the hold sentenc
   assert.equal(v.state, "good");
   assert.equal(v.head, "On track for recomp");
   assert.equal(v.adj, 0);
-  assert.equal(suffix(v.body), " Changed +150 kcal on DAY(2026-10-15); next check from DAY(2026-10-22).");
+  assert.match(v.body, / Changed \+150 kcal on DAY\(2026-10-15\); next check from DAY\(2026-10-22\)\.$/);
+});
+
+test("invalid adjustChange.at skips the hold", () => {
+  const weights = twoWeeks("2026-10-21", 81.0, 81.1);
+  const v = verdict(weights, "2026-10-21", "cut", MODES, { at: "Oct 15", by: -150 }, { fmtDay });
+  assert.equal(v.hold, undefined);
+  assert.equal(v.adj, -150);
+});
+
+test("invalid adjustChange.by skips the hold", () => {
+  const weights = twoWeeks("2026-10-21", 81, 81);
+  const v = verdict(weights, "2026-10-21", "recomp", MODES, { at: "2026-10-15", by: NaN }, { fmtDay });
+  assert.equal(v.hold, undefined);
+  assert.equal(v.adj, 0);
 });

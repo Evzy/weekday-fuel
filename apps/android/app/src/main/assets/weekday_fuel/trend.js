@@ -70,14 +70,14 @@
       adj = +150;
       st = "bad";
       head = "Dropping faster than planned";
-    } else if (delta > mode.hi) {
-      adj = -150;
-      st = "bad";
-      head = modeKey === "bulk" ? "Gaining faster than planned" : "Trending up";
     } else if (modeKey === "cut" && delta > -0.25) {
       adj = -150;
       st = "bad";
       head = "Cut has stalled";
+    } else if (delta > mode.hi) {
+      adj = -150;
+      st = "bad";
+      head = modeKey === "bulk" ? "Gaining faster than planned" : "Trending up";
     } else if (modeKey === "bulk" && delta < 0.1) {
       adj = +150;
       st = "bad";
@@ -86,7 +86,14 @@
       head = "On track for " + mode.label.toLowerCase();
     }
     var hold = null;
-    if (changed && changed.at && today < addDays(changed.at, 7)) {
+    if (
+      changed &&
+      typeof changed.at === "string" &&
+      /^\d{4}-\d{2}-\d{2}$/.test(changed.at) &&
+      typeof changed.by === "number" &&
+      isFinite(changed.by) &&
+      today < addDays(changed.at, 7)
+    ) {
       hold = { at: changed.at, by: changed.by, next: addDays(changed.at, 7) };
       adj = 0;
     }
@@ -120,7 +127,7 @@
     } else {
       tail = " Keep weekdays where they are.";
     }
-    var out = { state: st, head: head, body: base + tail, adj: adj, delta: delta };
+    var out = { state: st, head: head, body: base + tail, adj: adj, delta: delta, cur: cur.avg, prev: prev.avg };
     if (hold) out.hold = hold;
     return out;
   }
