@@ -11,9 +11,17 @@
     return Boolean(json && json.ShopperRequest && json.ShopperRequest.IsGuest === false);
   }
 
-  function wasUpdated(json, stockcode) {
+  function updatedItem(json, stockcode) {
     var items = (json && json.UpdatedItems) || [];
-    return items.some(function (item) { return item.Stockcode === stockcode; });
+    for (var i = 0; i < items.length; i++) {
+      if (items[i].Stockcode === stockcode) return items[i];
+    }
+    return null;
+  }
+
+  function formatTrolleyQty(n) {
+    if (Math.abs(n - Math.round(n)) < 1e-6) return String(Math.round(n));
+    return String(n);
   }
 
   function updateBody(line) {
@@ -47,10 +55,16 @@
         body: JSON.stringify(updateBody(line)),
       });
       if (!r.ok) return { stockcode: line.stockcode, outcome: "failed", reason: "HTTP " + r.status };
+      var json = await r.json();
       /* Woolworths answers a removal with an empty UpdatedItems, exactly like an unknown stockcode. */
       if (line.quantity === 0) return { stockcode: line.stockcode, outcome: "removed" };
-      if (wasUpdated(await r.json(), line.stockcode)) return { stockcode: line.stockcode, outcome: "added" };
-      return { stockcode: line.stockcode, outcome: "failed", reason: "not available" };
+      var hit = updatedItem(json, line.stockcode);
+      if (!hit) return { stockcode: line.stockcode, outcome: "failed", reason: "not available" };
+      var inTrolley = hit.QuantityInTrolley;
+      if (typeof inTrolley === "number" && isFinite(inTrolley) && Math.abs(inTrolley - line.quantity) > 1e-6) {
+        return { stockcode: line.stockcode, outcome: "failed", reason: "trolley has " + formatTrolleyQty(inTrolley) };
+      }
+      return { stockcode: line.stockcode, outcome: "added" };
     } catch (e) {
       return { stockcode: line.stockcode, outcome: "failed", reason: String((e && e.message) || e) };
     }

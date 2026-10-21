@@ -13,7 +13,9 @@ function response(status, body) {
 
 function accepted(init) {
   const item = JSON.parse(init.body).items[0];
-  return response(200, { UpdatedItems: [{ Stockcode: item.stockcode, Quantity: item.quantity }] });
+  return response(200, {
+    UpdatedItems: [{ Stockcode: item.stockcode, Quantity: item.quantity, QuantityInTrolley: item.quantity }],
+  });
 }
 
 function load(handler) {
@@ -133,4 +135,32 @@ test("a removal Woolworths rejects is reported as failed", async () => {
   api.start([{ stockcode: 198763, quantity: 0 }]);
   const s = await settle(api);
   assert.deepEqual(s.results, [{ stockcode: 198763, outcome: "failed", reason: "HTTP 500" }]);
+});
+
+test("when QuantityInTrolley differs from the requested quantity the line fails with trolley has N", async () => {
+  const { api } = load((url, init, urls) => {
+    if (url === urls.loginStatus) return response(200, LOGGED_IN);
+    const item = JSON.parse(init.body).items[0];
+    if (item.stockcode === 717518) {
+      return response(200, { UpdatedItems: [{ Stockcode: 717518, Quantity: 2, QuantityInTrolley: 1 }] });
+    }
+    return accepted(init);
+  });
+  api.start(LINES);
+  const s = await settle(api);
+  assert.deepEqual(s.results, [
+    { stockcode: 717518, outcome: "failed", reason: "trolley has 1" },
+    { stockcode: 72280, outcome: "added" },
+  ]);
+});
+
+test("when QuantityInTrolley is missing the line still counts as added", async () => {
+  const { api } = load((url, init, urls) => {
+    if (url === urls.loginStatus) return response(200, LOGGED_IN);
+    const item = JSON.parse(init.body).items[0];
+    return response(200, { UpdatedItems: [{ Stockcode: item.stockcode, Quantity: item.quantity }] });
+  });
+  api.start([LINES[0]]);
+  const s = await settle(api);
+  assert.deepEqual(s.results, [{ stockcode: 717518, outcome: "added" }]);
 });
