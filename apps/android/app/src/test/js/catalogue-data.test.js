@@ -128,7 +128,7 @@ test("swaps are well formed and pass the nutrition guard", () => {
       assert.ok(typeof s.name === "string" && s.name);
       assert.ok(Number.isInteger(s.serves) && s.serves >= 1, s.id + " serves");
       assert.ok(s.per && s.per.k > 0 && s.per.p > 0, s.id + " per");
-      assert.ok(s.per.p >= it.per.p - 5 && s.per.k <= it.per.k + 150, s.id + " passes guard");
+      assert.ok(s.per.p >= it.per.p - 5 && (s.todayOnly || s.per.k <= it.per.k + 80), s.id + " passes guard");
       assert.ok(typeof s.short === "string" && s.short.length > 0 && s.short.length <= 12, s.id + " short");
       assert.ok(s.woolies || s.coles, s.id + " has a store");
       if (s.woolies) {

@@ -351,7 +351,7 @@
           var dayRec = days && days[d];
           dayStaples.forEach(function (s) {
             if (!s || !s.id || !(s.amount > 0) || s.out) return;
-            if (dayRec && dayRec.stapleChoice && dayRec.stapleChoice[s.id]) return;
+            if (validStapleSwapChoice(cat, s.id, dayRec)) return;
             actions.push({ ts: midTs, at: mid, kind: "use", item: s.id, amount: s.amount });
           });
         }
@@ -421,6 +421,18 @@
   function addReserve(out, item, amount) {
     if (!(amount > 0)) return;
     out[item] = (out[item] || 0) + amount;
+  }
+
+  function validStapleSwapChoice(cat, stapleId, dayRec) {
+    if (!dayRec || !dayRec.stapleChoice) return false;
+    var swapId = dayRec.stapleChoice[stapleId];
+    if (!swapId) return false;
+    var it = cat && typeof cat.item === "function" ? cat.item(stapleId) : null;
+    if (!it || !Array.isArray(it.swaps)) return false;
+    for (var i = 0; i < it.swaps.length; i++) {
+      if (it.swaps[i].id === swapId) return true;
+    }
+    return false;
   }
 
   function reserveMeal(out, cat, m, date, today) {
@@ -497,7 +509,7 @@
         if (Array.isArray(dayStaples)) {
           dayStaples.forEach(function (s) {
             if (!s || !s.id || !(s.amount > 0) || s.out) return;
-            if (dayRec && dayRec.stapleChoice && dayRec.stapleChoice[s.id]) return;
+            if (validStapleSwapChoice(cat, s.id, dayRec)) return;
             addReserve(out, s.id, s.amount);
           });
         }
@@ -575,7 +587,7 @@
         var dayRec = days && days[fd];
         if (Array.isArray(dayStaples)) dayStaples.forEach(function (s) {
           if (!s || !s.id || !(s.amount > 0) || s.out) return;
-          if (dayRec && dayRec.stapleChoice && dayRec.stapleChoice[s.id]) return;
+          if (validStapleSwapChoice(cat, s.id, dayRec)) return;
           addReserve(out, s.id, s.amount);
         });
         fd = nextDate(fd);

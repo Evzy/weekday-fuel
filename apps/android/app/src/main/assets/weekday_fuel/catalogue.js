@@ -34,7 +34,7 @@
           coles: { name: "Oak Plus Protein Salted Caramel No Added Sugar Milk 500mL", url: "https://www.coles.com.au/product/oak-plus-protein-salted-caramel-no-added-sugar-milk-500ml-1043778", size: 1, price: 4.6, checked: "2026-10-19" } },
         { id: "icebreak", short: "Ice Break", name: "Ice Break Strong Espresso + Protein 500mL", serves: 1, per: { k: 347, p: 30 },
           coles: { name: "Ice Break Iced Coffee Strong Espresso + Protein 500mL", url: "https://www.coles.com.au/product/ice-break-iced-coffee-strong-espresso-protein-500ml-7850783", size: 1, price: 3.95, checked: "2026-10-19" } },
-        { id: "dare-750", short: "Dare 45g", name: "Dare Protein Double Espresso No Sugar Added 750mL", serves: 1, per: { k: 444, p: 45, c: 38.3, f: 12 },
+        { id: "dare-750", short: "Dare 45g", todayOnly: true, name: "Dare Protein Double Espresso No Sugar Added 750mL", serves: 1, per: { k: 444, p: 45, c: 38.3, f: 12 },
           woolies: { name: "Dare Protein Double Espresso Iced Coffee No Sugar Added 750mL", url: "https://www.woolworths.com.au/shop/productdetails/6020777/dare-protein-double-espresso-iced-coffee-no-sugar-added", stockcode: 6020777, size: 1, price: 5.8, checked: "2026-10-21" },
           coles: { name: "Dare Protein No Sugar Added Iced Coffee Double Espresso 750mL", url: "https://www.coles.com.au/product/dare-protein-no-sugar-added-iced-coffee-double-espresso-750ml-1045886", size: 1, price: 5.8, checked: "2026-10-21" } },
       ],

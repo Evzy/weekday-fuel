@@ -26,13 +26,24 @@
     return o;
   }
 
+  function clonePer(per) {
+    if (!per || typeof per !== "object") return per;
+    var o = {};
+    Object.keys(per).forEach(function (k) {
+      o[k] = per[k];
+    });
+    return o;
+  }
+
   function cloneSwap(s, wPrices, cPrices, colesId) {
     var out = {
       id: s.id,
       name: s.name,
       serves: s.serves,
-      per: { k: s.per.k, p: s.per.p },
+      per: clonePer(s.per),
     };
+    if (s.short) out.short = s.short;
+    if (s.todayOnly === true) out.todayOnly = true;
     if (s.woolies) {
       var wl = wPrices && s.woolies.stockcode != null ? wPrices[s.woolies.stockcode] : null;
       out.woolies = cloneProduct(s.woolies, wl);
@@ -123,6 +134,7 @@
     var mainCost = mainLine && typeof mainLine.cost === "number" ? mainLine.cost : Infinity;
     var best = null;
     item.swaps.forEach(function (swap) {
+      if (swap.todayOnly) return;
       if (onlyId && swap.id !== onlyId) return;
       if (!onlyId && isMuted(muted, item.id + ":" + swap.id)) return;
       if (!passesGuard(item, swap)) return;
@@ -174,7 +186,7 @@
     (item.swaps || []).forEach(function (sw) {
       if (sw.id === swapId) swap = sw;
     });
-    if (!swap) return null;
+    if (!swap || swap.todayOnly) return null;
     var product = swap[store];
     if (!product || product.available === false) return null;
     if (!idInSent(sentIds, productSentId(product, store, colesId))) return null;

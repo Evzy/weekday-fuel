@@ -26,6 +26,38 @@ test("applySwapPrices writes live price, was, special and available", () => {
   assert.equal(S.applySwapPrices(items, null, null, colesId)[0], items[0]);
 });
 
+test("applySwapPrices keeps short and full per through live prices", () => {
+  const big = {
+    id: "dare-750",
+    short: "Dare 45g",
+    todayOnly: true,
+    name: "Dare 750",
+    serves: 1,
+    per: { k: 444, p: 45, c: 38.3, f: 12 },
+    woolies: wp(6020777, 5.8),
+    coles: cp(1045886, 5.8),
+  };
+  const items = [item([big])];
+  const out = S.applySwapPrices(items, { 6020777: { price: 5.5, special: true, available: true } }, null, colesId);
+  const a = out[0].swaps[0];
+  assert.equal(a.short, "Dare 45g");
+  assert.equal(a.todayOnly, true);
+  assert.equal(a.per.c, 38.3);
+  assert.equal(a.per.f, 12);
+  assert.equal(a.woolies.price, 5.5);
+});
+
+test("suggest skips todayOnly swaps", () => {
+  const today = sw("dare-750", 444, 45, wp(6020777, 3.3, { special: true }), cp(1045886, 3.3, { special: true }));
+  today.todayOnly = true;
+  const regular = sw("a", 292, 30, wp(111, 3.3, { special: true }), cp(2222, 3.3, { special: true }));
+  const it = item([today, regular]);
+  const s = S.suggest(row(5, 0, 23.25, null), it, "woolies", []);
+  assert.ok(s);
+  assert.equal(s.swap.id, "a");
+  assert.equal(S.suggest(row(5, 0, 23.25, null), it, "woolies", [], "dare-750"), null);
+});
+
 test("guard boundaries", () => {
   const main = { per: { k: 296, p: 30 } };
   assert.equal(S.passesGuard(main, { per: { k: 376, p: 25 } }), true);

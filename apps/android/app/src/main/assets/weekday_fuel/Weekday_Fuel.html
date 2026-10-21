@@ -1024,7 +1024,7 @@ function fitTiers(day,locked,date,opts){
   const unlocked=date&&dayUnlocked(date)||!!(opts&&opts.bought);
   const fixed=(m,i)=>i<lk||mealImpliedAte(m,date)||(WeekdayFuelBought.isBought(m)&&!unlocked);
   const ms=all.filter((m,i)=>MEAL[m.id]&&!fixed(m,i));if(!ms.length)return [];
-  const base=totals({fx:day.fx,meals:all.filter((m,i)=>fixed(m,i)),extras:day.extras},date);
+  const base=totals({fx:day.fx,meals:all.filter((m,i)=>fixed(m,i)),extras:day.extras,stapleChoice:day.stapleChoice},date);
   const tg=opts&&opts.target?opts.target:(date?target(date):target());let best=null;
   const keys=["L","S","X"];const n=ms.length;const combos=Math.pow(3,n);
   for(let i=0;i<combos;i++){
@@ -1091,13 +1091,6 @@ function gapDayBurden(day,date,daysMap,gapK){
   const tg=gapTargetOn(date,daysMap);
   if(gapK>0)return Math.max(0,tg.k-t.k);
   return Math.max(0,t.k-tg.k);
-}
-function gapMacrosFor(id,amount,date){
-  const day=date?dayOf(date):null;
-  const pick=day?stapleChoiceId(day,id):null;
-  const m=WeekdayFuelStaples.choiceMacros(id,amount,pick||null,CAT,MACROS);
-  if(!m)return null;
-  return {k:Math.round(m.k),p:Math.round(m.p*10)/10};
 }
 function gapCloneDay(date,daysMap){
   const src=daysMap[date]||dayOf(date);
@@ -1201,7 +1194,7 @@ function buildGapOptions(today){
   if(!meta)return [];
   const opts=[];
   if(meta.shortfall){
-    WeekdayFuelGap.snackOptions({free:gapKitchenFree(),macrosFor:gapMacrosFor,total:{k:t.k,p:t.p},target:tg}).forEach(o=>{
+    WeekdayFuelGap.snackOptions({free:gapKitchenFree(),macrosFor:(id,amount)=>{const pick=stapleChoiceId(day,id);const m=WeekdayFuelStaples.choiceMacros(id,amount,pick||null,CAT,MACROS);return m?{k:Math.round(m.k),p:Math.round(m.p*10)/10}:null},total:{k:t.k,p:t.p},target:tg}).forEach(o=>{
       opts.push({type:"snack",label:o.snack.label,after:o.after,snack:o.snack,k:o.k,p:o.p});
     });
     const dates=gapSpreadDates(today);
@@ -1430,7 +1423,7 @@ function suggestWeek(){
     lunch:MEALS.filter(m=>m.slots.includes("main")&&chicken(m)).map(m=>m.id),
     dinner:MEALS.filter(m=>m.slots.includes("main")&&!chicken(m)).map(m=>m.id)
   };
-  const fit=(d,meals,locked)=>{const day=dayOf(d);fitTiers({fx:day.fx,meals,extras:day.extras},locked,d)};
+  const fit=(d,meals,locked)=>{const day=dayOf(d);fitTiers({fx:day.fx,meals,extras:day.extras,stapleChoice:day.stapleChoice},locked,d)};
   const havePlan=shopHave();
   const r=P.planWeek({dates:w.dates,before,kept,pools,fit,score:dm=>P.shopScore(CAT,dm,s,havePlan)});
   if(!r){state.weekNote="Couldn't plan this week. Try Suggest a day for each day instead.";return}
