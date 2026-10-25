@@ -166,6 +166,55 @@
     return { few: few, ahead: ahead };
   }
 
+  function logReplaceIndexes(meals, slot, isBought) {
+    var boughtFn = isBought || defaultIsBought;
+    var out = [];
+    (meals || []).forEach(function (m, i) {
+      if (!m || m.slot !== slot) return;
+      if (boughtFn(m) || m.logged) return;
+      out.push(i);
+    });
+    return out;
+  }
+
+  function logMeal(dayMeals, opts, nowIso) {
+    var boughtFn = (opts && opts.isBought) || defaultIsBought;
+    var meals = (dayMeals || []).slice();
+    var remove = Object.create(null);
+    (opts && opts.replace ? opts.replace : []).forEach(function (idx) {
+      if (typeof idx !== "number" || idx < 0 || idx >= meals.length) return;
+      var m = meals[idx];
+      if (!m || boughtFn(m) || m.logged) return;
+      remove[idx] = true;
+    });
+    meals = meals.filter(function (_m, i) {
+      return !remove[i];
+    });
+    var at =
+      typeof nowIso === "string" && !isNaN(Date.parse(nowIso)) ? nowIso : new Date().toISOString();
+    var added = {
+      id: opts.id,
+      slot: opts.slot,
+      t: opts.t || "S",
+      shop: false,
+      ate: at,
+      logged: true,
+    };
+    meals.push(added);
+    var tagged = meals.map(function (m, idx) {
+      return { m: m, idx: idx };
+    });
+    tagged.sort(function (a, b) {
+      var ra = slotRank(a.m.slot),
+        rb = slotRank(b.m.slot);
+      if (ra !== rb) return ra - rb;
+      return a.idx - b.idx;
+    });
+    return { meals: tagged.map(function (x) {
+      return x.m;
+    }), added: added };
+  }
+
   function gapLabel(prevIso, nextIso, isTrackedWeekend) {
     var n = diffDays(prevIso, nextIso);
     if (n <= 1) return null;
@@ -186,6 +235,8 @@
     cartDays: cartDays,
     dayFlags: dayFlags,
     gapLabel: gapLabel,
+    logMeal: logMeal,
+    logReplaceIndexes: logReplaceIndexes,
   };
   if (typeof module === "object" && module.exports) module.exports = api;
   else root.WeekdayFuelCartAdd = api;

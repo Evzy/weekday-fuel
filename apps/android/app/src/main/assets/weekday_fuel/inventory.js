@@ -303,6 +303,7 @@
       var day = days[date];
       if (!day || !Array.isArray(day.meals)) return;
       day.meals.forEach(function (m) {
+        if (m && m.logged === true) return;
         var ateAt = impliedAte(m, date, todayDate);
         if (!ateAt) return;
         var ateMs = atMs(ateAt);
@@ -436,7 +437,7 @@
   }
 
   function reserveMeal(out, cat, m, date, today) {
-    if (!m || m.ate === false) return;
+    if (!m || m.logged === true || m.ate === false) return;
     if (impliedAte(m, date, today)) return;
     if (m.ate !== undefined) return;
     var per = cat.AMOUNTS && cat.AMOUNTS[m.id];

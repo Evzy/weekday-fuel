@@ -739,7 +739,7 @@ const clone=o=>JSON.parse(JSON.stringify(o));
 function deepMerge(base,over){const out=clone(base);if(!over)return out;for(const k in over){if(k==="trial"){out[k]=clone(over[k]);continue}if(over[k]&&typeof over[k]==="object"&&!Array.isArray(over[k])&&out[k]&&typeof out[k]==="object")out[k]=deepMerge(out[k],over[k]);else out[k]=over[k];}return out}
 
 /* ---------- state + storage ---------- */
-const state={tab:"today",tabBefore:null,tabStack:[],date:iso(new Date()),settings:clone(DEFAULT_SETTINGS),days:{},weights:{},mealFilter:"all",sheet:null,addPick:null,addDone:null,weekAddDate:null,armed:null,unlocked:{},dayNote:null,openItem:null,kOpen:null,kAddItem:null,kitchenError:null,kitchenHint:null,kitchenHintWhere:null,trolley:null,prices:null,colesPrices:null,pricesTried:0,checkout:null,coLast:null,openOrder:null,orderError:false,weekNote:null,mealNote:null,scrollMealNote:false,scrollWeekDay:null,todayExtrasOpen:false,shopViewStep:null,shopExpandDays:{},shopAtHomeOpen:false,backup:{busy:null,error:null,needNewFile:false,remembered:null,pending:null},gapOptions:null,gapUndo:null,suppressGapUndoClear:false,trendRefit:null,trendNote:null};
+const state={tab:"today",tabBefore:null,tabStack:[],date:iso(new Date()),settings:clone(DEFAULT_SETTINGS),days:{},weights:{},mealFilter:"all",sheet:null,addPick:null,addDone:null,weekAddDate:null,armed:null,unlocked:{},dayNote:null,openItem:null,kOpen:null,kAddItem:null,kitchenError:null,kitchenHint:null,kitchenHintWhere:null,trolley:null,prices:null,colesPrices:null,pricesTried:0,checkout:null,coLast:null,openOrder:null,orderError:false,weekNote:null,mealNote:null,scrollMealNote:false,scrollWeekDay:null,todayExtrasOpen:false,shopViewStep:null,shopExpandDays:{},shopAtHomeOpen:false,backup:{busy:null,error:null,needNewFile:false,remembered:null,pending:null},gapOptions:null,gapUndo:null,suppressGapUndoClear:false,trendRefit:null,trendNote:null,logPick:null,logFilter:"all"};
 let db=null;
 let restoring=false;
 const BACKUP_KEY="weekdayfuel.backup",BEFORE_KEY="weekdayfuel.beforeRestore";
@@ -1028,7 +1028,8 @@ function renderWeekMealLine(m,i,date){
   const meal=MEAL[m.id];if(!meal)return "";
   const v=meal.t[m.t];
   let tags="";
-  if(WeekdayFuelBought.isBought(m))tags+=` · <span class="tag ok">Bought</span>`;
+  if(m.logged)tags+=` · <span class="tag">Logged</span>`;
+  else if(WeekdayFuelBought.isBought(m))tags+=` · <span class="tag ok">Bought</span>`;
   else if(date>=iso(new Date())&&m.shop===false)tags+=` · <span class="tag">Not in cart</span>`;
   return `<button type="button" class="pick" data-act="meal" data-i="${i}" data-d="${esc(date)}"><span class="small grow">${esc(m.slot)} · ${esc(meal.name)} · ${esc(tierLabel(m.t))} · ${r0(v.k)} kcal · ${r0(v.p)}g P${tags}</span></button>`;
 }
@@ -1521,7 +1522,53 @@ function suggestWeek(){
 }
 function dayHasUnboughtInCart(date){
   if(!shopDays().includes(date))return false;
-  return ((state.days[date]&&state.days[date].meals)||[]).some(m=>!WeekdayFuelBought.isBought(m));
+  return ((state.days[date]&&state.days[date].meals)||[]).some(m=>!WeekdayFuelBought.isBought(m)&&m.shop!==false&&!m.logged);
+}
+function logMealSlotOptions(meal){
+  const s=[];
+  if(meal.slots.includes("breakfast"))s.push("breakfast");
+  if(meal.slots.includes("main")){s.push("lunch");s.push("dinner")}
+  if(meal.slots.includes("snack"))s.push("snack");
+  return s;
+}
+function renderLogMealList(){
+  const f=state.logFilter;
+  const filt=m=>f==="all"||(f==="breakfast"&&m.slots.includes("breakfast"))||(f==="main"&&m.slots.includes("main"))||(f==="snack"&&m.slots.includes("snack"));
+  const row=m=>`<button type="button" class="pick" data-act="logpick" data-v="${esc(m.id)}"><span><b>${esc(m.name)}</b><br><span class="small muted">${esc(m.cuisine)} · ${m.mins} min</span></span><span class="num">${m.t.L.k}–${m.t.X.k} kcal<br>${m.t.L.p}–${m.t.X.p}g P</span></button>`;
+  return `<div class="chips">${[["all","All"],["breakfast","Breakfast"],["main","Lunch & dinner"],["snack","Snacks"]].map(([k,l])=>`<button type="button" class="chip" aria-pressed="${f===k}" data-act="logmf" data-v="${k}">${l}</button>`).join("")}</div><div class="picker stack" style="gap:6px">${MEALS.filter(filt).map(row).join("")}</div>`;
+}
+function renderLogMealConfigure(id){
+  const meal=MEAL[id];if(!meal)return "";
+  const today=iso(new Date()),day=dayOf(today),meals=day.meals||[];
+  const pick=state.logPick||{};
+  const slots=logMealSlotOptions(meal);
+  let slot=pick.slot;
+  if(!slot||!slots.includes(slot))slot=WeekdayFuelCartAdd.naturalSlot(meal,meals);
+  const t=pick.t&&meal.t[pick.t]?pick.t:"S";
+  const slotDial=`<div class="dial" role="group" aria-label="Slot">${slots.map(sl=>`<button type="button" aria-pressed="${slot===sl}" data-act="logslot" data-v="${esc(sl)}">${esc(addSlotLabel(sl))}</button>`).join("")}</div>`;
+  const tierDial=`<div class="dial" role="group" aria-label="Portion">${TIERS.map(([k,l])=>`<button type="button" aria-pressed="${t===k}" data-act="logtier" data-v="${k}">${l}</button>`).join("")}</div>`;
+  const repl=WeekdayFuelCartAdd.logReplaceIndexes(meals,slot,WeekdayFuelBought.isBought);
+  const replBox=repl.length?`<div class="stack" style="gap:6px">${repl.map(i=>{const pm=meals[i],pn=MEAL[pm.id]?MEAL[pm.id].name:pm.id;const on=pick.replace&&pick.replace[i];return `<label class="pick row between" style="cursor:pointer"><span><input type="checkbox" data-act="logreplace" data-i="${i}" ${on?"checked":""} style="margin-right:8px">Instead of the planned ${esc(addSlotLabel(slot))} · ${esc(pn)}</span></label>`}).join("")}</div>`:"";
+  return `<div class="stack" style="gap:10px">${slotDial}${tierDial}${replBox}<button type="button" class="btn" data-act="loggo">Log it</button></div>`;
+}
+function doLogMeal(){
+  const pick=state.logPick;if(!pick||!pick.id||!MEAL[pick.id])return;
+  const today=iso(new Date()),meal=MEAL[pick.id];
+  const day=ensureDay(today),old=day.meals||[];
+  const slots=logMealSlotOptions(meal);
+  let slot=pick.slot;
+  if(!slot||!slots.includes(slot))slot=WeekdayFuelCartAdd.naturalSlot(meal,old);
+  const t=pick.t&&meal.t[pick.t]?pick.t:"S";
+  const replace=Object.keys(pick.replace||{}).filter(k=>pick.replace[k]).map(k=>+k);
+  const r=WeekdayFuelCartAdd.logMeal(old,{id:pick.id,slot,t,replace,isBought:WeekdayFuelBought.isBought},new Date().toISOString());
+  day.meals=r.meals;
+  if(isWeekend(today)&&!tracked(today))day.track=true;
+  fitTiers(day,0,today,{bought:true});
+  saveDay(today);
+  shopCtx=null;
+  state.todayNote=`Logged ${addSlotLabel(slot)} · ${meal.name} (${tierLabel(t)})`;
+  state.logPick=null;
+  state.sheet=null;
 }
 function dayShowFit(date,day){
   if(!dayEditable(date)||!dayHasMeals(day)||dayPip(day,date)==="good")return false;
@@ -1568,10 +1615,12 @@ function renderMealSheetBody(date,i){
   const tierDial=locked?"":`<div class="dial" role="group" aria-label="Portion">${TIERS.map(([k,l])=>`<button type="button" aria-pressed="${m.t===k}" data-act="tier" data-i="${i}" data-v="${k}"${dd}>${l}</button>`).join("")}</div>`;
   const key=rmArmKey(date,m.id);
   const rmArmed=state.armed===key;
-  const leftOut=inCart&&m.shop===false&&!WeekdayFuelBought.isBought(m);
-  const shopBtn=!locked&&inCart?`<button type="button" class="ghost ${leftOut?"warn":""}" aria-pressed="${leftOut?"true":"false"}" data-act="mealshop" data-i="${i}"${dd}>${leftOut?"Put back in cart":"Leave out of cart"}</button>`:"";
-  const editRow=locked?"":`<div class="row" style="gap:8px;flex-wrap:wrap"><button type="button" class="ghost" data-act="swap" data-i="${i}"${dd}>Swap</button>${shopBtn}<button type="button" class="ghost ${rmArmed?"warn":""}" data-act="rm" data-i="${i}" data-v="${esc(m.id)}"${dd}>${rmArmed?"Tap to remove":"Remove"}</button></div>`;
-  return `<div class="stack" style="gap:10px"><div><div class="eyebrow">${esc(m.slot)}</div><h2>${esc(meal.name)}</h2><div class="small muted">${esc(tierLabel(m.t))} · <span class="num">${r0(v.k)}</span> kcal · <span class="num">${r0(v.p)}</span>g protein${WeekdayFuelBought.isBought(m)?` · Bought`:""}${leftOut?` · Not in cart`:""}</div><div class="small muted">Day: <span class="num">${r0(dt.k)}</span> / ${tg.k} kcal · <span class="num">${r0(dt.p)}</span> / ${tg.p}g protein</div></div><div class="row" style="gap:8px;flex-wrap:wrap"><button type="button" class="btn alt" data-act="recipe" data-v="${esc(meal.id)}" data-t="${esc(m.t)}">Recipe</button></div>${tierDial}${editRow}</div>`;
+  const isLogged=!!m.logged;
+  const leftOut=!isLogged&&inCart&&m.shop===false&&!WeekdayFuelBought.isBought(m);
+  const shopBtn=!locked&&!isLogged&&inCart?`<button type="button" class="ghost ${leftOut?"warn":""}" aria-pressed="${leftOut?"true":"false"}" data-act="mealshop" data-i="${i}"${dd}>${leftOut?"Put back in cart":"Leave out of cart"}</button>`:"";
+  const swapBtn=isLogged?"":`<button type="button" class="ghost" data-act="swap" data-i="${i}"${dd}>Swap</button>`;
+  const editRow=locked?"":`<div class="row" style="gap:8px;flex-wrap:wrap">${swapBtn}${shopBtn}<button type="button" class="ghost ${rmArmed?"warn":""}" data-act="rm" data-i="${i}" data-v="${esc(m.id)}"${dd}>${rmArmed?"Tap to remove":"Remove"}</button></div>`;
+  return `<div class="stack" style="gap:10px"><div><div class="eyebrow">${esc(m.slot)}</div><h2>${esc(meal.name)}</h2><div class="small muted">${esc(tierLabel(m.t))} · <span class="num">${r0(v.k)}</span> kcal · <span class="num">${r0(v.p)}</span>g protein${isLogged?` · Logged`:WeekdayFuelBought.isBought(m)?` · Bought`:""}${leftOut?` · Not in cart`:""}</div><div class="small muted">Day: <span class="num">${r0(dt.k)}</span> / ${tg.k} kcal · <span class="num">${r0(dt.p)}</span> / ${tg.p}g protein</div></div><div class="row" style="gap:8px;flex-wrap:wrap"><button type="button" class="btn alt" data-act="recipe" data-v="${esc(meal.id)}" data-t="${esc(m.t)}">Recipe</button></div>${tierDial}${editRow}</div>`;
 }
 function applyPlan(id,start){
   const plan=WeekdayFuelPlans.byId(id);if(!plan)return;
@@ -1769,6 +1818,7 @@ function renderToday(){
   if(we&&!on){
     h+=`<div class="panel stack" style="gap:8px"><p class="muted" style="margin:0">Weekend, eat how you like.</p><button type="button" class="ghost" data-act="plantoday">Plan today anyway →</button></div>`;
     h+=renderStapleChipsToday(today,day);
+    h+=`<div class="stack" style="gap:8px;margin-top:8px"><button type="button" class="ghost" data-act="logopen">Log a meal I ate</button></div>`;
     return h;
   }
   const meals=day.meals||[];
@@ -1788,15 +1838,18 @@ function renderToday(){
     h+=`<div class="panel stack" style="gap:4px">`+meals.map((m,i)=>{
       const meal=MEAL[m.id];if(!meal)return "";
       const bought=WeekdayFuelBought.isBought(m);
-      const boughtTag=bought?` · <span class="tag ok">Bought</span>`:"";
-      return `<button type="button" class="pick" data-act="meal" data-i="${i}" data-d="${esc(today)}"><span class="small grow">${esc(m.slot)} · ${esc(meal.name)} · ${esc(tierLabel(m.t))}${boughtTag}</span></button>`;
+      let tag="";
+      if(m.logged)tag=` · <span class="tag">Logged</span>`;
+      else if(bought)tag=` · <span class="tag ok">Bought</span>`;
+      return `<button type="button" class="pick" data-act="meal" data-i="${i}" data-d="${esc(today)}"><span class="small grow">${esc(m.slot)} · ${esc(meal.name)} · ${esc(tierLabel(m.t))}${tag}</span></button>`;
     }).join("")+`</div>`;
   }
-  if((!we||on)&&state.settings.setupDone===true){
-    h+=`<div class="stack" style="gap:8px;margin-top:8px"><button type="button" class="ghost" data-act="todayextra">${state.todayExtrasOpen?"Hide extras":"Ate something else?"}</button>`;
+  h+=`<div class="stack" style="gap:8px;margin-top:8px"><button type="button" class="ghost" data-act="logopen">Log a meal I ate</button>`;
+  if(!we||on){
+    h+=`<button type="button" class="ghost" data-act="todayextra">${state.todayExtrasOpen?"Hide extras":"Ate something else?"}</button>`;
     if(state.todayExtrasOpen)h+=`<div class="panel stack">${renderTodayExtrasForm(today)}</div>`;
-    h+=`</div>`;
   }
+  h+=`</div>`;
   return h;
 }
 function renderWeek(){
@@ -2402,6 +2455,19 @@ function renderSheet(){
     root.dataset.sheet=state.sheet;
     return;
   }
+  if(state.sheet==="log:"){
+    root.innerHTML=`<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="Log a meal"><div class="row between" style="margin-bottom:10px"><div><div class="eyebrow">Today</div><h2>Log a meal I ate</h2></div><button type="button" class="ghost" data-act="close">Close</button></div><div class="stack" style="gap:10px">${renderLogMealList()}</div></div></div>`;
+    root.dataset.sheet=state.sheet;
+    return;
+  }
+  if(state.sheet.startsWith("log:")){
+    const id=state.sheet.slice(4),meal=MEAL[id];
+    if(!meal){state.sheet="log:";renderSheet();return}
+    if(!state.logPick||state.logPick.id!==id)state.logPick={id,t:"S",replace:{}};
+    root.innerHTML=`<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(meal.name)}"><div class="row between" style="margin-bottom:10px"><div><div class="eyebrow">Today</div><h2>${esc(meal.name)}</h2></div><button type="button" class="ghost" data-act="close">Close</button></div>${renderLogMealConfigure(id)}</div></div>`;
+    root.dataset.sheet=state.sheet;
+    return;
+  }
   if(state.sheet.startsWith("add:")){
     const id=state.sheet.slice(4),meal=MEAL[id];
     if(!meal){state.sheet=null;root.innerHTML="";return}
@@ -2541,7 +2607,7 @@ document.addEventListener("click",e=>{
     case "unlockday":{state.unlocked=state.unlocked||{};if(state.unlocked[date])delete state.unlocked[date];else state.unlocked[date]=true;state.sheet=null;break}
     case "clearunbought":{const skipKeys=clearUnboughtSkipMealKeys();const preview=WeekdayFuelBought.clearUnbought(state.days,null,iso(new Date()),skipKeys);if(!preview.cleared)break;if(state.armed!=="clearunbought"){state.armed="clearunbought";break}state.armed=null;state.days=preview.days;preview.changed.forEach(d=>saveDay(d));state.sheet=null;break}
     case "fit":{if(!dayEditable(date))break;const d=ensureDay(date);fitTiers(d,0,date,{clearTierBy:true,respectTierBy:false});saveDay(date);state.scrollWeekDay=date;break}
-    case "tier":{if(!dayEditable(date))break;const d=ensureDay(date);const m=d.meals[i];if(mealLocked(m,date))break;if(WeekdayFuelBought.isBought(m)&&dayUnlocked(date))state.dayNote={date,msg:"This meal's food was bought for the original meal."};d.meals[i].t=v;d.meals[i].tierBy="you";saveDay(date);break}
+    case "tier":{if(!dayEditable(date))break;const d=ensureDay(date);const m=d.meals[i];if(mealLocked(m,date))break;if(m.logged){d.meals[i].t=v;saveDay(date);break}if(WeekdayFuelBought.isBought(m)&&dayUnlocked(date))state.dayNote={date,msg:"This meal's food was bought for the original meal."};d.meals[i].t=v;d.meals[i].tierBy="you";saveDay(date);break}
     case "shopfitall":applyShopPortionFit(true);break;
     case "shopfitrest":applyShopPortionFit(false);break;
     case "shopfitkeep":dismissShopPortionFitHint();break;
@@ -2562,7 +2628,14 @@ document.addEventListener("click",e=>{
     case "plan":state.sheet="plan:"+v;break;
     case "planstart":state.planStart=v;break;
     case "planapply":{const t=iso(new Date());applyPlan(v,state.planStart&&state.planStart>=t?state.planStart:WeekdayFuelPlans.defaultStart(t,state.days));break}
-    case "close":{if(state.sheet&&state.sheet.startsWith("add:")&&!state.weekAddDate)closeAddSheet();else{state.sheet=null;state.addPick=null;state.weekAddDate=null;state.addDone=null}state.stapleSheetDraft=null;state.stapleSheetError=null;break}
+    case "logopen":state.sheet="log:";state.logFilter="all";state.logPick=null;break;
+    case "logpick":{const meal=MEAL[v];if(!meal)break;state.logPick={id:v,t:"S",replace:{}};state.sheet="log:"+v;break}
+    case "logmf":state.logFilter=v;break;
+    case "logslot":{if(!state.logPick)break;state.logPick.slot=v;state.logPick.replace={};break}
+    case "logtier":{if(!state.logPick)break;state.logPick.t=v;break}
+    case "logreplace":{if(!state.logPick)break;const ix=+el.dataset.i;if(!isFinite(ix))break;state.logPick.replace=state.logPick.replace||{};if(state.logPick.replace[ix])delete state.logPick.replace[ix];else state.logPick.replace[ix]=true;break}
+    case "loggo":doLogMeal();break;
+    case "close":{if(state.sheet&&state.sheet.startsWith("log:")){state.sheet=null;state.logPick=null}else if(state.sheet&&state.sheet.startsWith("add:")&&!state.weekAddDate)closeAddSheet();else{state.sheet=null;state.addPick=null;state.weekAddDate=null;state.addDone=null}state.stapleSheetDraft=null;state.stapleSheetError=null;break}
     case "mf":state.mealFilter=v==="remake"?"all":v;break;
     case "mode":state.settings.mode=v;saveSettings();break;
     case "applyadj":applyTrendAdjust(+v);break;
@@ -2680,7 +2753,7 @@ document.addEventListener("input",e=>{
   c.optSaved=false;const b=document.querySelector('[data-act="cooptsave"]');if(b&&!coBusy())b.disabled=false;
   const ok=document.getElementById("co-optsaved");if(ok)ok.remove();
 });
-document.addEventListener("keydown",e=>{if(e.key==="Escape"&&state.sheet){if(state.sheet.startsWith("add:")&&!state.weekAddDate)closeAddSheet();else{state.sheet=null;state.addPick=null;state.weekAddDate=null;state.addDone=null}render()}});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&state.sheet){if(state.sheet.startsWith("log:")){state.sheet=null;state.logPick=null}else if(state.sheet.startsWith("add:")&&!state.weekAddDate)closeAddSheet();else{state.sheet=null;state.addPick=null;state.weekAddDate=null;state.addDone=null}render()}});
 
 function onHostPageMessage(e){
   let m;try{m=JSON.parse(e.data)}catch(_){return}

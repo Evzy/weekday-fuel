@@ -152,6 +152,27 @@ test("dayFlags", () => {
   assert.equal(C.dayFlags("2026-11-09", 3, "2026-10-19", noWeekend).ahead, "In 3 weeks");
 });
 
+test("logMeal adds a logged meal and removes only ticked unbought planned meals", () => {
+  const now = "2026-10-20T08:00:00.000Z";
+  const old = [
+    m("wrap", "lunch"),
+    m("bowl", "lunch", { bought: "o1" }),
+    m("mac", "dinner"),
+  ];
+  const r = C.logMeal(old, { id: "tenderwrap", slot: "lunch", t: "L", replace: [0, 1] }, now);
+  assert.deepEqual(r.meals.map((x) => x.id), ["bowl", "tenderwrap", "mac"]);
+  assert.equal(r.added.logged, true);
+  assert.equal(r.added.shop, false);
+  assert.equal(r.added.ate, now);
+  assert.equal(r.added.t, "L");
+  assert.deepEqual(old.map((x) => x.id), ["wrap", "bowl", "mac"], "input not mutated");
+});
+
+test("logReplaceIndexes lists planned meals in slot only", () => {
+  const meals = [m("a", "lunch"), m("b", "lunch", { bought: "o1" }), m("c", "lunch", { logged: true, ate: "x" })];
+  assert.deepEqual(C.logReplaceIndexes(meals, "lunch", isBought), [0]);
+});
+
 test("gapLabel", () => {
   assert.equal(C.gapLabel("2026-10-19", "2026-10-20", noWeekend), null);
   assert.equal(C.gapLabel("2026-10-23", "2026-10-26", noWeekend), null, "Fri to Mon");

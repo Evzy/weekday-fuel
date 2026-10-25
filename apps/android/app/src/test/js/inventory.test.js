@@ -200,6 +200,39 @@ test("prune leaves stock amounts unchanged, including old honey with no set", ()
   assert.equal(pruned.events[0].k, "set");
 });
 
+test("logged meals use no stock and reserve none, normal eaten meals still do", () => {
+  const base = I.addEvents(null, [{ k: "buy", item: "breast", amount: 600, order: "o1" }], START);
+  const ate = iso(new Date(2026, 9, 15, 13, 0, 0));
+  const logged = {
+    id: "tenderwrap",
+    name: "Wrap",
+    serves: 1,
+    t: "S",
+    shop: false,
+    ate,
+    logged: true,
+  };
+  const normal = { id: "tenderwrap", name: "Wrap", serves: 1, t: "S", ate };
+  assert.equal(I.stock(base, { "2026-10-15": { meals: [logged] } }, cat, NOW, staplesNone).breast.amount, 600);
+  assert.equal(I.stock(base, { "2026-10-14": { meals: [logged] } }, cat, NOW, staplesNone).breast.amount, 600);
+  assert.equal(I.stock(base, { "2026-10-15": { meals: [normal] } }, cat, NOW, staplesNone).breast.amount, 400);
+  assert.equal(
+    I.reserved(base, { "2026-10-21": { meals: [logged] } }, cat, "2026-10-20", ["2026-10-23"], staplesNone).breast,
+    undefined,
+  );
+  assert.equal(
+    I.reserved(
+      base,
+      { "2026-10-22": { meals: [{ id: "tenderwrap", name: "W", t: "S", shop: false }] } },
+      cat,
+      "2026-10-20",
+      ["2026-10-23"],
+      staplesNone,
+    ).breast,
+    200,
+  );
+});
+
 test("stock from buys and ticked meals; skipped and past auto-eaten meals", () => {
   const base = I.addEvents(null, [{ k: "buy", item: "breast", amount: 600, order: "o1" }], START);
   const ate = iso(new Date(2026, 9, 15, 13, 0, 0));
