@@ -2,15 +2,15 @@
 
 ## A — Fit portions before sending
 
-- Manual tier dial sets optional `tierBy: "you"` on the meal. Per-day **Fit** and **todayFit** clear `tierBy` on that day (full refit).
-- Pure `WeekdayFuelPortionFit.planDay` computes best L/S/X without mutating; optional `respectTierBy` treats `tierBy === "you"` as fixed (same fixed rules as `fitTiers` with `{ bought: true }`).
-- Shop Review (step 1), unpaid, when nothing sent yet **or** meals changed since send: hint **Fit portions first** with per-line `Day · Slot → Tier`, marking hand-picked tiers. **Fit portions** / **Fit all** / **Fit the rest** as specified; not blocking Send.
+- Manual tier dial sets optional `tierBy: "you"`. Per-day **Fit** and **todayFit** clear `tierBy` on that day.
+- `WeekdayFuelPortionFit.planDay`: `respectTierBy` defaults **false** (same as legacy `fitTiers`); only Shop **Fit the rest** passes `respectTierBy: true`. Base totals include fixed meals even when the meal id is unknown to `MEAL`.
+- Shop Review hint **Fit portions first** (hidden while `trolleyBusy` or send review pending). After **Fit the rest**, hide while only hand-picked changes remain until those days’ meal+tier fingerprint changes.
 
-## B — Notice portion changes after sending
+## B — Trolley mismatch after sending
 
-- Unpaid, sent, not busy, no send review: if projected trolley lines from `trolleySend` differ from `sent.lines`, banner **Portions changed since you sent** + **Update trolley** (`pantrycheck`). Meal add/change banners unchanged.
-- On send complete, optional `tiers: { [mealKey]: L|S|X }` on the sent record. `sentShopDayMeals` uses recorded tiers for Done stock credit. Paid: no extra UI.
+- Unpaid, sent, not busy, no send review: if `trolleySend` would change the trolley vs last attempt, banner **Your trolley no longer matches your plan** + **Update trolley** (`pantrycheck`). Uses `shopSentHaveIt` (always merges `sent.haveIt`). Comparison uses `sendFailed` on the sent record so failed add lines do not loop the banner.
+- On send complete: optional `tiers`, optional `sendFailed` (failed add quantities). `sentShopDayMeals` merges `tiers` from both stores (current store first). Paid: no extra UI.
 
 ## Tests
 
-- `portion-fit.test.js`, `cart.js` `linesDiffer` / `projectSentLines`, `bought.js` tier helpers.
+- `portion-fit.test.js`, `cart.js` (`linesDiffer`, `sendFailed`), `bought.js` tier helpers.

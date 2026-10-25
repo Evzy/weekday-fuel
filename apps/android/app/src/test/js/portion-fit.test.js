@@ -64,6 +64,23 @@ test("planDay can refit tierBy you when respectTierBy is false", () => {
   assert.equal(plan.lines[0].tierByYou, true);
 });
 
+test("planDay includes unknown fixed meals in base totals", () => {
+  const ctxWithBase = Object.assign({}, ctx, {
+    dayBaseTotals: (day, date, fixedMeals) => {
+      assert.equal(fixedMeals.length, 1);
+      assert.equal(fixedMeals[0].id, "legacy");
+      return baseFromMeals(fixedMeals.filter((m) => MEAL[m.id]));
+    },
+  });
+  const day = {
+    meals: [
+      { id: "legacy", slot: "lunch", t: "S" },
+      { id: "bowl", slot: "dinner", t: "X" },
+    ],
+  };
+  PF.planDay(day, 1, "2026-10-27", { bought: true }, ctxWithBase);
+});
+
 test("planDay leaves bought meals fixed when bought option is off", () => {
   const boughtCtx = Object.assign({}, ctx, { isBought: (m) => m.id === "bowl" });
   const day = {

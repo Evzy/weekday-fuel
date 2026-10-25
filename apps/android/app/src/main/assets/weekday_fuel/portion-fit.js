@@ -8,7 +8,7 @@
     if (!ctx || typeof ctx !== "object") return { picks: [], lines: [] };
     var all = (day && day.meals) || [];
     var lk = locked || 0;
-    var respectTierBy = !(opts && opts.respectTierBy === false);
+    var respectTierBy = !!(opts && opts.respectTierBy);
     var unlocked = (date && ctx.dayUnlocked(date)) || !!(opts && opts.bought);
     function fixed(m, i) {
       if (i < lk) return true;
@@ -17,13 +17,13 @@
       if (respectTierBy && m.tierBy === "you") return true;
       return false;
     }
-    var fixedMeals = [];
+    var baseMeals = [];
     var unfixed = [];
     for (var i = 0; i < all.length; i++) {
       var m = all[i];
-      if (!m || !ctx.mealKnown(m.id)) continue;
-      if (fixed(m, i)) fixedMeals.push(m);
-      else unfixed.push({ m: m, i: i });
+      if (!m) continue;
+      if (fixed(m, i)) baseMeals.push(m);
+      else if (ctx.mealKnown(m.id)) unfixed.push({ m: m, i: i });
     }
     if (!unfixed.length) {
       var fixedPicks = [];
@@ -33,7 +33,7 @@
       }
       return { picks: fixedPicks, lines: [] };
     }
-    var base = ctx.dayBaseTotals(day, date, fixedMeals);
+    var base = ctx.dayBaseTotals(day, date, baseMeals);
     var tg = opts && opts.target ? opts.target : ctx.defaultTarget(date);
     var n = unfixed.length;
     var combos = Math.pow(3, n);
