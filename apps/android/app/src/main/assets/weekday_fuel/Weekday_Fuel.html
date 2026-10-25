@@ -206,6 +206,7 @@ a.link{text-decoration:none;display:inline-block;color:var(--accent);border-colo
 <script src="bought.js"></script>
 <script src="inventory.js"></script>
 <script src="gap.js"></script>
+<script src="portion-fit.js"></script>
 <script src="trend.js"></script>
 <script src="macros.js"></script>
 <script src="staples.js"></script>
@@ -1018,32 +1019,69 @@ function boughtShopLabel(meals){
   return "Bought";
 }
 function clearUnboughtSkipMealKeys(){if(!lsSent()&&!lsColesSent())return null;const keys=sentMealKeysUnion();return keys.length?keys:null}
+function portionFitCtx(){return {mealKnown:id=>!!MEAL[id],mealImpliedAte:(m,date)=>mealImpliedAte(m,date),isBought:m=>WeekdayFuelBought.isBought(m),dayUnlocked:date=>dayUnlocked(date),mealMacros:(id,t)=>MEAL[id].t[t],dayBaseTotals:(day,date,fixedMeals)=>totals({fx:day.fx,meals:fixedMeals,extras:day.extras,stapleChoice:day.stapleChoice},date),defaultTarget:date=>gapTargetOn(date,state.days)}}
+function clearDayTierBy(day){(day.meals||[]).forEach(m=>{if(m&&m.tierBy)delete m.tierBy})}
+function applyPortionPlan(day,plan,clearTierByOnChange){
+  const changed=[];
+  (plan.lines||[]).forEach(ln=>{const m=day.meals[ln.index];if(!m)return;changed.push(ln.slot+" → "+tierLabel(ln.toT));m.t=ln.toT;if(clearTierByOnChange&&m.tierBy)delete m.tierBy});
+  return changed;
+}
 /* choose L/S/X for each meal so the day lands closest to target, protein first; the first `locked` meals keep their portions */
 function fitTiers(day,locked,date,opts){
-  const all=day.meals||[];const lk=locked||0;
-  const unlocked=date&&dayUnlocked(date)||!!(opts&&opts.bought);
-  const fixed=(m,i)=>i<lk||mealImpliedAte(m,date)||(WeekdayFuelBought.isBought(m)&&!unlocked);
-  const ms=all.filter((m,i)=>MEAL[m.id]&&!fixed(m,i));if(!ms.length)return [];
-  const base=totals({fx:day.fx,meals:all.filter((m,i)=>fixed(m,i)),extras:day.extras,stapleChoice:day.stapleChoice},date);
-  const tg=opts&&opts.target?opts.target:(date?target(date):target());let best=null;
-  const keys=["L","S","X"];const n=ms.length;const combos=Math.pow(3,n);
-  for(let i=0;i<combos;i++){
-    let k=base.k,p=base.p,x=i;const pick=[];
-    for(let j=0;j<n;j++){const t=keys[x%3];x=Math.floor(x/3);pick.push(t);const v=MEAL[ms[j].id].t[t];k+=v.k;p+=v.p}
-    const score=Math.abs(k-tg.k)+Math.max(0,tg.p-p)*12;
-    if(!best||score<best.score)best={score,pick};
-  }
-  const changed=[];
-  ms.forEach((m,j)=>{if(m.t!==best.pick[j])changed.push(m.slot+" → "+tierLabel(best.pick[j]));m.t=best.pick[j]});
-  return changed;
+  const plan=WeekdayFuelPortionFit.planDay(day,locked||0,date,opts,portionFitCtx());
+  const clearAll=!!(opts&&opts.clearTierBy);
+  if(clearAll)clearDayTierBy(day);
+  return applyPortionPlan(day,plan,!!(opts&&opts.clearTierByOnChange));
 }
 function todayFit(date,quiet){
   if(!dayEditable(date)||!tracked(date))return;
   const d=ensureDay(date);if(!dayHasMeals(d))return;
-  const changed=fitTiers(d,0,date,{bought:true});
+  const changed=fitTiers(d,0,date,{bought:true,respectTierBy:false,clearTierBy:true});
   saveDay(date);
   if(changed.length)state.todayNote="Portions refit: "+changed.join(", ");
   else if(!quiet)state.todayNote="Already the closest fit";
+}
+function shopMealsChangedSinceSend(){
+  const sent=sentFor(store());if(!sent)return false;
+  const buyKeysNow=WeekdayFuelBought.toBuyKeys(state.days,shopDays(),WeekdayFuelBought.isBought);
+  if(Array.isArray(sent.meals)&&sent.meals.length)return WeekdayFuelBought.changedSince(sent.meals,buyKeysNow);
+  return sent.fingerprint!==shopFingerprint();
+}
+function shopShowPortionFitHint(){if(shopPaid())return false;const sent=sentFor(store());if(sent&&!shopMealsChangedSinceSend())return false;return true}
+function shopPortionFitPlan(date,respectTierBy){const d=state.days[date]||dayOf(date);if(!dayHasMeals(d))return null;return WeekdayFuelPortionFit.planDay(d,0,date,{bought:true,respectTierBy:respectTierBy!==false,target:gapTargetOn(date,state.days)},portionFitCtx())}
+function slotTitle(s){return s?s.charAt(0).toUpperCase()+s.slice(1):""}
+function shopPortionFitSummary(){
+  if(!shopShowPortionFitHint())return null;
+  const dates=shopDays().filter(d=>dayEditable(d)&&tracked(d)&&dayHasMeals(state.days[d]));
+  const fullLines=[],restLines=[];const daySet={};
+  dates.forEach(date=>{
+    const full=shopPortionFitPlan(date,false),rest=shopPortionFitPlan(date,true);
+    (full&&full.lines||[]).forEach(ln=>{fullLines.push(Object.assign({date},ln));daySet[date]=true});
+    (rest&&rest.lines||[]).forEach(ln=>restLines.push(Object.assign({date},ln)));
+  });
+  if(!fullLines.length)return null;
+  return {fullLines,restLines,handPickedWouldChange:fullLines.some(l=>l.tierByYou),dates:Object.keys(daySet).sort()};
+}
+function applyShopPortionFit(all){
+  const sum=shopPortionFitSummary();if(!sum)return;
+  sum.dates.forEach(date=>{
+    const d=ensureDay(date);
+    fitTiers(d,0,date,{bought:true,respectTierBy:!all,clearTierBy:!!all,clearTierByOnChange:!!all});
+    saveDay(date);
+  });
+}
+function renderShopFitPortionsHint(){
+  const sum=shopPortionFitSummary();if(!sum)return "";
+  const list=sum.fullLines.map(ln=>{
+    const you=ln.tierByYou?` (you picked ${esc(tierLabel(ln.fromT))})`:"";
+    return `<div class="small">${esc(dayShort(ln.date))} · ${esc(slotTitle(ln.slot))} → ${esc(tierLabel(ln.toT))}${you}</div>`;
+  }).join("");
+  let btns="";
+  if(sum.handPickedWouldChange){
+    const restOk=sum.restLines.length>0;
+    btns=`<div class="small muted">You picked some of these portions yourself. Fit them too?</div><div class="row" style="gap:8px;flex-wrap:wrap"><button type="button" class="btn alt" data-act="shopfitall">Fit all</button>${restOk?`<button type="button" class="btn alt" data-act="shopfitrest">Fit the rest</button>`:""}</div>`;
+  }else btns=`<button type="button" class="btn alt" data-act="shopfitall">Fit portions</button>`;
+  return `<div class="hint stack" style="gap:6px;margin:8px 0"><span>Fit portions first</span>${list}${btns}</div>`;
 }
 function gapTargetOn(date,daysMap){
   const base={k:S().kcal[S().mode]+S().adjust,p:S().protein};
@@ -2138,6 +2176,7 @@ function renderShop(){
     if(summary)h+=`<p class="small muted" style="margin:0">${esc(summary)}</p>`;
     h+=renderShopStoreSwitch(st,tot);
     h+=renderShopChangedBannerHtml();
+    h+=renderShopFitPortionsHint();
     if(sdays.length)h+=renderShopDayLines(sdays);
     h+=renderExtraServes(pk);
     h+=`<div class="panel stack" style="gap:4px;margin-top:8px">${renderShopItems(st,rows,ticks)}</div>`;
@@ -2456,8 +2495,10 @@ document.addEventListener("click",e=>{
     case "suggestweek":if(state.planning)break;state.planning=true;state.weekNote="Planning your week…";setTimeout(()=>{try{suggestWeek()}finally{state.planning=false;render()}},30);break;
     case "unlockday":{state.unlocked=state.unlocked||{};if(state.unlocked[date])delete state.unlocked[date];else state.unlocked[date]=true;state.sheet=null;break}
     case "clearunbought":{const skipKeys=clearUnboughtSkipMealKeys();const preview=WeekdayFuelBought.clearUnbought(state.days,null,iso(new Date()),skipKeys);if(!preview.cleared)break;if(state.armed!=="clearunbought"){state.armed="clearunbought";break}state.armed=null;state.days=preview.days;preview.changed.forEach(d=>saveDay(d));state.sheet=null;break}
-    case "fit":{if(!dayEditable(date))break;const d=ensureDay(date);fitTiers(d,0,date);saveDay(date);state.scrollWeekDay=date;break}
-    case "tier":{if(!dayEditable(date))break;const d=ensureDay(date);const m=d.meals[i];if(mealLocked(m,date))break;if(WeekdayFuelBought.isBought(m)&&dayUnlocked(date))state.dayNote={date,msg:"This meal's food was bought for the original meal."};d.meals[i].t=v;saveDay(date);break}
+    case "fit":{if(!dayEditable(date))break;const d=ensureDay(date);fitTiers(d,0,date,{clearTierBy:true,respectTierBy:false});saveDay(date);state.scrollWeekDay=date;break}
+    case "tier":{if(!dayEditable(date))break;const d=ensureDay(date);const m=d.meals[i];if(mealLocked(m,date))break;if(WeekdayFuelBought.isBought(m)&&dayUnlocked(date))state.dayNote={date,msg:"This meal's food was bought for the original meal."};d.meals[i].t=v;d.meals[i].tierBy="you";saveDay(date);break}
+    case "shopfitall":applyShopPortionFit(true);break;
+    case "shopfitrest":applyShopPortionFit(false);break;
     case "swap":{if(!dayEditable(date))break;const d=ensureDay(date);const m=d.meals[i];if(mealLocked(m,date))break;if(WeekdayFuelBought.isBought(m)&&dayUnlocked(date))state.dayNote={date,msg:"This meal's food was bought for the original meal."};swapMeal(date,i);closeMealSheetIfInvalid();break}
     case "mealshop":{if(!dayEditable(date))break;const d=ensureDay(date);const m=d.meals[i];if(mealLocked(m,date))break;if(m.shop===false)delete m.shop;else m.shop=false;saveDay(date);shopCtx=null;break}
     case "openday":state.tab="week";state.sheet=null;window.scrollTo(0,0);scrollWeekDay(v);break;
