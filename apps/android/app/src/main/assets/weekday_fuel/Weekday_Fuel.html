@@ -2258,6 +2258,7 @@ function renderShop(){
   return h;
 }
 function lsBackupMeta(){try{const v=JSON.parse(localStorage.getItem(BACKUP_KEY)||"null");return v&&typeof v.at==="string"&&typeof v.name==="string"?v:null}catch(e){return null}}
+function fmtStamp(at){const t=Date.parse(at);return isFinite(t)?new Date(t).toLocaleDateString("en-AU",{day:"numeric",month:"short",year:"numeric"}):"an unknown date"}
 function backupDaysAgo(at){const t=Date.parse(at);if(!isFinite(t))return 0;return Math.max(0,Math.floor((Date.now()-t)/86400000))}
 function postBackupInfo(){if(window.WeekdayFuelHost)WeekdayFuelHost.postMessage(JSON.stringify({type:"backupInfo"}))}
 function backupPostSave(newFile){if(!window.WeekdayFuelHost)return;state.backup.busy="saving";state.backup.error=null;state.backup.needNewFile=false;WeekdayFuelHost.postMessage(JSON.stringify({type:"backupSave",json:WeekdayFuelBackup.build(lsAdapter,new Date(),APP_VERSION),name:"WeekdayFuel-backup-"+iso(new Date())+".json",newFile:!!newFile}))}
@@ -2292,14 +2293,14 @@ function renderBackupPanel(){
   const meta=lsBackupMeta();
   if(meta){
     const n=backupDaysAgo(meta.at);
-    h+=`<p class="small muted" style="margin:0">Last backup: ${esc(fmtShort(meta.at))} (${n===1?"1 day ago":n+" days ago"}) · ${esc(meta.name)}</p>`;
+    h+=`<p class="small muted" style="margin:0">Last backup: ${esc(fmtStamp(meta.at))} (${n===1?"1 day ago":n+" days ago"}) · ${esc(meta.name)}</p>`;
   }else h+=`<p class="small muted" style="margin:0">No backup yet. Save one to Google Drive so you can restore it on a new phone.</p>`;
   const upd=b.remembered?`<button class="btn alt" data-act="backupupdate"${busy?" disabled":""}>${b.busy==="saving"?"Saving…":"Update backup"}</button>`:"";
   h+=`<div class="row" style="gap:8px;flex-wrap:wrap">${upd}<button class="btn alt" data-act="backupnew"${busy?" disabled":""}>${b.busy==="saving"?"Saving…":"Save as a new file"}</button><button class="btn alt" data-act="backupopen"${busy?" disabled":""}>${b.busy==="opening"?"Opening…":"Restore from a file"}</button></div>`;
   if(b.error)h+=`<div class="hint"><span>${esc(b.error)}</span></div>`;
   if(b.needNewFile)h+=`<p class="small muted" style="margin:0">Save as a new file instead.</p>`;
   if(b.pending){
-    h+=`<p class="small" style="margin:0">${esc(WeekdayFuelBackup.summaryText(b.pending.summary,fmtShort))}</p>`;
+    h+=`<p class="small" style="margin:0">${esc(WeekdayFuelBackup.summaryText(b.pending.summary,fmtStamp))}</p>`;
     h+=`<div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn${state.armed==="restore"?" warn":""}" data-act="restorego"${busy?" disabled":""}>${state.armed==="restore"?"Tap again to replace everything":"Replace everything on this phone"}</button><button class="ghost" data-act="restorecancel"${busy?" disabled":""}>Cancel</button></div>`;
   }
   try{if(localStorage.getItem(BEFORE_KEY))h+=`<button class="ghost${state.armed==="undorestore"?" warn":""}" data-act="undorestore"${busy?" disabled":""}>${state.armed==="undorestore"?"Tap again to undo restore":"Undo restore"}</button>`}catch(e){}
