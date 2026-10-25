@@ -302,6 +302,35 @@
     return { days: out, changed: changed, cleared: cleared };
   }
 
+  function mealForKey(days, k) {
+    var p = parseMealKey(k);
+    if (!p || !days) return null;
+    var day = days[p.date];
+    if (!day || !Array.isArray(day.meals)) return null;
+    var m = day.meals[p.index];
+    if (m && m.id === p.id) return m;
+    for (var i = 0; i < day.meals.length; i++) {
+      var mi = day.meals[i];
+      if (mi && mi.id === p.id) return mi;
+    }
+    return null;
+  }
+
+  function tiersForKeys(keys, days) {
+    var out = {};
+    (Array.isArray(keys) ? keys : []).forEach(function (k) {
+      var m = mealForKey(days, k);
+      if (!m) return;
+      if (m.t === "L" || m.t === "S" || m.t === "X") out[k] = m.t;
+    });
+    return out;
+  }
+
+  function sentTier(key, tiersMap, fallbackT) {
+    if (tiersMap && tiersMap[key]) return tiersMap[key];
+    return fallbackT;
+  }
+
   var api = {
     isBought: isBought,
     markBought: markBought,
@@ -315,6 +344,9 @@
     sameKeys: sameKeys,
     changedSince: changedSince,
     addedSince: addedSince,
+    mealForKey: mealForKey,
+    tiersForKeys: tiersForKeys,
+    sentTier: sentTier,
   };
   if (typeof module === "object" && module.exports) module.exports = api;
   else root.WeekdayFuelBought = api;

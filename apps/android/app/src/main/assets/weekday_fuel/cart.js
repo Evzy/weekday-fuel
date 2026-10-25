@@ -296,6 +296,51 @@
     return { removed: x.removed, fail: x.fail, names: names };
   }
 
+  function normalizeSentMap(map) {
+    var out = {};
+    Object.keys(map || {}).forEach(function (k) {
+      var q = map[k];
+      if (typeof q === "number" && isFinite(q) && q > 0) out[String(k)] = q;
+    });
+    return out;
+  }
+
+  function sentMapsEqual(a, b) {
+    var A = normalizeSentMap(a);
+    var B = normalizeSentMap(b);
+    var keys = {};
+    Object.keys(A).forEach(function (k) {
+      keys[k] = true;
+    });
+    Object.keys(B).forEach(function (k) {
+      keys[k] = true;
+    });
+    var list = Object.keys(keys);
+    for (var i = 0; i < list.length; i++) {
+      var id = list[i];
+      if ((A[id] || 0) !== (B[id] || 0)) return false;
+    }
+    return true;
+  }
+
+  function projectSentLines(sentLines, sendLines, lineKey) {
+    var key = lineKey || "stockcode";
+    var out = Object.assign({}, sentLines || {});
+    (sendLines || []).forEach(function (l) {
+      if (!l || l[key] == null) return;
+      var id = String(l[key]);
+      if (l.quantity === 0) delete out[id];
+      else out[id] = l.quantity;
+    });
+    return out;
+  }
+
+  function linesDiffer(sentLines, sendLines, store, lineKey) {
+    var key = lineKey || (store === "coles" ? "productId" : "stockcode");
+    var projected = projectSentLines(sentLines, sendLines, key);
+    return !sentMapsEqual(sentLines, projected);
+  }
+
   function sentAfter(lastLines, lines, results, key) {
     var k = key || "stockcode";
     var out = Object.assign({}, lastLines || {});
@@ -326,6 +371,9 @@
     planRemovedPhrase: planRemovedPhrase,
     planRemoveFailPhrase: planRemoveFailPhrase,
     checkoutCleanNoteFromExtras: checkoutCleanNoteFromExtras,
+    normalizeSentMap: normalizeSentMap,
+    projectSentLines: projectSentLines,
+    linesDiffer: linesDiffer,
   };
   if (typeof module === "object" && module.exports) module.exports = api;
   else root.WeekdayFuelCart = api;

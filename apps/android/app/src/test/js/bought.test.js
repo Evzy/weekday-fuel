@@ -208,6 +208,16 @@ test("changedSince ignores pure index shifts on the same date and meal id", () =
   assert.equal(B.addedSince(sent, now), 0);
 });
 
+test("tiersForKeys records tiers and sentTier prefers the sent map", () => {
+  const days = {
+    "2026-10-20": day([meal("bowl", { t: "X" }), meal("wrap", { t: "L" })]),
+  };
+  const keys = ["2026-10-20|0|bowl", "2026-10-20|1|wrap"];
+  assert.deepEqual(B.tiersForKeys(keys, days), { "2026-10-20|0|bowl": "X", "2026-10-20|1|wrap": "L" });
+  assert.equal(B.sentTier("2026-10-20|0|bowl", { "2026-10-20|0|bowl": "S" }, "X"), "S");
+  assert.equal(B.sentTier("2026-10-20|0|bowl", null, "X"), "X");
+});
+
 test("markBoughtKeys falls back when an earlier meal was removed after send", () => {
   const days = {
     "2026-10-20": day([meal("wrap"), meal("bowl")]),

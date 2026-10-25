@@ -1,6 +1,6 @@
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
-const { cartLines, removalLines, colesCartLines, colesRemovalLines, shopFingerprint, sentAfter, emptyLines, planCodes, planExtraStats, planRemovedPhrase, planRemoveFailPhrase, checkoutCleanNoteFromExtras } = require("../../main/assets/weekday_fuel/cart.js");
+const { cartLines, removalLines, colesCartLines, colesRemovalLines, shopFingerprint, sentAfter, emptyLines, planCodes, planExtraStats, planRemovedPhrase, planRemoveFailPhrase, checkoutCleanNoteFromExtras, linesDiffer, projectSentLines } = require("../../main/assets/weekday_fuel/cart.js");
 
 const W = "https://www.woolworths.com.au/shop/productdetails/";
 const YOG = { name: "Chobani Greek Yoghurt 907g", url: W + "717518", stockcode: 717518, size: 907, price: 8.8 };
@@ -305,6 +305,15 @@ test("sentAfter ignores extra results", () => {
   const results = [{ stockcode: 717518, added: true }, { stockcode: 999, added: true, extra: true }];
   assert.deepEqual(sentAfter({}, lines, results), { 717518: 2 });
   assert.deepEqual(planExtraStats(results), { removed: 1, fail: 0 });
+});
+
+test("linesDiffer detects quantity, add, and removal changes", () => {
+  const sent = { 717518: 2, 72280: 1 };
+  assert.equal(linesDiffer(sent, [{ stockcode: 717518, quantity: 2 }], "woolies"), false);
+  assert.equal(linesDiffer(sent, [{ stockcode: 717518, quantity: 3 }], "woolies"), true);
+  assert.equal(linesDiffer(sent, [{ stockcode: 72280, quantity: 0 }], "woolies"), true);
+  assert.equal(linesDiffer(sent, [{ productId: "8991361", quantity: 1 }], "coles", "productId"), true);
+  assert.deepEqual(projectSentLines(sent, [{ stockcode: 717518, quantity: 3 }]), { 717518: 3, 72280: 1 });
 });
 
 test("a planned meal's Light or Loaded portion is part of the fingerprint, and Standard keys are unchanged", () => {
