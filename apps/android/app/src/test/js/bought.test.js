@@ -227,3 +227,20 @@ test("markBoughtKeys falls back when an earlier meal was removed after send", ()
   assert.equal(r.days["2026-10-20"].meals[1].bought, "ord4");
   assert.equal(r.days["2026-10-20"].meals[0].bought, undefined);
 });
+
+test("mergeSentTiers applies current store last so its tiers win", () => {
+  const byStore = {
+    woolies: { tiers: { "2026-10-20|0|bowl": "L", "2026-10-20|1|wrap": "S" } },
+    coles: { tiers: { "2026-10-20|0|bowl": "X", "2026-10-21|0|toasty": "L" } },
+  };
+  assert.deepEqual(B.mergeSentTiers(byStore, "coles"), {
+    "2026-10-20|0|bowl": "X",
+    "2026-10-20|1|wrap": "S",
+    "2026-10-21|0|toasty": "L",
+  });
+  assert.deepEqual(B.mergeSentTiers(byStore, "woolies"), {
+    "2026-10-20|0|bowl": "L",
+    "2026-10-20|1|wrap": "S",
+    "2026-10-21|0|toasty": "L",
+  });
+});

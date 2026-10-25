@@ -74,7 +74,27 @@
     return { picks: picks, lines: lines };
   }
 
-  var api = { planDay: planDay };
+  function handPickedOnlyDates(fullLines, restLines) {
+    var seen = Object.create(null);
+    (fullLines || []).forEach(function (ln) {
+      if (ln && ln.date) seen[ln.date] = true;
+    });
+    return Object.keys(seen)
+      .filter(function (date) {
+        var dayFull = fullLines.filter(function (l) {
+          return l.date === date;
+        });
+        var dayRest = restLines.filter(function (l) {
+          return l.date === date;
+        });
+        return !dayRest.length && dayFull.length && dayFull.every(function (l) {
+          return l.tierByYou;
+        });
+      })
+      .sort();
+  }
+
+  var api = { planDay: planDay, handPickedOnlyDates: handPickedOnlyDates };
   if (typeof module === "object" && module.exports) module.exports = api;
   else root.WeekdayFuelPortionFit = api;
 })(this);

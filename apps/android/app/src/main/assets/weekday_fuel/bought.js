@@ -331,6 +331,16 @@
     return fallbackT;
   }
 
+  function mergeSentTiers(byStore, currentStore) {
+    var out = {};
+    var order = currentStore === "coles" ? ["woolies", "coles"] : ["coles", "woolies"];
+    order.forEach(function (st) {
+      var rec = byStore && byStore[st];
+      if (rec && rec.tiers) Object.assign(out, rec.tiers);
+    });
+    return out;
+  }
+
   var api = {
     isBought: isBought,
     markBought: markBought,
@@ -347,6 +357,7 @@
     mealForKey: mealForKey,
     tiersForKeys: tiersForKeys,
     sentTier: sentTier,
+    mergeSentTiers: mergeSentTiers,
   };
   if (typeof module === "object" && module.exports) module.exports = api;
   else root.WeekdayFuelBought = api;

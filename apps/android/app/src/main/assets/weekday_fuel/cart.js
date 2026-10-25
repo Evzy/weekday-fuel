@@ -339,12 +339,31 @@
     var out = normalizeSentMap(sentLines);
     Object.keys(sendFailed || {}).forEach(function (k) {
       var q = sendFailed[k];
+      if (q === 0) return;
       if (typeof q === "number" && isFinite(q) && q > 0) out[String(k)] = q;
     });
     return out;
   }
 
-  function updateSendFailed(prevFailed, lines, results, lineKey) {
+  function planCodeSet(planCodes) {
+    var set = Object.create(null);
+    (planCodes || []).forEach(function (c) {
+      set[String(c)] = true;
+    });
+    return set;
+  }
+
+  function pruneSendFailed(failed, planCodes) {
+    var out = Object.assign({}, failed || {});
+    var set = planCodeSet(planCodes);
+    if (!planCodes || !planCodes.length) return out;
+    Object.keys(out).forEach(function (k) {
+      if (!set[k]) delete out[k];
+    });
+    return out;
+  }
+
+  function updateSendFailed(prevFailed, lines, results, lineKey, planCodes) {
     var key = lineKey || "stockcode";
     var out = Object.assign({}, prevFailed || {});
     (results || []).forEach(function (r) {
@@ -358,15 +377,23 @@
       var line = (lines || []).find(function (l) {
         return l && String(l[key]) === id;
       });
-      if (line && line.quantity > 0) out[id] = line.quantity;
+      if (!line) return;
+      if (line.quantity === 0) out[id] = 0;
+      else if (line.quantity > 0) out[id] = line.quantity;
     });
-    return out;
+    return pruneSendFailed(out, planCodes);
   }
 
   function linesDiffer(sentLines, sendLines, store, lineKey, sendFailed) {
     var key = lineKey || (store === "coles" ? "productId" : "stockcode");
+    var sf = sendFailed || {};
+    var filtered = (sendLines || []).filter(function (l) {
+      if (!l || l[key] == null) return false;
+      var id = String(l[key]);
+      return !(l.quantity === 0 && sf[id] === 0);
+    });
     var base = sentLinesForCompare(sentLines, sendFailed);
-    var projected = projectSentLines(base, sendLines, key);
+    var projected = projectSentLines(base, filtered, key);
     return !sentMapsEqual(base, projected);
   }
 
@@ -405,6 +432,8 @@
     linesDiffer: linesDiffer,
     sentLinesForCompare: sentLinesForCompare,
     updateSendFailed: updateSendFailed,
+    pruneSendFailed: pruneSendFailed,
+    planCodeSet: planCodeSet,
   };
   if (typeof module === "object" && module.exports) module.exports = api;
   else root.WeekdayFuelCart = api;

@@ -93,3 +93,14 @@ test("planDay leaves bought meals fixed when bought option is off", () => {
   assert.equal(plan.lines.length, 1);
   assert.equal(plan.lines[0].index, 1);
 });
+
+test("handPickedOnlyDates lists days with only tierBy you changes and no rest lines", () => {
+  const full = [
+    { date: "2026-10-20", tierByYou: false },
+    { date: "2026-10-21", tierByYou: true },
+    { date: "2026-10-22", tierByYou: true },
+  ];
+  const rest = [{ date: "2026-10-20" }];
+  assert.deepEqual(PF.handPickedOnlyDates(full, rest), ["2026-10-21", "2026-10-22"]);
+  assert.deepEqual(PF.handPickedOnlyDates(full, []), ["2026-10-21", "2026-10-22"]);
+});
