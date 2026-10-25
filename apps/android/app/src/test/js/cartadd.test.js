@@ -159,13 +159,30 @@ test("logMeal adds a logged meal and removes only ticked unbought planned meals"
     m("bowl", "lunch", { bought: "o1" }),
     m("mac", "dinner"),
   ];
-  const r = C.logMeal(old, { id: "tenderwrap", slot: "lunch", t: "L", replace: [0, 1] }, now);
+  const r = C.logMeal(old, { id: "tenderwrap", slot: "lunch", t: "L", replace: [{ index: 0, id: "wrap" }] }, now);
   assert.deepEqual(r.meals.map((x) => x.id), ["bowl", "tenderwrap", "mac"]);
   assert.equal(r.added.logged, true);
   assert.equal(r.added.shop, false);
   assert.equal(r.added.ate, now);
   assert.equal(r.added.t, "L");
   assert.deepEqual(old.map((x) => x.id), ["wrap", "bowl", "mac"], "input not mutated");
+});
+
+test("logMeal ignores stale replace when index id or slot no longer matches", () => {
+  const now = "2026-10-20T08:00:00.000Z";
+  const old = [m("mac", "lunch"), m("wrap", "lunch")];
+  const r = C.logMeal(
+    old,
+    { id: "tenderwrap", slot: "lunch", replace: [{ index: 0, id: "wrap" }] },
+    now,
+  );
+  assert.deepEqual(r.meals.map((x) => x.id), ["mac", "wrap", "tenderwrap"]);
+  const r2 = C.logMeal(
+    old,
+    { id: "tenderwrap", slot: "lunch", replace: [{ index: 1, id: "wrap" }] },
+    now,
+  );
+  assert.deepEqual(r2.meals.map((x) => x.id), ["mac", "tenderwrap"]);
 });
 
 test("logReplaceIndexes lists planned meals in slot only", () => {

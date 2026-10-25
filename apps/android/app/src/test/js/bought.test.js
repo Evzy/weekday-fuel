@@ -218,6 +218,21 @@ test("tiersForKeys records tiers and sentTier prefers the sent map", () => {
   assert.equal(B.sentTier("2026-10-20|0|bowl", null, "X"), "X");
 });
 
+test("mealForKey by-id fallback skips logged meals", () => {
+  const days = {
+    "2026-10-20": day([
+      meal("wrap", { logged: true, shop: false, ate: "2026-10-20T12:00:00.000Z" }),
+      meal("bowl"),
+    ]),
+  };
+  assert.equal(B.mealForKey(days, "2026-10-20|0|wrap"), null);
+  assert.equal(B.mealForKey(days, "2026-10-20|1|bowl"), days["2026-10-20"].meals[1]);
+  const days2 = {
+    "2026-10-20": day([meal("bowl", { logged: true, shop: false, ate: "x" }), meal("wrap")]),
+  };
+  assert.equal(B.mealForKey(days2, "2026-10-20|0|wrap"), days2["2026-10-20"].meals[1]);
+});
+
 test("markBoughtKeys falls back when an earlier meal was removed after send", () => {
   const days = {
     "2026-10-20": day([meal("wrap"), meal("bowl")]),

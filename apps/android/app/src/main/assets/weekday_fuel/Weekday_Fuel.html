@@ -516,8 +516,8 @@ function mealFromSentKey(k){
   const p=WeekdayFuelBought.parseMealKey(k);if(!p)return null;
   const day=state.days[p.date];if(!day||!Array.isArray(day.meals))return null;
   const m=day.meals[p.index];
-  if(m&&m.id===p.id)return {date:p.date,meal:m};
-  for(let i=0;i<day.meals.length;i++){const x=day.meals[i];if(x&&x.id===p.id)return {date:p.date,meal:x}}
+  if(m&&m.id===p.id&&!m.logged)return {date:p.date,meal:m};
+  for(let i=0;i<day.meals.length;i++){const x=day.meals[i];if(x&&x.id===p.id&&!x.logged)return {date:p.date,meal:x}}
   return null;
 }
 function orderSnapshotPickMeals(){
@@ -1548,7 +1548,7 @@ function renderLogMealConfigure(id){
   const slotDial=`<div class="dial" role="group" aria-label="Slot">${slots.map(sl=>`<button type="button" aria-pressed="${slot===sl}" data-act="logslot" data-v="${esc(sl)}">${esc(addSlotLabel(sl))}</button>`).join("")}</div>`;
   const tierDial=`<div class="dial" role="group" aria-label="Portion">${TIERS.map(([k,l])=>`<button type="button" aria-pressed="${t===k}" data-act="logtier" data-v="${k}">${l}</button>`).join("")}</div>`;
   const repl=WeekdayFuelCartAdd.logReplaceIndexes(meals,slot,WeekdayFuelBought.isBought);
-  const replBox=repl.length?`<div class="stack" style="gap:6px">${repl.map(i=>{const pm=meals[i],pn=MEAL[pm.id]?MEAL[pm.id].name:pm.id;const on=pick.replace&&pick.replace[i];return `<label class="pick row between" style="cursor:pointer"><span><input type="checkbox" data-act="logreplace" data-i="${i}" ${on?"checked":""} style="margin-right:8px">Instead of the planned ${esc(addSlotLabel(slot))} · ${esc(pn)}</span></label>`}).join("")}</div>`:"";
+  const replBox=repl.length?`<div class="stack" style="gap:6px">${repl.map(i=>{const pm=meals[i],pn=MEAL[pm.id]?MEAL[pm.id].name:pm.id;const on=pick.replace&&pick.replace[i]===pm.id;return `<label class="pick row between" style="cursor:pointer"><span><input type="checkbox" data-act="logreplace" data-i="${i}" data-id="${esc(pm.id)}" ${on?"checked":""} style="margin-right:8px">Instead of the planned ${esc(addSlotLabel(slot))} · ${esc(pn)}</span></label>`}).join("")}</div>`:"";
   return `<div class="stack" style="gap:10px">${slotDial}${tierDial}${replBox}<button type="button" class="btn" data-act="loggo">Log it</button></div>`;
 }
 function doLogMeal(){
@@ -1559,7 +1559,7 @@ function doLogMeal(){
   let slot=pick.slot;
   if(!slot||!slots.includes(slot))slot=WeekdayFuelCartAdd.naturalSlot(meal,old);
   const t=pick.t&&meal.t[pick.t]?pick.t:"S";
-  const replace=Object.keys(pick.replace||{}).filter(k=>pick.replace[k]).map(k=>+k);
+  const replace=Object.keys(pick.replace||{}).filter(k=>pick.replace[k]).map(k=>({index:+k,id:pick.replace[k]}));
   const r=WeekdayFuelCartAdd.logMeal(old,{id:pick.id,slot,t,replace,isBought:WeekdayFuelBought.isBought},new Date().toISOString());
   day.meals=r.meals;
   if(isWeekend(today)&&!tracked(today))day.track=true;
@@ -2607,7 +2607,7 @@ document.addEventListener("click",e=>{
     case "unlockday":{state.unlocked=state.unlocked||{};if(state.unlocked[date])delete state.unlocked[date];else state.unlocked[date]=true;state.sheet=null;break}
     case "clearunbought":{const skipKeys=clearUnboughtSkipMealKeys();const preview=WeekdayFuelBought.clearUnbought(state.days,null,iso(new Date()),skipKeys);if(!preview.cleared)break;if(state.armed!=="clearunbought"){state.armed="clearunbought";break}state.armed=null;state.days=preview.days;preview.changed.forEach(d=>saveDay(d));state.sheet=null;break}
     case "fit":{if(!dayEditable(date))break;const d=ensureDay(date);fitTiers(d,0,date,{clearTierBy:true,respectTierBy:false});saveDay(date);state.scrollWeekDay=date;break}
-    case "tier":{if(!dayEditable(date))break;const d=ensureDay(date);const m=d.meals[i];if(mealLocked(m,date))break;if(m.logged){d.meals[i].t=v;saveDay(date);break}if(WeekdayFuelBought.isBought(m)&&dayUnlocked(date))state.dayNote={date,msg:"This meal's food was bought for the original meal."};d.meals[i].t=v;d.meals[i].tierBy="you";saveDay(date);break}
+    case "tier":{if(!dayEditable(date))break;const d=ensureDay(date);const m=d.meals[i];if(mealLocked(m,date))break;if(m.logged){d.meals[i].t=v;if(date===iso(new Date()))fitTiers(d,0,date,{bought:true});saveDay(date);break}if(WeekdayFuelBought.isBought(m)&&dayUnlocked(date))state.dayNote={date,msg:"This meal's food was bought for the original meal."};d.meals[i].t=v;d.meals[i].tierBy="you";saveDay(date);break}
     case "shopfitall":applyShopPortionFit(true);break;
     case "shopfitrest":applyShopPortionFit(false);break;
     case "shopfitkeep":dismissShopPortionFitHint();break;
@@ -2633,7 +2633,7 @@ document.addEventListener("click",e=>{
     case "logmf":state.logFilter=v;break;
     case "logslot":{if(!state.logPick)break;state.logPick.slot=v;state.logPick.replace={};break}
     case "logtier":{if(!state.logPick)break;state.logPick.t=v;break}
-    case "logreplace":{if(!state.logPick)break;const ix=+el.dataset.i;if(!isFinite(ix))break;state.logPick.replace=state.logPick.replace||{};if(state.logPick.replace[ix])delete state.logPick.replace[ix];else state.logPick.replace[ix]=true;break}
+    case "logreplace":{if(!state.logPick)break;const ix=+el.dataset.i,mid=el.dataset.id;if(!isFinite(ix)||!mid)break;state.logPick.replace=state.logPick.replace||{};if(state.logPick.replace[ix]===mid)delete state.logPick.replace[ix];else state.logPick.replace[ix]=mid;break}
     case "loggo":doLogMeal();break;
     case "close":{if(state.sheet&&state.sheet.startsWith("log:")){state.sheet=null;state.logPick=null}else if(state.sheet&&state.sheet.startsWith("add:")&&!state.weekAddDate)closeAddSheet();else{state.sheet=null;state.addPick=null;state.weekAddDate=null;state.addDone=null}state.stapleSheetDraft=null;state.stapleSheetError=null;break}
     case "mf":state.mealFilter=v==="remake"?"all":v;break;

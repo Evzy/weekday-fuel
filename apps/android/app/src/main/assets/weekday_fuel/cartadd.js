@@ -177,15 +177,27 @@
     return out;
   }
 
+  function logReplaceEntry(r) {
+    if (typeof r === "number") return { index: r, id: null };
+    if (r && typeof r.index === "number") {
+      return { index: r.index, id: r.id != null ? String(r.id) : null };
+    }
+    return null;
+  }
+
   function logMeal(dayMeals, opts, nowIso) {
     var boughtFn = (opts && opts.isBought) || defaultIsBought;
+    var slot = opts && opts.slot;
     var meals = (dayMeals || []).slice();
     var remove = Object.create(null);
-    (opts && opts.replace ? opts.replace : []).forEach(function (idx) {
-      if (typeof idx !== "number" || idx < 0 || idx >= meals.length) return;
-      var m = meals[idx];
+    (opts && opts.replace ? opts.replace : []).forEach(function (r) {
+      var ent = logReplaceEntry(r);
+      if (!ent || ent.index < 0 || ent.index >= meals.length) return;
+      var m = meals[ent.index];
       if (!m || boughtFn(m) || m.logged) return;
-      remove[idx] = true;
+      if (ent.id != null && String(m.id) !== ent.id) return;
+      if (slot && m.slot !== slot) return;
+      remove[ent.index] = true;
     });
     meals = meals.filter(function (_m, i) {
       return !remove[i];

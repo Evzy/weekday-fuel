@@ -308,10 +308,10 @@
     var day = days[p.date];
     if (!day || !Array.isArray(day.meals)) return null;
     var m = day.meals[p.index];
-    if (m && m.id === p.id) return m;
+    if (m && m.id === p.id && m.logged !== true) return m;
     for (var i = 0; i < day.meals.length; i++) {
       var mi = day.meals[i];
-      if (mi && mi.id === p.id) return mi;
+      if (mi && mi.id === p.id && mi.logged !== true) return mi;
     }
     return null;
   }
