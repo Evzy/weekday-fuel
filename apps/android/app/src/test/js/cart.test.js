@@ -320,21 +320,26 @@ test("linesDiffer ignores failed add attempts recorded in sendFailed", () => {
   const sent = { 717518: 2 };
   const sendLines = [{ stockcode: 72280, quantity: 1 }];
   assert.equal(linesDiffer(sent, sendLines, "woolies"), true);
-  const failed = updateSendFailed({}, sendLines, [{ stockcode: 72280, added: false }], "stockcode", [72280]);
+  const failed = updateSendFailed({}, sendLines, [{ stockcode: 72280, added: false }], "stockcode", [72280], sent);
   assert.deepEqual(failed, { 72280: 1 });
   assert.equal(linesDiffer(sent, sendLines, "woolies", "stockcode", failed), false);
   assert.equal(linesDiffer(sent, [{ stockcode: 72280, quantity: 2 }], "woolies", "stockcode", failed), true);
   assert.deepEqual(sentLinesForCompare(sent, failed), { 717518: 2, 72280: 1 });
 });
 
-test("updateSendFailed records failed removals and prunes codes not in plan", () => {
-  const sendLines = [{ stockcode: 72280, quantity: 0 }];
-  const results = [{ stockcode: 72280, added: false }];
-  assert.deepEqual(updateSendFailed({}, sendLines, results, "stockcode", [72280]), { 72280: 0 });
-  assert.equal(linesDiffer({ 72280: 1 }, sendLines, "woolies", "stockcode", { 72280: 0 }), false);
-  const cleared = updateSendFailed({ 72280: 0 }, sendLines, [{ stockcode: 72280, added: true }], "stockcode", [72280]);
+test("updateSendFailed records failed removals and prunes stale entries", () => {
+  const sendLines = [{ stockcode: 5, quantity: 0 }];
+  const results = [{ stockcode: 5, added: false }];
+  const sent = { 5: 1 };
+  const plan = [1, 2];
+  const failed = updateSendFailed({}, sendLines, results, "stockcode", plan, sent);
+  assert.deepEqual(failed, { 5: 0 });
+  assert.equal(linesDiffer(sent, sendLines, "woolies", "stockcode", failed), false);
+  const cleared = updateSendFailed({ 5: 0 }, sendLines, [{ stockcode: 5, added: true }], "stockcode", plan, sent);
   assert.deepEqual(cleared, {});
-  assert.deepEqual(pruneSendFailed({ 72280: 1, 999: 2 }, [72280]), { 72280: 1 });
+  assert.deepEqual(pruneSendFailed({ 72280: 1, 999: 2 }, [72280], {}), { 72280: 1 });
+  assert.deepEqual(pruneSendFailed({ 5: 0 }, plan, sent), { 5: 0 });
+  assert.deepEqual(pruneSendFailed({ 5: 0 }, plan, {}), {});
 });
 
 test("a planned meal's Light or Loaded portion is part of the fingerprint, and Standard keys are unchanged", () => {

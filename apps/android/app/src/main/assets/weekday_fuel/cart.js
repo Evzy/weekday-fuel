@@ -353,17 +353,23 @@
     return set;
   }
 
-  function pruneSendFailed(failed, planCodes) {
+  function pruneSendFailed(failed, planCodes, sentLines) {
     var out = Object.assign({}, failed || {});
     var set = planCodeSet(planCodes);
-    if (!planCodes || !planCodes.length) return out;
+    var sent = normalizeSentMap(sentLines);
     Object.keys(out).forEach(function (k) {
+      if (out[k] === 0) {
+        if (sent[k] > 0) return;
+        delete out[k];
+        return;
+      }
+      if (!planCodes || !planCodes.length) return;
       if (!set[k]) delete out[k];
     });
     return out;
   }
 
-  function updateSendFailed(prevFailed, lines, results, lineKey, planCodes) {
+  function updateSendFailed(prevFailed, lines, results, lineKey, planCodes, sentLines) {
     var key = lineKey || "stockcode";
     var out = Object.assign({}, prevFailed || {});
     (results || []).forEach(function (r) {
@@ -381,7 +387,7 @@
       if (line.quantity === 0) out[id] = 0;
       else if (line.quantity > 0) out[id] = line.quantity;
     });
-    return pruneSendFailed(out, planCodes);
+    return pruneSendFailed(out, planCodes, sentLines);
   }
 
   function linesDiffer(sentLines, sendLines, store, lineKey, sendFailed) {
