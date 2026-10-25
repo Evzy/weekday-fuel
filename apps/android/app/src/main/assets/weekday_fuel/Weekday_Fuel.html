@@ -2217,6 +2217,7 @@ function renderShopAtHome(rows,ticks,covered){
 function renderShopStoreSwitch(st,tot){
   return `<div class="dial" role="group" aria-label="Store" style="grid-template-columns:repeat(2,1fr);margin:8px 0">${STORES.map(s=>{const miss=tot[s].missed.length?` · ${tot[s].missed.length} missing`:"";return `<button type="button" aria-pressed="${st===s}" data-act="store" data-v="${s}">${esc(STORE_NAME[s])} ${money(tot[s].total)}${miss?esc(miss):""}</button>`}).join("")}</div>`;
 }
+function renderCleanAfterCheckoutHint(){const t=state.trolley;if(!t||!t.checkoutClean||state.checkout||!trolleyBusy())return "";return `<div class="hint"><span>Tidying your ${esc(STORE_NAME[t.store])} trolley…</span></div>`}
 function renderTrolleyStep(rows,ticks,s){
   const t=state.trolley&&state.trolley.store===s?state.trolley:null;
   if(!t||t.phase==="pantry"||t.checkoutClean)return "";
@@ -2283,6 +2284,7 @@ function renderShop(){
     h+=`<p class="small muted" style="margin:8px 0 0">${priceLabel()}</p>`;
     if(window.WeekdayFuelHost&&!(state.trolley&&state.trolley.phase==="pantry")){
       const ts=trolleySend(rows,{},st);
+      h+=renderCleanAfterCheckoutHint();
       h+=`<div class="row" style="margin-top:10px"><button class="btn" data-act="pantrycheck" ${!ts.lines.length||trolleyBusy()||shopPaid()?"disabled":""}>Send to ${esc(STORE_NAME[st])} trolley</button></div>`;
     }else{
       h+=`<p class="small muted" style="margin-top:10px">Shopping in store? Buy what's on the list, tick anything you already had at home, then Finish this shop.</p><div class="row">${nextShopBtn("list")}</div>${orderHint("list")}`;
@@ -2298,6 +2300,7 @@ function renderShop(){
       h+=`<div class="row" style="margin-top:8px"><button class="btn" data-act="colescheckout">Checkout</button><button class="btn" data-act="shoppaid">I've paid</button></div>`;
     }else{
       h+=`<div class="small muted">Book delivery and pay on Woolworths, then tap I've paid.</div>`;
+      h+=renderCleanAfterCheckoutHint();
       if(!state.checkout)h+=`<div class="row" style="margin-top:8px"><button class="btn" data-act="checkout">Check out</button></div>`;
       if(state.checkout)h+=renderCheckout();
       h+=`<div class="row" style="margin-top:8px"><button class="btn" data-act="shoppaid">I've paid</button></div>`;
@@ -2682,7 +2685,7 @@ document.addEventListener("click",e=>{
     case "cosubsave":{const c=state.checkout;if(!c||c.phase!=="ready")break;const ch=WeekdayFuelCheckoutView.subsView((c.result.summary&&c.result.summary.items)||[],c.subsDraft).changes;if(ch.length)coSave("subs",{items:ch});break}
     case "cooptsave":{const c=state.checkout;if(!c||c.phase!=="ready"||!c.optDraft)break;coSave("options",{instructions:c.optDraft.instructions,leaveUnattended:!!c.optDraft.leaveUnattended});break}
     case "copay":if(coBusy())break;WeekdayFuelHost.postMessage(JSON.stringify({type:"openWoolworths",url:CO_URL}));break;
-    case "codone":{if(state.trolley&&state.trolley.checkoutClean)state.trolley=null;state.coLast=(state.checkout&&state.checkout.result)||state.coLast;state.checkout=null;break}
+    case "codone":{if(state.trolley&&state.trolley.checkoutClean&&!trolleyBusy())state.trolley=null;state.coLast=(state.checkout&&state.checkout.result)||state.coLast;state.checkout=null;break}
     case "openwoolies":if(coBusy())return;WeekdayFuelHost.postMessage(JSON.stringify({type:"openWoolworths",url:v}));return;
     case "opencoles":WeekdayFuelHost.postMessage(JSON.stringify({type:"openColes",url:v}));return;
     case "backupupdate":backupPostSave(false);break;
