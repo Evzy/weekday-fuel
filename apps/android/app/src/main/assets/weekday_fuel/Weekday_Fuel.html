@@ -818,6 +818,7 @@ function renderKitchen(){
   let h=`<div class="row between" style="align-items:flex-start"><div><div class="eyebrow">At home</div><h2>Kitchen</h2></div>${backBtn()}</div>`;
   if(state.kitchenError)h+=`<div class="hint"><span>${esc(state.kitchenError)}</span></div>`;
   if(!lsInv()||!ids.length)h+=`<div class="small muted">Past planned meals count as eaten. Stock builds from saved orders, or add what's at home now.</div>`;
+  else h+=`<div class="small muted">Used something for another meal? Tap the item to set how much is left.</div>`;
   h+=kitchenSection("Use soon",useSoon,stock,true);
   h+=kitchenSection("Fridge",fridge,stock,false);
   h+=kitchenSection("Cupboard and freezer",cupboard,stock,false);
@@ -2260,7 +2261,7 @@ function renderShop(){
   const sentN=Object.keys((lsSent()||{lines:{}}).lines||{}).length+Object.keys((lsColesSent()||{lines:{}}).lines||{}).length;
   const cartEmpty=!sdays.length&&!pickServes&&!rows.length&&!covered.length&&!sentN;
   const tot=shopStoreTotals(),view=shopEffectiveStep(),max=shopMaxStep();
-  let h=`<div><div class="eyebrow">Shop</div><h2>Your cart</h2></div>`;
+  let h=`<div class="row between" style="align-items:flex-start"><div><div class="eyebrow">Shop</div><h2>Your cart</h2></div><button type="button" class="ghost" data-act="view" data-v="kitchen">Kitchen</button></div>`;
   h+=renderShopStepBar(view,max);
   h+=renderShopStartOver();
   h+=renderTrolleyPantryBlock(rows,ticks,st);
