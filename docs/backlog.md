@@ -40,7 +40,9 @@ Evan will photograph these nutrition panels later; remind him. Until then the ap
 - Coles RSPCA chicken breast (if he buys it): no online panel; uses the Woolworths breast label meanwhile.
 - Grenade Cookie Dough bar wrapper: no Australian panel online; the swap is hidden until the photo.
 
-## In progress: exact macros (raised 2026-10-27)
+## Built, not yet released: exact macros (raised 2026-10-27)
+
+Built and reviewer approved through cc53a9b; before/after table in `docs/research/macro-before-after.md`. Release v0.33.0 is blocked only by GitHub Actions billing ("recent account payments have failed or your spending limit needs to be increased"); release once Evan fixes billing. Flagged in the app as "check the pack" until confirmed: the label photo items above, potato (FSANZ is peeled raw, recipe microwaves it whole) and the Coles oil spray (panel per 100 mL, recipe weighs grams).
 
 Spec: `docs/superpowers/specs/2026-10-27-exact-macros-design.md`. No estimates: label or FSANZ values only, per store; meals calculated, not typed; measured extras; unconfirmed prices shown. Also: rice Standard ½ pouch / Loaded ¾; schnitzel Standard 300g mash + gravy, Loaded 400g mash + butter + gravy (the reviewed c34e27b schnitzel Standard figures were wrong: 45g P / 61g C, not 47 / 71). Label research in `docs/research/labels-{a,b,c}.json`. Evan approves a before/after table before release. The 2026-10-26 meal rework (c34e27b) is on main but not released yet; release together.
 
