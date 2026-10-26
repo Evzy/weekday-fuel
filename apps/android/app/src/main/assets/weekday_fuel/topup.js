@@ -64,6 +64,32 @@
     return null;
   }
 
+  function cartDaysWithPlanDay(cartDays, planDate) {
+    var cart = (cartDays || []).slice().filter(function (d) {
+      return DATE.test(d);
+    });
+    if (planDate && DATE.test(planDate) && cart.indexOf(planDate) < 0) cart.push(planDate);
+    cart.sort();
+    return cart;
+  }
+
+  function stapleSpanExtraFromPlanDay(cartDays, planDate, aheadN, spanDatesFn, step) {
+    var fn = spanDatesFn || function (d) {
+      return d;
+    };
+    var st = step || addDays;
+    var before = spanDatesIncludingAhead(cartDays, aheadN || 0, fn, st);
+    var afterCart = cartDaysWithPlanDay(cartDays, planDate);
+    var after = spanDatesIncludingAhead(afterCart, aheadN || 0, fn, st);
+    var set = Object.create(null);
+    before.forEach(function (d) {
+      set[d] = true;
+    });
+    return after.filter(function (d) {
+      return !set[d];
+    });
+  }
+
   function extraStapleDates(cartDays, n, step) {
     if (!n || !cartDays || !cartDays.length) return [];
     var last = cartDays[cartDays.length - 1];
@@ -131,6 +157,8 @@
     isWeekday: isWeekday,
     gapToMin: gapToMin,
     nextPlanDay: nextPlanDay,
+    cartDaysWithPlanDay: cartDaysWithPlanDay,
+    stapleSpanExtraFromPlanDay: stapleSpanExtraFromPlanDay,
     extraStapleDates: extraStapleDates,
     spanDatesIncludingAhead: spanDatesIncludingAhead,
     pickStapleAheadN: pickStapleAheadN,

@@ -29,6 +29,25 @@ test("nextPlanDay finds first tracked empty day after cart or after today", () =
   );
 });
 
+test("cartDaysWithPlanDay merges the planned day into the cart list", () => {
+  assert.deepEqual(T.cartDaysWithPlanDay(["2026-10-20", "2026-10-22"], "2026-10-23"), [
+    "2026-10-20",
+    "2026-10-22",
+    "2026-10-23",
+  ]);
+  assert.deepEqual(T.cartDaysWithPlanDay(["2026-10-20"], "2026-10-20"), ["2026-10-20"]);
+});
+
+test("stapleSpanExtraFromPlanDay counts staple days gained when the cart grows", () => {
+  const span = (dates) => S.spanDates(dates);
+  const extra = T.stapleSpanExtraFromPlanDay(["2026-10-20", "2026-10-21"], "2026-10-23", 0, span, addDays);
+  assert.deepEqual(extra, ["2026-10-22", "2026-10-23"]);
+  assert.deepEqual(
+    T.stapleSpanExtraFromPlanDay(["2026-10-20"], "2026-10-21", 0, span, addDays),
+    ["2026-10-21"],
+  );
+});
+
 test("spanDatesIncludingAhead extends the staple span by N days after the last cart day", () => {
   const span = (dates) => S.spanDates(dates);
   assert.deepEqual(
