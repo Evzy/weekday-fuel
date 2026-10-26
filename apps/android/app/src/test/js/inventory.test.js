@@ -1162,6 +1162,24 @@ test("migrateProduceCountsToGrams scales legacy cucumber and capsicum counts onc
   assert.equal(I.migrateProduceCountsToGrams(out), out, "idempotent");
 });
 
+test("produceGramsMigratedDone uses device-local flag and legacy settings only to skip", () => {
+  const ls = {
+    store: {},
+    getItem(k) {
+      return this.store[k] ?? null;
+    },
+    setItem(k, v) {
+      this.store[k] = v;
+    },
+  };
+  assert.equal(I.produceGramsMigratedDone(ls, false), false);
+  assert.equal(I.produceGramsMigratedDone(ls, true), true);
+  ls.setItem(I.PRODUCE_GRAMS_MIGRATED_KEY, "1");
+  assert.equal(I.produceGramsMigratedDone(ls, false), true);
+  assert.equal(I.setProduceGramsMigratedDone(ls), true);
+  assert.equal(ls.getItem(I.PRODUCE_GRAMS_MIGRATED_KEY), "1");
+});
+
 test("prune keeps an event exactly at the cutoff and drops one millisecond before", () => {
   const when = new Date(2026, 9, 20, 12, 0, 0);
   const cutoff = new Date(when.getFullYear(), when.getMonth(), when.getDate());

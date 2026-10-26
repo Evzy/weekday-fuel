@@ -140,6 +140,24 @@
     return Math.abs(doubled - Math.round(doubled)) < 1e-9;
   }
 
+  var PRODUCE_GRAMS_MIGRATED_KEY = "weekdayfuel.inventory.produceGramsMigrated";
+
+  function produceGramsMigratedDone(ls, legacySettingsFlag) {
+    try {
+      if (ls && ls.getItem && ls.getItem(PRODUCE_GRAMS_MIGRATED_KEY) === "1") return true;
+    } catch (e) {}
+    return legacySettingsFlag === true;
+  }
+
+  function setProduceGramsMigratedDone(ls) {
+    try {
+      if (ls && ls.setItem) ls.setItem(PRODUCE_GRAMS_MIGRATED_KEY, "1");
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
   /* Before unit g: amounts were whole cucumbers/capsicums. After: grams (usually >= 80). */
   function migrateProduceCountsToGrams(inv) {
     if (!inv || !Array.isArray(inv.events)) return inv;
@@ -884,6 +902,9 @@
     buysFromUnmatchedSent: buysFromUnmatchedSent,
     shopHaveIt: shopHaveIt,
     migrateProduceCountsToGrams: migrateProduceCountsToGrams,
+    PRODUCE_GRAMS_MIGRATED_KEY: PRODUCE_GRAMS_MIGRATED_KEY,
+    produceGramsMigratedDone: produceGramsMigratedDone,
+    setProduceGramsMigratedDone: setProduceGramsMigratedDone,
     impliedAte: impliedAte,
     endOfDay: endOfDay,
   };

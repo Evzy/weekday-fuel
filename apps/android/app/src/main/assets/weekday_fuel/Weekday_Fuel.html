@@ -328,14 +328,16 @@ function runStaplesFxMigrateIfNeeded(){
   saveSettings();
 }
 function runProduceGramsMigratedIfNeeded(){
-  if(S().produceGramsMigrated)return;
+  if(WeekdayFuelInventory.produceGramsMigratedDone(localStorage,S().produceGramsMigrated)){
+    WeekdayFuelInventory.setProduceGramsMigratedDone(localStorage);
+    return;
+  }
   const inv=lsInv();
   if(inv){
     const next=WeekdayFuelInventory.migrateProduceCountsToGrams(inv);
     if(next!==inv&&!lsSetInv(next))return;
   }
-  state.settings.produceGramsMigrated=true;
-  saveSettings();
+  WeekdayFuelInventory.setProduceGramsMigratedDone(localStorage);
 }
 function staplesActiveOn(date){return WeekdayFuelStaples.activeStaples(staplesList(),date)}
 function dayMealsAll(){return dayMealsFrom(null)}
