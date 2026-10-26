@@ -16,7 +16,9 @@ Ideas agreed for later. Each gets a brainstorm and spec before it's built.
 
 **Also consider (Today).** Show the shortfall plainly ("170 kcal short even at Loaded") so a refit that can't hit the goal doesn't look like it worked. And the reverse case: adding a staple on a day already over target, with every meal already Light.
 
-## Open: Woolworths $50 delivery minimum (raised 2026-10-26)
+## Built, not yet released: Woolworths $50 delivery minimum (raised 2026-10-26)
+
+Spec `docs/superpowers/specs/2026-10-27-delivery-minimum-design.md`; built in 18e36a4, dea9ff2, fc82587 (reviewer approved). Both stores, $50 each. Suggestions: plan the next day, daily staples ahead. Ships with the exact-macros release.
 
 **Problem.** Woolworths won't complete a delivery order under $50, so small shops (e.g. a 3-day plan) get stuck at checkout.
 
