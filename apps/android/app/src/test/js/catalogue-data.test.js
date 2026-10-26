@@ -135,6 +135,7 @@ test("swaps are well formed and pass the nutrition guard", () => {
       ids.add(s.id);
       assert.ok(typeof s.name === "string" && s.name);
       assert.ok(Number.isInteger(s.serves) && s.serves >= 1, s.id + " serves");
+      assert.ok(s.serveMl != null || s.serveG != null, s.id + " serveMl or serveG");
       const sp = MC.servePer(it, s, "woolies") || MC.servePer(it, s, "coles");
       assert.ok(sp && sp.k > 0 && sp.p > 0, s.id + " panel per serve");
       assert.ok(sp.p >= mainW.p - 5 && (s.todayOnly || sp.k <= mainW.k + 80), s.id + " passes guard woolies");
@@ -162,6 +163,53 @@ test("swaps are well formed and pass the nutrition guard", () => {
   assert.deepEqual(dare.swaps.map((s) => s.id), ["dare-mocha", "pauls-dec", "rokeby-de", "oak-sc", "icebreak", "dare-750"]);
   assert.deepEqual(gren.swaps.map((s) => s.id), ["gr-oreo", "gr-white-oreo", "gr-cookie", "mu-vancar", "mu-wcsc", "mu-cc", "bsc-cc"]);
   assert.equal(cat.create(cat.ITEMS).item("dare").swaps.length, 6);
+});
+
+function round1Swap(x) {
+  return Math.round(x * 10) / 10;
+}
+
+function panelServeFromPanel(panel, amount) {
+  const f = amount / 100;
+  return {
+    k: round1Swap((panel.k || 0) * f),
+    p: round1Swap((panel.p || 0) * f),
+    c: round1Swap((panel.c || 0) * f),
+    f: round1Swap((panel.f || 0) * f),
+  };
+}
+
+function pickSwapPanel(bag, store) {
+  if (!bag) return null;
+  return bag[store] || bag.any || bag.woolies || bag.coles || null;
+}
+
+test("each swap serve matches panel times size in its product name", () => {
+  const mlRe = /(\d+)\s*mL/i;
+  const gRe = /(\d+)\s*g\b/i;
+  for (const it of cat.ITEMS) {
+    if (!it.swaps) continue;
+    for (const s of it.swaps) {
+      if (s.hidden) continue;
+      const ml = mlRe.exec(s.name);
+      const g = gRe.exec(s.name);
+      if (ml) assert.equal(s.serveMl, Number(ml[1]), s.id + " serveMl matches name");
+      else if (g) assert.equal(s.serveG, Number(g[1]), s.id + " serveG matches name");
+      else assert.fail(s.id + " name has no mL or g size");
+      const amount = s.serveMl != null ? s.serveMl : s.serveG;
+      for (const store of ["woolies", "coles"]) {
+        const panel = pickSwapPanel(PANELS[s.id], store);
+        if (!panel) continue;
+        const exp = panelServeFromPanel(panel, amount);
+        const got = MC.servePer(it, s, store);
+        assert.ok(got, s.id + " " + store);
+        assert.equal(got.k, exp.k, s.id + " k " + store);
+        assert.equal(got.p, exp.p, s.id + " p " + store);
+        assert.equal(got.c, exp.c, s.id + " c " + store);
+        assert.equal(got.f, exp.f, s.id + " f " + store);
+      }
+    }
+  }
 });
 
 test("every swap has a short label at most 12 characters", () => {

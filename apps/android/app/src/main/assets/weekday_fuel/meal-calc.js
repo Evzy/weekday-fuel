@@ -145,11 +145,19 @@
       store = store || defaultStore;
       var panel = swap ? panelForSwap(panels, swap.id, store) : panelForItem(panels, mainItem.id, store, mainItem, {});
       if (!panel) return null;
-      var useMl = panel.per === "100mL" && (mainItem.unit === "bottles" || mainItem.unit === "mL");
-      var spec = useMl ? { _ml: true } : null;
-      var amt = 1;
-      if (useMl) amt = mainItem.unitSize || 1;
-      return macrosFromPanel(panel, amt, mainItem, spec);
+      if (swap) {
+        if (swap.serveMl != null) {
+          return macrosFromPanel(panel, swap.serveMl, { unit: "mL" }, { _ml: true });
+        }
+        if (swap.serveG != null) {
+          return macrosFromPanel(panel, swap.serveG, { unit: "g" }, null);
+        }
+        return null;
+      }
+      if (panel.per === "100mL" && (mainItem.unit === "bottles" || mainItem.unit === "mL")) {
+        return macrosFromPanel(panel, mainItem.unitSize || 500, { unit: "mL" }, { _ml: true });
+      }
+      return macrosFromPanel(panel, 1, mainItem, null);
     }
 
     function portion(mealId, tier, store, opts) {
