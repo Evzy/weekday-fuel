@@ -74,7 +74,7 @@
     "notes": "For the main products: Woolworths Washed Potatoes Bag 2kg (262783) and Coles Potatoes Washed 2kg (1206748); neither page has a panel. AFCD Release 3 has no unpeeled raw potato entry, only peeled raw by variety; 'pale skin' matches washed white potatoes. Weigh peeled potato for this entry. The 1kg baby-potato packs do have panels (rows below)."
   },
   {
-    "item": "potato", "store": "woolies", "src": "label",
+    "item": "potato", "store": "woolies", "role": "pack", "src": "label",
     "productName": "Woolworths White Washed Baby Potatoes Bag 1kg", "productId": "385085",
     "url": "https://www.woolworths.com.au/shop/productdetails/385085/woolworths-white-washed-baby-potatoes-bag",
     "status": "ok", "basis": "100g",
@@ -87,7 +87,7 @@
     "notes": "Pack-size alternative (catalogue packs[]), not the main 2kg product. Use only when the shop buys this pack."
   },
   {
-    "item": "potato", "store": "coles", "src": "label",
+    "item": "potato", "store": "coles", "role": "pack", "src": "label",
     "productName": "Coles Baby Potatoes White 1Kg", "productId": "2488485",
     "url": "https://www.coles.com.au/product/coles-baby-washed-potatoes-1kg-2488485",
     "status": "ok", "basis": "100g",

@@ -96,7 +96,9 @@ function mergePanels(allRows) {
   for (const row of allRows) {
     if (!row.item) continue;
     const sk = storeKey(row.store);
-    const panelId = row.role === "fallback" ? row.item + "-fallback" : row.item;
+    let panelId = row.item;
+    if (row.role === "fallback") panelId = row.item + "-fallback";
+    else if (row.role === "pack") panelId = row.item + "-pack";
     const key = panelId + "|" + sk;
     const prev = byItem.get(key);
     if (!prev || roleRank(row.role) < roleRank(prev.role)) byItem.set(key, row);
@@ -131,6 +133,58 @@ function applyOverrides(panels) {
     if (!n.includes("upper bound")) {
       panels.spinach.woolies.note =
         (n ? n + " " : "") + "Fat/carbs/sugars printed '<1g' stored as 1g (upper bound).";
+    }
+  }
+  if (panels.spray?.woolies && panels.spray?.coles?.per === "100mL") {
+    panels.spray.coles.confirm =
+      "Coles lists this spray per 100 mL but portions are weighed in grams — check the pack.";
+  }
+  const confirmByItem = {
+    potato: {
+      any: "Recipe microwaves whole unpeeled potato; panel is FSANZ peeled raw (no unpeeled AFCD entry).",
+    },
+    corn: {
+      woolies: "Panel does not say drained or as-canned — check the can before weighing.",
+      coles: "Panel does not say drained or as-canned — check the can before weighing.",
+    },
+    curry: {
+      woolies: "Curry paste values conflict between sources — check the tin.",
+      coles: "Curry paste values conflict between sources — check the tin.",
+    },
+    muffin: {
+      woolies: "Woolworths and Coles English muffin panels disagree — check your pack.",
+      coles: "Woolworths and Coles English muffin panels disagree — check your pack.",
+    },
+    honey: {
+      coles: "Some values may be printed as '<1g' on the pack — check before trusting 1.0g.",
+      woolies: "Some values may be printed as '<1g' on the pack — check before trusting 1.0g.",
+    },
+    oyster: {
+      coles: "Some values may be printed as '<1g' on the pack — check before trusting 1.0g.",
+      woolies: "Some values may be printed as '<1g' on the pack — check before trusting 1.0g.",
+    },
+    cucumber: {
+      any: "Loose cucumbers are sold by count; recipe amounts are weighed trimmed grams.",
+    },
+    capsicum: {
+      any: "Loose capsicums are sold by count; recipe amounts are weighed trimmed grams.",
+    },
+  };
+  for (const [itemId, byStore] of Object.entries(confirmByItem)) {
+    const bag = panels[itemId];
+    if (!bag) continue;
+    for (const [sk, msg] of Object.entries(byStore)) {
+      if (bag[sk] && !bag[sk].confirm) bag[sk].confirm = msg;
+    }
+  }
+  for (const bag of Object.values(panels)) {
+    for (const p of Object.values(bag)) {
+      if (!p || p.confirm || !p.note) continue;
+      const n = p.note.toLowerCase();
+      if (n.includes("confirm on pack") || n.includes("confirm on the") || n.includes("confirm before") || n.includes("values conflict") || n.includes("check on the tin") || n.includes("one store is out of date") || n.includes("confirm on pack before")) {
+        const m = p.note.match(/([^.]*confirm[^.]*\.)/i);
+        p.confirm = m ? m[1].trim() : "Check the pack against the label.";
+      }
     }
   }
   return panels;

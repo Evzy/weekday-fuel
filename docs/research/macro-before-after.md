@@ -70,9 +70,9 @@ Generated: 2026-10-26. Store panels from `labels-a/b/c.json`; extras from `extra
 
 | Tier | Old (typed) | Woolworths computed | Δ W | Coles computed | Δ C |
 |------|-------------|---------------------|-----|----------------|-----|
-| L | 418 kcal · 43g P · 41g C · 7g F | 374 kcal · 40.8g P · 31.3g C · 8.4g F | -44 kcal | 384 kcal · 41.6g P · 32.3g C · 8.2g F | -34 kcal |
-| S | 517 kcal · 47g P · 71g C · 7g F | 570 kcal · 47.3g P · 69.3g C · 8.8g F | +53 kcal | 554 kcal · 47.4g P · 67g C · 8.4g F | +37 kcal |
-| X | 659 kcal · 47g P · 75g C · 16g F | 709 kcal · 49.7g P · 82.3g C · 16.9g F | +50 kcal | 685 kcal · 49.5g P · 78.6g C · 16.7g F | +26 kcal |
+| L | 418 kcal · 43g P · 41g C · 7g F | 369 kcal · 40.6g P · 30.6g C · 8.3g F | -49 kcal | 385 kcal · 41.6g P · 32.3g C · 8.2g F | -33 kcal |
+| S | 517 kcal · 47g P · 71g C · 7g F | 542 kcal · 46.4g P · 65.1g C · 8.5g F | +25 kcal | 557 kcal · 47.4g P · 67g C · 8.4g F | +40 kcal |
+| X | 659 kcal · 47g P · 75g C · 16g F | 671 kcal · 48.5g P · 76.7g C · 16.5g F | +12 kcal | 688 kcal · 49.5g P · 78.6g C · 16.7g F | +29 kcal |
 
 ## Korean beef mince bowl (`koreanbeef`)
 

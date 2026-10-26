@@ -385,6 +385,20 @@
       "note": "Woolworths panel, Coles has none online. Woolworths product page (text NIP). Saturated, carbohydrate and sugars printed as '<1.0g' per 100g (per 150g serve: 1.5g sat, 1.5g C, 1.5g sugars). Fibre not listed. Per 150g: 657 kJ, 33.4g P, 2.4g F, 62mg Na. Values printed '<1' stored as 1g (upper bound) raw, as sold"
     }
   },
+  "breast-pack": {
+    "woolies": {
+      "k": 104.7,
+      "p": 22.3,
+      "c": 0,
+      "f": 1.6,
+      "per": "100g",
+      "src": "label",
+      "product": "Woolworths RSPCA Approved Chicken Breast Fillet 1.5kg - 2.2kg",
+      "id": "969723",
+      "checked": "2026-10-27",
+      "note": "Live Woolworths page (checked 2026-10-27) shows NO nutrition panel. Values are the Woolworths page's own panel for this same stockcode as indexed by search (earlier listing titled '1.3kg - 1.7kg'; per-100g only, no serving): 438 kJ, 22.3g P, 1.6g F, 0.5g sat, carbs/sugars/fibre not available, 41mg Na. kJ/P/F/Na match the 650g pack (6078624). Treat as lower confidence; reverify when the live page shows a panel. raw, as sold"
+    }
+  },
   "mince": {
     "woolies": {
       "k": 130.3,
@@ -437,6 +451,32 @@
       "id": "9453478",
       "checked": "2026-10-27",
       "note": "Coles product page (embedded NIP data). Printed 143 Cal/100g. Per 104g: 620 kJ, 12.7g P, 10.3g F, 1.35g C, 141mg Na. Serving 104g = 2 eggs, i.e. 52g edible egg per egg (catalogue unitSize is 58). as sold"
+    }
+  },
+  "eggs-pack": {
+    "woolies": {
+      "k": 142.4,
+      "p": 12.2,
+      "c": 1.3,
+      "f": 9.9,
+      "per": "100g",
+      "src": "label",
+      "product": "Woolworths 6 Pack Extra Large Free Range Eggs 350g",
+      "id": "133245",
+      "checked": "2026-10-27",
+      "note": "Woolworths product page (text NIP). Identical to the 12 pack. Serving 104g = 2 eggs, i.e. 52g edible egg per egg (catalogue unitSize is 58). as sold"
+    },
+    "coles": {
+      "k": 142.4,
+      "p": 12.2,
+      "c": 1.3,
+      "f": 9.9,
+      "per": "100g",
+      "src": "label",
+      "product": "Sunny Queen Free Range X Large Eggs 6 Pack 350g",
+      "id": "5484210",
+      "checked": "2026-10-27",
+      "note": "Coles product page (embedded NIP data). Fibre not listed; trans fat 0g. Serving 104g = 2 eggs, i.e. 52g edible egg per egg (catalogue unitSize is 58). as sold"
     }
   },
   "ham": {
@@ -492,6 +532,21 @@
       "note": "Coles product page (embedded NIP data). Printed 56 Cal/100g. Page shows the product as unavailable (availability false). Identical to Woolworths. as sold"
     }
   },
+  "yog-pack": {
+    "woolies": {
+      "k": 55.9,
+      "p": 9.3,
+      "c": 4,
+      "f": 0.2,
+      "per": "100g",
+      "src": "label",
+      "fib": 0,
+      "product": "Chobani Greek Yogurt Natural Light 500g",
+      "id": "6093769",
+      "checked": "2026-10-27",
+      "note": "Woolworths product page (text NIP) (the catalogue's slugged URL 404s; the bare-stockcode URL works). Fibre 0.0g. Same panel as the 907g. as sold"
+    }
+  },
   "cheese": {
     "woolies": {
       "k": 337,
@@ -517,6 +572,20 @@
       "id": "8145346",
       "checked": "2026-10-27",
       "note": "Coles product page (embedded NIP data). Printed 336 Cal/100g. Per 25g: 351 kJ, 7.42g P, 6.05g F. as sold"
+    }
+  },
+  "cheese-pack": {
+    "woolies": {
+      "k": 337,
+      "p": 29.7,
+      "c": 0.5,
+      "f": 24.2,
+      "per": "100g",
+      "src": "label",
+      "product": "Woolworths Light Tasty Cheese Shredded 250g",
+      "id": "728984",
+      "checked": "2026-10-27",
+      "note": "Woolworths product page (text NIP). Identical to the 500g. as sold"
     }
   },
   "wraps": {
@@ -615,7 +684,8 @@
       "product": "Tip Top English Muffins Original 6 pack",
       "id": "46795",
       "checked": "2026-10-27",
-      "note": "Woolworths product page (text NIP) (title 'Tip Top English Muffins Original Bakery 6 pack'). Per 67g muffin: 553 kJ (132 kcal), 4.8g P, 1.4g F, 23.5g C, 2.7g fibre, 198mg Na. Much lower than the Coles panel and the current macros.js values (227 kcal, 9.5g P) - ingredients now list maize polenta and oat fibre, so likely a reformulated panel; one store is out of date. as sold"
+      "note": "Woolworths product page (text NIP) (title 'Tip Top English Muffins Original Bakery 6 pack'). Per 67g muffin: 553 kJ (132 kcal), 4.8g P, 1.4g F, 23.5g C, 2.7g fibre, 198mg Na. Much lower than the Coles panel and the current macros.js values (227 kcal, 9.5g P) - ingredients now list maize polenta and oat fibre, so likely a reformulated panel; one store is out of date. as sold",
+      "confirm": "Woolworths and Coles English muffin panels disagree — check your pack."
     },
     "coles": {
       "k": 227.1,
@@ -628,7 +698,8 @@
       "product": "Tip Top Muffins English 400g",
       "id": "332394",
       "checked": "2026-10-27",
-      "note": "Coles product page (embedded NIP data). Per 67g muffin: 637 kJ (152 kcal), 6.4g P, 1.9g F, 27.1g C, 2.2g fibre, 235mg Na. Matches current macros.js; differs a lot from Woolworths. as sold"
+      "note": "Coles product page (embedded NIP data). Per 67g muffin: 637 kJ (152 kcal), 6.4g P, 1.9g F, 27.1g C, 2.2g fibre, 235mg Na. Matches current macros.js; differs a lot from Woolworths. as sold",
+      "confirm": "Woolworths and Coles English muffin panels disagree — check your pack."
     }
   },
   "crumbfillet": {
@@ -713,7 +784,8 @@
       "product": "Woolworths Baby Leaf Spinach 120g",
       "id": "524322",
       "checked": "2026-10-27",
-      "note": "Fat, saturated, carbohydrate and sugars all read exactly 1.0g, which looks like Woolworths' data feed storing '<1g' as 1.0 (fat 1.0g would add 9 kcal to a 16 kcal food; Coles' panel for its own spinach prints 0g). Treat f/sat/c/sugars as '<1' and confirm on pack before using 1.0. Same panel on the 60g (379515) and 280g (524336, serving 70g) packs. Per 100g as listed in the Woolworths product data (NIP attributes). Fat/carbs/sugars printed '<1g' stored as 1g (upper bound)."
+      "note": "Fat, saturated, carbohydrate and sugars all read exactly 1.0g, which looks like Woolworths' data feed storing '<1g' as 1.0 (fat 1.0g would add 9 kcal to a 16 kcal food; Coles' panel for its own spinach prints 0g). Treat f/sat/c/sugars as '<1' and confirm on pack before using 1.0. Same panel on the 60g (379515) and 280g (524336, serving 70g) packs. Per 100g as listed in the Woolworths product data (NIP attributes). Fat/carbs/sugars printed '<1g' stored as 1g (upper bound).",
+      "confirm": "Treat f/sat/c/sugars as '<1' and confirm on pack before using 1."
     },
     "coles": {
       "k": 16.2,
@@ -754,7 +826,8 @@
       "fib": 0.6,
       "food": "F003321",
       "name": "Cucumber, Lebanese, unpeeled, raw",
-      "note": "Loose produce, sold each. Tried: Woolworths Lebanese Cucumbers each (137130) and Coles Lebanese Cucumbers approx. 160g (4575208): no panel on either. Peeled alternative is F010995 (48 kJ, 0.7 P, 1.9 C, 0.7 fib). AFCD Release 3 'Energy with dietary fibre, equated' (kJ); per 100g edible portion, unpeeled, raw."
+      "note": "Loose produce, sold each. Tried: Woolworths Lebanese Cucumbers each (137130) and Coles Lebanese Cucumbers approx. 160g (4575208): no panel on either. Peeled alternative is F010995 (48 kJ, 0.7 P, 1.9 C, 0.7 fib). AFCD Release 3 'Energy with dietary fibre, equated' (kJ); per 100g edible portion, unpeeled, raw.",
+      "confirm": "Loose cucumbers are sold by count; recipe amounts are weighed trimmed grams."
     }
   },
   "capsicum": {
@@ -768,7 +841,8 @@
       "fib": 1.5,
       "food": "F002239",
       "name": "Capsicum, green, fresh, raw",
-      "note": "Loose produce, sold each. Tried: Woolworths Capsicum Green each (135156) and Coles Capsicum Green Loose approx. 220g (7214862): no panel on either. Per 100g edible portion; the 220g each weight includes seeds/stem. AFCD Release 3 'Energy with dietary fibre, equated' (kJ); per 100g edible portion, raw."
+      "note": "Loose produce, sold each. Tried: Woolworths Capsicum Green each (135156) and Coles Capsicum Green Loose approx. 220g (7214862): no panel on either. Per 100g edible portion; the 220g each weight includes seeds/stem. AFCD Release 3 'Energy with dietary fibre, equated' (kJ); per 100g edible portion, raw.",
+      "confirm": "Loose capsicums are sold by count; recipe amounts are weighed trimmed grams."
     }
   },
   "potato": {
@@ -782,8 +856,11 @@
       "fib": 1.1,
       "food": "F007325",
       "name": "Potato, pale skin, peeled, raw",
-      "note": "For the main products: Woolworths Washed Potatoes Bag 2kg (262783) and Coles Potatoes Washed 2kg (1206748); neither page has a panel. AFCD Release 3 has no unpeeled raw potato entry, only peeled raw by variety; 'pale skin' matches washed white potatoes. Weigh peeled potato for this entry. The 1kg baby-potato packs do have panels (rows below). AFCD Release 3 'Energy with dietary fibre, equated' (kJ); per 100g peeled raw potato."
-    },
+      "note": "For the main products: Woolworths Washed Potatoes Bag 2kg (262783) and Coles Potatoes Washed 2kg (1206748); neither page has a panel. AFCD Release 3 has no unpeeled raw potato entry, only peeled raw by variety; 'pale skin' matches washed white potatoes. Weigh peeled potato for this entry. The 1kg baby-potato packs do have panels (rows below). AFCD Release 3 'Energy with dietary fibre, equated' (kJ); per 100g peeled raw potato.",
+      "confirm": "Recipe microwaves whole unpeeled potato; panel is FSANZ peeled raw (no unpeeled AFCD entry)."
+    }
+  },
+  "potato-pack": {
     "woolies": {
       "k": 67.2,
       "p": 2.3,
@@ -823,7 +900,8 @@
       "product": "Edgell Corn Kernels 420g",
       "id": "34437",
       "checked": "2026-10-27",
-      "note": "Same panel on Coles. Panel does not say drained or as canned. Ingredients are 'Sweet corn (58%), water, salt'. 3.2 servings x 75g = 240g, about the drained weight (58% of 420g = 244g), which points to drained. But 7.7g carbohydrate per 100g is low for drained sweet corn and fits whole can contents including brine. Confirm on the can before choosing drained or as-canned weights."
+      "note": "Same panel on Coles. Panel does not say drained or as canned. Ingredients are 'Sweet corn (58%), water, salt'. 3.2 servings x 75g = 240g, about the drained weight (58% of 420g = 244g), which points to drained. But 7.7g carbohydrate per 100g is low for drained sweet corn and fits whole can contents including brine. Confirm on the can before choosing drained or as-canned weights.",
+      "confirm": "Panel does not say drained or as-canned — check the can before weighing."
     },
     "coles": {
       "k": 65.7,
@@ -836,7 +914,8 @@
       "product": "Edgell Corn Kernels 420g",
       "id": "132045",
       "checked": "2026-10-27",
-      "note": "Same drained-vs-as-canned ambiguity as the Woolworths row: the per-serve column (206 kJ per 75g) is consistent with the per-100g column, and the panel itself doesn't state the basis."
+      "note": "Same drained-vs-as-canned ambiguity as the Woolworths row: the per-serve column (206 kJ per 75g) is consistent with the per-100g column, and the panel itself doesn't state the basis.",
+      "confirm": "Panel does not say drained or as-canned — check the can before weighing."
     }
   },
   "fzpeas": {
@@ -879,7 +958,8 @@
       "product": "Woolworths Frozen Australian Carrots Peas & Corn 1kg",
       "id": "768569",
       "checked": "2026-10-27",
-      "note": "Fat and saturated fat both exactly 1.0g, probably '<1g' stored as 1.0 by Woolworths' data feed; confirm on pack. Per 100g as frozen, from the Woolworths product data."
+      "note": "Fat and saturated fat both exactly 1.0g, probably '<1g' stored as 1.0 by Woolworths' data feed; confirm on pack. Per 100g as frozen, from the Woolworths product data.",
+      "confirm": "0 by Woolworths' data feed; confirm on pack."
     },
     "coles": {
       "k": 66.4,
@@ -907,7 +987,8 @@
       "product": "Woolworths Frozen Australian Broccoli Florets 500g",
       "id": "768559",
       "checked": "2026-10-27",
-      "note": "Fat and saturated fat both exactly 1.0g, probably '<1g' stored as 1.0; confirm on pack. Per 100g as frozen, from the Woolworths product data."
+      "note": "Fat and saturated fat both exactly 1.0g, probably '<1g' stored as 1.0; confirm on pack. Per 100g as frozen, from the Woolworths product data.",
+      "confirm": "0; confirm on pack."
     },
     "coles": {
       "k": 46.4,
@@ -963,7 +1044,8 @@
       "product": "Woolworths Frozen Mixed Berries 500g",
       "id": "260010",
       "checked": "2026-10-27",
-      "note": "Protein, fat and saturated fat all exactly 1.0g, probably '<1g' stored as 1.0; confirm on pack. Per 100g as frozen, from the Woolworths product data."
+      "note": "Protein, fat and saturated fat all exactly 1.0g, probably '<1g' stored as 1.0; confirm on pack. Per 100g as frozen, from the Woolworths product data.",
+      "confirm": "0; confirm on pack."
     },
     "coles": {
       "k": 40.9,
@@ -1042,7 +1124,8 @@
       "product": "Maesri Red Curry Paste 114g",
       "id": "45458",
       "checked": "2026-10-27",
-      "note": "The live Woolworths page shows the panel as 'Not Available' (only per-serve cholesterol/mono/poly/potassium/trans in the data). A cached Woolworths page and checklabels.com.au show an older, different panel: 314 kJ, 3.80 P, 1.90 F, 0.27 sat, 6.45 C, 8.64 sugars, 3 fibre, 2523 Na, serving 20g. That panel is internally inconsistent (sugars higher than carbohydrate). The distributor panel is used instead. Values conflict between sources, so confirm on the tin. Values printed '<1' stored as 1g (upper bound) Per 100g from the Australian distributor's panel for the 114g tin."
+      "note": "The live Woolworths page shows the panel as 'Not Available' (only per-serve cholesterol/mono/poly/potassium/trans in the data). A cached Woolworths page and checklabels.com.au show an older, different panel: 314 kJ, 3.80 P, 1.90 F, 0.27 sat, 6.45 C, 8.64 sugars, 3 fibre, 2523 Na, serving 20g. That panel is internally inconsistent (sugars higher than carbohydrate). The distributor panel is used instead. Values conflict between sources, so confirm on the tin. Values printed '<1' stored as 1g (upper bound) Per 100g from the Australian distributor's panel for the 114g tin.",
+      "confirm": "Curry paste values conflict between sources — check the tin."
     },
     "coles": {
       "k": 201,
@@ -1054,7 +1137,8 @@
       "product": "Ayam Thai Red Curry Paste 195g",
       "id": "6801057",
       "checked": "2026-10-27",
-      "note": "Different product from the Woolworths one (contains palm sugar, soybean oil). It has about 2.5x the energy of the Maesri paste. Per 100g/ml column of the Coles product page panel ('Energy (Cal)' field shows 0.201, a unit glitch for 201)."
+      "note": "Different product from the Woolworths one (contains palm sugar, soybean oil). It has about 2.5x the energy of the Maesri paste. Per 100g/ml column of the Coles product page panel ('Energy (Cal)' field shows 0.201, a unit glitch for 201).",
+      "confirm": "Curry paste values conflict between sources — check the tin."
     }
   },
   "soy": {
@@ -1172,7 +1256,8 @@
       "product": "Lee Kum Kee Panda Brand Oyster Sauce 255g",
       "id": "5873664",
       "checked": "2026-10-27",
-      "note": "Fat and sat printed 'LESS THAN 1 g'. Fibre not listed. Differs from the Woolworths panel for the same product (553 kJ, 30.1 g C). Values printed '<1' stored as 1g (upper bound)"
+      "note": "Fat and sat printed 'LESS THAN 1 g'. Fibre not listed. Differs from the Woolworths panel for the same product (553 kJ, 30.1 g C). Values printed '<1' stored as 1g (upper bound)",
+      "confirm": "Some values may be printed as '<1g' on the pack — check before trusting 1.0g."
     },
     "woolies": {
       "k": 132.2,
@@ -1185,7 +1270,8 @@
       "product": "Lee Kum Kee Panda Brand Oyster Sauce 255g",
       "id": "65404",
       "checked": "2026-10-27",
-      "note": "Barcode 78895300017. Fat and sat printed '<1g'. Values printed '<1' stored as 1g (upper bound)"
+      "note": "Barcode 78895300017. Fat and sat printed '<1g'. Values printed '<1' stored as 1g (upper bound)",
+      "confirm": "Some values may be printed as '<1g' on the pack — check before trusting 1.0g."
     }
   },
   "franks": {
@@ -1387,7 +1473,8 @@
       "product": "Coles Simply Pure Honey Squeeze 400g",
       "id": "1809867",
       "checked": "2026-10-27",
-      "note": "Panel also prints 339 Cal/100 g."
+      "note": "Panel also prints 339 Cal/100 g.",
+      "confirm": "Some values may be printed as '<1g' on the pack — check before trusting 1.0g."
     },
     "woolies": {
       "k": 339.4,
@@ -1400,7 +1487,8 @@
       "product": "Woolworths Pure Honey Twist & Squeeze 375g",
       "id": "753976",
       "checked": "2026-10-27",
-      "note": "Protein, fat and sat printed as '1.00g' per 100 g but 0.20 g per 15 g serve (=1.3 g/100 g); these are likely '<1 g' entries rendered as 1. Recorded as printed; check the jar."
+      "note": "Protein, fat and sat printed as '1.00g' per 100 g but 0.20 g per 15 g serve (=1.3 g/100 g); these are likely '<1 g' entries rendered as 1. Recorded as printed; check the jar.",
+      "confirm": "Some values may be printed as '<1g' on the pack — check before trusting 1.0g."
     }
   },
   "muesli": {
@@ -1482,7 +1570,8 @@
       "product": "Coles Canola Oil Cooking Spray 400g",
       "id": "9418761",
       "checked": "2026-10-27",
-      "note": "No per-spray serving on the label. $3. Woolworths panel is per 100 g (serve 5.0 G); Coles panel is per 100 mL-ish (serve 'Approximately 5mL', 4.48 g fat/serve = 89.6 g per 100). Neither gives density or per-spray weight. Panel column titled 'Per 100g/ml'; recorded as 100 mL because the serve is in mL."
+      "note": "No per-spray serving on the label. $3. Woolworths panel is per 100 g (serve 5.0 G); Coles panel is per 100 mL-ish (serve 'Approximately 5mL', 4.48 g fat/serve = 89.6 g per 100). Neither gives density or per-spray weight. Panel column titled 'Per 100g/ml'; recorded as 100 mL because the serve is in mL.",
+      "confirm": "Coles lists this spray per 100 mL but portions are weighed in grams — check the pack."
     }
   },
   "vegoil": {
