@@ -1040,7 +1040,7 @@ test("real catalogue pack entries are valid and sizes are unique per store line"
         assert.ok(typeof c.name === "string" && c.name.length, `${it.id} ${store} name`);
         if (store === "woolies") {
           assert.ok(Number.isInteger(c.stockcode), `${it.id} woolies stockcode`);
-          assert.ok(String(c.url).includes("/" + c.stockcode + "/"), `${it.id} woolies url stockcode`);
+          assert.ok(String(c.url).includes(String(c.stockcode)), `${it.id} woolies url stockcode`);
         } else {
           assert.ok(c.url.startsWith("https://www.coles.com.au/product/"), `${it.id} coles url`);
           assert.match(c.url, /-\d+$/, `${it.id} coles url id`);

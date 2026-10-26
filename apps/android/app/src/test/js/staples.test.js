@@ -224,21 +224,31 @@ test("needs skips out staples", () => {
   assert.equal(n.grenade, 2);
 });
 
-test("choiceMacros uses swap per times amount with c/f fallback", () => {
+test("choiceMacros uses swap panels times amount", () => {
+  const dare = cat.item("dare");
+  const sw750 = dare.swaps.find((s) => s.id === "dare-750");
+  const swMocha = dare.swaps.find((s) => s.id === "dare-mocha");
+  const p750 = MC.servePer(dare, sw750, "woolies");
+  const pMocha = MC.servePer(dare, swMocha, "woolies");
+  assert.ok(p750 && pMocha, "swap panels");
   const dare750 = S.choiceMacros("dare", 1, "dare-750", cat, macroCtx());
-  assert.equal(dare750.k, 444);
-  assert.equal(dare750.p, 45);
-  assert.equal(dare750.c, 38.3);
-  assert.equal(dare750.f, 12);
+  assert.equal(dare750.k, p750.k);
+  assert.equal(dare750.p, p750.p);
+  assert.equal(dare750.c, p750.c);
+  assert.equal(dare750.f, p750.f);
   const base = S.macros("dare", 1, cat, macroCtx());
   const mocha = S.choiceMacros("dare", 1, "dare-mocha", cat, macroCtx());
-  assert.equal(mocha.k, 292);
-  assert.ok(Math.abs(mocha.c - base.c * (292 / base.k)) < 0.05);
+  assert.equal(mocha.k, pMocha.k);
+  assert.equal(mocha.c, pMocha.c);
   assert.equal(S.choiceMacros("dare", 1, "nope", cat, macroCtx()).k, base.k);
   const two = S.choiceMacros("dare", 2, "dare-750", cat, macroCtx());
-  assert.equal(two.k, 888);
-  assert.equal(two.p, 90);
+  assert.equal(two.k, round2(p750.k * 2));
+  assert.equal(two.p, round2(p750.p * 2));
 });
+
+function round2(x) {
+  return Math.round(x * 100) / 100;
+}
 
 test("out staples are not reserved from stock", () => {
   const START = "2026-10-10T08:00:00.000Z";

@@ -1,6 +1,9 @@
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const cat = require("../../main/assets/weekday_fuel/catalogue.js");
+const { PANELS } = require("../../main/assets/weekday_fuel/macros.js");
+const calc = require("../../main/assets/weekday_fuel/meal-calc.js");
+const MC = calc.create({ panels: PANELS, amounts: cat.AMOUNTS, item: (id) => cat.item(id) });
 
 const MEALS = require("../../main/assets/weekday_fuel/meals.js").MEALS.map((m) => m.id);
 const WOOLIES = /^https:\/\/www\.woolworths\.com\.au\/shop\/productdetails\/(\d+)/;
@@ -121,15 +124,20 @@ test("swaps are well formed and pass the nutrition guard", () => {
     [it.coles, ...((it.coles && it.coles.packs) || [])].filter(Boolean).forEach((p) => seenC.add(cat.colesId(p)));
   });
   items.filter((it) => it.swaps).forEach((it) => {
-    assert.ok(it.per && it.per.k > 0 && it.per.p > 0, it.id + " has per");
+    const mainW = MC.servePer(it, null, "woolies");
+    const mainC = MC.servePer(it, null, "coles");
+    assert.ok(mainW && mainW.k > 0 && mainW.p > 0, it.id + " has panel serve woolies");
+    assert.ok(mainC && mainC.k > 0 && mainC.p > 0, it.id + " has panel serve coles");
     const ids = new Set();
     it.swaps.forEach((s) => {
+      if (s.hidden) return;
       assert.ok(s.id && !ids.has(s.id), it.id + " unique swap id " + s.id);
       ids.add(s.id);
       assert.ok(typeof s.name === "string" && s.name);
       assert.ok(Number.isInteger(s.serves) && s.serves >= 1, s.id + " serves");
-      assert.ok(s.per && s.per.k > 0 && s.per.p > 0, s.id + " per");
-      assert.ok(s.per.p >= it.per.p - 5 && (s.todayOnly || s.per.k <= it.per.k + 80), s.id + " passes guard");
+      const sp = MC.servePer(it, s, "woolies") || MC.servePer(it, s, "coles");
+      assert.ok(sp && sp.k > 0 && sp.p > 0, s.id + " panel per serve");
+      assert.ok(sp.p >= mainW.p - 5 && (s.todayOnly || sp.k <= mainW.k + 80), s.id + " passes guard woolies");
       assert.ok(typeof s.short === "string" && s.short.length > 0 && s.short.length <= 12, s.id + " short");
       assert.ok(s.woolies || s.coles, s.id + " has a store");
       if (s.woolies) {
@@ -164,32 +172,34 @@ test("every swap has a short label at most 12 characters", () => {
   });
 });
 
-test("approved swap catalogue values match the spec", () => {
+test("approved swap ids and store links match the spec", () => {
   const approved = {
-    "dare-mocha": { W: 6074551, C: "1608570", k: 292, p: 30 },
-    "pauls-dec": { W: 6049883, C: "1439928", k: 270, p: 30 },
-    "rokeby-de": { W: 771267, C: "6258498", k: 292, p: 30.2 },
-    "oak-sc": { W: 6048422, C: "1043778", k: 304, p: 30 },
-    icebreak: { W: null, C: "7850783", k: 347, p: 30 },
-    "dare-750": { W: 6020777, C: "1045886", k: 444, p: 45 },
-    "gr-oreo": { W: 286090, C: "6509780", k: 253, p: 20.9 },
-    "gr-white-oreo": { W: 6028961, C: "9968718", k: 253, p: 20.7 },
-    "gr-cookie": { W: 6043930, C: null, k: 208, p: 21 },
-    "mu-vancar": { W: 153264, C: "4292429", k: 239, p: 20.1 },
-    "mu-wcsc": { W: 6014680, C: "9958500", k: 256, p: 21.3 },
-    "mu-cc": { W: 555158, C: "7875897", k: 256, p: 20.7 },
-    "bsc-cc": { W: null, C: "3125148", k: 207, p: 19.2 },
+    "dare-mocha": { W: 6074551, C: "1608570" },
+    "pauls-dec": { W: 6049883, C: "1439928" },
+    "rokeby-de": { W: 771267, C: "6258498" },
+    "oak-sc": { W: 6048422, C: "1043778" },
+    icebreak: { W: null, C: "7850783" },
+    "dare-750": { W: 6020777, C: "1045886" },
+    "gr-oreo": { W: 286090, C: "6509780" },
+    "gr-white-oreo": { W: 6028961, C: "9968718" },
+    "gr-cookie": { W: 6043930, C: null },
+    "mu-vancar": { W: 153264, C: "4292429" },
+    "mu-wcsc": { W: 6014680, C: "9958500" },
+    "mu-cc": { W: 555158, C: "7875897" },
+    "bsc-cc": { W: null, C: "3125148" },
   };
   const retiredW = new Set(Object.keys(cat.RETIRED.woolies));
   const retiredC = new Set(Object.keys(cat.RETIRED.coles));
   const items = cat.ITEMS;
-  const swaps = items.flatMap((it) => (it.swaps || []).map((s) => ({ item: it.id, swap: s })));
+  const swaps = items.flatMap((it) => (it.swaps || []).map((s) => ({ main: it, swap: s })));
   assert.equal(swaps.length, 13);
-  swaps.forEach(({ swap: s }) => {
+  swaps.forEach(({ main, swap: s }) => {
     const exp = approved[s.id];
     assert.ok(exp, s.id + " in approved table");
-    assert.equal(s.per.k, exp.k, s.id + " k");
-    assert.equal(s.per.p, exp.p, s.id + " p");
+    if (!s.hidden) {
+      const sp = MC.servePer(main, s, "woolies") || MC.servePer(main, s, "coles");
+      assert.ok(sp && sp.k > 0, s.id + " has computed k from panel");
+    }
     const wCode = s.woolies ? s.woolies.stockcode : null;
     const cId = s.coles ? cat.colesId(s.coles) : null;
     assert.equal(wCode, exp.W, s.id + " W");

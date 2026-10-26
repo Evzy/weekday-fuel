@@ -71,3 +71,23 @@ test("coles breast uses woolworths panel per Evan decision", () => {
   assert.equal(c.k, w.k);
   assert.match(c.note, /Woolworths panel/i);
 });
+
+test("every panel whose note asks to confirm has a confirm flag", () => {
+  for (const id of Object.keys(PANELS)) {
+    for (const sk of Object.keys(PANELS[id])) {
+      const p = PANELS[id][sk];
+      if (!p || !p.note) continue;
+      const n = p.note.toLowerCase();
+      if (n.includes("confirm on pack") || n.includes("confirm on the") || n.includes("values conflict") || n.includes("confirm before")) {
+        assert.ok(typeof p.confirm === "string" && p.confirm.length > 0, id + " " + sk + " needs confirm");
+      }
+    }
+  }
+});
+
+test("main potato uses FSANZ not baby-potato pack panels", () => {
+  assert.ok(PANELS.potato.any);
+  assert.equal(PANELS.potato.woolies, undefined);
+  assert.equal(PANELS.potato.coles, undefined);
+  assert.ok(PANELS["potato-pack"].woolies);
+});
