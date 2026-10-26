@@ -8,8 +8,19 @@
   var RETIRED = {
     coles: {
       "6284567": { name: "Don Leg Ham Shaved 200g", url: "https://www.coles.com.au/product/don-leg-ham-shaved-200g-6284567" },
+      "2263328": { name: "Coles RSPCA Approved Chicken Thigh Fillets Large Pack approx. 1.2kg", url: "https://www.coles.com.au/product/coles-rspca-approved-chicken-thigh-fillets-large-pack-approx.-1.2kg-2263328" },
+      "2263317": { name: "Coles RSPCA Chicken Thigh Fillets Small Pack approx. 700g", url: "https://www.coles.com.au/product/coles-rspca-chicken-thigh-fillets-small-pack-approx.-700g-2263317" },
+      "206196": { name: "San Remo Spaghetti No 5 500g", url: "https://www.coles.com.au/product/san-remo-spaghetti-no-5-500g-206196" },
+      "3329137": { name: "Coles Durum Wheat Pasta Macaroni 500g", url: "https://www.coles.com.au/product/coles-durum-wheat-pasta-macaroni-500g-3329137" },
+      "4324875": { name: "Coles Australian Panko Crumb 220g", url: "https://www.coles.com.au/product/coles-australian-panko-crumb-220g-4324875" },
     },
-    woolies: {},
+    woolies: {
+      "6078660": { name: "Woolworths RSPCA Approved Chicken Thigh Fillets 550g", url: "https://www.woolworths.com.au/shop/productdetails/6078660/woolworths-rspca-approved-chicken-thigh-fillets" },
+      "727622": { name: "Woolworths RSPCA Approved Chicken Thigh Fillets Skinless 1.2kg - 1.8kg", url: "https://www.woolworths.com.au/shop/productdetails/727622/woolworths-rspca-approved-chicken-thigh-fillets-skinless" },
+      "43974": { name: "San Remo Spaghetti Pasta No 5 500g", url: "https://www.woolworths.com.au/shop/productdetails/43974/san-remo-spaghetti-pasta-no-5" },
+      "44025": { name: "San Remo Macaroni Pasta No 38 500g", url: "https://www.woolworths.com.au/shop/productdetails/44025/san-remo-macaroni-pasta-no-38" },
+      "83295": { name: "Woolworths Panko Bread Crumbs 220g", url: "https://www.woolworths.com.au/shop/productdetails/83295/woolworths-panko-bread-crumbs" },
+    },
   };
 
   /* From docs/catalogue-research.md (approved 2026-10-15). */
@@ -81,17 +92,6 @@
       id: "mince", sec: 1, keeps: 3, name: "Extra lean beef mince", unit: "g", note: "Woolworths special (usually $10.00)", same: false,
       coles: { name: "Coles No Added Hormone Beef Extra Lean Mince 500g", url: "https://www.coles.com.au/product/coles-no-added-hormone-beef-extra-lean-mince-500g-8112799", size: 500, price: 9.8, checked: "2026-10-15" },
       woolies: { name: "Woolworths Heart Smart Extra Lean Beef Mince 500g", url: "https://www.woolworths.com.au/shop/productdetails/577860/woolworths-heart-smart-extra-lean-beef-mince", stockcode: 577860, size: 500, price: 9.8, checked: "2026-10-15" },
-    },
-    {
-      id: "thigh", sec: 1, keeps: 3, name: "Chicken thigh fillets", unit: "g", note: "Teriyaki week only", same: false, approx: true,
-      coles: {
-        name: "Coles RSPCA Approved Chicken Thigh Fillets Large Pack approx. 1.2kg", url: "https://www.coles.com.au/product/coles-rspca-approved-chicken-thigh-fillets-large-pack-approx.-1.2kg-2263328", size: 1200, price: 17.4, checked: "2026-10-15",
-        packs: [{ name: "Coles RSPCA Chicken Thigh Fillets Small Pack approx. 700g", url: "https://www.coles.com.au/product/coles-rspca-chicken-thigh-fillets-small-pack-approx.-700g-2263317", size: 700, price: 12.6, checked: "2026-10-15" }],
-      },
-      woolies: {
-        name: "Woolworths RSPCA Approved Chicken Thigh Fillets 550g", url: "https://www.woolworths.com.au/shop/productdetails/6078660/woolworths-rspca-approved-chicken-thigh-fillets", stockcode: 6078660, size: 550, price: 9.9, checked: "2026-10-15",
-        packs: [{ name: "Woolworths RSPCA Approved Chicken Thigh Fillets Skinless 1.2kg - 1.8kg", url: "https://www.woolworths.com.au/shop/productdetails/727622/woolworths-rspca-approved-chicken-thigh-fillets-skinless", stockcode: 727622, size: 1200, sizeLabel: "1.2–1.8kg tray", price: 26.1, checked: "2026-10-18" }],
-      },
     },
     {
       id: "eggs", sec: 1, keeps: 28, name: "Free range eggs, 12 pack", short: "Eggs", unit: "eggs", unitSize: 58, note: "The old Woolworths link (582362) is unavailable; 6013278 replaces it", same: false,
@@ -184,14 +184,9 @@
       woolies: { name: "Sunrice Microwave White Long Grain Rice Pouch 250g", url: "https://www.woolworths.com.au/shop/productdetails/244755/sunrice-microwave-white-long-grain-rice-pouch", stockcode: 244755, size: 1, price: 3, checked: "2026-10-15" },
     },
     {
-      id: "spaghetti", sec: 2, name: "Spaghetti", unit: "g", note: "Woolworths special (usually $2.95)", same: true,
-      coles: { name: "San Remo Spaghetti No 5 500g", url: "https://www.coles.com.au/product/san-remo-spaghetti-no-5-500g-206196", size: 500, price: 2.95, checked: "2026-10-15" },
-      woolies: { name: "San Remo Spaghetti Pasta No 5 500g", url: "https://www.woolworths.com.au/shop/productdetails/43974/san-remo-spaghetti-pasta-no-5", stockcode: 43974, size: 500, price: 2.3, checked: "2026-10-15" },
-    },
-    {
-      id: "macaroni", sec: 2, name: "Macaroni", unit: "g", note: "Coles doesn't list San Remo macaroni. Woolworths special (usually $2.95)", same: false,
-      coles: { name: "Coles Durum Wheat Pasta Macaroni 500g", url: "https://www.coles.com.au/product/coles-durum-wheat-pasta-macaroni-500g-3329137", size: 500, price: 1, checked: "2026-10-15" },
-      woolies: { name: "San Remo Macaroni Pasta No 38 500g", url: "https://www.woolworths.com.au/shop/productdetails/44025/san-remo-macaroni-pasta-no-38", stockcode: 44025, size: 500, price: 2.3, checked: "2026-10-15" },
+      id: "freshpasta", sec: 1, keeps: 5, name: "Fresh egg fettuccine", short: "Fettuccine", unit: "g", note: "Use within 3 days of opening. Freeze the rest in single portions; it cooks from frozen in 3 min", same: true,
+      coles: { name: "Latina Fresh Egg Fettuccine Pasta 375g", url: "https://www.coles.com.au/product/latina-fresh-egg-fettuccine-pasta-375g-5051790", size: 375, price: 6, checked: "2026-10-26" },
+      woolies: { name: "Latina Fresh Egg Fettuccine Pasta 375g", url: "https://www.woolworths.com.au/shop/productdetails/22081/latina-fresh-egg-fettuccine-pasta", stockcode: 22081, size: 375, price: 5.8, checked: "2026-10-26" },
     },
     {
       id: "potato", sec: 2, keeps: 21, name: "Washed potatoes", short: "Potatoes", unit: "g", note: "", same: false,
@@ -274,9 +269,9 @@
       },
     },
     {
-      id: "panko", sec: 2, name: "Panko breadcrumbs", unit: "g", note: "The old Crumbed & Co link is unavailable", same: false,
-      coles: { name: "Coles Australian Panko Crumb 220g", url: "https://www.coles.com.au/product/coles-australian-panko-crumb-220g-4324875", size: 220, price: 2.3, checked: "2026-10-15" },
-      woolies: { name: "Woolworths Panko Bread Crumbs 220g", url: "https://www.woolworths.com.au/shop/productdetails/83295/woolworths-panko-bread-crumbs", stockcode: 83295, size: 220, price: 2.3, checked: "2026-10-15" },
+      id: "crumbfillet", sec: 2, name: "Frozen crumbed chicken breast fillets", short: "Crumbed fillets", unit: "fillets", unitSize: 175, note: "Woolworths only: 77% chicken breast. Coles has no lean equivalent", same: false,
+      coles: null,
+      woolies: { name: "Woolworths Italian Style Crumb Chicken Fillets 350g", url: "https://www.woolworths.com.au/shop/productdetails/130110/woolworths-italian-style-crumb-chicken-fillets", stockcode: 130110, size: 2, price: 9, checked: "2026-10-26" },
     },
     {
       id: "teriyaki_sauce", sec: 2, name: "Teriyaki sauce", unit: "mL", note: "Coles doesn't list the marinade; its 240g bottle is counted as 240mL", same: false,
@@ -346,12 +341,12 @@
     brekwrap: { eggs: 3, ham: 50, wraps: { L: 1, S: 1, X: 2 }, cheese: { L: 0, S: 20, X: 30 }, salsa: 30, spinach: 20 },
     tenderwrap: { breast: 200, wraps: { L: 1, S: 2, X: 2 }, cheese: { L: 20, S: 30, X: 50 }, salsa: 30, spinach: 20, cucumber: 0.5, toms: 50 },
     burritobowl: { rice: { L: 1 / 3, S: 0.75, X: 1 }, breast: 200, corn: 80, capsicum: 0.5, salsa: 30, taco: 4, yog: 50, cheese: { L: 0, S: 30, X: 30 } },
-    teriyaki: { thigh: 200, teriyaki_sauce: 50, rice: { L: 1 / 3, S: 0.75, X: 1 }, fzasian: 150 },
-    buffalomac: { breast: 180, macaroni: { L: 35, S: 75, X: 100 }, evap: 80, cheese: { L: 25, S: 40, X: 0 }, franks: 50, fzbroc: 100 },
-    schnitzel: { breast: 180, eggs: 1, panko: 30, potato: { L: 50, S: 200, X: 300 }, fzpeas: 120, gravy: { L: 0, S: 10, X: 10 } },
+    teriyaki: { breast: 200, teriyaki_sauce: 50, rice: { L: 1 / 3, S: 0.75, X: 1 }, fzasian: 150 },
+    buffalomac: { breast: 200, freshpasta: { L: 50, S: 80, X: 110 }, evap: 80, cheese: { L: 25, S: 40, X: 0 }, franks: 50, fzbroc: 100 },
+    schnitzel: { crumbfillet: 1, potato: { L: 100, S: 200, X: 300 }, evap: 30, fzpeas: 100, gravy: { L: 0, S: 10, X: 10 } },
     koreanbeef: { mince: 200, soy: 40, honey: { L: 14, S: 21, X: 21 }, sesame: 5, garlic: 5, ginger: 5, rice: { L: 1 / 3, S: 0.5, X: 1 }, eggs: { L: 0, S: 1, X: 1 }, fzbroc: 150 },
-    bolognese: { mince: 200, spaghetti: { L: 40, S: 85, X: 110 }, passata: 200, fzmix: 100, garlic: 5, parm: { L: 10, S: 10, X: 20 } },
-    redcurry: { breast: 180, curry: 15, coco: { L: 70, S: 70, X: 100 }, fzasian: 150, rice: { L: 1 / 3, S: 0.75, X: 1 } },
+    bolognese: { mince: 200, passata: 280, fzmix: 100, garlic: 5, freshpasta: { L: 50, S: 80, X: 110 }, parm: { L: 0, S: 10, X: 20 } },
+    redcurry: { breast: 200, curry: 15, coco: { L: 70, S: 70, X: 100 }, fzasian: 150, rice: { L: 1 / 3, S: 0.75, X: 1 } },
     friedrice: { breast: 160, eggs: 2, rice: { L: 1 / 3, S: 0.75, X: 1 }, fzpeas: 60, corn: { L: 0, S: 60, X: 60 }, soy: 40, oyster: 20, sesame: { L: 0, S: 5, X: 5 } },
     snackplate: { eggs: { L: 2, S: 2, X: 3 }, cucumber: 0.5, toms: 50, cheese: { L: 0, S: 20, X: 20 } },
   };

@@ -21,12 +21,15 @@ const ITEMS = [
   { id: "evap", sec: 2, name: "Evaporated milk", unit: "mL", note: "", same: false,
     coles: { name: "Carnation Light Evaporated Milk 375mL", url: C + "evap-1234567", size: 375, price: 2.5, checked: "2026-10-14" },
     woolies: null },
+  { id: "freshpasta", sec: 2, name: "Fresh fettuccine", unit: "g", note: "", same: true,
+    coles: { name: "Latina Fresh Egg Fettuccine 375g", url: C + "freshpasta-5051790", size: 375, price: 6, checked: "2026-10-26" },
+    woolies: { name: "Latina Fresh Egg Fettuccine 375g", url: W + "22081", stockcode: 22081, size: 375, price: 5.8, checked: "2026-10-26" } },
 ];
 const AMOUNTS = {
   toasty: { ham: 100, cheese: 30 },
   eggmuffin: { ham: 50 },
   tenderwrap: { breast: 200, cheese: 30 },
-  buffalomac: { breast: 180, cheese: 40, evap: 80 },
+  buffalomac: { breast: 200, freshpasta: 80, cheese: 40, evap: 80 },
 };
 const cat = create(ITEMS, AMOUNTS);
 const byId = (rows) => Object.fromEntries(rows.map((r) => [r.id, r]));
@@ -391,7 +394,7 @@ test("whole packs per store, from each store's own pack size", () => {
   const r = byId(cat.shopList({ buffalomac: 13 }, 0));
   assert.deepEqual([r.cheese.coles.quantity, r.cheese.coles.cost, r.cheese.coles.buy], [2, 15, "2 × 500g"]);
   assert.equal(r.cheese.woolies.cost, 18);
-  assert.deepEqual([r.breast.coles.product.name, r.breast.coles.quantity, r.breast.coles.cost], ["Coles Chicken Breast Small", 4, 28.8]);
+  assert.deepEqual([r.breast.coles.product.name, r.breast.coles.quantity, r.breast.coles.cost], ["Coles Chicken Breast Large", 1, 31.2]);
   assert.deepEqual([r.breast.woolies.quantity, r.breast.woolies.cost, r.breast.woolies.buy], [3, 39, "3 × 1000g"]);
   assert.deepEqual([r.evap.coles.quantity, r.evap.coles.buy], [3, "3 × 375mL"]);
   assert.equal(r.evap.woolies, null);
@@ -504,10 +507,10 @@ test("deli ham is bought by weight, rounded up to 100 g", () => {
 
 test("storeTotals counts each store's packs, leaves out ticked items from Left to buy, and lists missed items", () => {
   const rows = cat.shopList({ buffalomac: 1 }, 0);
-  assert.deepEqual(cat.storeTotals(rows, "coles", {}), { total: 17.2, left: 17.2, missed: [] });
-  assert.deepEqual(cat.storeTotals(rows, "woolies", {}), { total: 22, left: 22, missed: ["evap"] });
-  assert.equal(cat.storeTotals(rows, "coles", { cheese: true }).left, 9.7);
-  assert.equal(cat.storeTotals(rows, "woolies", { cheese: true }).left, 13);
+  assert.deepEqual(cat.storeTotals(rows, "coles", {}), { total: 23.2, left: 23.2, missed: [] });
+  assert.deepEqual(cat.storeTotals(rows, "woolies", {}), { total: 27.8, left: 27.8, missed: ["evap"] });
+  assert.equal(cat.storeTotals(rows, "coles", { cheese: true }).left, 15.7);
+  assert.equal(cat.storeTotals(rows, "woolies", { cheese: true }).left, 18.8);
 });
 
 test("mealCost prices a Standard serve at the chosen store, using the other store where it has nothing", () => {
@@ -524,9 +527,9 @@ test("mealCost prices a Standard serve at the chosen store, using the other stor
     ],
     AMOUNTS,
   );
-  assert.equal(cheapPack.mealCost("buffalomac", "coles"), 3.23);
-  assert.equal(cat.mealCost("buffalomac", "coles"), 3.29);
-  assert.equal(cat.mealCost("buffalomac", "woolies"), 3.59);
+  assert.equal(cheapPack.mealCost("buffalomac", "coles"), 4.75);
+  assert.equal(cat.mealCost("buffalomac", "coles"), 4.81);
+  assert.equal(cat.mealCost("buffalomac", "woolies"), 5.09);
   assert.equal(cat.mealCost("toasty", "woolies"), 3.34);
   assert.equal(cat.mealCost("toasty", "coles"), 3.25);
   assert.equal(cat.mealCost("nope", "coles"), null);
@@ -661,7 +664,7 @@ test("planned days combine with picks and with each other before packs are round
     { day: "2026-10-19", meal: "toasty" },
     { day: "2026-10-20", meal: "toasty" },
   ]);
-  assert.deepEqual(rows.map((r) => [r.id, r.need]), [["breast", 380], ["ham", 200], ["cheese", 130], ["evap", 80]]);
+  assert.deepEqual(rows.map((r) => [r.id, r.need]), [["breast", 400], ["ham", 200], ["cheese", 130], ["evap", 80], ["freshpasta", 80]]);
   const r = byId(rows);
   assert.equal(r.cheese.woolies.quantity, 1);
   assert.deepEqual(r.cheese.days, ["2026-10-19", "2026-10-20"]);
@@ -1064,7 +1067,7 @@ test("real catalogue Woolworths eggs pick the 6-pack for a one-day shop when it 
   const eggs = REAL_ITEMS.find((i) => i.id === "eggs");
   const six = eggs && eggs.woolies && eggs.woolies.packs && eggs.woolies.packs.find((p) => p.size === 6);
   if (!six) return;
-  const rows = realCatalogue.shopList({ schnitzel: 1 }, 0, [{ day: "2026-10-20", meal: "schnitzel", t: "S" }]);
+  const rows = realCatalogue.shopList({ koreanbeef: 1 }, 0, [{ day: "2026-10-20", meal: "koreanbeef", t: "S" }]);
   const line = byId(rows).eggs.woolies;
   assert.equal(line.product.stockcode, six.stockcode);
   assert.equal(line.product.size, 6);

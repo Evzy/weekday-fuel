@@ -104,8 +104,8 @@ test("batches are complete, and meals only use real batches made from an item th
   }
 });
 
-test("a planned Loaded buffalo mac buys 100g macaroni and a Build a shop pick buys 75g", () => {
-  const mac = (rows) => rows.find((r) => r.id === "macaroni").need;
-  assert.equal(mac(cat.shopList({}, 0, [{ day: "2026-10-20", meal: "buffalomac", t: "X" }])), 100);
-  assert.equal(mac(cat.shopList({ buffalomac: 1 }, 0)), 75);
+test("a planned Loaded buffalo mac buys 110g fresh fettuccine and a Build a shop pick buys 80g", () => {
+  const pasta = (rows) => rows.find((r) => r.id === "freshpasta").need;
+  assert.equal(pasta(cat.shopList({}, 0, [{ day: "2026-10-20", meal: "buffalomac", t: "X" }])), 110);
+  assert.equal(pasta(cat.shopList({ buffalomac: 1 }, 0)), 80);
 });

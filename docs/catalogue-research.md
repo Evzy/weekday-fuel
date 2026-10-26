@@ -1,9 +1,9 @@
 # Catalogue research
 
-**Status:** approved 2026-10-15
-**Prices read:** 2026-10-15 (Coles and Woolworths websites, logged out). Woolworths prices are that day's shelf price (they go live in v0.3.1). Coles prices are a snapshot, so a Coles item on special is recorded at its usual price, with the special in the note.
+**Status:** approved 2026-10-15; **meal rework** 2026-10-26 (10-minute mains — see `docs/meal-rework-2026-10-26-proposal.md`)
+**Prices read:** 2026-10-15 (Coles and Woolworths websites, logged out); **freshpasta** and **crumbfillet** checked 2026-10-26 in the proposal. Woolworths prices are that day's shelf price (they go live in v0.3.1). Coles prices are a snapshot, so a Coles item on special is recorded at its usual price, with the special in the note.
 
-Item splits (one product per store per item): `pasta` → `spaghetti`, `macaroni`; `sauces1` → `teriyaki_sauce`, `oyster`; `paste` → `garlic`, `ginger`; `salsa` → `salsa`, `taco`.
+Item splits (one product per store per item): `sauces1` → `teriyaki_sauce`, `oyster`; `paste` → `garlic`, `ginger`; `salsa` → `salsa`, `taco`. **Retired 2026-10-26:** `thigh`, `spaghetti`, `macaroni`, `panko` (ids in `RETIRED`). **Added 2026-10-26:** `freshpasta` (Latina Fresh Egg Fettuccine 375g, both stores), `crumbfillet` (Woolworths Italian Style Crumb Chicken Fillets 350g / 2×175g, Woolworths only).
 
 ## Items
 
@@ -101,21 +101,20 @@ Amounts already in the app are kept. "added" rows are new, from the recipe steps
 | burritobowl | taco | 4 | g | added: 1 tsp |
 | burritobowl | yog | 50 | g | app |
 | burritobowl | cheese | 30 | g | app |
-| teriyaki | thigh | 200 | g | app |
+| teriyaki | breast | 200 | g | rework 2026-10-26 (Sunday chicken batch) |
 | teriyaki | teriyaki_sauce | 50 | mL | added: 2–3 tbsp |
 | teriyaki | rice | 0.75 | pouches | app |
 | teriyaki | fzasian | 150 | g | app |
-| buffalomac | breast | 180 | g | app |
-| buffalomac | macaroni | 75 | g | app (was "pasta") |
+| buffalomac | breast | 200 | g | rework 2026-10-26 (Sunday chicken batch) |
+| buffalomac | freshpasta | 80 | g | rework 2026-10-26 (Standard; L 50, X 110) |
 | buffalomac | evap | 80 | mL | app |
 | buffalomac | cheese | 40 | g | app |
 | buffalomac | franks | 50 | mL | added: 2–3 tbsp plus some on top |
 | buffalomac | fzbroc | 100 | g | app |
-| schnitzel | breast | 180 | g | app |
-| schnitzel | eggs | 1 | eggs | app |
-| schnitzel | panko | 30 | g | added: one crumbed breast |
-| schnitzel | potato | 200 | g | app |
-| schnitzel | fzpeas | 120 | g | app |
+| schnitzel | crumbfillet | 1 | fillets | rework 2026-10-26 (175g fillet) |
+| schnitzel | potato | 200 | g | app (L 100, X 300) |
+| schnitzel | evap | 30 | mL | rework 2026-10-26 (mash) |
+| schnitzel | fzpeas | 100 | g | rework 2026-10-26 |
 | schnitzel | gravy | 10 | g | added: about 1 tbsp powder |
 | koreanbeef | mince | 200 | g | app |
 | koreanbeef | soy | 40 | mL | added: 2 tbsp |
@@ -126,13 +125,13 @@ Amounts already in the app are kept. "added" rows are new, from the recipe steps
 | koreanbeef | rice | 0.5 | pouches | app |
 | koreanbeef | eggs | 1 | eggs | app |
 | koreanbeef | fzbroc | 150 | g | app |
-| bolognese | mince | 200 | g | app |
-| bolognese | spaghetti | 85 | g | app (was "pasta") |
-| bolognese | passata | 200 | g | app |
+| bolognese | mince | 200 | g | app (Sunday bolognese sauce batch) |
+| bolognese | freshpasta | 80 | g | rework 2026-10-26 (Standard; L 50, X 110) |
+| bolognese | passata | 280 | g | rework 2026-10-26 (two 700g jars = 5 tubs) |
 | bolognese | fzmix | 100 | g | app |
 | bolognese | garlic | 5 | g | added: 1 tsp |
 | bolognese | parm | 10 | g | app |
-| redcurry | breast | 180 | g | app |
+| redcurry | breast | 200 | g | rework 2026-10-26 (Sunday chicken batch) |
 | redcurry | curry | 15 | g | added: 1 tbsp |
 | redcurry | coco | 70 | mL | app |
 | redcurry | fzasian | 150 | g | app |

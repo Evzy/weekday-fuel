@@ -696,7 +696,7 @@ function renderCheckout(){
 }
 const SECTIONS=[
  ["Drinks and bars","Bulk-buy these when they're half price. They keep at room temperature until opened."],
- ["Weekly top-up","Sunday batch: put 1kg of chicken breast on a lined tray, season it, and bake at 200°C for 20–25 min (15 if butterflied). Slice it once it's cool. That gives about 750g cooked, which covers 5 meals. Freeze the rest of the raw chicken and the mince in single portions."],
+ ["Weekly top-up","Sunday batch: put the chicken breast you bought on a lined tray, season it, and bake at 200°C for 20–25 min (15 if butterflied). Slice it once it's cool into 150g tubs. If you're doing bolognese weeks, brown the mince for Sunday bolognese sauce too (1kg makes 5 tubs). Freeze the rest of the raw chicken and mince in single portions."],
  ["Pantry & freezer (first shop, then occasional)","Most of the flavour comes from these jars, and none of them need the fridge before opening."]
 ];
 
@@ -780,7 +780,7 @@ function kitchenSave(ev){
   state.kitchenError=null;
   return true;
 }
-const KITCHEN_FREEZE=new Set(["breast","mince","thigh"]);
+const KITCHEN_FREEZE=new Set(["breast","mince"]);
 function kitchenLotDate(at){return iso(new Date(at))}
 function kitchenUseBy(lotAt,keeps){const d=parse(kitchenLotDate(lotAt));d.setDate(d.getDate()+keeps);return iso(d)}
 function kitchenAgeLine(id,st,it){
@@ -1979,10 +1979,16 @@ function kitchenAmountText(v,unit){
 /* One line per item the portion uses (batch items show as the batch), then that portion's extras */
 function recipeLines(m,tier){
   const per=CAT.AMOUNTS[m.id]||{},st=store(),bs=(m.batch||[]).map(id=>BATCH[id]).filter(Boolean);
+  const batchSkip=new Set();
+  for(const b of bs){batchSkip.add(b.item);for(const w of b.with||[])batchSkip.add(w);}
   const items=Object.keys(per).map(id=>{
     const v=CAT.amountFor(m.id,id,tier),it=CAT.item(id);if(!(v>0)||!it)return "";
     const b=bs.find(x=>x.item===id);
-    if(b)return `<li><b>${esc(amountText(v*b.ratio,it.unit))}</b> ${esc(b.as)}</li>`;
+    if(b){
+      const amt=b.line?`<b>${esc(b.line)}</b>`:`<b>${esc(amountText(v*b.ratio,it.unit))}</b>`;
+      return `<li>${amt} ${esc(b.as)}</li>`;
+    }
+    if(batchSkip.has(id))return "";
     const p=it[st]||it[other(st)];
     return `<li><b>${esc(amountText(v,it.unit))}</b> ${esc(it.name)}${p?` <span class="muted">${esc(p.name)}</span>`:""}</li>`;
   }).join("");

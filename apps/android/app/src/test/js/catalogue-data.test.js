@@ -68,7 +68,7 @@ test("every meal's items exist and every non-fixture item is used by a meal", ()
 });
 
 test("pack-size alternates are only on meat and the researched smaller-shop items", () => {
-  const withPacks = new Set(["breast", "thigh", "mince", "ham", "eggs", "yog", "cheese", "spinach", "potato", "passata", "fzpeas"]);
+  const withPacks = new Set(["breast", "mince", "ham", "eggs", "yog", "cheese", "spinach", "potato", "passata", "fzpeas"]);
   for (const it of cat.ITEMS) {
     for (const store of ["coles", "woolies"]) {
       const p = it[store];

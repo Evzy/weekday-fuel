@@ -21,11 +21,11 @@ Evan, 30, Melbourne, 183 cm, ~83.5 kg. Push/pull/legs 5 days a week at lunch, pl
 
 ## The idea: cheap, smart, little to no prep
 
-- **Cook once, eat many.** Build around batch components cooked early in the week: the Sunday chicken (1 kg breast → ~750 g cooked, 5 × 150 g) and boiled eggs. A new batch component needs Evan's yes.
+- **Cook once, eat many.** Build around batch components cooked early in the week: the Sunday chicken (1 kg breast → ~750 g cooked, 5 × 150 g), the Sunday bolognese sauce (1 kg mince → 5 tubs) and boiled eggs. A new batch component needs Evan's yes.
 - **Shared ingredients.** Build new meals mainly from products already in `catalogue.js`, so a week's shop stays small and prep overlaps. Take the protein, carb and veg from the existing pool; get new flavour from cheap jars, pastes and spice mixes.
-- **Prep labels.** Every meal is `assemble` (~5 min from batch or no-cook parts), `quick` (one pan, ≤12 min) or `cook` (≤20 min). Lean new meals to assemble and quick.
+- **Prep labels.** Every main is ≤10 min hands-on; unattended microwave, air fryer, oven or simmer time doesn't count. `mins` is hands-on minutes. Prefer assemble from batch components (decided 2026-10-26). Every meal is `assemble` (~5 min from batch or no-cook parts), `quick` (one pan, ≤12 min) or `cook` (≤20 min). Lean new meals to assemble and quick.
 - **Cost.** Realistic Coles/Woolworths AUD prices; aim under $7 a serve.
-- **Small fridge.** Frozen veg, long-life cans, pantry jars, raw meat frozen in single portions; no half-used perishables. Microwave, stovetop and oven available.
+- **Small fridge.** Frozen veg, long-life cans, pantry jars, raw meat frozen in single portions; no half-used perishables. Microwave, stovetop, oven and air fryer available.
 
 ## Food rules
 
@@ -40,6 +40,10 @@ Evan, 30, Melbourne, 183 cm, ~83.5 kg. Push/pull/legs 5 days a week at lunch, pl
 | Food | Decision | Date |
 | --- | --- | --- |
 | Chicken breast, chicken thigh, eggs, pre-cooked chicken (BBQ chook, deli chicken), beef mince, chicken mince, deli ham, Greek yoghurt | Yes (proteins) | 2026-10-18 |
+| Sunday bolognese sauce (batch: beef mince, passata, frozen veg, garlic; portioned into tubs, fridge or freezer) | Yes (batch component) | 2026-10-26 |
+| Fresh pasta (fresh egg fettuccine, 2–3 min cook) | Yes (carbs) | 2026-10-26 |
+| Frozen crumbed chicken schnitzel / crumbed breast fillets, cooked in the air fryer | Yes (proteins) | 2026-10-26 |
+| Microwave potato mash | Yes (carbs) | 2026-10-26 |
 | Microwave rice pouches, rice, potato, sweet potato, pasta, high-protein wraps, bread, English muffins, crumpets | Yes (carbs) | 2026-10-18 |
 | Frozen mixed veg, frozen peas and corn, frozen broccoli, baby spinach, capsicum, carrot, cherry tomatoes, cucumber | Yes (veg) | 2026-10-18 |
 | Tuna, tinned salmon, cottage cheese | No, never | 2026-10-18 |
@@ -59,7 +63,7 @@ Evan, 30, Melbourne, 183 cm, ~83.5 kg. Push/pull/legs 5 days a week at lunch, pl
 - Non-shop ingredients go in the meal's `extras` with amounts: a string for every portion, or `{tiers: "SX", text}`.
 - Steps are numbered, give heat and times, and say "the macaroni" rather than an amount that changes by portion.
 - A meal that uses a batch lists `batch: ["chicken"]` and buys the raw item (150 g cooked chicken = 200 g raw breast at ratio 0.75).
-- A batch in `BATCHES` has `id`, `name`, `item` (the catalogue item it's made from), `ratio` (cooked weight per raw weight, up to 1), `as` (how it reads in a recipe, e.g. `"Sunday chicken, cooked"`), `makes`, `keeps` (lowercase, reads after "Keeps") and `steps`.
+- A batch in `BATCHES` has `id`, `name`, `item` (the catalogue item it's made from), `ratio` (cooked weight per raw weight, up to 1), `as` (how it reads in a recipe, e.g. `"Sunday chicken, cooked"`), optional `line` (fixed recipe line instead of a weighed amount, e.g. `"1 tub"`), optional `with` (other catalogue ids folded into that batch line in the recipe, still bought by the shop), `makes`, `keeps` (lowercase, reads after "Keeps") and `steps`.
 
 ## Products
 
@@ -68,9 +72,9 @@ Evan, 30, Melbourne, 183 cm, ~83.5 kg. Push/pull/legs 5 days a week at lunch, pl
 - Record products in `catalogue.js` `ITEMS` like the existing ones: item `id`, `sec` (0 daily fixtures, 1 fresh, 2 pantry and freezer), `name`, `unit`, `note`, `same`, and per store `name`, `url`, `price`, `size`, `checked` date (Woolworths also `stockcode`, which matches the URL; Coles URLs end with the product id).
 - A store product may list other pack sizes of the same food in `packs` (meat only so far); the shop buys whichever is the cheapest total for this shop; ties go to less leftover, then the main product. Variable-weight trays use their lightest weight as `size`, the up-front charge as `price`, and a `sizeLabel`.
 - When replacing a product, add the old Coles id or Woolworths stockcode to `RETIRED` in `catalogue.js` so past orders and removal lines still show its name.
-- Add a new product's label macros to `MACROS` in `Weekday_Fuel.html`, or its shop row shows no macro line.
+- Add a new product's label macros to `MACROS` in `macros.js`, or its shop row shows no macro line.
 - Work portion figures out from the ingredient amounts and `MACROS` (add extras such as butter, mayo or avocado by hand), not by guessing. Set `cost` so Standard matches the catalogue's per-serve cost averaged over both stores.
-- Label facts worth knowing: Mission Carb Balance wraps per 100 g 197 kcal, 13.4 g P, 9 g C, 4.8 g F, 34 g fibre (one wrap is 48 g); Tip Top English muffins per 100 g 227 kcal, 9.5 g P, 40.4 g C, 2.8 g F (one muffin 67 g); Gravox gravy powder per 100 g about 285 kcal (10 g makes ~100 mL); Chobani Natural Light per 100 g 56 kcal, 9.3 g P, 4 g C, 0.2 g F; Woolworths Light Tasty Shredded Cheese per 100 g 337 kcal, 29.7 g P, 24.2 g F; SunRice microwave pouch 250 g, 209 kcal per half pouch; Ayam Light Coconut Milk 172 kcal per 100 mL (use ~70 mL topped up with water).
+- Label facts worth knowing: Mission Carb Balance wraps per 100 g 197 kcal, 13.4 g P, 9 g C, 4.8 g F, 34 g fibre (one wrap is 48 g); Tip Top English muffins per 100 g 227 kcal, 9.5 g P, 40.4 g C, 2.8 g F (one muffin 67 g); Gravox gravy powder per 100 g about 285 kcal (10 g makes ~100 mL); Chobani Natural Light per 100 g 56 kcal, 9.3 g P, 4 g C, 0.2 g F; Woolworths Light Tasty Shredded Cheese per 100 g 337 kcal, 29.7 g P, 24.2 g F; SunRice microwave pouch 250 g, 209 kcal per half pouch; Ayam Light Coconut Milk 172 kcal per 100 mL (use ~70 mL topped up with water); Latina Fresh pasta labels are per 100 g cooked (375 g pack → ~700 g cooked); Woolworths Italian Style Crumb Chicken Fillets per 175 g fillet: 244 kcal, 32.7 g P.
 
 ## Where things go
 
