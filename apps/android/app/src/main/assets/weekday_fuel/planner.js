@@ -174,7 +174,20 @@
     return null;
   }
 
-  var api = { weekDays: weekDays, planWeek: planWeek, shopScore: shopScore };
+  /* Suggest my week: every main can fill lunch or dinner; variety comes from planWeek LEVELS (max per week, not consecutive days, unique day sets). */
+  function suggestMealPools(meals) {
+    var breakfast = [];
+    var mains = [];
+    for (var i = 0; i < meals.length; i++) {
+      var m = meals[i];
+      if (!m || !m.id || !m.slots) continue;
+      if (m.slots.indexOf("breakfast") >= 0) breakfast.push(m.id);
+      if (m.slots.indexOf("main") >= 0) mains.push(m.id);
+    }
+    return { breakfast: breakfast, lunch: mains.slice(), dinner: mains.slice() };
+  }
+
+  var api = { weekDays: weekDays, planWeek: planWeek, shopScore: shopScore, suggestMealPools: suggestMealPools };
   if (typeof module === "object" && module.exports) module.exports = api;
   else root.WeekdayFuelPlanner = api;
 })(this);

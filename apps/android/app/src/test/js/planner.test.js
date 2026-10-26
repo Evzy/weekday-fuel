@@ -1,6 +1,6 @@
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
-const { weekDays, planWeek, shopScore } = require("../../main/assets/weekday_fuel/planner.js");
+const { weekDays, planWeek, shopScore, suggestMealPools } = require("../../main/assets/weekday_fuel/planner.js");
 const real = require("../../main/assets/weekday_fuel/catalogue.js");
 const { MEALS } = require("../../main/assets/weekday_fuel/meals.js");
 const { create } = real;
@@ -159,13 +159,35 @@ test("with near 0 the chosen week is the best-scoring one found", () => {
   assert.equal(res.score, -2);
 });
 
+test("suggestMealPools puts every main on both lunch and dinner", () => {
+  const pools = suggestMealPools(MEALS);
+  const mains = MEALS.filter((m) => m.slots.includes("main")).map((m) => m.id);
+  assert.deepEqual(pools.lunch, mains);
+  assert.deepEqual(pools.dinner, mains);
+  assert.ok(pools.lunch.includes("schnitzel"));
+  assert.ok(pools.lunch.includes("teriyaki"));
+  assert.ok(pools.dinner.includes("bolognese"));
+  assert.ok(pools.dinner.includes("tenderwrap"));
+});
+
+test("with shared main pools, a day never uses the same meal at lunch and dinner", () => {
+  const pools = suggestMealPools(MEALS);
+  const o = { dates: WEEK, before: {}, kept: {}, pools, fit: fitS(), score: (dm) => shopScore(real, dm, "coles"), rng: seeded(42), tries: 400 };
+  for (let seed = 1; seed <= 30; seed++) {
+    o.rng = seeded(seed);
+    const res = planWeek(o);
+    assert.ok(res, "seed " + seed);
+    for (const d of WEEK) {
+      const ms = res.days[d];
+      const lunch = ms.find((m) => m.slot === "lunch").id;
+      const dinner = ms.find((m) => m.slot === "dinner").id;
+      assert.notEqual(lunch, dinner, d + " " + lunch);
+    }
+  }
+});
+
 test("on the real meals, a planned week follows the rules and its shop is no dearer than the median of single random weeks", () => {
-  const chicken = (m) => (m.batch || []).includes("chicken");
-  const pools = {
-    breakfast: MEALS.filter((m) => m.slots.includes("breakfast")).map((m) => m.id),
-    lunch: MEALS.filter((m) => m.slots.includes("main") && chicken(m)).map((m) => m.id),
-    dinner: MEALS.filter((m) => m.slots.includes("main") && !chicken(m)).map((m) => m.id),
-  };
+  const pools = suggestMealPools(MEALS);
   const o = { dates: WEEK, before: {}, kept: {}, pools, fit: fitS(), score: (dm) => shopScore(real, dm, "coles"), rng: seeded(21), tries: 300 };
   const res = planWeek(o);
   checkRules(res, o);

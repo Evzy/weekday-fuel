@@ -1501,12 +1501,7 @@ function suggestWeek(){
   w.before.forEach(d=>{before[d]=mealsOf(d)});
   w.dates.forEach(d=>{kept[d]=mealsOf(d).filter(m=>MEAL[m.id]);unknown[d]=mealsOf(d).filter(m=>!MEAL[m.id])});
   if(w.dates.every(d=>["breakfast","lunch","dinner"].every(sl=>kept[d].some(m=>m.slot===sl)))){state.weekNote="Every day already has a breakfast, lunch and dinner. Remove the meals you want replaced, then tap again.";return}
-  const chicken=m=>(m.batch||[]).includes("chicken");
-  const pools={
-    breakfast:MEALS.filter(m=>m.slots.includes("breakfast")).map(m=>m.id),
-    lunch:MEALS.filter(m=>m.slots.includes("main")&&chicken(m)).map(m=>m.id),
-    dinner:MEALS.filter(m=>m.slots.includes("main")&&!chicken(m)).map(m=>m.id)
-  };
+  const pools=P.suggestMealPools(MEALS);
   const fit=(d,meals,locked)=>{const day=dayOf(d);fitTiers({fx:day.fx,meals,extras:day.extras,stapleChoice:day.stapleChoice},locked,d)};
   const havePlan=shopHave();
   const r=P.planWeek({dates:w.dates,before,kept,pools,fit,score:dm=>P.shopScore(CAT,dm,s,havePlan)});
