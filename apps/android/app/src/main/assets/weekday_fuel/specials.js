@@ -87,9 +87,20 @@
     });
   }
 
-  function passesGuard(main, swap) {
+  function guardFromPer(mainK, mainP, swapK, swapP) {
+    return swapP >= mainP - 5 && swapK <= mainK + 80;
+  }
+
+  function passesGuard(main, swap, servePer, store) {
+    if (typeof servePer === "function") {
+      if (!main || !swap) return false;
+      var mp = servePer(main, null, store);
+      var sp = servePer(main, swap, store);
+      if (!mp || !sp) return false;
+      return guardFromPer(mp.k, mp.p, sp.k, sp.p);
+    }
     if (!main || !main.per || !swap || !swap.per) return false;
-    return swap.per.p >= main.per.p - 5 && swap.per.k <= main.per.k + 80;
+    return guardFromPer(main.per.k, main.per.p, swap.per.k, swap.per.p);
   }
 
   function isMuted(muted, key) {
@@ -126,18 +137,35 @@
     });
   }
 
-  function suggest(row, item, store, muted, onlyId) {
-    if (!row || !item || !item.swaps || !item.per) return null;
+  function mainServePer(item, servePer, store) {
+    if (typeof servePer === "function") return servePer(item, null, store);
+    return item && item.per ? item.per : null;
+  }
+
+  function swapServePer(item, swap, servePer, store) {
+    if (typeof servePer === "function") return servePer(item, swap, store);
+    return swap && swap.per ? swap.per : null;
+  }
+
+  function suggest(row, item, store, muted, onlyId, servePer) {
+    if (!row || !item || !item.swaps) return null;
+    var mainPer = mainServePer(item, servePer, store);
+    if (!mainPer && typeof servePer !== "function") return null;
+    if (typeof servePer === "function" && !mainServePer(item, servePer, store)) return null;
     var remaining = Math.max(0, row.need - (row.have || 0));
     if (!(remaining > 0)) return null;
     var mainLine = row[store];
     var mainCost = mainLine && typeof mainLine.cost === "number" ? mainLine.cost : Infinity;
+    var mp = mainServePer(item, servePer, store);
     var best = null;
     item.swaps.forEach(function (swap) {
+      if (swap.hidden) return;
       if (swap.todayOnly) return;
       if (onlyId && swap.id !== onlyId) return;
       if (!onlyId && isMuted(muted, item.id + ":" + swap.id)) return;
-      if (!passesGuard(item, swap)) return;
+      if (!passesGuard(item, swap, servePer, store)) return;
+      var sp = swapServePer(item, swap, servePer, store);
+      if (!sp) return;
       var product = swap[store];
       if (!product) return;
       if (!product.special) return;
@@ -152,8 +180,8 @@
           quantity: quantity,
           cost: cost,
           saving: mainCost === Infinity ? null : round2(mainCost - cost),
-          dk: swap.per.k - item.per.k,
-          dp: round1(swap.per.p - item.per.p),
+          dk: sp.k - mp.k,
+          dp: round1(sp.p - mp.p),
         };
       }
     });
@@ -176,8 +204,8 @@
     return colesId ? colesId(product) : null;
   }
 
-  function resolveUseChoice(row, item, store, swapId, muted, sentIds, colesId) {
-    var s = suggest(row, item, store, muted, swapId);
+  function resolveUseChoice(row, item, store, swapId, muted, sentIds, colesId, servePer) {
+    var s = suggest(row, item, store, muted, swapId, servePer);
     if (s) return s;
     if (!sentIds) return null;
     var remaining = Math.max(0, row.need - (row.have || 0));
@@ -186,7 +214,10 @@
     (item.swaps || []).forEach(function (sw) {
       if (sw.id === swapId) swap = sw;
     });
-    if (!swap || swap.todayOnly) return null;
+    if (!swap || swap.hidden || swap.todayOnly) return null;
+    var mp = mainServePer(item, servePer, store);
+    var sp = swapServePer(item, swap, servePer, store);
+    if (!mp || !sp) return null;
     var product = swap[store];
     if (!product || product.available === false) return null;
     if (!idInSent(sentIds, productSentId(product, store, colesId))) return null;
@@ -197,8 +228,8 @@
       quantity: quantity,
       cost: round2(quantity * product.price),
       saving: null,
-      dk: swap.per.k - item.per.k,
-      dp: round1(swap.per.p - item.per.p),
+      dk: sp.k - mp.k,
+      dp: round1(sp.p - mp.p),
     };
   }
 
@@ -218,7 +249,7 @@
     return out;
   }
 
-  function applyChoices(rows, items, store, choices, muted, sentIds, colesId) {
+  function applyChoices(rows, items, store, choices, muted, sentIds, colesId, servePer) {
     choices = choices || {};
     var byId = {};
     (items || []).forEach(function (it) {
@@ -232,7 +263,7 @@
       if (ch.useStore && ch.useStore !== store) return row;
       var it = byId[row.id];
       if (!it) return row;
-      var s = resolveUseChoice(row, it, store, ch.use, muted, sentIds, colesId);
+      var s = resolveUseChoice(row, it, store, ch.use, muted, sentIds, colesId, servePer);
       if (!s) return row;
       used[row.id] = ch.use;
       return useSwap(row, store, s, it.unit);

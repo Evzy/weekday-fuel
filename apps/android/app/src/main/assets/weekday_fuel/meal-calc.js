@@ -16,8 +16,8 @@
     paprika: { unit: "g" },
     olive: { unit: "mL" },
     fishsauce: { unit: "mL" },
-    vegoil: { unit: "mL" },
     tomsauce: { unit: "mL" },
+    vegoil: { unit: "mL" },
   };
 
   function round1(x) {
@@ -26,6 +26,10 @@
 
   function round0(x) {
     return Math.round(x);
+  }
+
+  function round2(x) {
+    return Math.round(x * 100) / 100;
   }
 
   function tierApplies(spec, tier) {
@@ -50,21 +54,35 @@
     return null;
   }
 
-  function panelForItem(panels, itemId, store, item, opts) {
+  function panelBag(panels, itemId, store, item, opts) {
     opts = opts || {};
-    var p = panels[itemId];
     if (opts.useFallback && item) {
       var fbKey = fallbackPanelKey(item, store);
-      if (fbKey && panels[fbKey]) {
-        var fb = panels[fbKey];
-        return fb[store] || fb.any || fb.woolies || fb.coles;
-      }
+      if (fbKey && panels[fbKey]) return panels[fbKey];
     }
-    if (!p) return null;
-    if (p[store]) return p[store];
-    if (p.any) return p.any;
-    if (p.woolies) return p.woolies;
-    if (p.coles) return p.coles;
+    return panels[itemId] || null;
+  }
+
+  function pickPanel(bag, store) {
+    if (!bag) return null;
+    if (bag[store]) return bag[store];
+    if (bag.any) return bag.any;
+    if (bag.woolies) return bag.woolies;
+    if (bag.coles) return bag.coles;
+    return null;
+  }
+
+  function panelForItem(panels, itemId, store, item, opts) {
+    return pickPanel(panelBag(panels, itemId, store, item, opts), store);
+  }
+
+  function panelForSwap(panels, swapId, store) {
+    var bag = panels[swapId];
+    if (!bag) return null;
+    if (bag[store]) return bag[store];
+    if (bag.any) return bag.any;
+    if (bag.woolies) return bag.woolies;
+    if (bag.coles) return bag.coles;
     return null;
   }
 
@@ -78,7 +96,6 @@
       return amount * (unitSize || 1);
     }
     if (unit === "pouches") return amount * (unitSize || 250);
-    if (unit === "cucumbers" || unit === "capsicums") return amount * (unitSize || 1);
     if (unit === "mL") return amount;
     return amount;
   }
@@ -123,6 +140,18 @@
     var itemFn = deps.item;
     var defaultStore = deps.defaultStore || "woolies";
 
+    function servePer(mainItem, swap, store) {
+      if (!mainItem) return null;
+      store = store || defaultStore;
+      var panel = swap ? panelForSwap(panels, swap.id, store) : panelForItem(panels, mainItem.id, store, mainItem, {});
+      if (!panel) return null;
+      var useMl = panel.per === "100mL" && (mainItem.unit === "bottles" || mainItem.unit === "mL");
+      var spec = useMl ? { _ml: true } : null;
+      var amt = 1;
+      if (useMl) amt = mainItem.unitSize || 1;
+      return macrosFromPanel(panel, amt, mainItem, spec);
+    }
+
     function portion(mealId, tier, store, opts) {
       opts = opts || {};
       store = store || opts.store || defaultStore;
@@ -156,27 +185,19 @@
     function stapleMacros(id, amount, store, swap) {
       var item = resolveItem(id, itemFn);
       if (!item || !(amount > 0)) return null;
-      var panel = panelForItem(panels, id, store, item, {});
-      var base = macrosFromPanel(panel, amount, item, null);
-      if (swap && swap.per) {
-        var per = swap.per;
-        var k = round2(per.k * amount);
-        var p = round2(per.p * amount);
-        var c;
-        var f;
-        if (per.c != null && isFinite(per.c)) c = round2(per.c * amount);
-        else if (base && base.k > 0) c = round2(base.c * (k / base.k));
-        else c = base ? base.c : 0;
-        if (per.f != null && isFinite(per.f)) f = round2(per.f * amount);
-        else if (base && base.k > 0) f = round2(base.f * (k / base.k));
-        else f = base ? base.f : 0;
-        return { k: k, p: p, c: c, f: f };
+      if (swap) {
+        if (swap.hidden) return null;
+        var perServe = servePer(item, swap, store);
+        if (!perServe) return null;
+        return {
+          k: round2(perServe.k * amount),
+          p: round2(perServe.p * amount),
+          c: round2(perServe.c * amount),
+          f: round2(perServe.f * amount),
+        };
       }
-      return base;
-    }
-
-    function round2(x) {
-      return Math.round(x * 100) / 100;
+      var panel = panelForItem(panels, id, store, item, {});
+      return macrosFromPanel(panel, amount, item, null);
     }
 
     return {
@@ -184,8 +205,12 @@
       tierApplies: tierApplies,
       amountForTier: amountForTier,
       stapleMacros: stapleMacros,
+      servePer: servePer,
       panelForItem: function (id, store, useFallback) {
         return panelForItem(panels, id, store, resolveItem(id, itemFn), { useFallback: useFallback });
+      },
+      panelBag: function (id, store, useFallback) {
+        return panelBag(panels, id, store, resolveItem(id, itemFn), { useFallback: useFallback });
       },
     };
   }

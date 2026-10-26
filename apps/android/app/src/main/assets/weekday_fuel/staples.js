@@ -243,7 +243,7 @@
     if (typeof calc !== "function") return null;
     var store = macroCtx.store === "coles" ? "coles" : "woolies";
     var swap = swapId ? findSwap(it, swapId) : null;
-    if (swapId && (!swap || !swap.per)) return calc(id, amount, store, null);
+    if (swapId && (!swap || swap.hidden)) return calc(id, amount, store, null);
     return calc(id, amount, store, swap);
   }
 
