@@ -1395,6 +1395,15 @@
     "serving": "350g (cooked)",
     "servingsPerPack": 2,
     "panelBasisNote": "cooked (per 100g cooked pasta)",
+    "asSoldPer100g": {
+      "kj": 1428,
+      "kcal": 341.2,
+      "p": 13.6,
+      "f": 5.2,
+      "c": 57.1,
+      "fib": 3.9,
+      "method": "Arithmetic on printed figures only: per 100g cooked x 700/375 (2 servings of 350g cooked from a 375g pack). Recipes weigh the pasta as sold."
+    },
     "sourceUrl": "https://www.woolworths.com.au/shop/productdetails/22081/latina-fresh-egg-fettuccine-pasta",
     "checked": "2026-10-27",
     "notes": "Woolworths product page (text NIP). Panel is per 100g COOKED: serving 350g x 2 servings = 700g from a 375g pack (neither store page states 'cooked' in words; inferred from serving maths). As sold per 100g = x 700/375 = 1428 kJ (341.3 kcal), 13.6g P, 5.2g F, 57.1g C, 3.9g fibre. Per 350g cooked serve: 2680 kJ, 25.6g P, 9.8g F, 107.1g C, 7.4g fibre, 28mg Na."
@@ -1420,6 +1429,15 @@
     "serving": "350g (cooked)",
     "servingsPerPack": 2,
     "panelBasisNote": "cooked (per 100g cooked pasta)",
+    "asSoldPer100g": {
+      "kj": 1428,
+      "kcal": 341.2,
+      "p": 13.6,
+      "f": 5.2,
+      "c": 57.1,
+      "fib": 3.9,
+      "method": "Arithmetic on printed figures only: per 100g cooked x 700/375 (2 servings of 350g cooked from a 375g pack). Recipes weigh the pasta as sold."
+    },
     "sourceUrl": "https://www.coles.com.au/product/latina-fresh-egg-fettuccine-pasta-375g-5051790",
     "checked": "2026-10-27",
     "notes": "Coles product page (embedded NIP data). Identical to Woolworths. Panel is per 100g COOKED: serving 350g x 2 servings = 700g from a 375g pack (neither store page states 'cooked' in words; inferred from serving maths). As sold per 100g = x 700/375 = 1428 kJ (341.3 kcal), 13.6g P, 5.2g F, 57.1g C, 3.9g fibre. Per 350g cooked serve: 2680 kJ, 25.6g P, 9.8g F, 107.1g C, 7.4g fibre, 28mg Na."

@@ -24,6 +24,14 @@ function panelValid(p) {
   }
 }
 
+test("panels match how recipes weigh the item (as sold, not cooked or made up)", () => {
+  for (const sk of STORES) {
+    assert.ok(PANELS.freshpasta[sk].k > 300, "fresh pasta per 100g as sold " + sk);
+    assert.equal(PANELS.gravy[sk].per, "100g", "gravy per 100g powder " + sk);
+    assert.ok(PANELS.gravy[sk].k > 250, "gravy powder " + sk);
+  }
+});
+
 test("every panel store has a valid source (no typical)", () => {
   for (const id of Object.keys(PANELS)) {
     for (const sk of Object.keys(PANELS[id])) {

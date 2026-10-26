@@ -49,8 +49,11 @@ function roleRank(role) {
   return 3;
 }
 
-function rowToPanel(row) {
+function rowToPanel(src0) {
+  const asSold = src0.asSoldPer100g || src0.derivedPer100gPowder;
+  const row = asSold ? Object.assign({}, src0, { fib: null }, asSold, { basis: "100g" }) : src0;
   const notes = [];
+  if (asSold) notes.push("Stored per 100g as sold: " + asSold.method);
   const kcal =
     row.kcal != null
       ? parseNum(row.kcal, notes)

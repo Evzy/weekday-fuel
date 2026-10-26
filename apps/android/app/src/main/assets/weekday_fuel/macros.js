@@ -647,30 +647,30 @@
   },
   "freshpasta": {
     "woolies": {
-      "k": 182.8,
-      "p": 7.3,
-      "c": 30.6,
-      "f": 2.8,
+      "k": 341.2,
+      "p": 13.6,
+      "c": 57.1,
+      "f": 5.2,
       "per": "100g",
       "src": "label",
-      "fib": 2.1,
+      "fib": 3.9,
       "product": "Latina Fresh Egg Fettuccine Pasta 375g",
       "id": "22081",
       "checked": "2026-10-27",
-      "note": "Woolworths product page (text NIP). Panel is per 100g COOKED: serving 350g x 2 servings = 700g from a 375g pack (neither store page states 'cooked' in words; inferred from serving maths). As sold per 100g = x 700/375 = 1428 kJ (341.3 kcal), 13.6g P, 5.2g F, 57.1g C, 3.9g fibre. Per 350g cooked serve: 2680 kJ, 25.6g P, 9.8g F, 107.1g C, 7.4g fibre, 28mg Na. cooked (per 100g cooked pasta)"
+      "note": "Woolworths product page (text NIP). Panel is per 100g COOKED: serving 350g x 2 servings = 700g from a 375g pack (neither store page states 'cooked' in words; inferred from serving maths). As sold per 100g = x 700/375 = 1428 kJ (341.3 kcal), 13.6g P, 5.2g F, 57.1g C, 3.9g fibre. Per 350g cooked serve: 2680 kJ, 25.6g P, 9.8g F, 107.1g C, 7.4g fibre, 28mg Na. Stored per 100g as sold: Arithmetic on printed figures only: per 100g cooked x 700/375 (2 servings of 350g cooked from a 375g pack). Recipes weigh the pasta as sold. cooked (per 100g cooked pasta)"
     },
     "coles": {
-      "k": 182.8,
-      "p": 7.3,
-      "c": 30.6,
-      "f": 2.8,
+      "k": 341.2,
+      "p": 13.6,
+      "c": 57.1,
+      "f": 5.2,
       "per": "100g",
       "src": "label",
-      "fib": 2.1,
+      "fib": 3.9,
       "product": "Latina Fresh Egg Fettuccine Pasta 375g",
       "id": "5051790",
       "checked": "2026-10-27",
-      "note": "Coles product page (embedded NIP data). Identical to Woolworths. Panel is per 100g COOKED: serving 350g x 2 servings = 700g from a 375g pack (neither store page states 'cooked' in words; inferred from serving maths). As sold per 100g = x 700/375 = 1428 kJ (341.3 kcal), 13.6g P, 5.2g F, 57.1g C, 3.9g fibre. Per 350g cooked serve: 2680 kJ, 25.6g P, 9.8g F, 107.1g C, 7.4g fibre, 28mg Na. cooked (per 100g cooked pasta)"
+      "note": "Coles product page (embedded NIP data). Identical to Woolworths. Panel is per 100g COOKED: serving 350g x 2 servings = 700g from a 375g pack (neither store page states 'cooked' in words; inferred from serving maths). As sold per 100g = x 700/375 = 1428 kJ (341.3 kcal), 13.6g P, 5.2g F, 57.1g C, 3.9g fibre. Per 350g cooked serve: 2680 kJ, 25.6g P, 9.8g F, 107.1g C, 7.4g fibre, 28mg Na. Stored per 100g as sold: Arithmetic on printed figures only: per 100g cooked x 700/375 (2 servings of 350g cooked from a 375g pack). Recipes weigh the pasta as sold. cooked (per 100g cooked pasta)"
     }
   },
   "rice": {
@@ -1351,28 +1351,28 @@
   },
   "gravy": {
     "coles": {
-      "k": 27.5,
-      "p": 0.8,
-      "c": 5.7,
-      "f": 0.1,
-      "per": "100mL",
+      "k": 277.5,
+      "p": 8.3,
+      "c": 59.7,
+      "f": 1.7,
+      "per": "100g",
       "src": "label",
       "product": "Gravox Traditional Gravy Mix 425g",
       "id": "121151",
       "checked": "2026-10-27",
-      "note": "GTIN 9300681140233. Ingredients include potassium chloride and maltodextrin (current recipe; also on Drakes and Cellar & Pantry listings). Meal uses 10 g powder; by the label's serves-per-pack, 10 g makes ~104 mL. Label gives ONLY the made-up basis (per 100 mL prepared gravy). No per-100 g powder column is printed. Powder-per-water directions are not in the listing. See derivedPer100gPowder."
+      "note": "GTIN 9300681140233. Ingredients include potassium chloride and maltodextrin (current recipe; also on Drakes and Cellar & Pantry listings). Meal uses 10 g powder; by the label's serves-per-pack, 10 g makes ~104 mL. Stored per 100g as sold: Arithmetic on printed figures only: per-serve value (per 62.5 mL made-up) / (425 g net / 70.5 servings per pack) x 100. Not a printed column; per-serve values are rounded on the panel (e.g. fat 0.1 g/serve), so small nutrients carry large relative error. Label gives ONLY the made-up basis (per 100 mL prepared gravy). No per-100 g powder column is printed. Powder-per-water directions are not in the listing. See derivedPer100gPowder."
     },
     "woolies": {
-      "k": 27.5,
-      "p": 0.8,
-      "c": 5.6,
-      "f": 0.1,
-      "per": "100mL",
+      "k": 285.5,
+      "p": 8.3,
+      "c": 58.1,
+      "f": 1.7,
+      "per": "100g",
       "src": "label",
       "product": "Gravox Traditional Gravy Mix 425g",
       "id": "38723",
       "checked": "2026-10-27",
-      "note": "Woolworths ingredient list lacks potassium chloride/maltodextrin and sodium is 645 vs Coles 560 mg; the Woolworths listing is probably the older recipe. Current macros.js gravy (285 kcal, 8.3 P, 58 C, 1.7 F per 100 g powder) equals this row's derived figures, i.e. it was derived, not printed. Made-up basis only (per 100 mL prepared gravy). See derivedPer100gPowder."
+      "note": "Woolworths ingredient list lacks potassium chloride/maltodextrin and sodium is 645 vs Coles 560 mg; the Woolworths listing is probably the older recipe. Current macros.js gravy (285 kcal, 8.3 P, 58 C, 1.7 F per 100 g powder) equals this row's derived figures, i.e. it was derived, not printed. Stored per 100g as sold: Arithmetic on printed figures only: per-serve value (per 62.5 mL made-up) / (425 g net / 70.5 servings per pack) x 100. Not a printed column; per-serve values are rounded on the panel (e.g. fat 0.1 g/serve), so small nutrients carry large relative error. Made-up basis only (per 100 mL prepared gravy). See derivedPer100gPowder."
     }
   },
   "honey": {

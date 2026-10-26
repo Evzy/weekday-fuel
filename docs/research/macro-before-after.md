@@ -62,17 +62,17 @@ Generated: 2026-10-26. Store panels from `labels-a/b/c.json`; extras from `extra
 
 | Tier | Old (typed) | Woolworths computed | Δ W | Coles computed | Δ C |
 |------|-------------|---------------------|-----|----------------|-----|
-| L | 585 kcal · 69g P · 42g C · 13g F | 510 kcal · 64.9g P · 32.7g C · 13.8g F | -75 kcal | 532 kcal · 66.7g P · 34.4g C · 13.7g F | -53 kcal |
-| S | 743 kcal · 78g P · 60g C · 19g F | 615 kcal · 71.5g P · 42g C · 18.2g F | -128 kcal | 636 kcal · 73.3g P · 43.6g C · 18.1g F | -107 kcal |
-| X | 910 kcal · 82g P · 77g C · 27g F | 732 kcal · 74.6g P · 51.3g C · 25.8g F | -178 kcal | 764 kcal · 75.9g P · 52.9g C · 27g F | -146 kcal |
+| L | 585 kcal · 69g P · 42g C · 13g F | 589 kcal · 68g P · 46g C · 15g F | +4 kcal | 611 kcal · 69.8g P · 47.7g C · 14.9g F | +26 kcal |
+| S | 743 kcal · 78g P · 60g C · 19g F | 742 kcal · 76.6g P · 63.2g C · 20.2g F | -1 kcal | 763 kcal · 78.4g P · 64.8g C · 20.1g F | +20 kcal |
+| X | 910 kcal · 82g P · 77g C · 27g F | 907 kcal · 81.6g P · 80.4g C · 28.4g F | -3 kcal | 939 kcal · 82.9g P · 82g C · 29.6g F | +29 kcal |
 
 ## Chicken schnitzel, mash & peas (`schnitzel`)
 
 | Tier | Old (typed) | Woolworths computed | Δ W | Coles computed | Δ C |
 |------|-------------|---------------------|-----|----------------|-----|
 | L | 418 kcal · 43g P · 41g C · 7g F | 374 kcal · 40.8g P · 31.3g C · 8.4g F | -44 kcal | 384 kcal · 41.6g P · 32.3g C · 8.2g F | -34 kcal |
-| S | 517 kcal · 47g P · 71g C · 7g F | 544 kcal · 46.6g P · 64.1g C · 8.6g F | +27 kcal | 529 kcal · 46.7g P · 61.6g C · 8.2g F | +12 kcal |
-| X | 659 kcal · 47g P · 75g C · 16g F | 683 kcal · 49g P · 77.1g C · 16.7g F | +24 kcal | 660 kcal · 48.8g P · 73.2g C · 16.5g F | +1 kcal |
+| S | 517 kcal · 47g P · 71g C · 7g F | 570 kcal · 47.3g P · 69.3g C · 8.8g F | +53 kcal | 554 kcal · 47.4g P · 67g C · 8.4g F | +37 kcal |
+| X | 659 kcal · 47g P · 75g C · 16g F | 709 kcal · 49.7g P · 82.3g C · 16.9g F | +50 kcal | 685 kcal · 49.5g P · 78.6g C · 16.7g F | +26 kcal |
 
 ## Korean beef mince bowl (`koreanbeef`)
 
@@ -86,9 +86,9 @@ Generated: 2026-10-26. Store panels from `labels-a/b/c.json`; extras from `extra
 
 | Tier | Old (typed) | Woolworths computed | Δ W | Coles computed | Δ C |
 |------|-------------|---------------------|-----|----------------|-----|
-| L | 567 kcal · 56g P · 52g C · 13g F | 520 kcal · 53.5g P · 41.7g C · 15.6g F | -47 kcal | 532 kcal · 53.4g P · 42.5g C · 15.3g F | -35 kcal |
-| S | 709 kcal · 64g P · 69g C · 17g F | 611 kcal · 58.8g P · 51g C · 19.1g F | -98 kcal | 623 kcal · 58.7g P · 51.8g C · 18.8g F | -86 kcal |
-| X | 892 kcal · 72g P · 86g C · 26g F | 743 kcal · 64.3g P · 60.5g C · 27.2g F | -149 kcal | 756 kcal · 64.1g P · 61.2g C · 26.9g F | -136 kcal |
+| L | 567 kcal · 56g P · 52g C · 13g F | 599 kcal · 56.6g P · 55g C · 16.8g F | +32 kcal | 611 kcal · 56.5g P · 55.8g C · 16.5g F | +44 kcal |
+| S | 709 kcal · 64g P · 69g C · 17g F | 738 kcal · 63.9g P · 72.2g C · 21.1g F | +29 kcal | 750 kcal · 63.8g P · 73g C · 20.8g F | +41 kcal |
+| X | 892 kcal · 72g P · 86g C · 26g F | 918 kcal · 71.3g P · 89.6g C · 29.8g F | +26 kcal | 930 kcal · 71.1g P · 90.3g C · 29.5g F | +38 kcal |
 
 ## Thai red curry chicken (`redcurry`)
 
