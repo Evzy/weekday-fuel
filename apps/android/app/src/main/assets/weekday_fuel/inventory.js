@@ -136,8 +136,8 @@
 
   function looksLikeLegacyProduceCount(amount) {
     if (!(amount > 0) || amount > 10) return false;
-    if (amount === 0.5) return true;
-    return Number.isInteger(amount);
+    var doubled = amount * 2;
+    return Math.abs(doubled - Math.round(doubled)) < 1e-9;
   }
 
   /* Before unit g: amounts were whole cucumbers/capsicums. After: grams (usually >= 80). */

@@ -1143,14 +1143,20 @@ test("migrateProduceCountsToGrams scales legacy cucumber and capsicum counts onc
     start: "2026-01-01T08:00:00.000Z",
     events: [
       { id: "c1", at: "2026-10-01T08:00:00.000Z", k: "buy", item: "cucumber", amount: 2 },
+      { id: "c15", at: "2026-10-01T08:00:00.000Z", k: "buy", item: "cucumber", amount: 1.5 },
       { id: "p1", at: "2026-10-01T08:00:00.000Z", k: "use", item: "capsicum", amount: 1 },
+      { id: "p25", at: "2026-10-01T08:00:00.000Z", k: "use", item: "capsicum", amount: 2.5 },
+      { id: "bad", at: "2026-10-01T08:00:00.000Z", k: "buy", item: "cucumber", amount: 1.3 },
       { id: "g1", at: "2026-10-01T08:00:00.000Z", k: "buy", item: "cucumber", amount: 320 },
       { id: "h1", at: "2026-10-01T08:00:00.000Z", k: "buy", item: "honey", amount: 2 },
     ],
   };
   const out = I.migrateProduceCountsToGrams(inv);
   assert.equal(out.events.find((e) => e.id === "c1").amount, 320);
+  assert.equal(out.events.find((e) => e.id === "c15").amount, 240);
   assert.equal(out.events.find((e) => e.id === "p1").amount, 220);
+  assert.equal(out.events.find((e) => e.id === "p25").amount, 550);
+  assert.equal(out.events.find((e) => e.id === "bad").amount, 1.3, "non half-step count left as grams");
   assert.equal(out.events.find((e) => e.id === "g1").amount, 320, "already grams unchanged");
   assert.equal(out.events.find((e) => e.id === "h1").amount, 2);
   assert.equal(I.migrateProduceCountsToGrams(out), out, "idempotent");
