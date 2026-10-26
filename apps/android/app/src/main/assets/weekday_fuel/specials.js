@@ -26,24 +26,17 @@
     return o;
   }
 
-  function clonePer(per) {
-    if (!per || typeof per !== "object") return per;
-    var o = {};
-    Object.keys(per).forEach(function (k) {
-      o[k] = per[k];
-    });
-    return o;
-  }
-
   function cloneSwap(s, wPrices, cPrices, colesId) {
     var out = {
       id: s.id,
       name: s.name,
       serves: s.serves,
-      per: clonePer(s.per),
     };
     if (s.short) out.short = s.short;
     if (s.todayOnly === true) out.todayOnly = true;
+    if (s.hidden === true) out.hidden = true;
+    if (s.serveMl != null) out.serveMl = s.serveMl;
+    if (s.serveG != null) out.serveG = s.serveG;
     if (s.woolies) {
       var wl = wPrices && s.woolies.stockcode != null ? wPrices[s.woolies.stockcode] : null;
       out.woolies = cloneProduct(s.woolies, wl);
@@ -92,15 +85,11 @@
   }
 
   function passesGuard(main, swap, servePer, store) {
-    if (typeof servePer === "function") {
-      if (!main || !swap) return false;
-      var mp = servePer(main, null, store);
-      var sp = servePer(main, swap, store);
-      if (!mp || !sp) return false;
-      return guardFromPer(mp.k, mp.p, sp.k, sp.p);
-    }
-    if (!main || !main.per || !swap || !swap.per) return false;
-    return guardFromPer(main.per.k, main.per.p, swap.per.k, swap.per.p);
+    if (typeof servePer !== "function" || !main || !swap) return false;
+    var mp = servePer(main, null, store);
+    var sp = servePer(main, swap, store);
+    if (!mp || !sp) return false;
+    return guardFromPer(mp.k, mp.p, sp.k, sp.p);
   }
 
   function isMuted(muted, key) {
@@ -137,26 +126,14 @@
     });
   }
 
-  function mainServePer(item, servePer, store) {
-    if (typeof servePer === "function") return servePer(item, null, store);
-    return item && item.per ? item.per : null;
-  }
-
-  function swapServePer(item, swap, servePer, store) {
-    if (typeof servePer === "function") return servePer(item, swap, store);
-    return swap && swap.per ? swap.per : null;
-  }
-
   function suggest(row, item, store, muted, onlyId, servePer) {
-    if (!row || !item || !item.swaps) return null;
-    var mainPer = mainServePer(item, servePer, store);
-    if (!mainPer && typeof servePer !== "function") return null;
-    if (typeof servePer === "function" && !mainServePer(item, servePer, store)) return null;
+    if (typeof servePer !== "function" || !row || !item || !item.swaps) return null;
+    var mp = servePer(item, null, store);
+    if (!mp) return null;
     var remaining = Math.max(0, row.need - (row.have || 0));
     if (!(remaining > 0)) return null;
     var mainLine = row[store];
     var mainCost = mainLine && typeof mainLine.cost === "number" ? mainLine.cost : Infinity;
-    var mp = mainServePer(item, servePer, store);
     var best = null;
     item.swaps.forEach(function (swap) {
       if (swap.hidden) return;
@@ -164,7 +141,7 @@
       if (onlyId && swap.id !== onlyId) return;
       if (!onlyId && isMuted(muted, item.id + ":" + swap.id)) return;
       if (!passesGuard(item, swap, servePer, store)) return;
-      var sp = swapServePer(item, swap, servePer, store);
+      var sp = servePer(item, swap, store);
       if (!sp) return;
       var product = swap[store];
       if (!product) return;
@@ -215,8 +192,8 @@
       if (sw.id === swapId) swap = sw;
     });
     if (!swap || swap.hidden || swap.todayOnly) return null;
-    var mp = mainServePer(item, servePer, store);
-    var sp = swapServePer(item, swap, servePer, store);
+    var mp = servePer(item, null, store);
+    var sp = servePer(item, swap, store);
     if (!mp || !sp) return null;
     var product = swap[store];
     if (!product || product.available === false) return null;

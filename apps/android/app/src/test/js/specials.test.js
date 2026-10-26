@@ -3,6 +3,20 @@ const assert = require("node:assert/strict");
 const S = require("../../main/assets/weekday_fuel/specials.js");
 const { colesId } = require("../../main/assets/weekday_fuel/catalogue.js");
 
+function mockServePer(main, swap) {
+  if (!swap) return main.per;
+  return swap.per;
+}
+function SP(row, it, store, muted, onlyId) {
+  return S.suggest(row, it, store, muted || [], onlyId, mockServePer);
+}
+const AC = (...args) => {
+  const a = args.slice();
+  while (a.length < 7) a.push(undefined);
+  a.push(mockServePer);
+  return S.applyChoices(...a);
+};
+
 const wp = (code, price, extra = {}) => ({ name: "W" + code, url: "https://www.woolworths.com.au/shop/productdetails/" + code, stockcode: code, size: 1, price, ...extra });
 const cp = (id, price, extra = {}) => ({ name: "C" + id, url: "https://www.coles.com.au/product/x-" + id, size: 1, price, ...extra });
 const item = (swaps) => ({ id: "dare", per: { k: 296, p: 30 }, woolies: wp(72280, 4.65), coles: cp(8991361, 4.65), swaps });
@@ -33,7 +47,7 @@ test("applySwapPrices keeps short and full per through live prices", () => {
     todayOnly: true,
     name: "Dare 750",
     serves: 1,
-    per: { k: 444, p: 45, c: 38.3, f: 12 },
+    serveMl: 750,
     woolies: wp(6020777, 5.8),
     coles: cp(1045886, 5.8),
   };
@@ -42,8 +56,7 @@ test("applySwapPrices keeps short and full per through live prices", () => {
   const a = out[0].swaps[0];
   assert.equal(a.short, "Dare 45g");
   assert.equal(a.todayOnly, true);
-  assert.equal(a.per.c, 38.3);
-  assert.equal(a.per.f, 12);
+  assert.equal(a.serveMl, 750);
   assert.equal(a.woolies.price, 5.5);
 });
 
@@ -52,17 +65,17 @@ test("suggest skips todayOnly swaps", () => {
   today.todayOnly = true;
   const regular = sw("a", 292, 30, wp(111, 3.3, { special: true }), cp(2222, 3.3, { special: true }));
   const it = item([today, regular]);
-  const s = S.suggest(row(5, 0, 23.25, null), it, "woolies", []);
+  const s = SP(row(5, 0, 23.25, null), it, "woolies");
   assert.ok(s);
   assert.equal(s.swap.id, "a");
-  assert.equal(S.suggest(row(5, 0, 23.25, null), it, "woolies", [], "dare-750"), null);
+  assert.equal(SP(row(5, 0, 23.25, null), it, "woolies", [], "dare-750"), null);
 });
 
 test("guard boundaries", () => {
   const main = { per: { k: 296, p: 30 } };
-  assert.equal(S.passesGuard(main, { per: { k: 376, p: 25 } }), true);
-  assert.equal(S.passesGuard(main, { per: { k: 377, p: 30 } }), false);
-  assert.equal(S.passesGuard(main, { per: { k: 296, p: 24.9 } }), false);
+  assert.equal(S.passesGuard(main, { per: { k: 376, p: 25 } }, mockServePer), true);
+  assert.equal(S.passesGuard(main, { per: { k: 377, p: 30 } }, mockServePer), false);
+  assert.equal(S.passesGuard(main, { per: { k: 296, p: 24.9 } }, mockServePer), false);
 });
 
 test("suggest picks the cheapest special that passes and is cheaper", () => {
@@ -73,7 +86,7 @@ test("suggest picks the cheapest special that passes and is cheaper", () => {
     sw("d", 290, 30, wp(444, 2.0, { special: false })),
     sw("e", 290, 30, wp(555, 2.0, { special: true, available: false })),
   ]);
-  const s = S.suggest(row(5, 0, 23.25, null), it, "woolies", []);
+  const s = SP(row(5, 0, 23.25, null), it, "woolies", []);
   assert.equal(s.swap.id, "b");
   assert.deepEqual([s.quantity, s.cost, s.saving, s.dk, s.dp], [5, 15, 8.25, -26, 0]);
   assert.equal(s.product.stockcode, 222);
@@ -81,26 +94,26 @@ test("suggest picks the cheapest special that passes and is cheaper", () => {
 
 test("suggest honours muted, other store only, have and cheaper-only", () => {
   const it = item([sw("a", 292, 30, wp(111, 3.3, { special: true }), cp(2222, 9, { special: true }))]);
-  assert.equal(S.suggest(row(5, 0, 23.25, 23.25), it, "woolies", ["dare:a"]), null);
-  assert.equal(S.suggest(row(5, 0, 23.25, 23.25), it, "coles", []), null, "coles special is dearer");
-  assert.equal(S.suggest(row(5, 5, 0, null), it, "woolies", []), null, "nothing left to buy");
-  assert.equal(S.suggest(row(5, 2, 13.95, null), it, "woolies", []).quantity, 3);
+  assert.equal(SP(row(5, 0, 23.25, 23.25), it, "woolies", ["dare:a"]), null);
+  assert.equal(SP(row(5, 0, 23.25, 23.25), it, "coles", []), null, "coles special is dearer");
+  assert.equal(SP(row(5, 5, 0, null), it, "woolies", []), null, "nothing left to buy");
+  assert.equal(SP(row(5, 2, 13.95, null), it, "woolies", []).quantity, 3);
   const noSwapAtColes = item([sw("a", 292, 30, wp(111, 3.3, { special: true }))]);
-  assert.equal(S.suggest(row(5, 0, 23.25, 23.25), noSwapAtColes, "coles", []), null);
+  assert.equal(SP(row(5, 0, 23.25, 23.25), noSwapAtColes, "coles", []), null);
 });
 
 test("suggest rounds packs up by serves and breaks ties by order", () => {
   const it = item([sw("two", 292, 30, wp(111, 6, { special: true }), null, 2), sw("one", 292, 30, wp(222, 3, { special: true }))]);
-  const s = S.suggest(row(5, 0, 23.25, null), it, "woolies", []);
+  const s = SP(row(5, 0, 23.25, null), it, "woolies", []);
   assert.equal(s.swap.id, "one", "two-pack: 3 x $6 = $18 vs 5 x $3 = $15");
   const tie = item([sw("x", 292, 30, wp(111, 3, { special: true })), sw("y", 292, 30, wp(222, 3, { special: true }))]);
-  assert.equal(S.suggest(row(5, 0, 23.25, null), tie, "woolies", []).swap.id, "x");
+  assert.equal(SP(row(5, 0, 23.25, null), tie, "woolies", []).swap.id, "x");
 });
 
 test("useSwap rewrites only the chosen store line", () => {
   const it = item([sw("a", 292, 30, wp(111, 3, { special: true }))]);
   const r = row(5, 0, 23.25, 23.25);
-  const s = S.suggest(r, it, "woolies", []);
+  const s = SP(r, it, "woolies", []);
   const out = S.useSwap(r, "woolies", s, "bottles");
   assert.deepEqual([out.woolies.product.stockcode, out.woolies.quantity, out.woolies.cost, out.woolies.swap], [111, 5, 15, "a"]);
   assert.equal(out.woolies.buy, "5 bottles");
@@ -117,14 +130,14 @@ test("swapBuyText formats single-serve and multi-serve packs", () => {
 
 test("pack count uses ceil not round", () => {
   const it = item([sw("a", 292, 30, wp(111, 3, { special: true }))]);
-  assert.equal(S.suggest({ id: "dare", need: 4.4, have: 0, woolies: null }, it, "woolies", []).quantity, 5);
+  assert.equal(SP({ id: "dare", need: 4.4, have: 0, woolies: null }, it, "woolies", []).quantity, 5);
   const two = item([sw("two", 292, 30, wp(111, 4, { special: true }), null, 2)]);
-  assert.equal(S.suggest(row(5, 0, 23.25, null), two, "woolies", []).quantity, 3);
+  assert.equal(SP(row(5, 0, 23.25, null), two, "woolies", []).quantity, 3);
 });
 
 test("saving and dp rounding", () => {
   const it = item([sw("a", 292, 30.2, wp(111, 3.3, { special: true }))]);
-  const s = S.suggest(row(5, 2, 13.95, null), it, "woolies", []);
+  const s = SP(row(5, 2, 13.95, null), it, "woolies", []);
   assert.equal(s.saving, 4.05);
   assert.equal(s.dp, 0.2);
 });
@@ -146,23 +159,23 @@ test("hasAnyKeep detects legacy and per-store keep", () => {
 test("applyChoices applies a still-qualifying choice and drops a stale one", () => {
   const it = item([sw("a", 292, 30, wp(111, 3, { special: true })), sw("b", 292, 30, wp(222, 3.1, { special: false }))]);
   const rows = [row(5, 0, 23.25, null), { id: "eggs", need: 12, woolies: { product: wp(9, 1), quantity: 1, cost: 1 } }];
-  const r1 = S.applyChoices(rows, [it], "woolies", { dare: { use: "a", useStore: "woolies" } }, ["dare:a"]);
+  const r1 = AC(rows, [it], "woolies", { dare: { use: "a", useStore: "woolies" } }, ["dare:a"]);
   assert.equal(r1.rows[0].woolies.swap, "a");
   assert.deepEqual(r1.used, { dare: "a" });
   assert.equal(r1.rows[1], rows[1]);
-  const r2 = S.applyChoices(rows, [it], "woolies", { dare: { use: "b" } }, []);
+  const r2 = AC(rows, [it], "woolies", { dare: { use: "b" } }, []);
   assert.equal(r2.rows[0], rows[0]);
   assert.deepEqual(r2.used, {});
-  const r3 = S.applyChoices(rows, [it], "woolies", { dare: { keep: { woolies: true } } }, []);
+  const r3 = AC(rows, [it], "woolies", { dare: { keep: { woolies: true } } }, []);
   assert.equal(r3.rows[0], rows[0]);
-  const r4 = S.applyChoices(rows, [it], "coles", { dare: { use: "a", useStore: "woolies" } }, []);
+  const r4 = AC(rows, [it], "coles", { dare: { use: "a", useStore: "woolies" } }, []);
   assert.equal(r4.rows[0], rows[0], "use on woolies does not apply on coles");
 });
 
 test("applyChoices keeps a sent swap after the special ends", () => {
   const it = item([sw("a", 292, 30.2, wp(111, 3.3, { special: false }))]);
   const rows = [row(5, 2, 13.95, null)];
-  const r = S.applyChoices(rows, [it], "woolies", { dare: { use: "a", useStore: "woolies" } }, [], ["111"]);
+  const r = AC(rows, [it], "woolies", { dare: { use: "a", useStore: "woolies" } }, [], ["111"]);
   assert.equal(r.rows[0].woolies.swap, "a");
   assert.equal(r.rows[0].woolies.quantity, 3);
   assert.equal(r.rows[0].woolies.cost, 9.9);
@@ -173,7 +186,7 @@ test("applyChoices keeps a sent swap after the special ends", () => {
 test("applyChoices drops a stale choice when the swap was not sent", () => {
   const it = item([sw("a", 292, 30, wp(111, 3, { special: false }))]);
   const rows = [row(5, 0, 23.25, null)];
-  const r = S.applyChoices(rows, [it], "woolies", { dare: { use: "a" } }, [], []);
+  const r = AC(rows, [it], "woolies", { dare: { use: "a" } }, [], []);
   assert.equal(r.rows[0], rows[0]);
   assert.deepEqual(r.used, {});
 });
@@ -181,38 +194,38 @@ test("applyChoices drops a stale choice when the swap was not sent", () => {
 test("applyChoices drops a sent swap that is unavailable", () => {
   const it = item([sw("a", 292, 30, wp(111, 3, { special: false, available: false }))]);
   const rows = [row(5, 0, 23.25, null)];
-  const r = S.applyChoices(rows, [it], "woolies", { dare: { use: "a" } }, [], ["111"]);
+  const r = AC(rows, [it], "woolies", { dare: { use: "a" } }, [], ["111"]);
   assert.equal(r.rows[0], rows[0]);
   assert.deepEqual(r.used, {});
 });
 
 test("suggest pack count tolerates floating have", () => {
   const it = item([sw("a", 292, 30, wp(111, 3, { special: true }))]);
-  const s = S.suggest({ id: "dare", need: 5, have: 1.9999999999, woolies: null }, it, "woolies", []);
+  const s = SP({ id: "dare", need: 5, have: 1.9999999999, woolies: null }, it, "woolies", []);
   assert.equal(s.quantity, 3);
 });
 
 test("suggest with no main line still offers a special", () => {
   const it = item([sw("a", 292, 30, wp(111, 3, { special: true }))]);
   const r = { id: "dare", need: 5, have: 0, woolies: null, coles: null };
-  const s = S.suggest(r, it, "woolies", []);
+  const s = SP(r, it, "woolies", []);
   assert.equal(s.cost, 15);
   assert.equal(s.saving, null);
 });
 
 test("suggest serves two-pack only when it wins on cost", () => {
   const it = item([sw("two", 292, 30, wp(111, 4, { special: true }), null, 2)]);
-  const s = S.suggest(row(5, 0, 23.25, null), it, "woolies", []);
+  const s = SP(row(5, 0, 23.25, null), it, "woolies", []);
   assert.deepEqual([s.swap.id, s.quantity, s.cost], ["two", 3, 12]);
 });
 
 test("suggest rejects equal-cost specials", () => {
   const it = item([sw("a", 292, 30, wp(111, 4.65, { special: true }))]);
-  assert.equal(S.suggest(row(5, 0, 23.25, null), it, "woolies", []), null);
+  assert.equal(SP(row(5, 0, 23.25, null), it, "woolies", []), null);
 });
 
-test("suggest returns null when item has no per", () => {
-  const it = { id: "dare", swaps: [sw("a", 292, 30, wp(111, 3, { special: true }))] };
+test("suggest returns null without servePer", () => {
+  const it = item([sw("a", 292, 30, wp(111, 3, { special: true }))]);
   assert.equal(S.suggest(row(5, 0, 23.25, null), it, "woolies", []), null);
 });
 
@@ -232,8 +245,8 @@ test("a swapped row flows into the trolley, orders and stock-in", () => {
   const inv = require("../../main/assets/weekday_fuel/inventory.js");
   const it = item([sw("a", 292, 30, wp(111, 3, { special: true }), cp(2222, 3, { special: true }))]);
   const r = row(5, 0, 23.25, 23.25);
-  const w = S.useSwap(r, "woolies", S.suggest(r, it, "woolies", []), "bottles");
-  const c = S.useSwap(r, "coles", S.suggest(r, it, "coles", []), "bottles");
+  const w = S.useSwap(r, "woolies", SP(r, it, "woolies", []), "bottles");
+  const c = S.useSwap(r, "coles", SP(r, it, "coles", []), "bottles");
   const wl = cart.cartLines([w], {}, {});
   assert.equal(wl.lines[0].stockcode, 111);
   const cl = cart.colesCartLines([c], {}, {}, colesId);
