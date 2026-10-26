@@ -1137,6 +1137,25 @@ test("gapSpareReserved includes bought meals after week end", () => {
   assert.ok(r.breast > 0);
 });
 
+test("migrateProduceCountsToGrams scales legacy cucumber and capsicum counts once", () => {
+  const inv = {
+    v: 1,
+    start: "2026-01-01T08:00:00.000Z",
+    events: [
+      { id: "c1", at: "2026-10-01T08:00:00.000Z", k: "buy", item: "cucumber", amount: 2 },
+      { id: "p1", at: "2026-10-01T08:00:00.000Z", k: "use", item: "capsicum", amount: 1 },
+      { id: "g1", at: "2026-10-01T08:00:00.000Z", k: "buy", item: "cucumber", amount: 320 },
+      { id: "h1", at: "2026-10-01T08:00:00.000Z", k: "buy", item: "honey", amount: 2 },
+    ],
+  };
+  const out = I.migrateProduceCountsToGrams(inv);
+  assert.equal(out.events.find((e) => e.id === "c1").amount, 320);
+  assert.equal(out.events.find((e) => e.id === "p1").amount, 220);
+  assert.equal(out.events.find((e) => e.id === "g1").amount, 320, "already grams unchanged");
+  assert.equal(out.events.find((e) => e.id === "h1").amount, 2);
+  assert.equal(I.migrateProduceCountsToGrams(out), out, "idempotent");
+});
+
 test("prune keeps an event exactly at the cutoff and drops one millisecond before", () => {
   const when = new Date(2026, 9, 20, 12, 0, 0);
   const cutoff = new Date(when.getFullYear(), when.getMonth(), when.getDate());

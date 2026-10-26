@@ -132,6 +132,32 @@
     return base;
   }
 
+  var PRODUCE_LEGACY_COUNT_G = { cucumber: 160, capsicum: 220 };
+
+  function looksLikeLegacyProduceCount(amount) {
+    if (!(amount > 0) || amount > 10) return false;
+    if (amount === 0.5) return true;
+    return Number.isInteger(amount);
+  }
+
+  /* Before unit g: amounts were whole cucumbers/capsicums. After: grams (usually >= 80). */
+  function migrateProduceCountsToGrams(inv) {
+    if (!inv || !Array.isArray(inv.events)) return inv;
+    var changed = false;
+    var events = inv.events.map(function (e) {
+      var g = PRODUCE_LEGACY_COUNT_G[e.item];
+      if (!g || !looksLikeLegacyProduceCount(e.amount)) return e;
+      changed = true;
+      var copy = {};
+      Object.keys(e).forEach(function (k) {
+        copy[k] = e[k];
+      });
+      copy.amount = Math.round(e.amount * g * 10) / 10;
+      return copy;
+    });
+    return changed ? { v: inv.v, start: inv.start, events: events } : inv;
+  }
+
   function removeOrder(inv, orderId) {
     if (!inv) return inv;
     return {
@@ -857,6 +883,7 @@
     buysFromRows: buysFromRows,
     buysFromUnmatchedSent: buysFromUnmatchedSent,
     shopHaveIt: shopHaveIt,
+    migrateProduceCountsToGrams: migrateProduceCountsToGrams,
     impliedAte: impliedAte,
     endOfDay: endOfDay,
   };
