@@ -826,8 +826,7 @@
       "fib": 0.6,
       "food": "F003321",
       "name": "Cucumber, Lebanese, unpeeled, raw",
-      "note": "Loose produce, sold each. Tried: Woolworths Lebanese Cucumbers each (137130) and Coles Lebanese Cucumbers approx. 160g (4575208): no panel on either. Peeled alternative is F010995 (48 kJ, 0.7 P, 1.9 C, 0.7 fib). AFCD Release 3 'Energy with dietary fibre, equated' (kJ); per 100g edible portion, unpeeled, raw.",
-      "confirm": "Loose cucumbers are sold by count; recipe amounts are weighed trimmed grams."
+      "note": "Loose produce, sold each. Tried: Woolworths Lebanese Cucumbers each (137130) and Coles Lebanese Cucumbers approx. 160g (4575208): no panel on either. Peeled alternative is F010995 (48 kJ, 0.7 P, 1.9 C, 0.7 fib). AFCD Release 3 'Energy with dietary fibre, equated' (kJ); per 100g edible portion, unpeeled, raw."
     }
   },
   "capsicum": {
@@ -841,8 +840,7 @@
       "fib": 1.5,
       "food": "F002239",
       "name": "Capsicum, green, fresh, raw",
-      "note": "Loose produce, sold each. Tried: Woolworths Capsicum Green each (135156) and Coles Capsicum Green Loose approx. 220g (7214862): no panel on either. Per 100g edible portion; the 220g each weight includes seeds/stem. AFCD Release 3 'Energy with dietary fibre, equated' (kJ); per 100g edible portion, raw.",
-      "confirm": "Loose capsicums are sold by count; recipe amounts are weighed trimmed grams."
+      "note": "Loose produce, sold each. Tried: Woolworths Capsicum Green each (135156) and Coles Capsicum Green Loose approx. 220g (7214862): no panel on either. Per 100g edible portion; the 220g each weight includes seeds/stem. AFCD Release 3 'Energy with dietary fibre, equated' (kJ); per 100g edible portion, raw."
     }
   },
   "potato": {

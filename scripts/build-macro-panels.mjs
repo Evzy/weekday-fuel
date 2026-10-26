@@ -163,12 +163,6 @@ function applyOverrides(panels) {
       coles: "Some values may be printed as '<1g' on the pack — check before trusting 1.0g.",
       woolies: "Some values may be printed as '<1g' on the pack — check before trusting 1.0g.",
     },
-    cucumber: {
-      any: "Loose cucumbers are sold by count; recipe amounts are weighed trimmed grams.",
-    },
-    capsicum: {
-      any: "Loose capsicums are sold by count; recipe amounts are weighed trimmed grams.",
-    },
   };
   for (const [itemId, byStore] of Object.entries(confirmByItem)) {
     const bag = panels[itemId];
