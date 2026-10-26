@@ -7,7 +7,7 @@ import fs from "fs";
 import path from "path";
 
 const ROOT = path.resolve(import.meta.dirname, "..");
-const OUT = path.join(ROOT, "apps/android/app/src/main/assets/weekday_fuel/macro-panels.js");
+const OUT = path.join(ROOT, "apps/android/app/src/main/assets/weekday_fuel/macros.js");
 
 const LABEL_FILES = [
   path.join(ROOT, "docs/research/labels-a.json"),
@@ -93,7 +93,8 @@ function mergePanels(allRows) {
   for (const row of allRows) {
     if (!row.item) continue;
     const sk = storeKey(row.store);
-    const key = row.item + "|" + sk;
+    const panelId = row.role === "fallback" ? row.item + "-fallback" : row.item;
+    const key = panelId + "|" + sk;
     const prev = byItem.get(key);
     if (!prev || roleRank(row.role) < roleRank(prev.role)) byItem.set(key, row);
     else if (prev && roleRank(row.role) === roleRank(prev.role) && row.status === "ok" && prev.status !== "ok")
@@ -101,11 +102,12 @@ function mergePanels(allRows) {
   }
   const panels = {};
   for (const [key, row] of byItem) {
-    const [item, sk] = key.split("|");
+    const panelId = key.slice(0, key.lastIndexOf("|"));
+    const sk = key.slice(key.lastIndexOf("|") + 1);
     const panel = rowToPanel(row);
     if (!panel) continue;
-    if (!panels[item]) panels[item] = {};
-    panels[item][sk] = panel;
+    if (!panels[panelId]) panels[panelId] = {};
+    panels[panelId][sk] = panel;
   }
   return panels;
 }
@@ -137,29 +139,17 @@ function serializePanels(panels) {
     .replace(/"/g, '"');
 }
 
-function legacyMacros(panels) {
-  const MACROS = {};
-  for (const [id, stores] of Object.entries(panels)) {
-    const p = stores.woolies || stores.any || stores.coles;
-    if (!p) continue;
-    MACROS[id] = [p.k, p.p, p.c, p.f, p.per || "100g", p.src || "label", p.note || ""];
-  }
-  return MACROS;
-}
-
 function main() {
   const allRows = LABEL_FILES.flatMap(rowsFromFile);
   let panels = mergePanels(allRows);
   panels = applyOverrides(panels);
-  const legacy = legacyMacros(panels);
   const body = `/* Per-store nutrition panels (generated). Regenerate: node scripts/build-macro-panels.mjs */
 (function (root) {
   "use strict";
   var PANELS = ${JSON.stringify(panels, null, 2)};
-  var LEGACY_MACROS = ${JSON.stringify(legacy, null, 2)};
-  var api = { PANELS: PANELS, LEGACY_MACROS: LEGACY_MACROS };
+  var api = { PANELS: PANELS };
   if (typeof module === "object" && module.exports) module.exports = api;
-  else root.WeekdayFuelMacroPanels = api;
+  else root.WeekdayFuelMacros = api;
 })(this);
 `;
   fs.writeFileSync(OUT, body, "utf8");

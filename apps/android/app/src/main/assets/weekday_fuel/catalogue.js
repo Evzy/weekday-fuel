@@ -62,7 +62,7 @@
         { id: "gr-white-oreo", short: "W Oreo", name: "Grenade White Oreo 60g", serves: 1, per: { k: 253, p: 20.7 },
           woolies: { name: "Grenade Protein Bar White Oreo 60g", url: "https://www.woolworths.com.au/shop/productdetails/6028961", stockcode: 6028961, size: 1, price: 5, checked: "2026-10-19" },
           coles: { name: "Grenade Oreo White Chocolate Protein Bar 60g", url: "https://www.coles.com.au/product/grenade-oreo-white-chocolate-protein-bar-60g-9968718", size: 1, price: 5, checked: "2026-10-19" } },
-        { id: "gr-cookie", short: "Cookie", name: "Grenade Choc Chip Cookie Dough 60g", serves: 1, per: { k: 208, p: 21 },
+        { id: "gr-cookie", short: "Cookie", name: "Grenade Choc Chip Cookie Dough 60g", serves: 1, per: { k: 208, p: 21 }, hidden: true,
           woolies: { name: "Grenade High Protein Low Sugar Bar Choc Chip Cookie Dough 60g", url: "https://www.woolworths.com.au/shop/productdetails/6043930", stockcode: 6043930, size: 1, price: 5, checked: "2026-10-19" } },
         { id: "mu-vancar", short: "Musashi VC", name: "Musashi Protein Crisp Vanilla Caramel 60g", serves: 1, per: { k: 239, p: 20.1 },
           woolies: { name: "Musashi Crisp Protein Bar Vanilla Caramel 60g", url: "https://www.woolworths.com.au/shop/productdetails/153264", stockcode: 153264, size: 1, price: 4.9, checked: "2026-10-19" },
@@ -94,7 +94,7 @@
       woolies: { name: "Woolworths Heart Smart Extra Lean Beef Mince 500g", url: "https://www.woolworths.com.au/shop/productdetails/577860/woolworths-heart-smart-extra-lean-beef-mince", stockcode: 577860, size: 500, price: 9.8, checked: "2026-10-15" },
     },
     {
-      id: "eggs", sec: 1, keeps: 28, name: "Free range eggs, 12 pack", short: "Eggs", unit: "eggs", unitSize: 58, note: "The old Woolworths link (582362) is unavailable; 6013278 replaces it", same: false,
+      id: "eggs", sec: 1, keeps: 28, name: "Free range eggs, 12 pack", short: "Eggs", unit: "eggs", unitSize: 52, note: "The old Woolworths link (582362) is unavailable; 6013278 replaces it", same: false,
       coles: {
         name: "Coles Free Range Eggs 12 Pack 700g", url: "https://www.coles.com.au/product/coles-free-range-eggs-12-pack-700g-9453478", size: 12, price: 6.9, checked: "2026-10-15",
         packs: [
@@ -134,7 +134,7 @@
       woolies: { name: "Mission Carb Balance Original Wraps 6 pack", url: "https://www.woolworths.com.au/shop/productdetails/919345/mission-carb-balance-original-wraps", stockcode: 919345, size: 6, price: 5.6, checked: "2026-10-15" },
     },
     {
-      id: "bread", sec: 1, keeps: 5, name: "Wholemeal sandwich loaf", short: "Bread", unit: "slices", unitSize: 45, note: "About 16 slices. Freeze half. Helga's fallback slices are ~10% lighter per slice (same macros in the plan)", same: true,
+      id: "bread", sec: 1, keeps: 5, name: "Wholemeal sandwich loaf", short: "Bread", unit: "slices", unitSize: 42, note: "About 16 slices (42g each on the label). Freeze half. Helga's fallback uses its own label per slice", same: true,
       coles: {
         name: "Abbott's Bakery Farmhouse Wholemeal Bread 750g", url: "https://www.coles.com.au/product/abbott's-bakery-farmhouse-wholemeal-bread-750g-7226034", size: 16, price: 5.2, checked: "2026-10-15",
         fallback: { name: "Helga's Traditional Wholemeal Bread 750g", url: "https://www.coles.com.au/product/helga's-traditional-wholemeal-bread-750g-5969435", size: 16, price: 5.2, checked: "2026-10-21" },
@@ -248,7 +248,7 @@
       woolies: { name: "Maesri Paste Red Curry 114g", url: "https://www.woolworths.com.au/shop/productdetails/45458/maesri-paste-red-curry", stockcode: 45458, size: 114, price: 2.3, checked: "2026-10-15" },
     },
     {
-      id: "soy", sec: 2, name: "Soy sauce", unit: "mL", note: "Woolworths special (usually $4.30)", same: true,
+      id: "soy", sec: 2, name: "Soy sauce", unit: "mL", note: "Woolworths special (usually $4.30). Coles and Woolworths panels differ slightly", same: false,
       coles: { name: "Lee Kum Kee Soy Sauce 500mL", url: "https://www.coles.com.au/product/lee-kum-kee-soy-sauce-500ml-9434699", size: 500, price: 4.3, checked: "2026-10-15" },
       woolies: { name: "Lee Kum Kee Soy Sauce Premium 500mL", url: "https://www.woolworths.com.au/shop/productdetails/198763/lee-kum-kee-soy-sauce-premium", stockcode: 198763, size: 500, price: 3.7, checked: "2026-10-15" },
     },
@@ -271,7 +271,7 @@
     {
       id: "crumbfillet", sec: 2, name: "Frozen crumbed chicken breast fillets", short: "Crumbed fillets", unit: "fillets", unitSize: 175, note: "Woolworths only: 77% chicken breast. Coles has no lean equivalent", same: false,
       coles: null,
-      woolies: { name: "Woolworths Italian Style Crumb Chicken Fillets 350g", url: "https://www.woolworths.com.au/shop/productdetails/130110/woolworths-italian-style-crumb-chicken-fillets", stockcode: 130110, size: 2, price: 9, checked: "2026-10-26" },
+      woolies: { name: "Woolworths Italian Style Crumb Chicken Fillets 350g", url: "https://www.woolworths.com.au/shop/productdetails/130110/woolworths-italian-style-crumb-chicken-fillets", stockcode: 130110, size: 2, price: 9, checked: "2026-10-26", unconfirmed: true },
     },
     {
       id: "teriyaki_sauce", sec: 2, name: "Teriyaki sauce", unit: "mL", note: "Coles doesn't list the marinade; its 240g bottle is counted as 240mL", same: false,
@@ -340,14 +340,14 @@
     yogbowl: { yog: 250, fzberry: 100, honey: 7, muesli: { L: 0, S: 40, X: 60 }, pb: { L: 0, S: 0, X: 16 } },
     brekwrap: { eggs: 3, ham: 50, wraps: { L: 1, S: 1, X: 2 }, cheese: { L: 0, S: 20, X: 30 }, salsa: 30, spinach: 20 },
     tenderwrap: { breast: 200, wraps: { L: 1, S: 2, X: 2 }, cheese: { L: 20, S: 30, X: 50 }, salsa: 30, spinach: 20, cucumber: 0.5, toms: 50 },
-    burritobowl: { rice: { L: 1 / 3, S: 0.75, X: 1 }, breast: 200, corn: 80, capsicum: 0.5, salsa: 30, taco: 4, yog: 50, cheese: { L: 0, S: 30, X: 30 } },
-    teriyaki: { breast: 200, teriyaki_sauce: 50, rice: { L: 1 / 3, S: 0.75, X: 1 }, fzasian: 150 },
+    burritobowl: { rice: { L: 1 / 3, S: 0.5, X: 0.75 }, breast: 200, corn: 80, capsicum: 0.5, salsa: 30, taco: 4, yog: 50, cheese: { L: 0, S: 30, X: 30 } },
+    teriyaki: { breast: 200, teriyaki_sauce: 50, rice: { L: 1 / 3, S: 0.5, X: 0.75 }, fzasian: 150 },
     buffalomac: { breast: 200, freshpasta: { L: 50, S: 80, X: 110 }, evap: 80, cheese: { L: 25, S: 40, X: 0 }, franks: 50, fzbroc: 100 },
-    schnitzel: { crumbfillet: 1, potato: { L: 100, S: 200, X: 300 }, evap: 30, fzpeas: 100, gravy: { L: 0, S: 10, X: 10 } },
-    koreanbeef: { mince: 200, soy: 40, honey: { L: 14, S: 21, X: 21 }, sesame: 5, garlic: 5, ginger: 5, rice: { L: 1 / 3, S: 0.5, X: 1 }, eggs: { L: 0, S: 1, X: 1 }, fzbroc: 150 },
+    schnitzel: { crumbfillet: 1, potato: { L: 50, S: 300, X: 400 }, evap: 30, fzpeas: 100, gravy: { L: 0, S: 10, X: 10 } },
+    koreanbeef: { mince: 200, soy: 40, honey: { L: 14, S: 21, X: 21 }, sesame: 5, garlic: 5, ginger: 5, rice: { L: 1 / 3, S: 0.5, X: 0.75 }, eggs: { L: 0, S: 1, X: 1 }, fzbroc: 150 },
     bolognese: { mince: 200, passata: 280, fzmix: 100, garlic: 5, freshpasta: { L: 50, S: 80, X: 110 }, parm: { L: 0, S: 10, X: 20 } },
-    redcurry: { breast: 200, curry: 15, coco: { L: 70, S: 70, X: 100 }, fzasian: 150, rice: { L: 1 / 3, S: 0.75, X: 1 } },
-    friedrice: { breast: 160, eggs: 2, rice: { L: 1 / 3, S: 0.75, X: 1 }, fzpeas: 60, corn: { L: 0, S: 60, X: 60 }, soy: 40, oyster: 20, sesame: { L: 0, S: 5, X: 5 } },
+    redcurry: { breast: 200, curry: 15, coco: { L: 70, S: 70, X: 100 }, fzasian: 150, rice: { L: 1 / 3, S: 0.5, X: 0.75 } },
+    friedrice: { breast: 160, eggs: 2, rice: { L: 1 / 3, S: 0.5, X: 0.75 }, fzpeas: 60, corn: { L: 0, S: 60, X: 60 }, soy: 40, oyster: 20, sesame: { L: 0, S: 5, X: 5 } },
     snackplate: { eggs: { L: 2, S: 2, X: 3 }, cucumber: 0.5, toms: 50, cheese: { L: 0, S: 20, X: 20 } },
   };
 
