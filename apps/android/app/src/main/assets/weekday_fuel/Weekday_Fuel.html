@@ -780,7 +780,7 @@ function kitchenSave(ev){
   state.kitchenError=null;
   return true;
 }
-const KITCHEN_FREEZE=new Set(["breast","mince"]);
+const KITCHEN_FREEZE=new Set(["breast","mince","freshpasta"]);
 function kitchenLotDate(at){return iso(new Date(at))}
 function kitchenUseBy(lotAt,keeps){const d=parse(kitchenLotDate(lotAt));d.setDate(d.getDate()+keeps);return iso(d)}
 function kitchenAgeLine(id,st,it){
