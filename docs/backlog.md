@@ -30,6 +30,16 @@ Spec `docs/superpowers/specs/2026-10-27-delivery-minimum-design.md`; built in 18
 - Kitchen already has Used it all / Threw it out / Set amount per item, and Add food. Evan said Set amount is enough (no "Used some" box for now).
 - Known side effect of the 2026-10-26 meal rework: eaten past meals now draw down stock with the new recipes (e.g. breast instead of thigh), so breast stock may read low; Evan can fix with Set amount.
 
+## Reminder for Evan: label photos (asked 2026-10-27)
+
+Evan will photograph these nutrition panels later; remind him. Until then the app uses the store data noted.
+- Edgell corn kernels 420g: is the panel drained or as canned?
+- Maesri red curry paste 114g (Woolworths): two conflicting online panels.
+- Gourmet Garden ginger paste 80g: value came from a cached Woolworths page.
+- Tip Top English muffins: Woolworths and Coles panels differ (one is probably out of date).
+- Coles RSPCA chicken breast (if he buys it): no online panel; uses the Woolworths breast label meanwhile.
+- Grenade Cookie Dough bar wrapper: no Australian panel online; the swap is hidden until the photo.
+
 ## In progress: exact macros (raised 2026-10-27)
 
 Spec: `docs/superpowers/specs/2026-10-27-exact-macros-design.md`. No estimates: label or FSANZ values only, per store; meals calculated, not typed; measured extras; unconfirmed prices shown. Also: rice Standard ½ pouch / Loaded ¾; schnitzel Standard 300g mash + gravy, Loaded 400g mash + butter + gravy (the reviewed c34e27b schnitzel Standard figures were wrong: 45g P / 61g C, not 47 / 71). Label research in `docs/research/labels-{a,b,c}.json`. Evan approves a before/after table before release. The 2026-10-26 meal rework (c34e27b) is on main but not released yet; release together.
