@@ -1,12 +1,11 @@
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
-const { PANELS, LEGACY_MACROS } = require("../../main/assets/weekday_fuel/macro-panels.js");
+const { PANELS } = require("../../main/assets/weekday_fuel/macros.js");
 const cat = require("../../main/assets/weekday_fuel/catalogue.js");
-const { MEALS } = require("../../main/assets/weekday_fuel/meals.js");
+const { EXTRA_AMOUNTS } = require("../../main/assets/weekday_fuel/extra-amounts.js");
 const calc = require("../../main/assets/weekday_fuel/meal-calc.js");
 
 const STORES = ["coles", "woolies"];
-const TIERS = ["L", "S", "X"];
 
 function panelValid(p) {
   assert.ok(p.src === "label" || p.src === "fsanz", "src " + p.src);
@@ -29,10 +28,8 @@ test("every panel store has a valid source (no typical)", () => {
   for (const id of Object.keys(PANELS)) {
     for (const sk of Object.keys(PANELS[id])) {
       panelValid(PANELS[id][sk]);
+      assert.notEqual(PANELS[id][sk].src, "typical", id + " " + sk);
     }
-  }
-  for (const id of Object.keys(LEGACY_MACROS)) {
-    assert.notEqual(LEGACY_MACROS[id][5], "typical", id);
   }
 });
 
@@ -50,7 +47,7 @@ test("meal-calc returns macros for a fixture meal at both stores", () => {
   const MC = calc.create({
     panels: PANELS,
     amounts: cat.AMOUNTS,
-    extraAmounts: {},
+    extraAmounts: EXTRA_AMOUNTS,
     item: (id) => cat.item(id),
   });
   const w = MC.portion("toasty", "S", "woolies");

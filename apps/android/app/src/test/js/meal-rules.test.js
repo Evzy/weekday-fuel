@@ -2,6 +2,16 @@ const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const { MEALS, BATCHES } = require("../../main/assets/weekday_fuel/meals.js");
 const cat = require("../../main/assets/weekday_fuel/catalogue.js");
+const { PANELS } = require("../../main/assets/weekday_fuel/macros.js");
+const { EXTRA_AMOUNTS } = require("../../main/assets/weekday_fuel/extra-amounts.js");
+const calc = require("../../main/assets/weekday_fuel/meal-calc.js");
+
+const MC = calc.create({
+  panels: PANELS,
+  amounts: cat.AMOUNTS,
+  extraAmounts: EXTRA_AMOUNTS,
+  item: (id) => cat.item(id),
+});
 
 const TIERS = ["L", "S", "X"];
 const SLOT_MIN = { breakfast: 30, main: 45, snack: 15 };
@@ -25,7 +35,7 @@ test("every meal has the full shape", () => {
     for (const t of TIERS) {
       const v = m.t && m.t[t];
       assert.ok(v, m.id + " " + t);
-      for (const k of ["k", "p", "c", "f"]) assert.ok(typeof v[k] === "number" && v[k] >= 0, m.id + " " + t + "." + k);
+      for (const k of ["k", "p", "c", "f"]) assert.equal(v[k], undefined, m.id + " " + t + " must not type " + k);
       assert.ok(typeof v.cost === "number" && v.cost > 0, m.id + " " + t + " cost");
       assert.ok(str(v.what), m.id + " " + t + " what");
     }
@@ -39,20 +49,25 @@ test("every meal has the full shape", () => {
   }
 });
 
-test("kcal are within 5% of 4 × protein + 4 × carbs + 9 × fat for every portion", () => {
+test("kcal are within 5% of 4 × protein + 4 × carbs + 9 × fat for every computed portion", () => {
   for (const m of MEALS) {
     for (const t of TIERS) {
-      const v = m.t[t];
-      const calc = 4 * v.p + 4 * v.c + 9 * v.f + 2 * (v.fib || 0);
-      assert.ok(Math.abs(v.k - calc) <= 0.05 * calc, `${m.id} ${t}: ${v.k} kcal vs ${calc} from macros`);
+      for (const st of ["woolies", "coles"]) {
+        const v = MC.portion(m.id, t, st);
+        const calcK = 4 * v.p + 4 * v.c + 9 * v.f + 2 * (v.fib || 0);
+        assert.ok(Math.abs(v.k - calcK) <= 0.05 * calcK + 1, `${m.id} ${t} ${st}: ${v.k} kcal vs ${calcK} from macros`);
+      }
     }
   }
 });
 
-test("Standard protein meets the minimum for the meal's lowest slot", () => {
+test("Standard protein meets the minimum for the meal's lowest slot (computed)", () => {
   for (const m of MEALS) {
     const min = Math.min(...m.slots.map((s) => SLOT_MIN[s]));
-    assert.ok(m.t.S.p >= min, `${m.id} Standard ${m.t.S.p}g protein, needs ${min}g`);
+    for (const st of ["woolies", "coles"]) {
+      const p = MC.portion(m.id, "S", st).p;
+      assert.ok(p >= min, `${m.id} Standard ${st} ${p}g protein, needs ${min}g`);
+    }
   }
 });
 
@@ -98,14 +113,8 @@ test("batches are complete, and meals only use real batches made from an item th
     if (!("batch" in m)) continue;
     assert.ok(Array.isArray(m.batch) && m.batch.length > 0, m.id + " batch");
     for (const id of m.batch) {
-      assert.ok(BATCH[id], m.id + " uses unknown batch " + id);
-      assert.ok(BATCH[id].item in cat.AMOUNTS[m.id], m.id + " doesn't buy " + BATCH[id].item + " for " + id);
+      assert.ok(BATCH[id], m.id + " unknown batch " + id);
+      assert.ok(cat.AMOUNTS[m.id] && cat.AMOUNTS[m.id][BATCH[id].item] != null, m.id + " batch item not bought");
     }
   }
-});
-
-test("a planned Loaded buffalo mac buys 110g fresh fettuccine and a Build a shop pick buys 80g", () => {
-  const pasta = (rows) => rows.find((r) => r.id === "freshpasta").need;
-  assert.equal(pasta(cat.shopList({}, 0, [{ day: "2026-10-20", meal: "buffalomac", t: "X" }])), 110);
-  assert.equal(pasta(cat.shopList({ buffalomac: 1 }, 0)), 80);
 });

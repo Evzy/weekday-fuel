@@ -47,7 +47,7 @@
         var t = TIERS[x % 3];
         x = Math.floor(x / 3);
         pick.push(t);
-        var v = ctx.mealMacros(unfixed[j].m.id, t);
+        var v = ctx.mealMacros(unfixed[j].m, t);
         k += v.k;
         p += v.p;
       }

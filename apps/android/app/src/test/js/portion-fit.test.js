@@ -23,7 +23,10 @@ const ctx = {
   mealImpliedAte: () => false,
   isBought: () => false,
   dayUnlocked: () => false,
-  mealMacros: (id, t) => MEAL[id].t[t],
+  mealMacros: (mOrId, t) => {
+    const id = typeof mOrId === "string" ? mOrId : mOrId.id;
+    return MEAL[id].t[t];
+  },
   dayBaseTotals: (day, date, fixedMeals) => baseFromMeals(fixedMeals),
   defaultTarget: () => ({ k: 900, p: 65 }),
 };

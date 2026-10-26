@@ -209,6 +209,8 @@ a.link{text-decoration:none;display:inline-block;color:var(--accent);border-colo
 <script src="portion-fit.js"></script>
 <script src="trend.js"></script>
 <script src="macros.js"></script>
+<script src="extra-amounts.js"></script>
+<script src="meal-calc.js"></script>
 <script src="staples.js"></script>
 <script src="plans.js"></script>
 <script src="specials.js"></script>
@@ -250,6 +252,15 @@ const livePrices=()=>readPrices(PRICES_KEY),colesPrices=()=>readPrices(COLES_PRI
 let PRICED=[];
 function buildCat(){const W=WeekdayFuelCatalogue,lp=livePrices(),cp=colesPrices();let items=W.ITEMS;if(lp)items=W.applyLivePrices(items,lp.prices);if(cp)items=W.applyColesPrices(items,cp.prices);items=WeekdayFuelSpecials.applySwapPrices(items,lp?lp.prices:null,cp?cp.prices:null,W.colesId);PRICED=items;return W.create(items,W.AMOUNTS)}
 let CAT=buildCat();
+let MEAL_CALC=null;
+function initMealCalc(){MEAL_CALC=WeekdayFuelMealCalc.create({panels:WeekdayFuelMacros.PANELS,amounts:WeekdayFuelCatalogue.AMOUNTS,extraAmounts:WeekdayFuelExtraAmounts.EXTRA_AMOUNTS,item:id=>CAT.item(id),defaultStore:store()})}
+initMealCalc();
+function refreshMealCalc(){initMealCalc()}
+function orderStoreForMeal(m){if(!m||typeof m.bought!=="string"||!m.bought)return store();const o=lsOrders().find(x=>x.id===m.bought);return o&&o.store==="coles"?"coles":"woolies"}
+function mealPortion(mealId,tier,mealRef,opts){const st=opts&&opts.store?opts.store:(mealRef?orderStoreForMeal(mealRef):store());return MEAL_CALC.portion(mealId,tier,st,opts||{})}
+function portionMeta(meal,tier,mealRef){const v=mealPortion(meal.id,tier,mealRef);return Object.assign({cost:meal.t[tier].cost,what:meal.t[tier].what},v)}
+function macroCtx(st){return {store:st||store(),stapleMacros:(id,amt,s,swap)=>MEAL_CALC.stapleMacros(id,amt,s||st||store(),swap)}}
+function mealHasTier(meal,t){return !!(meal&&meal.t&&meal.t[t])}
 function pricedItem(id){for(let i=0;i<PRICED.length;i++)if(PRICED[i].id===id)return PRICED[i];return CAT.item(id)}
 const STORES=["coles","woolies"];
 const STORE_NAME={coles:"Coles",woolies:"Woolworths"};
@@ -339,7 +350,7 @@ function staplesToday(){return WeekdayFuelStaples.activeStaples(staplesList(),is
 function staplesRaw(){const p=S().staples;if(p==null)return null;return Array.isArray(p)?p.slice():null}
 function staplesSeedList(){const raw=staplesRaw();return raw==null?WeekdayFuelStaples.DEFAULTS.map(s=>({id:s.id,amount:s.amount,days:s.days})):raw.slice()}
 function staplesPersistParsed(list){state.settings.staples=list.map(s=>{const e={id:s.id,amount:s.amount,days:s.days};if(s.from)e.from=s.from;if(s.until)e.until=s.until;if(s.out===true)e.out=true;return e});saveSettings()}
-function stapleMacroItems(){return CAT.ITEMS.filter(it=>MACROS[it.id])}
+function stapleMacroItems(){return CAT.ITEMS.filter(it=>WeekdayFuelMacros.PANELS[it.id])}
 function stapleDefaultAmount(it){if(!it)return 1;return(it.unit==="g"||it.unit==="mL")?100:1}
 function stapleShortName(it){if(!it)return "";if(it.short)return it.short;const n=it.name.replace(/,.*$/,"").trim();return n.length>14?n.slice(0,14):n}
 function stapleChoiceId(day,stapleId){return day&&day.stapleChoice&&day.stapleChoice[stapleId]}
@@ -348,7 +359,7 @@ function stapleChipText(s,it,on,date,day){
   const pick=stapleChoiceId(day,s.id);
   const swap=pick&&it.swaps?it.swaps.find(sw=>sw.id===pick):null;
   const short=swap&&swap.short?swap.short:stapleShortName(it);
-  const mac=WeekdayFuelStaples.choiceMacros(s.id,s.amount,pick||null,CAT,MACROS);
+  const mac=WeekdayFuelStaples.choiceMacros(s.id,s.amount,pick||null,CAT,macroCtx());
   const k=mac?r0(mac.k):"?";
   let label=short;
   if(it.unit==="g"||it.unit==="mL"){if(s.amount!==1)label=short+" "+s.amount+it.unit}
@@ -363,10 +374,10 @@ function renderStapleChooseBody(stapleId,date){
   const cur=stapleChoiceId(day,stapleId);
   const st=stapleEntryFor(stapleId,date)||staplesActiveOn(date).find(x=>x.id===stapleId);
   const amt=st?st.amount:1;
-  const regMac=WeekdayFuelStaples.macros(stapleId,amt,CAT,MACROS);
+  const regMac=WeekdayFuelStaples.macros(stapleId,amt,CAT,macroCtx());
   const regLabel=stapleShortName(it);
   const row=(swapId,short,chosen)=>{
-    const mac=WeekdayFuelStaples.choiceMacros(stapleId,amt,swapId||null,CAT,MACROS);
+    const mac=WeekdayFuelStaples.choiceMacros(stapleId,amt,swapId||null,CAT,macroCtx());
     const k=mac?r0(mac.k):"?",p=mac?r0(mac.p):"?";
     const mark=chosen?" ✓":"";
     return `<button type="button" class="pick" data-act="staplepick" data-staple="${esc(stapleId)}" data-swap="${swapId?esc(swapId):""}" data-d="${esc(date)}"><span class="grow">${esc(short)}${mark}</span><span class="small num">${k} kcal · ${p}g P</span></button>`;
@@ -769,7 +780,6 @@ const SECTIONS=[
  ["Pantry & freezer (first shop, then occasional)","Most of the flavour comes from these jars, and none of them need the fridge before opening."]
 ];
 
-const MACROS=WeekdayFuelMacros.MACROS;
 const DEFAULT_SETTINGS={
   mode:"recomp",
   kcal:{cut:2150,recomp:2500,bulk:2800},
@@ -914,7 +924,7 @@ function onPrices(m){
   if(m.type==="pricesDone"&&goodAt(m.at)&&m.prices&&typeof m.prices==="object"){
     const old=livePrices();
     try{if(!restoring)localStorage.setItem(PRICES_KEY,JSON.stringify({at:m.at,prices:Object.assign({},old&&old.prices,m.prices)}));state.prices=null}catch(e){state.prices="error"}
-    CAT=buildCat();
+    CAT=buildCat();refreshMealCalc();
   }else state.prices="error";
 }
 function onColesPrices(m){
@@ -922,7 +932,7 @@ function onColesPrices(m){
     const old=colesPrices(),s=m.store&&typeof m.store==="object"?m.store:{};
     const store={id:typeof s.id==="string"?s.id:null,name:typeof s.name==="string"&&s.name?s.name:null};
     try{if(!restoring)localStorage.setItem(COLES_PRICES_KEY,JSON.stringify({at:m.at,store,prices:Object.assign({},old&&old.prices,m.prices)}));state.colesPrices=null}catch(e){state.colesPrices="error"}
-    CAT=buildCat();
+    CAT=buildCat();refreshMealCalc();
   }else state.colesPrices="error";
 }
 
@@ -1003,13 +1013,13 @@ function totals(day,date){
   if(date){
     staplesOn(date,day).forEach(s=>{
       const pick=stapleChoiceId(day,s.id);
-      const m=WeekdayFuelStaples.choiceMacros(s.id,s.amount,pick||null,CAT,MACROS);
+      const m=WeekdayFuelStaples.choiceMacros(s.id,s.amount,pick||null,CAT,macroCtx());
       if(m){t.k+=m.k;t.p+=m.p;t.c+=m.c;t.f+=m.f}
       const c=WeekdayFuelStaples.cost(s.id,s.amount,CAT,store());
       if(c!=null)t.cost+=c;
     });
   }
-  (day.meals||[]).forEach(m=>{const meal=MEAL[m.id];if(!meal)return;const x=meal.t[m.t];t.k+=x.k;t.p+=x.p;t.c+=x.c;t.f+=x.f;t.cost+=mealCosts(meal)[m.t]});
+  (day.meals||[]).forEach(m=>{const meal=MEAL[m.id];if(!meal)return;const x=mealPortion(m.id,m.t,m);t.k+=x.k;t.p+=x.p;t.c+=x.c;t.f+=x.f;t.cost+=mealCosts(meal)[m.t]});
   (day.extras||[]).forEach(x=>{t.k+=+x.k||0;t.p+=+x.p||0});
   return t;
 }
@@ -1096,7 +1106,7 @@ function renderStapleChipsEveryDay(){
 }
 function renderWeekMealLine(m,i,date){
   const meal=MEAL[m.id];if(!meal)return "";
-  const v=meal.t[m.t];
+  const v=mealPortion(m.id,m.t,m);
   let tags="";
   if(m.logged)tags+=` · <span class="tag">Logged</span>`;
   else if(WeekdayFuelBought.isBought(m))tags+=` · <span class="tag ok">Bought</span>`;
@@ -1111,7 +1121,7 @@ function boughtShopLabel(meals){
   return "Bought";
 }
 function clearUnboughtSkipMealKeys(){if(!lsSent()&&!lsColesSent())return null;const keys=sentMealKeysUnion();return keys.length?keys:null}
-function portionFitCtx(){return {mealKnown:id=>!!MEAL[id],mealImpliedAte:(m,date)=>mealImpliedAte(m,date),isBought:m=>WeekdayFuelBought.isBought(m),dayUnlocked:date=>dayUnlocked(date),mealMacros:(id,t)=>MEAL[id].t[t],dayBaseTotals:(day,date,fixedMeals)=>totals({fx:day.fx,meals:fixedMeals,extras:day.extras,stapleChoice:day.stapleChoice},date),defaultTarget:date=>gapTargetOn(date,state.days)}}
+function portionFitCtx(){return {mealKnown:id=>!!MEAL[id],mealImpliedAte:(m,date)=>mealImpliedAte(m,date),isBought:m=>WeekdayFuelBought.isBought(m),dayUnlocked:date=>dayUnlocked(date),mealMacros:(mOrId,t)=>{const id=typeof mOrId==="string"?mOrId:mOrId.id;const ref=typeof mOrId==="object"?mOrId:null;return mealPortion(id,t,ref)},dayBaseTotals:(day,date,fixedMeals)=>totals({fx:day.fx,meals:fixedMeals,extras:day.extras,stapleChoice:day.stapleChoice},date),defaultTarget:date=>gapTargetOn(date,state.days)}}
 function clearDayTierBy(day){(day.meals||[]).forEach(m=>{if(m&&m.tierBy)delete m.tierBy})}
 function applyPortionPlan(day,plan,clearTierByOnChange){
   const changed=[];
@@ -1347,7 +1357,7 @@ function buildGapOptions(today){
   if(!meta)return [];
   const opts=[];
   if(meta.shortfall){
-    WeekdayFuelGap.snackOptions({free:gapKitchenFree(),macrosFor:(id,amount)=>{const pick=stapleChoiceId(day,id);const m=WeekdayFuelStaples.choiceMacros(id,amount,pick||null,CAT,MACROS);return m?{k:Math.round(m.k),p:Math.round(m.p*10)/10}:null},total:{k:t.k,p:t.p},target:tg}).forEach(o=>{
+    WeekdayFuelGap.snackOptions({free:gapKitchenFree(),macrosFor:(id,amount)=>{const pick=stapleChoiceId(day,id);const m=WeekdayFuelStaples.choiceMacros(id,amount,pick||null,CAT,macroCtx());return m?{k:Math.round(m.k),p:Math.round(m.p*10)/10}:null},total:{k:t.k,p:t.p},target:tg}).forEach(o=>{
       opts.push({type:"snack",label:o.snack.label,after:o.after,snack:o.snack,k:o.k,p:o.p});
     });
     const dates=gapSpreadDates(today);
@@ -1599,7 +1609,7 @@ function logMealSlotOptions(meal){
 function renderLogMealList(){
   const f=state.logFilter;
   const filt=m=>f==="all"||(f==="breakfast"&&m.slots.includes("breakfast"))||(f==="main"&&m.slots.includes("main"))||(f==="snack"&&m.slots.includes("snack"));
-  const row=m=>`<button type="button" class="pick" data-act="logpick" data-v="${esc(m.id)}"><span><b>${esc(m.name)}</b><br><span class="small muted">${esc(m.cuisine)} · ${m.mins} min</span></span><span class="num">${m.t.L.k}–${m.t.X.k} kcal<br>${m.t.L.p}–${m.t.X.p}g P</span></button>`;
+  const row=m=>{const rL=mealPortion(m.id,"L"),rX=mealPortion(m.id,"X");return `<button type="button" class="pick" data-act="logpick" data-v="${esc(m.id)}"><span><b>${esc(m.name)}</b><br><span class="small muted">${esc(m.cuisine)} · ${m.mins} min</span></span><span class="num">${rL.k}–${rX.k} kcal<br>${rL.p}–${rX.p}g P</span></button>`};
   return `<div class="chips">${[["all","All"],["breakfast","Breakfast"],["main","Lunch & dinner"],["snack","Snacks"]].map(([k,l])=>`<button type="button" class="chip" aria-pressed="${f===k}" data-act="logmf" data-v="${k}">${l}</button>`).join("")}</div><div class="picker stack" style="gap:6px">${MEALS.filter(filt).map(row).join("")}</div>`;
 }
 function renderLogMealConfigure(id){
@@ -1609,7 +1619,7 @@ function renderLogMealConfigure(id){
   const slots=logMealSlotOptions(meal);
   let slot=pick.slot;
   if(!slot||!slots.includes(slot))slot=WeekdayFuelCartAdd.naturalSlot(meal,meals);
-  const t=pick.t&&meal.t[pick.t]?pick.t:"S";
+  const t=pick.t&&mealHasTier(meal,pick.t)?pick.t:"S";
   const slotDial=`<div class="dial" role="group" aria-label="Slot">${slots.map(sl=>`<button type="button" aria-pressed="${slot===sl}" data-act="logslot" data-v="${esc(sl)}">${esc(addSlotLabel(sl))}</button>`).join("")}</div>`;
   const tierDial=`<div class="dial" role="group" aria-label="Portion">${TIERS.map(([k,l])=>`<button type="button" aria-pressed="${t===k}" data-act="logtier" data-v="${k}">${l}</button>`).join("")}</div>`;
   const repl=WeekdayFuelCartAdd.logReplaceIndexes(meals,slot,WeekdayFuelBought.isBought);
@@ -1623,7 +1633,7 @@ function doLogMeal(){
   const slots=logMealSlotOptions(meal);
   let slot=pick.slot;
   if(!slot||!slots.includes(slot))slot=WeekdayFuelCartAdd.naturalSlot(meal,old);
-  const t=pick.t&&meal.t[pick.t]?pick.t:"S";
+  const t=pick.t&&mealHasTier(meal,pick.t)?pick.t:"S";
   const replace=Object.keys(pick.replace||{}).filter(k=>pick.replace[k]).map(k=>({index:+k,id:pick.replace[k]}));
   const r=WeekdayFuelCartAdd.logMeal(old,{id:pick.id,slot,t,replace,isBought:WeekdayFuelBought.isBought},new Date().toISOString());
   day.meals=r.meals;
@@ -1652,7 +1662,7 @@ function renderWeekAddPicker(date){
       (groups[cap]=groups[cap]||[]).push(m);
     }
   });
-  const row=m=>`<button type="button" class="pick" data-act="weekaddpick" data-v="${esc(m.id)}" data-d="${esc(date)}"><span><b>${esc(m.name)}</b><br><span class="small muted">${esc(m.cuisine)} · ${m.mins} min</span></span><span class="num">${m.t.L.k}–${m.t.X.k} kcal<br>${m.t.L.p}–${m.t.X.p}g P</span></button>`;
+  const row=m=>{const rL=mealPortion(m.id,"L"),rX=mealPortion(m.id,"X");return `<button type="button" class="pick" data-act="weekaddpick" data-v="${esc(m.id)}" data-d="${esc(date)}"><span><b>${esc(m.name)}</b><br><span class="small muted">${esc(m.cuisine)} · ${m.mins} min</span></span><span class="num">${rL.k}–${rX.k} kcal<br>${rL.p}–${rX.p}g P</span></button>`};
   let h="";
   if(empty.length)h+=`<div class="stack" style="gap:6px"><div class="eyebrow">Fits an empty slot</div><div class="picker">${empty.map(row).join("")}</div></div>`;
   Object.keys(groups).sort().forEach(cap=>{h+=`<div class="stack" style="gap:6px"><div class="eyebrow">${esc(cap)} · slot taken</div><div class="picker">${groups[cap].map(row).join("")}</div></div>`});
@@ -1674,7 +1684,7 @@ function renderMealSheetBody(date,i){
   const locked=mealLocked(m,date);
   const dd=` data-d="${esc(date)}"`;
   const inCart=date>=iso(new Date());
-  const v=meal.t[m.t];
+  const v=mealPortion(m.id,m.t,m);
   const tg=target(date);
   const dt=totals(day,date);
   const tierDial=locked?"":`<div class="dial" role="group" aria-label="Portion">${TIERS.map(([k,l])=>`<button type="button" aria-pressed="${m.t===k}" data-act="tier" data-i="${i}" data-v="${k}"${dd}>${l}</button>`).join("")}</div>`;
@@ -2010,9 +2020,9 @@ function mealCosts(m){
 }
 function tierTable(m){
   const mc=mealCosts(m);
-  return `<div class="tblwrap"><table class="tiers"><thead><tr><th>Portion</th><th>kcal</th><th>P</th><th>C</th><th>F</th><th>Cost</th></tr></thead><tbody>${TIERS.map(([k,l])=>{const v=m.t[k];return `<tr><td>${l}<small>${esc(v.what)}</small></td><td>${v.k}</td><td>${v.p}</td><td>${v.c}</td><td>${v.f}</td><td>${money(mc[k])}</td></tr>`}).join("")}</tbody></table></div>`;
+  return `<div class="tblwrap"><table class="tiers"><thead><tr><th>Portion</th><th>kcal</th><th>P</th><th>C</th><th>F</th><th>Cost</th></tr></thead><tbody>${TIERS.map(([k,l])=>{const meta=portionMeta(m,k);return `<tr><td>${l}<small>${esc(meta.what)}</small></td><td>${meta.k}</td><td>${meta.p}</td><td>${meta.c}</td><td>${meta.f}</td><td>${money(mc[k])}</td></tr>`}).join("")}</tbody></table></div>`;
 }
-function mealMacroRange(m){return `${m.t.L.k}–${m.t.X.k} kcal · ${m.t.L.p}–${m.t.X.p} g protein`}
+function mealMacroRange(m){const rL=mealPortion(m.id,"L"),rX=mealPortion(m.id,"X");return `${rL.k}–${rX.k} kcal · ${rL.p}–${rX.p} g protein`}
 function mealCard(m,full,tier){
   const tr=tier||"S";
   const head=`<div class="row between" style="align-items:flex-start"><div class="grow"><div class="row" style="gap:6px;margin-bottom:4px"><span class="tag">${esc(m.cuisine)}</span><span class="tag">${m.mins} min</span><span class="tag">${esc(PREP_LABEL[m.prep]||"")}</span>${m.remake?`<span class="tag remake">Remake</span>`:""}</div><h3>${esc(m.name)}</h3><div class="small muted">Fixed protein core: ${esc(m.core)}</div>${full?"":`<div class="small muted num" style="margin-top:4px">${mealMacroRange(m)}</div>`}</div>${full?"":`<div class="row" style="gap:6px;flex-shrink:0"><button class="btn alt" data-act="addmeal" data-v="${esc(m.id)}">Add</button><button class="ghost" data-act="recipe" data-v="${esc(m.id)}">Recipe</button></div>`}</div>`;
@@ -2098,15 +2108,28 @@ function shopLineBuyExtra(line,unit){
   const leftover=line.leftover>0?` · ${esc(shopAmountFmt(line.leftover,unit))} left over`:"";
   return {buy,leftover};
 }
-function macroLine(id){const m=MACROS[id];if(!m)return "";return `<span class="mac num">Per ${m[4]}: ${m[0]} kcal · ${m[1]}g P · ${m[2]}g C · ${m[3]}g F <span class="src">${m[5]==="label"?"from the label":"typical, check the pack"}</span>${m[6]?`<br>${esc(m[6])}`:""}</span>`}
+function macroLine(id,st){
+  const panels=WeekdayFuelMacros.PANELS[id];if(!panels)return "";
+  st=st||store();
+  const p=MEAL_CALC.panelForItem(id,st)||panels.woolies||panels.coles||panels.any;if(!p)return "";
+  const per=p.per==="100mL"?"100 mL":"100 g";
+  const src=p.src==="label"?"from the label":p.src==="fsanz"?"FSANZ database":"";
+  const note=p.note||p.product||p.name||"";
+  return `<span class="mac num">Per ${per}: ${p.k} kcal · ${p.p}g P · ${p.c}g C · ${p.f}g F <span class="src">${src}</span>${note?`<br>${esc(note)}`:""}</span>`}
 function storePrice(s,price){return price!=null?`<span class="sp ${s}">${STORE_NAME[s]} ${money(price)}</span>`:`<span class="sp ${s} none">Not at ${STORE_NAME[s]}</span>`}
 const wasNote=p=>p&&p.was?`<span class="was">Special, was ${money(p.was)}${p.perKg?"/kg":""}</span>`:"";
 const unavailable=(it,s)=>s==="woolies"?it.wooliesUnavailable:it.colesUnavailable;
 const noProduct=(it,s)=>unavailable(it,s)?esc(unavailable(it,s).name)+" · unavailable online now":"Not at "+STORE_NAME[s];
 /* prices: {coles, woolies} dollars to show per store, or null where that store has none */
+function priceUnconfirmed(p){return !!(p&&p.unconfirmed)}
+function formatStorePrice(p,price){
+  if(price==null)return "";
+  const tag=priceUnconfirmed(p)?` <span class="muted">· price not confirmed</span>`:"";
+  return `<span class="p">${money(price)}${tag}</span>`;
+}
 function productsBlock(it,prices,pr){
-  if(it.same&&pr.coles&&pr.woolies)return `<span>${esc(pr.woolies.name)}</span><span class="prices">${STORES.map(s=>storePrice(s,prices[s])+wasNote(pr[s])).join("")}</span>`;
-  return STORES.map(s=>`<span class="pl ${s}"><span class="grow">${pr[s]?esc(pr[s].name):noProduct(it,s)}${wasNote(pr[s])}</span>${prices[s]!=null?`<span class="p">${money(prices[s])}</span>`:""}</span>`).join("");
+  if(it.same&&pr.coles&&pr.woolies)return `<span>${esc(pr.woolies.name)}</span><span class="prices">${STORES.map(s=>storePrice(s,prices[s])+wasNote(pr[s])+(priceUnconfirmed(pr[s])?` <span class="muted">· price not confirmed</span>`:"")).join("")}</span>`;
+  return STORES.map(s=>`<span class="pl ${s}"><span class="grow">${pr[s]?esc(pr[s].name):noProduct(it,s)}${wasNote(pr[s])}</span>${formatStorePrice(pr[s],prices[s])}</span>`).join("");
 }
 function productLinks(it,pr){
   return `<div class="stack" style="gap:6px;margin-top:8px">${STORES.map(s=>{const p=pr[s]||unavailable(it,s);return p?`<a class="ghost link ${s}" href="${esc(p.url)}" target="_blank" rel="noopener">${STORE_NAME[s]} product page ↗</a>`:`<span class="small muted">Not at ${STORE_NAME[s]}</span>`}).join("")}</div>`;
@@ -2134,7 +2157,7 @@ const macroDelta=n=>n>=0?`+${n}`:`−${Math.abs(n)}`;
 function swapDetailBlock(it){
   if(!it||!it.swaps||!it.swaps.length)return "";
   const st=store(),muted=mutedSwaps(),ch=lsSpecials()[it.id],reset=WeekdayFuelSpecials.hasAnyKeep(ch)?`<button class="ghost" data-act="swapreset" data-v="${esc(it.id)}">Show specials again</button>`:"";
-  return `<div class="eyebrow" style="margin-top:8px">Swaps when on special</div>${it.swaps.map(s=>{const p=s[st],on=muted.indexOf(it.id+":"+s.id)>=0;let price=!p?`Not at ${STORE_NAME[st]}`:!p.live?"price not checked":money(p.price)+(p.special&&p.was?` · Special, was ${money(p.was)}`:p.special?" · Special":"");return `<div class="small" style="margin-top:6px"><b>${esc(s.name)}</b> · ${price}<br>${s.per.k} kcal · ${s.per.p}g protein per serve<br><button class="ghost" data-act="swapmute" data-v="${esc(it.id+":"+s.id)}" aria-pressed="${on}">${on?"Suggest again":"Don't suggest"}</button></div>`}).join("")}${reset?`<div style="margin-top:6px">${reset}</div>`:""}`;
+  return `<div class="eyebrow" style="margin-top:8px">Swaps when on special</div>${it.swaps.filter(s=>!s.hidden).map(s=>{const p=s[st],on=muted.indexOf(it.id+":"+s.id)>=0;let price=!p?`Not at ${STORE_NAME[st]}`:!p.live?"price not checked":money(p.price)+(p.unconfirmed?" · price not confirmed":"")+(p.special&&p.was?` · Special, was ${money(p.was)}`:p.special?" · Special":"");return `<div class="small" style="margin-top:6px"><b>${esc(s.name)}</b> · ${price}<br>${s.per.k} kcal · ${s.per.p}g protein per serve<br><button class="ghost" data-act="swapmute" data-v="${esc(it.id+":"+s.id)}" aria-pressed="${on}">${on?"Suggest again":"Don't suggest"}</button></div>`}).join("")}${reset?`<div style="margin-top:6px">${reset}</div>`:""}`;
 }
 function shopRowSpecialHtml(r,st){
   const it=pricedItem(r.id);if(!it)return "";
@@ -2732,7 +2755,7 @@ document.addEventListener("click",e=>{
 
     case "leaveout":{const ld=el.dataset.d||v;const day=ensureDay(ld);(day.meals||[]).forEach(m=>{if(!WeekdayFuelBought.isBought(m))m.shop=false});saveDay(ld);state.sheet=null;shopCtx=null;break}
     case "topupadd":{if(trolleyBusy())break;const list=state._topupSuggestions||[],s=list[+el.dataset.i];if(!s||s.kind!==el.dataset.kind)break;if(s.kind==="day")applyTopupPlanDay(s.date,s.meals);else if(s.kind==="staples"&&s.until){state.settings.shopStapleAhead={until:s.until};state.settings.shopTopupUsed=true;saveSettings();shopCtx=null}break}
-    case "store":if(trolleyBusy())break;state.settings.store=v;saveSettings();if(state.trolley&&state.trolley.store!==v)state.trolley=null;break;
+    case "store":if(trolleyBusy())break;state.settings.store=v;saveSettings();refreshMealCalc();if(state.trolley&&state.trolley.store!==v)state.trolley=null;break;
     case "refreshprices":refreshPrices();break;
     case "clearpicks":state.settings.trial={};saveSettings();break;
     case "swapuse":{const [id,sid]=v.split(":");const c=lsSpecials();c[id]={use:sid,useStore:store()};lsSetSpecials(c);shopCtx=null;break}
@@ -2795,7 +2818,7 @@ document.addEventListener("submit",e=>{
     const amt=draft&&draft.amount;
     const days=draft&&draft.days==="all"?"all":"weekdays";
     const today=iso(new Date());
-    if(!id||!MACROS[id]||!CAT.item(id)){return}
+    if(!id||!WeekdayFuelMacros.PANELS[id]||!CAT.item(id)){return}
     if(!isFinite(amt)||!(amt>0)){state.stapleSheetError="Enter an amount above 0";$("#stap-amt")&&$("#stap-amt").focus();render();return}
     state.stapleSheetError=null;
     const seed=staplesSeedList();

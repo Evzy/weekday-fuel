@@ -236,45 +236,19 @@
     return null;
   }
 
-  function choiceMacros(id, amount, swapId, cat, macroTable) {
+  function choiceMacros(id, amount, swapId, cat, macroCtx) {
     var it = cat && typeof cat.item === "function" ? cat.item(id) : null;
     if (!it || !(amount > 0)) return null;
-    if (!swapId) return macros(id, amount, cat, macroTable);
-    var swap = findSwap(it, swapId);
-    if (!swap || !swap.per) return macros(id, amount, cat, macroTable);
-    var base = macros(id, amount, cat, macroTable);
-    if (!base) return null;
-    var per = swap.per;
-    var k = round2(per.k * amount);
-    var p = round2(per.p * amount);
-    var c;
-    var f;
-    if (per.c != null && isFinite(per.c)) c = round2(per.c * amount);
-    else if (base.c != null && base.k > 0) c = round2(base.c * (k / base.k));
-    else c = base.c;
-    if (per.f != null && isFinite(per.f)) f = round2(per.f * amount);
-    else if (base.f != null && base.k > 0) f = round2(base.f * (k / base.k));
-    else f = base.f;
-    return { k: k, p: p, c: c, f: f };
+    var calc = macroCtx && macroCtx.stapleMacros;
+    if (typeof calc !== "function") return null;
+    var store = macroCtx.store === "coles" ? "coles" : "woolies";
+    var swap = swapId ? findSwap(it, swapId) : null;
+    if (swapId && (!swap || !swap.per)) return calc(id, amount, store, null);
+    return calc(id, amount, store, swap);
   }
 
-  function macros(id, amount, cat, macroTable) {
-    var row = macroTable && macroTable[id];
-    var it = cat && typeof cat.item === "function" ? cat.item(id) : null;
-    if (!row || !it || !(amount > 0)) return null;
-    var mass;
-    if (isMassUnit(it.unit)) {
-      mass = amount;
-    } else {
-      if (!(it.unitSize > 0)) return null;
-      mass = amount * it.unitSize;
-    }
-    return {
-      k: round2((mass / 100) * row[0]),
-      p: round2((mass / 100) * row[1]),
-      c: round2((mass / 100) * row[2]),
-      f: round2((mass / 100) * row[3]),
-    };
+  function macros(id, amount, cat, macroCtx) {
+    return choiceMacros(id, amount, null, cat, macroCtx);
   }
 
   function lineCost(product, amount) {

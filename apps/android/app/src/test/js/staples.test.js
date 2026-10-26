@@ -3,7 +3,10 @@ const assert = require("node:assert/strict");
 const S = require("../../main/assets/weekday_fuel/staples.js");
 const cat = require("../../main/assets/weekday_fuel/catalogue.js");
 const I = require("../../main/assets/weekday_fuel/inventory.js");
-const { MACROS } = require("../../main/assets/weekday_fuel/macros.js");
+const { PANELS } = require("../../main/assets/weekday_fuel/macros.js");
+const calc = require("../../main/assets/weekday_fuel/meal-calc.js");
+const MC = calc.create({ panels: PANELS, amounts: cat.AMOUNTS, extraAmounts: {}, item: (id) => cat.item(id) });
+const macroCtx = (store) => ({ store: store || "woolies", stapleMacros: (id, amt, st, swap) => MC.stapleMacros(id, amt, st || store || "woolies", swap) });
 
 const staple = (id, amount, days, extra) => Object.assign({ id, amount, days: days || "weekdays" }, extra || {});
 
@@ -69,20 +72,20 @@ test("forDay lists staples on for that date", () => {
 });
 
 test("macros for counted and mass units", () => {
-  const dare = S.macros("dare", 1, cat, MACROS);
+  const dare = S.macros("dare", 1, cat, macroCtx());
   assert.ok(dare);
-  assert.equal(dare.k, 295);
+  assert.equal(dare.k, 296.5);
   assert.equal(dare.p, 30);
-  const yog = S.macros("yog", 170, cat, MACROS);
-  assert.equal(yog.k, 95.2);
-  assert.equal(S.macros("nope", 1, cat, MACROS), null);
+  const yog = S.macros("yog", 170, cat, macroCtx());
+  assert.equal(yog.k, 95);
+  assert.equal(S.macros("nope", 1, cat, macroCtx()), null);
 });
 
 test("macros null when counted item has no unitSize", () => {
   const fake = {
     item: (id) => (id === "x" ? { id: "x", unit: "bars" } : cat.item(id)),
   };
-  assert.equal(S.macros("x", 1, fake, { x: [100, 10, 10, 5] }), null);
+  assert.equal(S.macros("x", 1, fake, macroCtx()), null);
 });
 
 test("cost uses store pack price with fallback", () => {
@@ -177,8 +180,8 @@ test("editing amount keeps old days at the old amount", () => {
 
 test("day totals for past dates unchanged after edits", () => {
   const list = S.applyEdit(S.DEFAULTS, "dare", { amount: 2, days: "weekdays" }, "2026-10-19", cat);
-  const kOld = S.forDay(list, "2026-10-17", {}).reduce((a, s) => a + S.macros(s.id, s.amount, cat, MACROS).k, 0);
-  const kPast = S.forDay(S.parse(S.DEFAULTS, cat), "2026-10-17", {}).reduce((a, s) => a + S.macros(s.id, s.amount, cat, MACROS).k, 0);
+  const kOld = S.forDay(list, "2026-10-17", {}).reduce((a, s) => a + S.macros(s.id, s.amount, cat, macroCtx()).k, 0);
+  const kPast = S.forDay(S.parse(S.DEFAULTS, cat), "2026-10-17", {}).reduce((a, s) => a + S.macros(s.id, s.amount, cat, macroCtx()).k, 0);
   assert.equal(kOld, kPast);
 });
 
@@ -222,17 +225,17 @@ test("needs skips out staples", () => {
 });
 
 test("choiceMacros uses swap per times amount with c/f fallback", () => {
-  const dare750 = S.choiceMacros("dare", 1, "dare-750", cat, MACROS);
+  const dare750 = S.choiceMacros("dare", 1, "dare-750", cat, macroCtx());
   assert.equal(dare750.k, 444);
   assert.equal(dare750.p, 45);
   assert.equal(dare750.c, 38.3);
   assert.equal(dare750.f, 12);
-  const base = S.macros("dare", 1, cat, MACROS);
-  const mocha = S.choiceMacros("dare", 1, "dare-mocha", cat, MACROS);
+  const base = S.macros("dare", 1, cat, macroCtx());
+  const mocha = S.choiceMacros("dare", 1, "dare-mocha", cat, macroCtx());
   assert.equal(mocha.k, 292);
   assert.ok(Math.abs(mocha.c - base.c * (292 / base.k)) < 0.05);
-  assert.equal(S.choiceMacros("dare", 1, "nope", cat, MACROS).k, base.k);
-  const two = S.choiceMacros("dare", 2, "dare-750", cat, MACROS);
+  assert.equal(S.choiceMacros("dare", 1, "nope", cat, macroCtx()).k, base.k);
+  const two = S.choiceMacros("dare", 2, "dare-750", cat, macroCtx());
   assert.equal(two.k, 888);
   assert.equal(two.p, 90);
 });
