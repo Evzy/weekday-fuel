@@ -64,6 +64,112 @@
     return null;
   }
 
+  function shopSpanLast(cartDays, spanDatesFn) {
+    if (!cartDays || !cartDays.length || typeof spanDatesFn !== "function") return null;
+    var span = spanDatesFn(cartDays);
+    return span.length ? span[span.length - 1] : null;
+  }
+
+  function stapleSpanDatesForUntil(cartDays, until, spanDatesFn, step) {
+    if (!cartDays || !cartDays.length || typeof spanDatesFn !== "function") return [];
+    var base = spanDatesFn(cartDays);
+    if (!base.length) return [];
+    if (!until || !DATE.test(until)) return base;
+    var last = base[base.length - 1];
+    if (compareDate(until, last) <= 0) return base;
+    var out = base.slice();
+    var d = step(last, 1);
+    while (compareDate(d, until) <= 0) {
+      out.push(d);
+      d = step(d, 1);
+    }
+    return out;
+  }
+
+  function legacyUntilFromAhead(cartDays, aheadN, anchorDay, spanDatesFn, step) {
+    if (!aheadN || !cartDays || !cartDays.length) return null;
+    if (anchorDay && DATE.test(anchorDay)) {
+      var anchored = spanDatesIncludingAhead([anchorDay], aheadN, spanDatesFn, step);
+      return anchored.length ? anchored[anchored.length - 1] : null;
+    }
+    var span = spanDatesIncludingAhead(cartDays, aheadN, spanDatesFn, step);
+    return span.length ? span[span.length - 1] : null;
+  }
+
+  function readShopStapleUntil(raw, cartDays, today, spanDatesFn, step) {
+    if (raw == null || !cartDays || !cartDays.length) return null;
+    var until = null;
+    if (typeof raw === "object" && raw.until && DATE.test(raw.until)) until = raw.until;
+    else if (typeof raw === "number") until = legacyUntilFromAhead(cartDays, raw, null, spanDatesFn, step);
+    else if (typeof raw === "object" && raw.n) {
+      until = legacyUntilFromAhead(cartDays, raw.n, raw.after, spanDatesFn, step);
+    }
+    if (!until || !DATE.test(until)) return null;
+    if (today && DATE.test(today) && compareDate(until, today) < 0) return null;
+    return until;
+  }
+
+  function countStapleActiveDays(fromDate, toDate, isActive, step) {
+    if (!fromDate || !toDate || typeof isActive !== "function") return 0;
+    if (compareDate(fromDate, toDate) > 0) return 0;
+    var n = 0;
+    var d = fromDate;
+    while (compareDate(d, toDate) <= 0) {
+      if (isActive(d)) n++;
+      d = step(d, 1);
+    }
+    return n;
+  }
+
+  function extraStapleActiveDaysAfterShop(shopEnd, until, isActive, step) {
+    if (!shopEnd || !until || compareDate(until, shopEnd) <= 0) return 0;
+    return countStapleActiveDays(step(shopEnd, 1), until, isActive, step);
+  }
+
+  function untilAfterStapleActiveDays(shopEnd, n, isActive, step, maxLook) {
+    if (!shopEnd || !(n > 0) || typeof isActive !== "function") return null;
+    var max = maxLook == null ? 120 : maxLook;
+    var d = step(shopEnd, 1);
+    var count = 0;
+    var i;
+    for (i = 0; i < max; i++) {
+      if (isActive(d)) {
+        count++;
+        if (count === n) return d;
+      }
+      d = step(d, 1);
+    }
+    return null;
+  }
+
+  function targetUntilAddingStapleDays(shopEnd, currentUntil, addN, isActive, step) {
+    if (!shopEnd || !(addN > 0)) return null;
+    var extra = extraStapleActiveDaysAfterShop(shopEnd, currentUntil, isActive, step);
+    return untilAfterStapleActiveDays(shopEnd, extra + addN, isActive, step);
+  }
+
+  function stapleNeedsTotalDelta(beforeNeeds, afterNeeds) {
+    var sum = function (m) {
+      var t = 0;
+      Object.keys(m || {}).forEach(function (k) {
+        t += m[k] || 0;
+      });
+      return t;
+    };
+    return storeTotalDelta(sum(beforeNeeds), sum(afterNeeds));
+  }
+
+  function planDayStapleNeedsDelta(cartDays, planDate, until, staples, daysMap, spanDatesFn, step, needsFn) {
+    if (!staples || typeof spanDatesFn !== "function") return 0;
+    var needs =
+      needsFn || (root.WeekdayFuelStaples && root.WeekdayFuelStaples.needs);
+    var before = stapleSpanDatesForUntil(cartDays, until, spanDatesFn, step);
+    var afterCart = cartDaysWithPlanDay(cartDays, planDate);
+    var after = stapleSpanDatesForUntil(afterCart, until, spanDatesFn, step);
+    if (typeof needs !== "function") return after.length - before.length;
+    return stapleNeedsTotalDelta(needs(staples, before, daysMap || {}), needs(staples, after, daysMap || {}));
+  }
+
   function cartDaysWithPlanDay(cartDays, planDate) {
     var cart = (cartDays || []).slice().filter(function (d) {
       return DATE.test(d);
@@ -73,14 +179,14 @@
     return cart;
   }
 
-  function stapleSpanExtraFromPlanDay(cartDays, planDate, aheadN, spanDatesFn, step) {
+  function stapleSpanExtraFromPlanDay(cartDays, planDate, until, spanDatesFn, step) {
     var fn = spanDatesFn || function (d) {
       return d;
     };
     var st = step || addDays;
-    var before = spanDatesIncludingAhead(cartDays, aheadN || 0, fn, st);
+    var before = stapleSpanDatesForUntil(cartDays, until, fn, st);
     var afterCart = cartDaysWithPlanDay(cartDays, planDate);
-    var after = spanDatesIncludingAhead(afterCart, aheadN || 0, fn, st);
+    var after = stapleSpanDatesForUntil(afterCart, until, fn, st);
     var set = Object.create(null);
     before.forEach(function (d) {
       set[d] = true;
@@ -157,6 +263,16 @@
     isWeekday: isWeekday,
     gapToMin: gapToMin,
     nextPlanDay: nextPlanDay,
+    shopSpanLast: shopSpanLast,
+    stapleSpanDatesForUntil: stapleSpanDatesForUntil,
+    legacyUntilFromAhead: legacyUntilFromAhead,
+    readShopStapleUntil: readShopStapleUntil,
+    countStapleActiveDays: countStapleActiveDays,
+    extraStapleActiveDaysAfterShop: extraStapleActiveDaysAfterShop,
+    untilAfterStapleActiveDays: untilAfterStapleActiveDays,
+    targetUntilAddingStapleDays: targetUntilAddingStapleDays,
+    stapleNeedsTotalDelta: stapleNeedsTotalDelta,
+    planDayStapleNeedsDelta: planDayStapleNeedsDelta,
     cartDaysWithPlanDay: cartDaysWithPlanDay,
     stapleSpanExtraFromPlanDay: stapleSpanExtraFromPlanDay,
     extraStapleDates: extraStapleDates,

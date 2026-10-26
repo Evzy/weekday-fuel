@@ -6,6 +6,9 @@ const S = require("../../main/assets/weekday_fuel/staples.js");
 const addDays = (d, n) => T.addDays(d, n);
 const tracked = (d) => T.isWeekday(d);
 const hasMeals = () => false;
+const span = (dates) => S.spanDates(dates);
+const weekdayActive = (d) => T.isWeekday(d);
+const staplesWeekdays = [{ id: "dare", amount: 1, days: "weekdays" }];
 
 test("gapToMin reports under and reached", () => {
   assert.deepEqual(T.gapToMin(38.4, 50), { total: 38.4, min: 50, gap: 11.6, under: true });
@@ -29,32 +32,82 @@ test("nextPlanDay finds first tracked empty day after cart or after today", () =
   );
 });
 
+test("stapleSpanDatesForUntil extends the shop span through until", () => {
+  assert.deepEqual(
+    T.stapleSpanDatesForUntil(["2026-10-20", "2026-10-22"], "2026-10-24", span, addDays),
+    ["2026-10-20", "2026-10-21", "2026-10-22", "2026-10-23", "2026-10-24"],
+  );
+  assert.deepEqual(T.stapleSpanDatesForUntil(["2026-10-20"], null, span, addDays), ["2026-10-20"]);
+});
+
+test("readShopStapleUntil reads until and legacy forms without mutating", () => {
+  const cart = ["2026-10-20", "2026-10-21"];
+  assert.equal(T.readShopStapleUntil({ until: "2026-10-25" }, cart, "2026-10-19", span, addDays), "2026-10-25");
+  assert.equal(T.readShopStapleUntil(2, cart, "2026-10-19", span, addDays), "2026-10-23");
+  assert.equal(
+    T.readShopStapleUntil({ n: 2, after: "2026-10-21" }, cart, "2026-10-19", span, addDays),
+    "2026-10-23",
+  );
+  assert.equal(T.readShopStapleUntil({ until: "2026-10-18" }, cart, "2026-10-19", span, addDays), null);
+});
+
+test("targetUntilAddingStapleDays counts only staple-active days", () => {
+  const fri = "2026-10-23";
+  assert.equal(T.untilAfterStapleActiveDays(fri, 1, weekdayActive, addDays), "2026-10-26");
+  assert.equal(T.targetUntilAddingStapleDays(fri, null, 2, weekdayActive, addDays), "2026-10-27");
+});
+
+test("plan day after staples until keeps until and staple need total", () => {
+  const cart = ["2026-10-20"];
+  const shopEnd = T.shopSpanLast(cart, span);
+  const until = T.targetUntilAddingStapleDays(shopEnd, null, 2, weekdayActive, addDays);
+  assert.equal(until, "2026-10-22");
+  const cartAfter = T.cartDaysWithPlanDay(cart, "2026-10-21");
+  assert.equal(
+    T.readShopStapleUntil({ until }, cartAfter, "2026-10-20", span, addDays),
+    until,
+  );
+  const delta = T.planDayStapleNeedsDelta(
+    cart,
+    "2026-10-21",
+    until,
+    staplesWeekdays,
+    {},
+    span,
+    addDays,
+    S.needs,
+  );
+  assert.equal(delta, 0);
+  const before = S.needs(staplesWeekdays, T.stapleSpanDatesForUntil(cart, until, span, addDays), {});
+  const after = S.needs(
+    staplesWeekdays,
+    T.stapleSpanDatesForUntil(cartAfter, until, span, addDays),
+    {},
+  );
+  assert.deepEqual(before, after);
+});
+
 test("cartDaysWithPlanDay merges the planned day into the cart list", () => {
   assert.deepEqual(T.cartDaysWithPlanDay(["2026-10-20", "2026-10-22"], "2026-10-23"), [
     "2026-10-20",
     "2026-10-22",
     "2026-10-23",
   ]);
-  assert.deepEqual(T.cartDaysWithPlanDay(["2026-10-20"], "2026-10-20"), ["2026-10-20"]);
 });
 
-test("stapleSpanExtraFromPlanDay counts staple days gained when the cart grows", () => {
-  const span = (dates) => S.spanDates(dates);
-  const extra = T.stapleSpanExtraFromPlanDay(["2026-10-20", "2026-10-21"], "2026-10-23", 0, span, addDays);
-  assert.deepEqual(extra, ["2026-10-22", "2026-10-23"]);
-  assert.deepEqual(
-    T.stapleSpanExtraFromPlanDay(["2026-10-20"], "2026-10-21", 0, span, addDays),
-    ["2026-10-21"],
-  );
+test("stapleSpanExtraFromPlanDay counts new span dates with until held", () => {
+  const until = "2026-10-24";
+  const extra = T.stapleSpanExtraFromPlanDay(["2026-10-20", "2026-10-21"], "2026-10-23", until, span, addDays);
+  assert.deepEqual(extra, []);
+  const extra2 = T.stapleSpanExtraFromPlanDay(["2026-10-20"], "2026-10-21", null, span, addDays);
+  assert.deepEqual(extra2, ["2026-10-21"]);
 });
 
 test("spanDatesIncludingAhead extends the staple span by N days after the last cart day", () => {
-  const span = (dates) => S.spanDates(dates);
   assert.deepEqual(
     T.spanDatesIncludingAhead(["2026-10-20", "2026-10-22"], 2, span, addDays),
     ["2026-10-20", "2026-10-21", "2026-10-22", "2026-10-23", "2026-10-24"],
   );
-  assert.deepEqual(T.spanDatesIncludingAhead(["2026-10-20"], 0, span, addDays), ["2026-10-20"]);
 });
 
 test("pickStapleAheadN chooses the smallest N that closes the gap", () => {

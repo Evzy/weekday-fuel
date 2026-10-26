@@ -436,10 +436,11 @@ function renderStapleSheetBody(){
 }
 function staplesOn(date,day){return WeekdayFuelStaples.forDay(staplesList(),date,day||dayOf(date))}
 function clearShopTopupSettings(){let ch=false;if(state.settings.shopStapleAhead!=null){delete state.settings.shopStapleAhead;ch=true}if(state.settings.shopTopupUsed){delete state.settings.shopTopupUsed;ch=true}if(ch)saveSettings()}
-function shopStapleAheadN(){const raw=state.settings.shopStapleAhead,cart=shopDays();if(raw==null)return 0;if(!cart.length){clearShopTopupSettings();return 0}const n=typeof raw==="number"?raw:raw.n,after=typeof raw==="number"?null:raw.after;if(after&&cart[cart.length-1]!==after){delete state.settings.shopStapleAhead;saveSettings();return 0}return n||0}
-function shopStapleSpanDates(){const cart=shopDays();if(!cart.length)return[];return WeekdayFuelTopup.spanDatesIncludingAhead(cart,shopStapleAheadN(),WeekdayFuelStaples.spanDates,addDays)}
-function stapleNeedMapForCart(cart,aheadN){const sd=WeekdayFuelTopup.spanDatesIncludingAhead(cart||[],aheadN||0,WeekdayFuelStaples.spanDates,addDays);if(!sd.length)return{};return WeekdayFuelStaples.needs(staplesList(),sd,state.days)}
-function stapleNeedMapForAhead(aheadN){return stapleNeedMapForCart(shopDays(),aheadN)}
+function maybeClearShopTopupIfCartEmpty(){if(!shopDays().length)clearShopTopupSettings()}
+function shopStapleUntil(){const cart=shopDays();if(!cart.length)return null;return WeekdayFuelTopup.readShopStapleUntil(state.settings.shopStapleAhead,cart,iso(new Date()),WeekdayFuelStaples.spanDates,addDays)}
+function shopStapleDayActive(date){return staplesOn(date).some(s=>!s.out)}
+function shopStapleSpanDates(){const cart=shopDays();if(!cart.length)return[];return WeekdayFuelTopup.stapleSpanDatesForUntil(cart,shopStapleUntil(),WeekdayFuelStaples.spanDates,addDays)}
+function stapleNeedMapForCartUntil(cart,until){const sd=WeekdayFuelTopup.stapleSpanDatesForUntil(cart||[],until,WeekdayFuelStaples.spanDates,addDays);if(!sd.length)return{};return WeekdayFuelStaples.needs(staplesList(),sd,state.days)}
 function stapleNeedMap(){const sd=shopStapleSpanDates();if(!sd.length)return{};return WeekdayFuelStaples.needs(staplesList(),sd,state.days)}
 function shopPackPick(){return S().packPick||undefined}
 function shopRowsRawWith(opts){opts=opts||{};const staples=opts.stapleNeedMap!=null?opts.stapleNeedMap:stapleNeedMap();const dm=opts.dayMeals!=null?opts.dayMeals:dayMeals();return CAT.shopList(picks(),staples,dm,shopHave(),shopPackPick())}
@@ -456,28 +457,28 @@ function planMealsForTopupDay(date){
   return r?r.days[date]:null;
 }
 function dayMealsFromPlan(date,meals){return(meals||[]).map(m=>({day:date,meal:m.id,t:m.t||"S"}))}
-function formatStapleTopupLabel(targetN){
-  const cur=shopStapleAheadN();
-  const delta=WeekdayFuelTopup.stapleNeedDelta(stapleNeedMapForAhead(cur),stapleNeedMapForAhead(targetN));
-  const parts=Object.keys(delta).map(id=>{const it=CAT.item(id);if(!it)return "";const amt=Math.round(delta[id]*10)/10;return `${shopItemShortName(it)} for ${targetN} more day${targetN===1?"":"s"} (${amt} ${it.unit})`}).filter(Boolean);
-  return parts.length?parts.join("; "):`Daily staples for ${targetN} more days`;
+function formatStapleTopupLabel(addN,targetUntil){
+  const cart=shopDays(),curUntil=shopStapleUntil();
+  const delta=WeekdayFuelTopup.stapleNeedDelta(stapleNeedMapForCartUntil(cart,curUntil),stapleNeedMapForCartUntil(cart,targetUntil));
+  const parts=Object.keys(delta).map(id=>{const it=CAT.item(id);if(!it)return "";const amt=Math.round(delta[id]*10)/10;return `${shopItemShortName(it)} for ${addN} more day${addN===1?"":"s"} (${amt} ${it.unit})`}).filter(Boolean);
+  return parts.length?parts.join("; "):`Daily staples for ${addN} more days`;
 }
 function buildTopupSuggestions(st){
   const T=WeekdayFuelTopup,min=T.DELIVERY_MIN[st],gap=T.gapToMin(shopStoreTotals()[st].total,min);
   if(!gap.under)return [];
-  const out=[],curAhead=shopStapleAheadN();
-  const planDate=T.nextPlanDay({cartDays:shopDays(),today:iso(new Date()),isTracked:tracked,hasMeals:d=>dayHasMeals(state.days[d]),addDays});
+  const out=[],cart=shopDays(),curUntil=shopStapleUntil(),shopEnd=T.shopSpanLast(cart,WeekdayFuelStaples.spanDates);
+  const planDate=T.nextPlanDay({cartDays:cart,today:iso(new Date()),isTracked:tracked,hasMeals:d=>dayHasMeals(state.days[d]),addDays});
   if(planDate){
     const planned=planMealsForTopupDay(planDate);
     if(planned&&planned.length){
-      const extra=dayMealsFromPlan(planDate,planned),cartAfter=T.cartDaysWithPlanDay(shopDays(),planDate),base=shopStoreTotalFor(st,{}),after=shopStoreTotalFor(st,{dayMeals:dayMeals().concat(extra),stapleNeedMap:stapleNeedMapForCart(cartAfter,curAhead)}),cost=T.storeTotalDelta(base,after);
+      const extra=dayMealsFromPlan(planDate,planned),cartAfter=T.cartDaysWithPlanDay(cart,planDate),base=shopStoreTotalFor(st,{}),after=shopStoreTotalFor(st,{dayMeals:dayMeals().concat(extra),stapleNeedMap:stapleNeedMapForCartUntil(cartAfter,curUntil)}),cost=T.storeTotalDelta(base,after);
       const names=planned.filter(m=>m.slot==="lunch"||m.slot==="dinner").map(m=>MEAL[m.id]?MEAL[m.id].name:m.id);
       out.push({kind:"day",cost,date:planDate,meals:planned,label:`Plan ${fmtShort(planDate)}${names.length?" · "+names.join(", "):""}`});
     }
   }
-  const deltaStaplesTo=n=>{if(n<=curAhead)return 0;const before=shopStoreTotalFor(st,{stapleNeedMap:stapleNeedMapForAhead(curAhead)}),after=shopStoreTotalFor(st,{stapleNeedMap:stapleNeedMapForAhead(n)});return T.storeTotalDelta(before,after)};
+  const deltaStaplesTo=addN=>{if(!shopEnd||!(addN>0))return 0;const newUntil=T.targetUntilAddingStapleDays(shopEnd,curUntil,addN,shopStapleDayActive,addDays);if(!newUntil||(curUntil&&T.compareDate(newUntil,curUntil)<=0))return 0;const before=shopStoreTotalFor(st,{stapleNeedMap:stapleNeedMapForCartUntil(cart,curUntil)}),after=shopStoreTotalFor(st,{stapleNeedMap:stapleNeedMapForCartUntil(cart,newUntil)});return T.storeTotalDelta(before,after)};
   const targetN=T.pickStapleAheadN(gap.gap,deltaStaplesTo);
-  if(targetN>curAhead){const cost=deltaStaplesTo(targetN);out.push({kind:"staples",cost,n:targetN,label:formatStapleTopupLabel(targetN)})}
+  if(shopEnd&&targetN>0){const newUntil=T.targetUntilAddingStapleDays(shopEnd,curUntil,targetN,shopStapleDayActive,addDays),cost=deltaStaplesTo(targetN);if(newUntil&&cost>0&&(!curUntil||T.compareDate(newUntil,curUntil)>0))out.push({kind:"staples",cost,until:newUntil,label:formatStapleTopupLabel(targetN,newUntil)})}
   return T.visibleSuggestions(out);
 }
 function applyTopupPlanDay(date,meals){
@@ -940,7 +941,7 @@ function setSync(on,text){$("#syncdot").className="dot"+(on?" on":"");$("#syncte
 
 function saveDay(date){
   if(state.gapUndo&&Object.prototype.hasOwnProperty.call(state.gapUndo,date)&&!state.suppressGapUndoClear){state.gapUndo=null;state.todayNote=null}
-  const d=state.days[date];queueWrite("days/"+date,d?clone(d):null);invalidateShopDays();
+  const d=state.days[date];queueWrite("days/"+date,d?clone(d):null);invalidateShopDays();maybeClearShopTopupIfCartEmpty();
 }
 function saveWeight(date){const w=state.weights[date];queueWrite("weights/"+date,w?clone(w):null)}
 function saveSettings(){queueWrite("config/settings",clone(state.settings));invalidateShopDays()}
@@ -2730,7 +2731,7 @@ document.addEventListener("click",e=>{
     case "shoppaid":{setSentPaidAt(store());state.shopViewStep=null;break}
 
     case "leaveout":{const ld=el.dataset.d||v;const day=ensureDay(ld);(day.meals||[]).forEach(m=>{if(!WeekdayFuelBought.isBought(m))m.shop=false});saveDay(ld);state.sheet=null;shopCtx=null;break}
-    case "topupadd":{if(trolleyBusy())break;const list=state._topupSuggestions||[],s=list[+el.dataset.i];if(!s||s.kind!==el.dataset.kind)break;if(s.kind==="day")applyTopupPlanDay(s.date,s.meals);else if(s.kind==="staples"){const cd=shopDays();state.settings.shopStapleAhead=cd.length?{n:s.n,after:cd[cd.length-1]}:s.n;state.settings.shopTopupUsed=true;saveSettings();shopCtx=null}break}
+    case "topupadd":{if(trolleyBusy())break;const list=state._topupSuggestions||[],s=list[+el.dataset.i];if(!s||s.kind!==el.dataset.kind)break;if(s.kind==="day")applyTopupPlanDay(s.date,s.meals);else if(s.kind==="staples"&&s.until){state.settings.shopStapleAhead={until:s.until};state.settings.shopTopupUsed=true;saveSettings();shopCtx=null}break}
     case "store":if(trolleyBusy())break;state.settings.store=v;saveSettings();if(state.trolley&&state.trolley.store!==v)state.trolley=null;break;
     case "refreshprices":refreshPrices();break;
     case "clearpicks":state.settings.trial={};saveSettings();break;
