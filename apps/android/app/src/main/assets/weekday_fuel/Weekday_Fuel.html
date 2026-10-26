@@ -259,8 +259,8 @@ function refreshMealCalc(){initMealCalc()}
 const orderStoreCache=new Map();
 function orderStoreForMeal(m){if(!m||typeof m.bought!=="string"||!m.bought)return store();if(orderStoreCache.has(m.bought))return orderStoreCache.get(m.bought);const o=lsOrders().find(x=>x.id===m.bought);const st=o&&o.store==="coles"?"coles":"woolies";orderStoreCache.set(m.bought,st);return st}
 function dayOrderStore(date,day){const meals=(day||dayOf(date)).meals||[];for(const m of meals){if(WeekdayFuelBought.isBought(m))return orderStoreForMeal(m)}return store()}
-function breadUsesFallback(st){const it=pricedItem("bread");const p=it&&it[st];if(p&&p.fallbackFor)return true;const row=shopRowsRaw().find(r=>r.id==="bread");const line=row&&row[st];return !!(line&&line.product&&line.product.fallbackFor)}
-function mealPortionOpts(mealId,mealRef,st){const opts={};if(mealId==="toasty"){if(mealRef&&mealRef.itemFallback&&mealRef.itemFallback.bread)opts.useFallback=true;else if(breadUsesFallback(st))opts.useFallback=true}return opts}
+function breadUsesFallback(st){const it=pricedItem("bread");const p=it&&it[st];return !!(p&&p.fallbackFor)}
+function mealPortionOpts(mealId,mealRef,st){const opts={};if(mealId==="toasty"){if(mealRef&&WeekdayFuelBought.isBought(mealRef)){if(mealRef.itemFallback&&mealRef.itemFallback.bread)opts.useFallback=true}else if(breadUsesFallback(st))opts.useFallback=true}return opts}
 function mealPortion(mealId,tier,mealRef,opts){opts=Object.assign({},mealPortionOpts(mealId,mealRef,opts&&opts.store?opts.store:(mealRef?orderStoreForMeal(mealRef):store())),opts||{});const st=opts.store?opts.store:(mealRef?orderStoreForMeal(mealRef):store());return MEAL_CALC.portion(mealId,tier,st,opts)}
 function swapServePer(it,sw,st){return MEAL_CALC.servePer(it,sw||null,st||store())}
 function portionMeta(meal,tier,mealRef){const v=mealPortion(meal.id,tier,mealRef);return Object.assign({cost:meal.t[tier].cost,what:meal.t[tier].what},v)}
@@ -325,6 +325,16 @@ function runStaplesFxMigrateIfNeeded(){
   const r=WeekdayFuelStaples.migrateLegacyFx(state.days);
   if(r.changed){state.days=r.days;(r.changedDates||[]).forEach(d=>saveDay(d))}
   state.settings.staplesFxMigrated=true;
+  saveSettings();
+}
+function runProduceGramsMigratedIfNeeded(){
+  if(S().produceGramsMigrated)return;
+  const inv=lsInv();
+  if(inv){
+    const next=WeekdayFuelInventory.migrateProduceCountsToGrams(inv);
+    if(next!==inv&&!lsSetInv(next))return;
+  }
+  state.settings.produceGramsMigrated=true;
   saveSettings();
 }
 function staplesActiveOn(date){return WeekdayFuelStaples.activeStaples(staplesList(),date)}
@@ -976,6 +986,7 @@ async function initStore(){
   runBoughtBackfillIfNeeded();
   runHeldMigratedIfNeeded();
   runStaplesFxMigrateIfNeeded();
+  runProduceGramsMigratedIfNeeded();
   setSync(false,"Saved on this device");
   render();
   try{ if(window.claude&&window.claude.use) db=await window.claude.use("db"); }catch(e){db=null}
