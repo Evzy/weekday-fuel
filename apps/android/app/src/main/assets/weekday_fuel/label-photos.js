@@ -7,11 +7,17 @@
     return bag[store] || bag.any || null;
   }
 
-  function listForStore(store, panels, photos, itemIds, itemName) {
-    itemName =
-      itemName ||
-      function () {
-        return "";
+  function entryProduct(id, store, panelProduct, productNameFn) {
+    var named = productNameFn(id, store, panelProduct);
+    if (named) return named;
+    return panelProduct || id;
+  }
+
+  function listForStore(store, panels, photos, itemIds, productNameFn) {
+    productNameFn =
+      productNameFn ||
+      function (_id, _store, panelProduct) {
+        return panelProduct || "";
       };
     var out = [];
     var seen = {};
@@ -27,13 +33,21 @@
       var p = panelForStore(panels[id], store);
       if (!p || !p.photo) return;
       seen[id] = true;
-      out.push({ id: id, product: p.product || itemName(id) || id, photo: p.photo });
+      out.push({
+        id: id,
+        product: entryProduct(id, store, p.product, productNameFn),
+        photo: p.photo,
+      });
     });
     (photos || []).forEach(function (row) {
       if (row.store !== store && row.store !== "any") return;
       if (seen[row.id]) return;
       seen[row.id] = true;
-      out.push({ id: row.id, product: row.product || itemName(row.id) || row.id, photo: row.photo });
+      out.push({
+        id: row.id,
+        product: entryProduct(row.id, store, row.product, productNameFn),
+        photo: row.photo,
+      });
     });
     out.sort(function (a, b) {
       var oa = order[a.id];
@@ -46,9 +60,9 @@
     return out;
   }
 
-  function reminderMap(store, panels, photos, itemIds, itemName) {
+  function reminderMap(store, panels, photos, itemIds, productNameFn) {
     var map = {};
-    listForStore(store, panels, photos, itemIds, itemName).forEach(function (e) {
+    listForStore(store, panels, photos, itemIds, productNameFn).forEach(function (e) {
       map[e.id] = { product: e.product, photo: e.photo };
     });
     return map;
@@ -77,12 +91,18 @@
     return ids;
   }
 
-  function mealReminders(mealId, tier, store, panels, photos, amounts, extraAmounts, itemIds, itemName) {
-    var map = reminderMap(store, panels, photos, itemIds, itemName);
+  function mealReminders(mealId, tier, store, panels, photos, amounts, extraAmounts, itemIds, productNameFn, opts) {
+    opts = opts || {};
+    var skip = opts.skipIds || [];
+    var skipSet = {};
+    skip.forEach(function (id) {
+      skipSet[id] = true;
+    });
+    var map = reminderMap(store, panels, photos, itemIds, productNameFn);
     var out = [];
     var seen = {};
     mealIngredientIds(mealId, tier, amounts, extraAmounts).forEach(function (id) {
-      if (seen[id]) return;
+      if (seen[id] || skipSet[id]) return;
       var r = map[id];
       if (!r) return;
       seen[id] = true;
@@ -93,6 +113,7 @@
 
   var api = {
     panelForStore: panelForStore,
+    entryProduct: entryProduct,
     listForStore: listForStore,
     reminderMap: reminderMap,
     mealIngredientIds: mealIngredientIds,
