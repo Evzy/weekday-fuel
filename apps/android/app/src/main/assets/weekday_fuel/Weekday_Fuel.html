@@ -209,6 +209,7 @@ a.link{text-decoration:none;display:inline-block;color:var(--accent);border-colo
 <script src="portion-fit.js"></script>
 <script src="trend.js"></script>
 <script src="macros.js"></script>
+<script src="label-photos.js"></script>
 <script src="extra-amounts.js"></script>
 <script src="meal-calc.js"></script>
 <script src="staples.js"></script>
@@ -254,6 +255,17 @@ function buildCat(){const W=WeekdayFuelCatalogue,lp=livePrices(),cp=colesPrices(
 let CAT=buildCat();
 let MEAL_CALC=null;
 function initMealCalc(){MEAL_CALC=WeekdayFuelMealCalc.create({panels:WeekdayFuelMacros.PANELS,amounts:WeekdayFuelCatalogue.AMOUNTS,extraAmounts:WeekdayFuelExtraAmounts.EXTRA_AMOUNTS,item:id=>CAT.item(id),defaultStore:store()})}
+function labelPhotoItemIds(){const ids=CAT.ITEMS.map(i=>i.id);Object.keys(WeekdayFuelMacros.PANELS||{}).forEach(id=>{if(ids.indexOf(id)<0)ids.push(id)});return ids}
+function labelPhotoName(id){const it=CAT.item(id);return it?it.name:""}
+function labelPhotoList(st){return WeekdayFuelLabelPhotos.listForStore(st||store(),WeekdayFuelMacros.PANELS,WeekdayFuelMacros.PHOTOS||[],labelPhotoItemIds(),labelPhotoName)}
+function labelPhotoMap(st){return WeekdayFuelLabelPhotos.reminderMap(st||store(),WeekdayFuelMacros.PANELS,WeekdayFuelMacros.PHOTOS||[],labelPhotoItemIds(),labelPhotoName)}
+function labelPhotoTag(id,st){const r=labelPhotoMap(st)[id];return r?` <span class="tag warn" title="${esc(r.photo)}">Snap the label</span>`:""}
+function labelPhotoStepLines(mealId,tier,st){return WeekdayFuelLabelPhotos.mealReminders(mealId,tier,st||store(),WeekdayFuelMacros.PANELS,WeekdayFuelMacros.PHOTOS||[],WeekdayFuelCatalogue.AMOUNTS,WeekdayFuelExtraAmounts.EXTRA_AMOUNTS,labelPhotoItemIds(),labelPhotoName).map(r=>`<li>While you cook: snap the label on ${esc(r.product)} (${esc(r.photo)}).</li>`).join("")}
+function renderLabelPhotosCard(st){
+  const rows=labelPhotoList(st);
+  if(!rows.length)return "";
+  return `<div class="panel shopsec"><h3 style="margin-bottom:4px">Label photos</h3><p class="small muted" style="margin:0 0 8px">Snap these nutrition panels next time you have them, then send them over.</p><ul class="ing" style="margin:0">${rows.map(r=>`<li><b>${esc(r.product)}</b>: ${esc(r.photo)}</li>`).join("")}</ul></div>`;
+}
 initMealCalc();
 function refreshMealCalc(){initMealCalc()}
 const orderStoreCache=new Map();
@@ -888,7 +900,7 @@ function kitchenAgeLine(id,st,it){
 function kitchenItemBlock(id,st,open,ageLine){
   const it=CAT.item(id);if(!it)return "";
   const qty=esc(kitchenAmountText(st.amount,it.unit));
-  let h=`<div class="si"><div class="grow"><button class="itembtn" type="button" data-act="kitem" data-v="${esc(id)}" aria-expanded="${open}"><span class="grow">${esc(it.name)}</span><span class="p">${qty}</span></button>`;
+  let h=`<div class="si"><div class="grow"><button class="itembtn" type="button" data-act="kitem" data-v="${esc(id)}" aria-expanded="${open}"><span class="grow">${esc(it.name)}${labelPhotoTag(id)}</span><span class="p">${qty}</span></button>`;
   if(ageLine)h+=`<span class="small muted" style="display:block">${esc(ageLine)}</span>`;
   h+=`</div></div>`;
   if(open){
@@ -915,6 +927,7 @@ function renderKitchen(){
   if(state.kitchenError)h+=`<div class="hint"><span>${esc(state.kitchenError)}</span></div>`;
   if(!lsInv()||!ids.length)h+=`<div class="small muted">Past planned meals count as eaten. Stock builds from saved orders, or add what's at home now.</div>`;
   else h+=`<div class="small muted">Used something for another meal? Tap the item to set how much is left.</div>`;
+  h+=renderLabelPhotosCard(store());
   h+=kitchenSection("Use soon",useSoon,stock,true);
   h+=kitchenSection("Fridge",fridge,stock,false);
   h+=kitchenSection("Cupboard and freezer",cupboard,stock,false);
@@ -2069,7 +2082,8 @@ function mealCard(m,full,tier){
   const tr=tier||"S";
   const head=`<div class="row between" style="align-items:flex-start"><div class="grow"><div class="row" style="gap:6px;margin-bottom:4px"><span class="tag">${esc(m.cuisine)}</span><span class="tag">${m.mins} min</span><span class="tag">${esc(PREP_LABEL[m.prep]||"")}</span>${m.remake?`<span class="tag remake">Remake</span>`:""}</div><h3>${esc(m.name)}</h3><div class="small muted">Fixed protein core: ${esc(m.core)}</div>${full?"":`<div class="small muted num" style="margin-top:4px">${mealMacroRange(m)}</div>`}</div>${full?"":`<div class="row" style="gap:6px;flex-shrink:0"><button class="btn alt" data-act="addmeal" data-v="${esc(m.id)}">Add</button><button class="ghost" data-act="recipe" data-v="${esc(m.id)}">Recipe</button></div>`}</div>`;
   if(!full)return `<div class="card">${head}</div>`;
-  return `<div class="card">${head}${tierTable(m)}<div class="stack" style="gap:8px"><div class="row between"><div class="eyebrow">Ingredients</div><div class="dial" role="group" aria-label="Recipe portion">${TIERS.map(([k,l])=>`<button aria-pressed="${tr===k}" data-act="sheettier" data-v="${k}">${l}</button>`).join("")}</div></div><ul class="ing">${recipeLines(m,tr)}</ul>${(m.batch||[]).map(id=>BATCH[id]).filter(Boolean).map(b=>`<div class="row between"><span class="small">Uses ${esc(b.name)} from your batch prep</span><button class="ghost" data-act="batch" data-v="${b.id}">Batch prep</button></div>`).join("")}<div class="eyebrow">Method</div><ol class="steps">${m.steps.map(s=>`<li>${esc(s)}</li>`).join("")}</ol>${m.note?`<div class="hint"><span>${esc(m.note)}</span></div>`:""}</div></div>`;
+  const photoSteps=labelPhotoStepLines(m.id,tr);
+  return `<div class="card">${head}${tierTable(m)}<div class="stack" style="gap:8px"><div class="row between"><div class="eyebrow">Ingredients</div><div class="dial" role="group" aria-label="Recipe portion">${TIERS.map(([k,l])=>`<button aria-pressed="${tr===k}" data-act="sheettier" data-v="${k}">${l}</button>`).join("")}</div></div><ul class="ing">${recipeLines(m,tr)}</ul>${(m.batch||[]).map(id=>BATCH[id]).filter(Boolean).map(b=>`<div class="row between"><span class="small">Uses ${esc(b.name)} from your batch prep</span><button class="ghost" data-act="batch" data-v="${b.id}">Batch prep</button></div>`).join("")}<div class="eyebrow">Method</div><ol class="steps">${m.steps.map(s=>`<li>${esc(s)}</li>`).join("")}${photoSteps}</ol>${m.note?`<div class="hint"><span>${esc(m.note)}</span></div>`:""}</div></div>`;
 }
 function renderMeals(){
   const f=state.mealFilter==="remake"?"all":state.mealFilter;
