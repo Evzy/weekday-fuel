@@ -221,6 +221,11 @@ function applyOverrides(panels) {
     const c = panels[id]?.coles;
     if (c && c.confirm) delete c.confirm;
   }
+  const fzWooliesConfirm = "Fat/protein may be printed as <1g — check the pack.";
+  for (const id of ["fzmix", "fzbroc", "fzberry"]) {
+    const w = panels[id]?.woolies;
+    if (w) w.confirm = fzWooliesConfirm;
+  }
   return panels;
 }
 

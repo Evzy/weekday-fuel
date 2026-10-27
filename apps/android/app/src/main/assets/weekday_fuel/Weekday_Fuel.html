@@ -261,9 +261,9 @@ function labelPhotoList(st){return WeekdayFuelLabelPhotos.listForStore(st||store
 function buildLabelPhotoCtx(st){st=st||store();const list=labelPhotoList(st);const map={};list.forEach(e=>{map[e.id]={product:e.product,photo:e.photo}});return {list,map}}
 function labelPhotoTag(id,map){const r=(map||buildLabelPhotoCtx().map)[id];return r?` <span class="tag warn" title="${esc(r.photo)}">Snap the label</span>`:""}
 function labelPhotoStepLine(r,lead){return `<li>${lead}: snap the label on ${esc(r.product)} (${esc(r.photo)}).</li>`}
-function mealBatchSkipIds(mealId){const m=MEAL[mealId];const skip=[];(m&&m.batch||[]).forEach(bid=>{const b=BATCH[bid];if(b&&b.item)skip.push(b.item)});return skip}
+function mealBatchSkipIds(mealId){const m=MEAL[mealId];const skip=[];(m&&m.batch||[]).forEach(bid=>{WeekdayFuelLabelPhotos.batchIngredientIds(BATCH[bid]).forEach(id=>skip.push(id))});return skip}
+function batchPhotoStepLines(b,st){if(!b)return "";const map=buildLabelPhotoCtx(st).map;return WeekdayFuelLabelPhotos.batchIngredientIds(b).map(id=>{const r=map[id];return r?labelPhotoStepLine(r,"While you prep"):""}).join("")}
 function labelPhotoStepLines(mealId,tier,st){const skip=mealBatchSkipIds(mealId);return WeekdayFuelLabelPhotos.mealReminders(mealId,tier,st||store(),WeekdayFuelMacros.PANELS,WeekdayFuelMacros.PHOTOS||[],WeekdayFuelCatalogue.AMOUNTS,WeekdayFuelExtraAmounts.EXTRA_AMOUNTS,labelPhotoItemIds(),labelPhotoProductName,{skipIds:skip}).map(r=>labelPhotoStepLine(r,"While you cook")).join("")}
-function batchPhotoStepLines(b,st){if(!b||!b.item)return "";const r=buildLabelPhotoCtx(st).map[b.item];return r?labelPhotoStepLine(r,"While you prep"):""}
 function renderLabelPhotosCard(ctx){
   const rows=ctx.list;
   if(!rows.length)return "";

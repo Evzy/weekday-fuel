@@ -74,6 +74,16 @@
     return spec[tier] || 0;
   }
 
+  function batchIngredientIds(batch) {
+    if (!batch) return [];
+    var ids = [];
+    if (batch.item) ids.push(batch.item);
+    (batch.with || []).forEach(function (id) {
+      ids.push(id);
+    });
+    return ids;
+  }
+
   function mealIngredientIds(mealId, tier, amounts, extraAmounts) {
     var ids = [];
     var mealAmounts = amounts[mealId];
@@ -116,6 +126,7 @@
     entryProduct: entryProduct,
     listForStore: listForStore,
     reminderMap: reminderMap,
+    batchIngredientIds: batchIngredientIds,
     mealIngredientIds: mealIngredientIds,
     mealReminders: mealReminders,
   };

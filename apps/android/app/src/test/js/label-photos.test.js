@@ -6,6 +6,8 @@ const LP = require("../../main/assets/weekday_fuel/label-photos.js");
 const { PANELS, PHOTOS } = require("../../main/assets/weekday_fuel/macros.js");
 const cat = require("../../main/assets/weekday_fuel/catalogue.js");
 const { EXTRA_AMOUNTS } = require("../../main/assets/weekday_fuel/extra-amounts.js");
+const { BATCHES } = require("../../main/assets/weekday_fuel/meals.js");
+const BATCH = Object.fromEntries(BATCHES.map((b) => [b.id, b]));
 
 const ROOT = path.resolve(__dirname, "../../../../../..");
 const LABEL_FILES = [
@@ -118,4 +120,17 @@ test("mealReminders skips batch-prep ingredients", () => {
     skipIds: ["breast"],
   });
   assert.ok(!r.some((x) => x.id === "breast"));
+});
+
+test("batch with items includes with list for skip and prep reminders", () => {
+  const bolo = BATCH.bolo;
+  assert.deepEqual(LP.batchIngredientIds(bolo), ["mince", "passata", "fzmix", "garlic"]);
+  const skip = LP.batchIngredientIds(bolo);
+  const mealR = LP.mealReminders("bolognese", "S", "woolies", PANELS, PHOTOS, cat.AMOUNTS, EXTRA_AMOUNTS, itemIds, labelPhotoProductName, {
+    skipIds: skip,
+  });
+  assert.ok(!mealR.some((x) => x.id === "fzmix"), "weeknight bolognese skips batch fzmix");
+  const map = LP.reminderMap("woolies", PANELS, PHOTOS, itemIds, labelPhotoProductName);
+  const batchFlagged = LP.batchIngredientIds(bolo).filter((id) => map[id]);
+  assert.ok(batchFlagged.includes("fzmix"), "Sunday batch still flags fzmix");
 });

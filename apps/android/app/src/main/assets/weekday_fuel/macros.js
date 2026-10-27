@@ -964,7 +964,7 @@
       "checked": "2026-10-27",
       "note": "Fat and saturated fat both exactly 1.0g, probably '<1g' stored as 1.0 by Woolworths' data feed; confirm on pack. Per 100g as frozen, from the Woolworths product data.",
       "photo": "Are fat/protein printed as <1g?",
-      "confirm": "0 by Woolworths' data feed; confirm on pack."
+      "confirm": "Fat/protein may be printed as <1g — check the pack."
     },
     "coles": {
       "k": 66.4,
@@ -994,7 +994,7 @@
       "checked": "2026-10-27",
       "note": "Fat and saturated fat both exactly 1.0g, probably '<1g' stored as 1.0; confirm on pack. Per 100g as frozen, from the Woolworths product data.",
       "photo": "Are fat/protein printed as <1g?",
-      "confirm": "0; confirm on pack."
+      "confirm": "Fat/protein may be printed as <1g — check the pack."
     },
     "coles": {
       "k": 46.4,
@@ -1052,7 +1052,7 @@
       "checked": "2026-10-27",
       "note": "Protein, fat and saturated fat all exactly 1.0g, probably '<1g' stored as 1.0; confirm on pack. Per 100g as frozen, from the Woolworths product data.",
       "photo": "Are fat/protein printed as <1g?",
-      "confirm": "0; confirm on pack."
+      "confirm": "Fat/protein may be printed as <1g — check the pack."
     },
     "coles": {
       "k": 40.9,
