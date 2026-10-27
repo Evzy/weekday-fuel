@@ -10,6 +10,7 @@
     "fsanzId": null, "fsanzName": null,
     "sourceUrl": "https://www.woolworths.com.au/apis/ui/product/detail/524322",
     "checked": "2026-10-27",
+    "photo": "Are some values printed as <1g?",
     "notes": "Fat, saturated, carbohydrate and sugars all read exactly 1.0g, which looks like Woolworths' data feed storing '<1g' as 1.0 (fat 1.0g would add 9 kcal to a 16 kcal food; Coles' panel for its own spinach prints 0g). Treat f/sat/c/sugars as '<1' and confirm on pack before using 1.0. Same panel on the 60g (379515) and 280g (524336, serving 70g) packs."
   },
   {
@@ -23,6 +24,7 @@
     "fsanzId": null, "fsanzName": null,
     "sourceUrl": "https://www.coles.com.au/product/coles-baby-spinach-120g-1499340",
     "checked": "2026-10-27",
+    "photo": "Are some values printed as <1g?",
     "notes": "Identical panel on the 60g pack (1499486)."
   },
   {
@@ -110,6 +112,7 @@
     "fsanzId": null, "fsanzName": null,
     "sourceUrl": "https://www.woolworths.com.au/apis/ui/product/detail/34437",
     "checked": "2026-10-27",
+    "photo": "Does the panel say drained or as canned?",
     "notes": "Same panel on Coles."
   },
   {
@@ -123,6 +126,7 @@
     "fsanzId": null, "fsanzName": null,
     "sourceUrl": "https://www.coles.com.au/product/edgell-corn-kernels-420g-132045",
     "checked": "2026-10-27",
+    "photo": "Does the panel say drained or as canned?",
     "notes": ""
   },
   {
@@ -162,6 +166,7 @@
     "fsanzId": null, "fsanzName": null,
     "sourceUrl": "https://www.woolworths.com.au/apis/ui/product/detail/768569",
     "checked": "2026-10-27",
+    "photo": "Fibre shows 0 online",
     "notes": "Fat and saturated fat both exactly 1.0g, probably '<1g' stored as 1.0 by Woolworths' data feed; confirm on pack."
   },
   {
@@ -175,6 +180,7 @@
     "fsanzId": null, "fsanzName": null,
     "sourceUrl": "https://www.coles.com.au/product/coles-frozen-carrot-corn-and-peas-1kg-7644872",
     "checked": "2026-10-27",
+    "photo": "Fibre shows 0 online",
     "notes": ""
   },
   {
@@ -188,6 +194,7 @@
     "fsanzId": null, "fsanzName": null,
     "sourceUrl": "https://www.woolworths.com.au/apis/ui/product/detail/768559",
     "checked": "2026-10-27",
+    "photo": "Fibre shows 0 online",
     "notes": "Fat and saturated fat both exactly 1.0g, probably '<1g' stored as 1.0; confirm on pack."
   },
   {
@@ -201,6 +208,7 @@
     "fsanzId": null, "fsanzName": null,
     "sourceUrl": "https://www.coles.com.au/product/coles-frozen-broccoli-florets-500g-5341010",
     "checked": "2026-10-27",
+    "photo": "Fibre shows 0 online",
     "notes": "Nearly double the Woolworths broccoli energy and 1.6x its protein; both are as printed."
   },
   {
@@ -240,6 +248,7 @@
     "fsanzId": null, "fsanzName": null,
     "sourceUrl": "https://www.woolworths.com.au/apis/ui/product/detail/260010",
     "checked": "2026-10-27",
+    "photo": "Fibre shows 0 online",
     "notes": "Protein, fat and saturated fat all exactly 1.0g, probably '<1g' stored as 1.0; confirm on pack."
   },
   {
@@ -253,6 +262,7 @@
     "fsanzId": null, "fsanzName": null,
     "sourceUrl": "https://www.coles.com.au/product/coles-frozen-mixed-berries-500g-1301206",
     "checked": "2026-10-27",
+    "photo": "Fibre shows 0 online",
     "notes": ""
   },
   {
@@ -318,6 +328,7 @@
     "fsanzId": null, "fsanzName": null,
     "sourceUrl": "https://maesri.com.au/product/red-curry-paste-114g-tin/",
     "checked": "2026-10-27",
+    "photo": "Online figures conflict — photo the panel",
     "notes": "The live Woolworths page shows the panel as 'Not Available' (only per-serve cholesterol/mono/poly/potassium/trans in the data). A cached Woolworths page and checklabels.com.au show an older, different panel: 314 kJ, 3.80 P, 1.90 F, 0.27 sat, 6.45 C, 8.64 sugars, 3 fibre, 2523 Na, serving 20g. That panel is internally inconsistent (sugars higher than carbohydrate). The distributor panel is used instead. Values conflict between sources, so confirm on the tin."
   },
   {
@@ -331,6 +342,7 @@
     "fsanzId": null, "fsanzName": null,
     "sourceUrl": "https://www.coles.com.au/product/ayam-thai-red-curry-paste-195g-6801057",
     "checked": "2026-10-27",
+    "photo": "Online figures conflict — photo the panel",
     "notes": "Different product from the Woolworths one (contains palm sugar, soybean oil). It has about 2.5x the energy of the Maesri paste."
   },
   {

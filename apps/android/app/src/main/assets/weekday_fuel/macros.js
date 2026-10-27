@@ -382,7 +382,8 @@
       "product": "Woolworths RSPCA Approved Chicken Breast Fillets 650g",
       "id": "6078624",
       "checked": "2026-10-27",
-      "note": "Woolworths panel, Coles has none online. Woolworths product page (text NIP). Saturated, carbohydrate and sugars printed as '<1.0g' per 100g (per 150g serve: 1.5g sat, 1.5g C, 1.5g sugars). Fibre not listed. Per 150g: 657 kJ, 33.4g P, 2.4g F, 62mg Na. Values printed '<1' stored as 1g (upper bound) raw, as sold"
+      "note": "Woolworths panel, Coles has none online. Woolworths product page (text NIP). Saturated, carbohydrate and sugars printed as '<1.0g' per 100g (per 150g serve: 1.5g sat, 1.5g C, 1.5g sugars). Fibre not listed. Per 150g: 657 kJ, 33.4g P, 2.4g F, 62mg Na. Values printed '<1' stored as 1g (upper bound) raw, as sold",
+      "photo": "No panel online"
     }
   },
   "breast-pack": {
@@ -685,6 +686,7 @@
       "id": "46795",
       "checked": "2026-10-27",
       "note": "Woolworths product page (text NIP) (title 'Tip Top English Muffins Original Bakery 6 pack'). Per 67g muffin: 553 kJ (132 kcal), 4.8g P, 1.4g F, 23.5g C, 2.7g fibre, 198mg Na. Much lower than the Coles panel and the current macros.js values (227 kcal, 9.5g P) - ingredients now list maize polenta and oat fibre, so likely a reformulated panel; one store is out of date. as sold",
+      "photo": "Woolworths and Coles figures disagree",
       "confirm": "Woolworths and Coles English muffin panels disagree — check your pack."
     },
     "coles": {
@@ -699,6 +701,7 @@
       "id": "332394",
       "checked": "2026-10-27",
       "note": "Coles product page (embedded NIP data). Per 67g muffin: 637 kJ (152 kcal), 6.4g P, 1.9g F, 27.1g C, 2.2g fibre, 235mg Na. Matches current macros.js; differs a lot from Woolworths. as sold",
+      "photo": "Woolworths and Coles figures disagree",
       "confirm": "Woolworths and Coles English muffin panels disagree — check your pack."
     }
   },
@@ -785,6 +788,7 @@
       "id": "524322",
       "checked": "2026-10-27",
       "note": "Fat, saturated, carbohydrate and sugars all read exactly 1.0g, which looks like Woolworths' data feed storing '<1g' as 1.0 (fat 1.0g would add 9 kcal to a 16 kcal food; Coles' panel for its own spinach prints 0g). Treat f/sat/c/sugars as '<1' and confirm on pack before using 1.0. Same panel on the 60g (379515) and 280g (524336, serving 70g) packs. Per 100g as listed in the Woolworths product data (NIP attributes). Fat/carbs/sugars printed '<1g' stored as 1g (upper bound).",
+      "photo": "Are some values printed as <1g?",
       "confirm": "Treat f/sat/c/sugars as '<1' and confirm on pack before using 1."
     },
     "coles": {
@@ -798,7 +802,8 @@
       "product": "Coles Baby Spinach 120g",
       "id": "1499340",
       "checked": "2026-10-27",
-      "note": "Identical panel on the 60g pack (1499486). Per 100g/ml column of the Coles product page panel; page also prints 16.2 Cal."
+      "note": "Identical panel on the 60g pack (1499486). Per 100g/ml column of the Coles product page panel; page also prints 16.2 Cal.",
+      "photo": "Are some values printed as <1g?"
     }
   },
   "toms": {
@@ -899,6 +904,7 @@
       "id": "34437",
       "checked": "2026-10-27",
       "note": "Same panel on Coles. Panel does not say drained or as canned. Ingredients are 'Sweet corn (58%), water, salt'. 3.2 servings x 75g = 240g, about the drained weight (58% of 420g = 244g), which points to drained. But 7.7g carbohydrate per 100g is low for drained sweet corn and fits whole can contents including brine. Confirm on the can before choosing drained or as-canned weights.",
+      "photo": "Does the panel say drained or as canned?",
       "confirm": "Panel does not say drained or as-canned — check the can before weighing."
     },
     "coles": {
@@ -913,6 +919,7 @@
       "id": "132045",
       "checked": "2026-10-27",
       "note": "Same drained-vs-as-canned ambiguity as the Woolworths row: the per-serve column (206 kJ per 75g) is consistent with the per-100g column, and the panel itself doesn't state the basis.",
+      "photo": "Does the panel say drained or as canned?",
       "confirm": "Panel does not say drained or as-canned — check the can before weighing."
     }
   },
@@ -957,6 +964,7 @@
       "id": "768569",
       "checked": "2026-10-27",
       "note": "Fat and saturated fat both exactly 1.0g, probably '<1g' stored as 1.0 by Woolworths' data feed; confirm on pack. Per 100g as frozen, from the Woolworths product data.",
+      "photo": "Fibre shows 0 online",
       "confirm": "0 by Woolworths' data feed; confirm on pack."
     },
     "coles": {
@@ -970,7 +978,8 @@
       "product": "Coles Frozen Carrot Corn & Peas 1kg",
       "id": "7644872",
       "checked": "2026-10-27",
-      "note": "Per 100g/ml column of the Coles product page panel (66.6 Cal printed)."
+      "note": "Per 100g/ml column of the Coles product page panel (66.6 Cal printed).",
+      "photo": "Fibre shows 0 online"
     }
   },
   "fzbroc": {
@@ -986,6 +995,7 @@
       "id": "768559",
       "checked": "2026-10-27",
       "note": "Fat and saturated fat both exactly 1.0g, probably '<1g' stored as 1.0; confirm on pack. Per 100g as frozen, from the Woolworths product data.",
+      "photo": "Fibre shows 0 online",
       "confirm": "0; confirm on pack."
     },
     "coles": {
@@ -999,7 +1009,8 @@
       "product": "Coles Frozen Broccoli Florets 500g",
       "id": "5341010",
       "checked": "2026-10-27",
-      "note": "Nearly double the Woolworths broccoli energy and 1.6x its protein; both are as printed. Per 100g/ml column of the Coles product page panel (46.4 Cal printed)."
+      "note": "Nearly double the Woolworths broccoli energy and 1.6x its protein; both are as printed. Per 100g/ml column of the Coles product page panel (46.4 Cal printed).",
+      "photo": "Fibre shows 0 online"
     }
   },
   "fzasian": {
@@ -1043,6 +1054,7 @@
       "id": "260010",
       "checked": "2026-10-27",
       "note": "Protein, fat and saturated fat all exactly 1.0g, probably '<1g' stored as 1.0; confirm on pack. Per 100g as frozen, from the Woolworths product data.",
+      "photo": "Fibre shows 0 online",
       "confirm": "0; confirm on pack."
     },
     "coles": {
@@ -1056,7 +1068,8 @@
       "product": "Coles Frozen Mixed Berries 500g",
       "id": "1301206",
       "checked": "2026-10-27",
-      "note": "Per 100g/ml column of the Coles product page panel (40.8 Cal printed)."
+      "note": "Per 100g/ml column of the Coles product page panel (40.8 Cal printed).",
+      "photo": "Fibre shows 0 online"
     }
   },
   "evap": {
@@ -1123,6 +1136,7 @@
       "id": "45458",
       "checked": "2026-10-27",
       "note": "The live Woolworths page shows the panel as 'Not Available' (only per-serve cholesterol/mono/poly/potassium/trans in the data). A cached Woolworths page and checklabels.com.au show an older, different panel: 314 kJ, 3.80 P, 1.90 F, 0.27 sat, 6.45 C, 8.64 sugars, 3 fibre, 2523 Na, serving 20g. That panel is internally inconsistent (sugars higher than carbohydrate). The distributor panel is used instead. Values conflict between sources, so confirm on the tin. Values printed '<1' stored as 1g (upper bound) Per 100g from the Australian distributor's panel for the 114g tin.",
+      "photo": "Online figures conflict — photo the panel",
       "confirm": "Curry paste values conflict between sources — check the tin."
     },
     "coles": {
@@ -1136,6 +1150,7 @@
       "id": "6801057",
       "checked": "2026-10-27",
       "note": "Different product from the Woolworths one (contains palm sugar, soybean oil). It has about 2.5x the energy of the Maesri paste. Per 100g/ml column of the Coles product page panel ('Energy (Cal)' field shows 0.201, a unit glitch for 201).",
+      "photo": "Online figures conflict — photo the panel",
       "confirm": "Curry paste values conflict between sources — check the tin."
     }
   },
@@ -1255,6 +1270,7 @@
       "id": "5873664",
       "checked": "2026-10-27",
       "note": "Fat and sat printed 'LESS THAN 1 g'. Fibre not listed. Differs from the Woolworths panel for the same product (553 kJ, 30.1 g C). Values printed '<1' stored as 1g (upper bound)",
+      "photo": "Are some values printed as <1g?",
       "confirm": "Some values may be printed as '<1g' on the pack — check before trusting 1.0g."
     },
     "woolies": {
@@ -1269,6 +1285,7 @@
       "id": "65404",
       "checked": "2026-10-27",
       "note": "Barcode 78895300017. Fat and sat printed '<1g'. Values printed '<1' stored as 1g (upper bound)",
+      "photo": "Are some values printed as <1g?",
       "confirm": "Some values may be printed as '<1g' on the pack — check before trusting 1.0g."
     }
   },
@@ -1391,7 +1408,8 @@
       "product": "Gourmet Garden Ginger Cold Blended Paste 80g",
       "id": "3023206",
       "checked": "2026-10-27",
-      "note": "Coles page has no panel or barcode. Values are the panel of the same Gourmet Garden 80 g ginger tube (GTIN 9328327001007) from the Woolworths listing (see woolies row). cals.com.au marks these 'reported' (single source). Values printed '<1' stored as 1g (upper bound) Values printed '<1' stored as 1g (upper bound)"
+      "note": "Coles page has no panel or barcode. Values are the panel of the same Gourmet Garden 80 g ginger tube (GTIN 9328327001007) from the Woolworths listing (see woolies row). cals.com.au marks these 'reported' (single source). Values printed '<1' stored as 1g (upper bound) Values printed '<1' stored as 1g (upper bound)",
+      "photo": "Only an old cached page was found"
     },
     "woolies": {
       "k": 158.5,
@@ -1404,7 +1422,8 @@
       "product": "Gourmet Garden Paste Ginger 80g",
       "id": "948511",
       "checked": "2026-10-27",
-      "note": "Live Woolworths API on 2026-10-27 returns every nutrient as '-'. The panel above is the Woolworths product page as captured by the search index (4 servings of 20 g, 133 kJ/serve), reproduced identically by cals.com.au (GTIN 9328327001007 = Woolworths barcode). Protein/fat/sat printed 'Less than 1g'. Re-check the live page or the tube before release. Values printed '<1' stored as 1g (upper bound) Values printed '<1' stored as 1g (upper bound)"
+      "note": "Live Woolworths API on 2026-10-27 returns every nutrient as '-'. The panel above is the Woolworths product page as captured by the search index (4 servings of 20 g, 133 kJ/serve), reproduced identically by cals.com.au (GTIN 9328327001007 = Woolworths barcode). Protein/fat/sat printed 'Less than 1g'. Re-check the live page or the tube before release. Values printed '<1' stored as 1g (upper bound) Values printed '<1' stored as 1g (upper bound)",
+      "photo": "Only an old cached page was found"
     }
   },
   "sesame": {
@@ -1472,6 +1491,7 @@
       "id": "1809867",
       "checked": "2026-10-27",
       "note": "Panel also prints 339 Cal/100 g.",
+      "photo": "Are some values printed as <1g?",
       "confirm": "Some values may be printed as '<1g' on the pack — check before trusting 1.0g."
     },
     "woolies": {
@@ -1486,6 +1506,7 @@
       "id": "753976",
       "checked": "2026-10-27",
       "note": "Protein, fat and sat printed as '1.00g' per 100 g but 0.20 g per 15 g serve (=1.3 g/100 g); these are likely '<1 g' entries rendered as 1. Recorded as printed; check the jar.",
+      "photo": "Are some values printed as <1g?",
       "confirm": "Some values may be printed as '<1g' on the pack — check before trusting 1.0g."
     }
   },
@@ -1569,6 +1590,7 @@
       "id": "9418761",
       "checked": "2026-10-27",
       "note": "No per-spray serving on the label. $3. Woolworths panel is per 100 g (serve 5.0 G); Coles panel is per 100 mL-ish (serve 'Approximately 5mL', 4.48 g fat/serve = 89.6 g per 100). Neither gives density or per-spray weight. Panel column titled 'Per 100g/ml'; recorded as 100 mL because the serve is in mL.",
+      "photo": "Is there a per-100g column?",
       "confirm": "Coles lists this spray per 100 mL but portions are weighed in grams — check the pack."
     }
   },
@@ -1892,7 +1914,15 @@
     }
   }
 };
-  var api = { PANELS: PANELS };
+  var PHOTOS = [
+  {
+    "id": "gr-cookie",
+    "store": "woolies",
+    "product": "Grenade High Protein Low Sugar Bar Choc Chip Cookie Dough 60g",
+    "photo": "No Australian panel online"
+  }
+];
+  var api = { PANELS: PANELS, PHOTOS: PHOTOS };
   if (typeof module === "object" && module.exports) module.exports = api;
   else root.WeekdayFuelMacros = api;
 })(this);

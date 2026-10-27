@@ -78,6 +78,7 @@
       "panelBasisNote": "",
       "sourceUrl": "https://www.coles.com.au/product/lee-kum-kee-panda-brand-oyster-sauce-255g-5873664 (page __NEXT_DATA__)",
       "checked": "2026-10-27",
+      "photo": "Are some values printed as <1g?",
       "notes": "Fat and sat printed 'LESS THAN 1 g'. Fibre not listed. Differs from the Woolworths panel for the same product (553 kJ, 30.1 g C)."
     },
     {
@@ -102,6 +103,7 @@
       "panelBasisNote": "",
       "sourceUrl": "https://www.woolworths.com.au/apis/ui/product/detail/65404",
       "checked": "2026-10-27",
+      "photo": "Are some values printed as <1g?",
       "notes": "Barcode 78895300017. Fat and sat printed '<1g'."
     },
     {
@@ -318,6 +320,7 @@
       "panelBasisNote": "",
       "sourceUrl": "https://cals.com.au/herbs-spices/gourmet-garden-paste-ginger-80g/",
       "checked": "2026-10-27",
+      "photo": "Only an old cached page was found",
       "notes": "Coles page has no panel or barcode. Values are the panel of the same Gourmet Garden 80 g ginger tube (GTIN 9328327001007) from the Woolworths listing (see woolies row). cals.com.au marks these 'reported' (single source)."
     },
     {
@@ -342,6 +345,7 @@
       "panelBasisNote": "",
       "sourceUrl": "https://www.woolworths.com.au/shop/productdetails/948511/gourmet-garden-paste-ginger (search-engine capture of the page) + https://cals.com.au/herbs-spices/gourmet-garden-paste-ginger-80g/",
       "checked": "2026-10-27",
+      "photo": "Only an old cached page was found",
       "notes": "Live Woolworths API on 2026-10-27 returns every nutrient as '-'. The panel above is the Woolworths product page as captured by the search index (4 servings of 20 g, 133 kJ/serve), reproduced identically by cals.com.au (GTIN 9328327001007 = Woolworths barcode). Protein/fat/sat printed 'Less than 1g'. Re-check the live page or the tube before release."
     },
     {
@@ -486,6 +490,7 @@
       "panelBasisNote": "",
       "sourceUrl": "https://www.coles.com.au/_next/data/<buildId>/en/product/coles-simply-pure-honey-squeeze-400g-1809867.json",
       "checked": "2026-10-27",
+      "photo": "Are some values printed as <1g?",
       "notes": "Panel also prints 339 Cal/100 g."
     },
     {
@@ -510,6 +515,7 @@
       "panelBasisNote": "",
       "sourceUrl": "https://www.woolworths.com.au/apis/ui/product/detail/753976",
       "checked": "2026-10-27",
+      "photo": "Are some values printed as <1g?",
       "notes": "Protein, fat and sat printed as '1.00g' per 100 g but 0.20 g per 15 g serve (=1.3 g/100 g); these are likely '<1 g' entries rendered as 1. Recorded as printed; check the jar."
     },
     {
@@ -1047,6 +1053,7 @@
       "panelBasisNote": "Woolworths panel is per 100 g (serve 5.0 G); Coles panel is per 100 mL-ish (serve 'Approximately 5mL', 4.48 g fat/serve = 89.6 g per 100). Neither gives density or per-spray weight. Panel column titled 'Per 100g/ml'; recorded as 100 mL because the serve is in mL.",
       "sourceUrl": "https://www.coles.com.au/_next/data/<buildId>/en/product/coles-canola-oil-cooking-spray-400g-9418761.json",
       "checked": "2026-10-27",
+      "photo": "Is there a per-100g column?",
       "notes": "No per-spray serving on the label. $3."
     },
     {

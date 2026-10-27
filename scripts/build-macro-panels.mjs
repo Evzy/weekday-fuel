@@ -88,7 +88,41 @@ function rowToPanel(src0) {
   if (notes.length) note = (note ? note + " " : "") + notes.join(" ");
   if (row.panelBasisNote) note = (note ? note + " " : "") + row.panelBasisNote;
   if (note) panel.note = note.trim();
+  if (row.photo) panel.photo = row.photo;
   return panel;
+}
+
+function panelIdForRow(row) {
+  if (row.role === "fallback") return row.item + "-fallback";
+  if (row.role === "pack") return row.item + "-pack";
+  return row.item;
+}
+
+function buildPhotos(allRows, panels) {
+  const onPanel = new Set();
+  for (const [id, bag] of Object.entries(panels)) {
+    for (const [sk, p] of Object.entries(bag)) {
+      if (p && p.photo) onPanel.add(id + "|" + sk);
+    }
+  }
+  const out = [];
+  const seen = new Set();
+  for (const row of allRows) {
+    if (!row.photo || !row.item) continue;
+    const sk = storeKey(row.store);
+    const pid = panelIdForRow(row);
+    if (onPanel.has(pid + "|" + sk)) continue;
+    const key = row.item + "|" + sk;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({
+      id: row.item,
+      store: sk,
+      product: row.productName || "",
+      photo: row.photo,
+    });
+  }
+  return out;
 }
 
 function mergePanels(allRows) {
@@ -124,6 +158,10 @@ function applyOverrides(panels) {
       note: "Woolworths panel, Coles has none online. " + (w.note || ""),
     });
   }
+  if (panels.breast?.coles) {
+    panels.breast.coles.photo = "No panel online";
+  }
+  if (panels.breast?.woolies?.photo) delete panels.breast.woolies.photo;
   if (panels.paprika?.any && !panels.paprika.woolies) {
     panels.paprika.woolies = panels.paprika.any;
     panels.paprika.coles = panels.paprika.any;
@@ -194,11 +232,13 @@ function main() {
   const allRows = LABEL_FILES.flatMap(rowsFromFile);
   let panels = mergePanels(allRows);
   panels = applyOverrides(panels);
+  const photos = buildPhotos(allRows, panels);
   const body = `/* Per-store nutrition panels (generated). Regenerate: node scripts/build-macro-panels.mjs */
 (function (root) {
   "use strict";
   var PANELS = ${JSON.stringify(panels, null, 2)};
-  var api = { PANELS: PANELS };
+  var PHOTOS = ${JSON.stringify(photos, null, 2)};
+  var api = { PANELS: PANELS, PHOTOS: PHOTOS };
   if (typeof module === "object" && module.exports) module.exports = api;
   else root.WeekdayFuelMacros = api;
 })(this);

@@ -497,6 +497,7 @@
     "panelBasisNote": null,
     "sourceUrl": null,
     "checked": "2026-10-27",
+    "photo": "No Australian panel online",
     "notes": "Swap of grenade; Woolworths only. Live Woolworths page has no nutrition panel. Tried: Woolworths page; Woolworths API (blocked); cals.com.au (only carb 2.7g and sugars 2.3g per 100g from AU pack, GTIN 5060811386606); shophop (panel 'still being collected'); grocerywise (no values). Old Woolworths listing 170301 shows a clearly broken panel (884 kJ and 21g P 'per 100g' = per-bar figures, sodium 0.2mg) so not usable; dealfirst copies that broken data. UK/RoW Grenade sites give different (UK) formulations. Current catalogue per {k:208, p:21} matches the UK grenade.com bar (869 kJ/208 kcal per 60g), not an Australian panel."
   },
   {
@@ -1322,6 +1323,7 @@
     "panelBasisNote": "as sold",
     "sourceUrl": "https://www.woolworths.com.au/shop/productdetails/46795/tip-top-english-muffins-original-bakery",
     "checked": "2026-10-27",
+    "photo": "Woolworths and Coles figures disagree",
     "notes": "Woolworths product page (text NIP) (title 'Tip Top English Muffins Original Bakery 6 pack'). Per 67g muffin: 553 kJ (132 kcal), 4.8g P, 1.4g F, 23.5g C, 2.7g fibre, 198mg Na. Much lower than the Coles panel and the current macros.js values (227 kcal, 9.5g P) - ingredients now list maize polenta and oat fibre, so likely a reformulated panel; one store is out of date."
   },
   {
@@ -1347,6 +1349,7 @@
     "panelBasisNote": "as sold",
     "sourceUrl": "https://www.coles.com.au/product/tip-top-muffins-english-400g-332394",
     "checked": "2026-10-27",
+    "photo": "Woolworths and Coles figures disagree",
     "notes": "Coles product page (embedded NIP data). Per 67g muffin: 637 kJ (152 kcal), 6.4g P, 1.9g F, 27.1g C, 2.2g fibre, 235mg Na. Matches current macros.js; differs a lot from Woolworths."
   },
   {
