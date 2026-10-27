@@ -32,7 +32,7 @@ Spec `docs/superpowers/specs/2026-10-27-delivery-minimum-design.md`; built in 18
 
 ## Reminder for Evan: label photos (asked 2026-10-27)
 
-Evan will photograph these nutrition panels later; remind him. Until then the app uses the store data noted.
+Evan will photograph these nutrition panels later; remind him. Until then the app uses the store data noted. The live list is in the app (Kitchen → Label photos, plus "Snap the label" tags and cooking-step lines), built from the `photo` fields in `docs/research/labels-*.json` (spec `docs/superpowers/specs/2026-10-27-label-photos-design.md`). When a photo arrives: update the row's figures, remove its `photo`, run `node scripts/build-macro-panels.mjs`, and update this list.
 - Edgell corn kernels 420g: is the panel drained or as canned?
 - Maesri red curry paste 114g (Woolworths): two conflicting online panels.
 - Gourmet Garden ginger paste 80g: value came from a cached Woolworths page.
