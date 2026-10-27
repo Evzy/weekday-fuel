@@ -24,7 +24,6 @@
     "fsanzId": null, "fsanzName": null,
     "sourceUrl": "https://www.coles.com.au/product/coles-baby-spinach-120g-1499340",
     "checked": "2026-10-27",
-    "photo": "Are some values printed as <1g?",
     "notes": "Identical panel on the 60g pack (1499486)."
   },
   {
@@ -166,7 +165,7 @@
     "fsanzId": null, "fsanzName": null,
     "sourceUrl": "https://www.woolworths.com.au/apis/ui/product/detail/768569",
     "checked": "2026-10-27",
-    "photo": "Fibre shows 0 online",
+    "photo": "Are fat/protein printed as <1g?",
     "notes": "Fat and saturated fat both exactly 1.0g, probably '<1g' stored as 1.0 by Woolworths' data feed; confirm on pack."
   },
   {
@@ -180,7 +179,6 @@
     "fsanzId": null, "fsanzName": null,
     "sourceUrl": "https://www.coles.com.au/product/coles-frozen-carrot-corn-and-peas-1kg-7644872",
     "checked": "2026-10-27",
-    "photo": "Fibre shows 0 online",
     "notes": ""
   },
   {
@@ -194,7 +192,7 @@
     "fsanzId": null, "fsanzName": null,
     "sourceUrl": "https://www.woolworths.com.au/apis/ui/product/detail/768559",
     "checked": "2026-10-27",
-    "photo": "Fibre shows 0 online",
+    "photo": "Are fat/protein printed as <1g?",
     "notes": "Fat and saturated fat both exactly 1.0g, probably '<1g' stored as 1.0; confirm on pack."
   },
   {
@@ -208,7 +206,6 @@
     "fsanzId": null, "fsanzName": null,
     "sourceUrl": "https://www.coles.com.au/product/coles-frozen-broccoli-florets-500g-5341010",
     "checked": "2026-10-27",
-    "photo": "Fibre shows 0 online",
     "notes": "Nearly double the Woolworths broccoli energy and 1.6x its protein; both are as printed."
   },
   {
@@ -248,7 +245,7 @@
     "fsanzId": null, "fsanzName": null,
     "sourceUrl": "https://www.woolworths.com.au/apis/ui/product/detail/260010",
     "checked": "2026-10-27",
-    "photo": "Fibre shows 0 online",
+    "photo": "Are fat/protein printed as <1g?",
     "notes": "Protein, fat and saturated fat all exactly 1.0g, probably '<1g' stored as 1.0; confirm on pack."
   },
   {
@@ -262,7 +259,6 @@
     "fsanzId": null, "fsanzName": null,
     "sourceUrl": "https://www.coles.com.au/product/coles-frozen-mixed-berries-500g-1301206",
     "checked": "2026-10-27",
-    "photo": "Fibre shows 0 online",
     "notes": ""
   },
   {
@@ -342,7 +338,6 @@
     "fsanzId": null, "fsanzName": null,
     "sourceUrl": "https://www.coles.com.au/product/ayam-thai-red-curry-paste-195g-6801057",
     "checked": "2026-10-27",
-    "photo": "Online figures conflict — photo the panel",
     "notes": "Different product from the Woolworths one (contains palm sugar, soybean oil). It has about 2.5x the energy of the Maesri paste."
   },
   {

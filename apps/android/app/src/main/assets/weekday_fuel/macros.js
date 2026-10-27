@@ -802,8 +802,7 @@
       "product": "Coles Baby Spinach 120g",
       "id": "1499340",
       "checked": "2026-10-27",
-      "note": "Identical panel on the 60g pack (1499486). Per 100g/ml column of the Coles product page panel; page also prints 16.2 Cal.",
-      "photo": "Are some values printed as <1g?"
+      "note": "Identical panel on the 60g pack (1499486). Per 100g/ml column of the Coles product page panel; page also prints 16.2 Cal."
     }
   },
   "toms": {
@@ -964,7 +963,7 @@
       "id": "768569",
       "checked": "2026-10-27",
       "note": "Fat and saturated fat both exactly 1.0g, probably '<1g' stored as 1.0 by Woolworths' data feed; confirm on pack. Per 100g as frozen, from the Woolworths product data.",
-      "photo": "Fibre shows 0 online",
+      "photo": "Are fat/protein printed as <1g?",
       "confirm": "0 by Woolworths' data feed; confirm on pack."
     },
     "coles": {
@@ -978,8 +977,7 @@
       "product": "Coles Frozen Carrot Corn & Peas 1kg",
       "id": "7644872",
       "checked": "2026-10-27",
-      "note": "Per 100g/ml column of the Coles product page panel (66.6 Cal printed).",
-      "photo": "Fibre shows 0 online"
+      "note": "Per 100g/ml column of the Coles product page panel (66.6 Cal printed)."
     }
   },
   "fzbroc": {
@@ -995,7 +993,7 @@
       "id": "768559",
       "checked": "2026-10-27",
       "note": "Fat and saturated fat both exactly 1.0g, probably '<1g' stored as 1.0; confirm on pack. Per 100g as frozen, from the Woolworths product data.",
-      "photo": "Fibre shows 0 online",
+      "photo": "Are fat/protein printed as <1g?",
       "confirm": "0; confirm on pack."
     },
     "coles": {
@@ -1009,8 +1007,7 @@
       "product": "Coles Frozen Broccoli Florets 500g",
       "id": "5341010",
       "checked": "2026-10-27",
-      "note": "Nearly double the Woolworths broccoli energy and 1.6x its protein; both are as printed. Per 100g/ml column of the Coles product page panel (46.4 Cal printed).",
-      "photo": "Fibre shows 0 online"
+      "note": "Nearly double the Woolworths broccoli energy and 1.6x its protein; both are as printed. Per 100g/ml column of the Coles product page panel (46.4 Cal printed)."
     }
   },
   "fzasian": {
@@ -1054,7 +1051,7 @@
       "id": "260010",
       "checked": "2026-10-27",
       "note": "Protein, fat and saturated fat all exactly 1.0g, probably '<1g' stored as 1.0; confirm on pack. Per 100g as frozen, from the Woolworths product data.",
-      "photo": "Fibre shows 0 online",
+      "photo": "Are fat/protein printed as <1g?",
       "confirm": "0; confirm on pack."
     },
     "coles": {
@@ -1068,8 +1065,7 @@
       "product": "Coles Frozen Mixed Berries 500g",
       "id": "1301206",
       "checked": "2026-10-27",
-      "note": "Per 100g/ml column of the Coles product page panel (40.8 Cal printed).",
-      "photo": "Fibre shows 0 online"
+      "note": "Per 100g/ml column of the Coles product page panel (40.8 Cal printed)."
     }
   },
   "evap": {
@@ -1149,9 +1145,7 @@
       "product": "Ayam Thai Red Curry Paste 195g",
       "id": "6801057",
       "checked": "2026-10-27",
-      "note": "Different product from the Woolworths one (contains palm sugar, soybean oil). It has about 2.5x the energy of the Maesri paste. Per 100g/ml column of the Coles product page panel ('Energy (Cal)' field shows 0.201, a unit glitch for 201).",
-      "photo": "Online figures conflict — photo the panel",
-      "confirm": "Curry paste values conflict between sources — check the tin."
+      "note": "Different product from the Woolworths one (contains palm sugar, soybean oil). It has about 2.5x the energy of the Maesri paste. Per 100g/ml column of the Coles product page panel ('Energy (Cal)' field shows 0.201, a unit glitch for 201)."
     }
   },
   "soy": {
@@ -1490,9 +1484,7 @@
       "product": "Coles Simply Pure Honey Squeeze 400g",
       "id": "1809867",
       "checked": "2026-10-27",
-      "note": "Panel also prints 339 Cal/100 g.",
-      "photo": "Are some values printed as <1g?",
-      "confirm": "Some values may be printed as '<1g' on the pack — check before trusting 1.0g."
+      "note": "Panel also prints 339 Cal/100 g."
     },
     "woolies": {
       "k": 339.4,

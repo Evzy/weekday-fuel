@@ -187,14 +187,12 @@ function applyOverrides(panels) {
     },
     curry: {
       woolies: "Curry paste values conflict between sources — check the tin.",
-      coles: "Curry paste values conflict between sources — check the tin.",
     },
     muffin: {
       woolies: "Woolworths and Coles English muffin panels disagree — check your pack.",
       coles: "Woolworths and Coles English muffin panels disagree — check your pack.",
     },
     honey: {
-      coles: "Some values may be printed as '<1g' on the pack — check before trusting 1.0g.",
       woolies: "Some values may be printed as '<1g' on the pack — check before trusting 1.0g.",
     },
     oyster: {
@@ -218,6 +216,10 @@ function applyOverrides(panels) {
         p.confirm = m ? m[1].trim() : "Check the pack against the label.";
       }
     }
+  }
+  for (const id of ["spinach", "honey", "curry", "fzmix", "fzbroc", "fzberry"]) {
+    const c = panels[id]?.coles;
+    if (c && c.confirm) delete c.confirm;
   }
   return panels;
 }

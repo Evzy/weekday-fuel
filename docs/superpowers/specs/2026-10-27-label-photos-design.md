@@ -21,7 +21,7 @@ Remind Evan to photograph nutrition panels that the exact-macros work couldn't c
 
 ## Which items get `photo`
 
-Labels a photo resolves: corn (both stores), curry paste, ginger paste (cached page), English muffins (both stores), honey, oyster sauce, spinach, the three frozen veg packs with fibre 0 (fzmix, fzbroc, fzberry), Coles oil spray, Coles chicken breast (uses the Woolworths panel), Grenade Cookie Dough bar. Potato is excluded (no official unpeeled figure; a photo doesn't help). Existing `confirm` flags stay as they are; `photo` is separate.
+Labels a photo resolves: corn (both stores), curry paste (Woolworths only), ginger paste (cached page, both stores), English muffins (both stores), honey (Woolworths only), oyster sauce (both stores), spinach (Woolworths only), the three Woolworths frozen veg packs (fzmix, fzbroc, fzberry — fat/protein may be printed as &lt;1g), Coles oil spray, Coles chicken breast (uses the Woolworths panel), Grenade Cookie Dough bar. Potato is excluded (no official unpeeled figure; a photo doesn't help). Coles panels for curry, honey, spinach, and the three frozen veg lines are not flagged when the online panel is unambiguous. Existing `confirm` flags stay as they are where still needed; `photo` is separate.
 
 ## App
 
