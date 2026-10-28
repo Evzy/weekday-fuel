@@ -47,4 +47,15 @@ test("spray is counted once (AMOUNTS, not extra-amounts)", () => {
   const mc = calc.create({ panels: PANELS, amounts: cat.AMOUNTS, extraAmounts: EXTRA_AMOUNTS, item: (id) => cat.item(id) });
   const p = mc.portion("eggmuffin", "S", "woolies");
   assert.ok(p.k > 0);
+
+  const dupExtras = structuredClone(EXTRA_AMOUNTS);
+  dupExtras.eggmuffin = { spray: { L: 1, S: 1, X: 1 } };
+  const mcDup = calc.create({
+    panels: PANELS,
+    amounts: cat.AMOUNTS,
+    extraAmounts: dupExtras,
+    item: (id) => cat.item(id),
+  });
+  const pDup = mcDup.portion("eggmuffin", "S", "woolies");
+  assert.ok(pDup.k > p.k, "extra-amount spray would double-count macros on top of AMOUNTS");
 });
