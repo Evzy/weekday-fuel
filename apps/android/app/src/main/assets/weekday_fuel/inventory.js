@@ -341,7 +341,7 @@
     return ms;
   }
 
-  function stock(inv, days, cat, now, staplesOn) {
+  function stock(inv, days, cat, now, staplesOn, weighOpt) {
     if (!inv || !isStart(inv.start)) return {};
     var startMs = atMs(inv.start);
     if (isNaN(startMs)) return {};
@@ -384,7 +384,7 @@
         var per = cat && cat.AMOUNTS ? cat.AMOUNTS[m.id] : null;
         if (!per) return;
         Object.keys(per).forEach(function (item) {
-          var amt = cat.amountFor(m.id, item, tier);
+          var amt = stockAmountFromRecipe(cat, item, cat.amountFor(m.id, item, tier), weighOpt);
           if (amt > 0) actions.push({ ts: ateMs, at: ateAt, kind: "use", item: item, amount: amt, meal: true });
         });
       });
@@ -500,7 +500,17 @@
     return false;
   }
 
-  function reserveMeal(out, cat, m, date, today) {
+  function stockAmountFromRecipe(cat, itemId, recipeAmount, weighOpt) {
+    if (!(recipeAmount > 0)) return recipeAmount;
+    if (!weighOpt || typeof weighOpt.isStockInGrams !== "function") return recipeAmount;
+    if (!weighOpt.isStockInGrams(itemId)) return recipeAmount;
+    var it = cat && typeof cat.item === "function" ? cat.item(itemId) : null;
+    if (!it || it.unit !== "mL") return recipeAmount;
+    if (typeof weighOpt.mlToGrams !== "function") return recipeAmount;
+    return weighOpt.mlToGrams(itemId, recipeAmount);
+  }
+
+  function reserveMeal(out, cat, m, date, today, weighOpt) {
     if (!m || m.logged === true || m.ate === false) return;
     if (impliedAte(m, date, today)) return;
     if (m.ate !== undefined) return;
@@ -508,7 +518,7 @@
     if (!per) return;
     var tier = m.t === "L" || m.t === "X" ? m.t : "S";
     Object.keys(per).forEach(function (item) {
-      var a = cat.amountFor(m.id, item, tier);
+      var a = stockAmountFromRecipe(cat, item, cat.amountFor(m.id, item, tier), weighOpt);
       if (a > 0) addReserve(out, item, a);
     });
   }
@@ -523,18 +533,18 @@
     });
   }
 
-  function reserveMealsForDay(out, cat, day, d, today, shopDaySet, first, last, startDate) {
+  function reserveMealsForDay(out, cat, day, d, today, shopDaySet, first, last, startDate, weighOpt) {
     if (!day || !Array.isArray(day.meals)) return;
     if (compareDate(d, startDate) <= 0) return;
     day.meals.forEach(function (m) {
       var bought = m && typeof m.bought === "string" && m.bought !== "";
       if (bought) {
-        reserveMeal(out, cat, m, d, today);
+        reserveMeal(out, cat, m, d, today, weighOpt);
         return;
       }
       if (m && m.shop === false) {
         if (compareDate(d, today) >= 0 || shopDaySet[d]) {
-          reserveMeal(out, cat, m, d, today);
+          reserveMeal(out, cat, m, d, today, weighOpt);
           return;
         }
       }
@@ -542,11 +552,11 @@
       var past = compareDate(d, today) < 0;
       var beforeFirst = first && compareDate(d, first) < 0;
       var betweenShops = first && last && compareDate(d, first) >= 0 && compareDate(d, last) <= 0;
-      if (past || beforeFirst || betweenShops) reserveMeal(out, cat, m, d, today);
+      if (past || beforeFirst || betweenShops) reserveMeal(out, cat, m, d, today, weighOpt);
     });
   }
 
-  function gapSpareReserved(inv, days, cat, today, weekEnd, shopDays, staplesOn) {
+  function gapSpareReserved(inv, days, cat, today, weekEnd, shopDays, staplesOn, weighOpt) {
     var out = nullMap();
     if (!inv) return out;
     if (typeof today !== "string" || !DATE.test(today)) return out;
@@ -567,7 +577,7 @@
     var d = today;
     while (compareDate(d, end) <= 0) {
       var day = days && days[d];
-      reserveMealsForDay(out, cat, day, d, today, shopDaySet, first, last, startDate);
+      reserveMealsForDay(out, cat, day, d, today, shopDaySet, first, last, startDate, weighOpt);
       if (typeof staplesOn === "function" && compareDate(d, today) > 0) {
         var dayStaples = staplesOn(d);
         var dayRec = days && days[d];
@@ -591,13 +601,13 @@
       if (!day || !Array.isArray(day.meals)) return;
       day.meals.forEach(function (m) {
         var bought = m && typeof m.bought === "string" && m.bought !== "";
-        if (bought) reserveMeal(out, cat, m, d, today);
+        if (bought) reserveMeal(out, cat, m, d, today, weighOpt);
       });
     });
     return out;
   }
 
-  function reserved(inv, days, cat, today, shopDays, staplesOn) {
+  function reserved(inv, days, cat, today, shopDays, staplesOn, weighOpt) {
     var out = nullMap();
     if (!inv) return out;
     if (typeof today !== "string" || !DATE.test(today)) return out;
@@ -620,12 +630,12 @@
       day.meals.forEach(function (m) {
         var bought = m && typeof m.bought === "string" && m.bought !== "";
         if (bought) {
-          reserveMeal(out, cat, m, d, today);
+          reserveMeal(out, cat, m, d, today, weighOpt);
           return;
         }
         if (m && m.shop === false) {
           if (compareDate(d, today) >= 0 || shopDaySet[d]) {
-            reserveMeal(out, cat, m, d, today);
+            reserveMeal(out, cat, m, d, today, weighOpt);
             return;
           }
         }
@@ -634,7 +644,7 @@
         var past = compareDate(d, today) < 0;
         var beforeFirst = first && compareDate(d, first) < 0;
         var betweenShops = first && last && compareDate(d, first) >= 0 && compareDate(d, last) <= 0;
-        if (past || beforeFirst || betweenShops) reserveMeal(out, cat, m, d, today);
+        if (past || beforeFirst || betweenShops) reserveMeal(out, cat, m, d, today, weighOpt);
       });
     });
     Object.keys(days || {}).forEach(function (d) {
@@ -927,6 +937,7 @@
     setProduceGramsMigratedDone: setProduceGramsMigratedDone,
     weighGStockMigratedDone: weighGStockMigratedDone,
     setWeighGStockMigratedDone: setWeighGStockMigratedDone,
+    stockAmountFromRecipe: stockAmountFromRecipe,
     impliedAte: impliedAte,
     endOfDay: endOfDay,
   };

@@ -114,9 +114,7 @@
     var sample = weighApi.parseSample(entry && entry.ml, entry && entry.g);
     if (!sample) return amount;
     if (panel && panel.per === "100g") return weighApi.gramsForMl(sample, amount);
-    if (panel && panel.per === "100mL") {
-      return weighApi.mlForGrams(sample, weighApi.gramsForMl(sample, amount));
-    }
+    if (panel && panel.per === "100mL") return amount;
     return amount;
   }
 

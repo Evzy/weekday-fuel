@@ -62,24 +62,15 @@
     return next;
   }
 
-  /* Kitchen stock still in mL: small leftovers, or round bottle sizes before conversion. */
-  function looksLikeMlStock(amount, sample) {
-    if (!(amount > 0) || !isFinite(amount) || !sample) return false;
-    if (amount > 2000) return false;
-    var sg = sample.g > 0 ? sample.g : 1;
-    if (amount < sg) return true;
-    if (amount % 50 === 0) return true;
-    if (amount % 10 === 0 && amount < 1000) return true;
-    return false;
-  }
-
   function convertStockMlToG(events, id, sample) {
     var parsed = parseSample(sample && sample.ml, sample && sample.g);
     if (!parsed || !id || !Array.isArray(events)) return events;
     var ratio = parsed.g / parsed.ml;
     var changed = false;
     var out = events.map(function (e) {
-      if (!e || e.item !== id || !looksLikeMlStock(e.amount, parsed)) return e;
+      if (!e || e.item !== id) return e;
+      if (e.k !== "buy" && e.k !== "add" && e.k !== "set") return e;
+      if (!(e.amount > 0) || !isFinite(e.amount)) return e;
       changed = true;
       var copy = {};
       Object.keys(e).forEach(function (k) {
@@ -91,6 +82,14 @@
     return changed ? out : events;
   }
 
+  function convertBuyMlToStock(item, mlAmount, weighOpt) {
+    if (!item || item.unit !== "mL" || !(mlAmount > 0)) return mlAmount;
+    if (!weighOpt || typeof weighOpt.isStockInGrams !== "function") return mlAmount;
+    if (!weighOpt.isStockInGrams(item.id)) return mlAmount;
+    if (typeof weighOpt.mlToGrams !== "function") return mlAmount;
+    return weighOpt.mlToGrams(item.id, mlAmount);
+  }
+
   var api = {
     parseSample: parseSample,
     gramsForMl: gramsForMl,
@@ -100,6 +99,7 @@
     apply: apply,
     clear: clear,
     convertStockMlToG: convertStockMlToG,
+    convertBuyMlToStock: convertBuyMlToStock,
   };
   if (typeof module === "object" && module.exports) module.exports = api;
   else root.WeekdayFuelWeigh = api;

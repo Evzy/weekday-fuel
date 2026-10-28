@@ -354,18 +354,31 @@ function runProduceGramsMigratedIfNeeded(){
   }
   WeekdayFuelInventory.setProduceGramsMigratedDone(localStorage);
 }
+function inventoryWeighOpt(){
+  const wg=S().weighG||{};
+  return {
+    isStockInGrams(id){return WeekdayFuelWeigh.has(wg,id)&&WeekdayFuelInventory.weighGStockMigratedDone(localStorage,id)},
+    mlToGrams(id,ml){const s=WeekdayFuelWeigh.parseSample(wg[id]&&wg[id].ml,wg[id]&&wg[id].g);return s?WeekdayFuelWeigh.gramsForMl(s,ml):ml}
+  };
+}
+function kitchenStockDisplay(it,amount){
+  if(it&&it.unit==="mL"&&inventoryWeighOpt().isStockInGrams(it.id))return {amount,unit:"g"};
+  return WeekdayFuelWeigh.displayAmount(it,amount,S().weighG||{});
+}
 function runWeighStockIfNeeded(){
   const wg=S().weighG;if(!wg)return;
   let inv=lsInv();if(!inv||!Array.isArray(inv.events))return;
   let events=inv.events,changed=false;
+  const pending=[];
   Object.keys(wg).forEach(id=>{
     if(!WeekdayFuelWeigh.has(wg,id))return;
     if(WeekdayFuelInventory.weighGStockMigratedDone(localStorage,id))return;
     const next=WeekdayFuelWeigh.convertStockMlToG(events,id,wg[id]);
     if(next!==events){events=next;changed=true}
-    WeekdayFuelInventory.setWeighGStockMigratedDone(localStorage,id);
+    pending.push(id);
   });
-  if(changed)lsSetInv(Object.assign({},inv,{events}));
+  if(changed&&!lsSetInv(Object.assign({},inv,{events})))return;
+  pending.forEach(id=>WeekdayFuelInventory.setWeighGStockMigratedDone(localStorage,id));
 }
 function staplesActiveOn(date){return WeekdayFuelStaples.activeStaples(staplesList(),date)}
 function dayMealsAll(){return dayMealsFrom(null)}
@@ -381,8 +394,8 @@ function shopHave(){
   let have=null;
   if(inv){
     have=WeekdayFuelInventory.freeForShop(
-      WeekdayFuelInventory.stock(inv,state.days,CAT,new Date(),staplesOn),
-      WeekdayFuelInventory.reserved(inv,state.days,CAT,iso(new Date()),shopDays(),staplesOn),
+      WeekdayFuelInventory.stock(inv,state.days,CAT,new Date(),staplesOn,inventoryWeighOpt()),
+      WeekdayFuelInventory.reserved(inv,state.days,CAT,iso(new Date()),shopDays(),staplesOn,inventoryWeighOpt()),
       CAT,
       shopHaveTargetDate()
     );
@@ -899,7 +912,10 @@ function kitchenSave(ev){
   if(ev.k==="add"){if(!(ev.amount>0)||!isFinite(ev.amount))return false}
   else if(ev.k==="set"){if(!(ev.amount>=0)||!isFinite(ev.amount)||!ev.why)return false}
   else return false;
-  const inv=WeekdayFuelInventory.addEvents(lsInv(),[ev],new Date().toISOString());
+  let amount=ev.amount;
+  const weighOpt=inventoryWeighOpt();
+  if(it.unit==="mL"&&weighOpt.isStockInGrams(ev.item)&&ev.k==="add")amount=weighOpt.mlToGrams(ev.item,amount);
+  const inv=WeekdayFuelInventory.addEvents(lsInv(),[Object.assign({},ev,{amount})],new Date().toISOString());
   if(!lsSetInv(inv)){state.kitchenError="Couldn't save";return false}
   state.kitchenError=null;
   return true;
@@ -915,7 +931,7 @@ function kitchenAgeLine(id,st,it){
 }
 function kitchenItemBlock(id,st,open,ageLine,photoMap){
   const it=CAT.item(id);if(!it)return "";
-  const disp=WeekdayFuelWeigh.displayAmount(it,st.amount,S().weighG||{});
+  const disp=kitchenStockDisplay(it,st.amount);
   const qty=esc(kitchenAmountText(disp.amount,disp.unit));
   let h=`<div class="si"><div class="grow"><button class="itembtn" type="button" data-act="kitem" data-v="${esc(id)}" aria-expanded="${open}"><span class="grow">${esc(it.name)}${labelPhotoTag(id,photoMap)}</span><span class="p">${qty}</span></button>`;
   if(ageLine)h+=`<span class="small muted" style="display:block">${esc(ageLine)}</span>`;
@@ -937,7 +953,7 @@ function kitchenSection(title,list,stock,ageFor,photoMap){
 }
 function renderKitchen(){
   const lpCtx=buildLabelPhotoCtx(store());
-  const stock=WeekdayFuelInventory.stock(lsInv(),state.days,CAT,new Date(),staplesOn);
+  const stock=WeekdayFuelInventory.stock(lsInv(),state.days,CAT,new Date(),staplesOn,inventoryWeighOpt());
   const ids=Object.keys(stock);
   const useSoon=[],fridge=[],cupboard=[],daily=[];
   ids.forEach(id=>{const it=CAT.item(id),st=stock[id];if(!it||!st)return;if(st.useSoon||st.off)useSoon.push(id);else if(it.sec===0)daily.push(id);else if(it.sec===2)cupboard.push(id);else if(it.sec===1)fridge.push(id);});
@@ -1306,8 +1322,9 @@ function gapKitchenFree(){
   const inv=lsInv();
   if(!inv)return {};
   const today=iso(new Date());
-  const st=WeekdayFuelInventory.stock(inv,state.days,CAT,new Date(),staplesOn);
-  const res=WeekdayFuelInventory.gapSpareReserved(inv,state.days,CAT,today,gapWeekEnd(today),shopDays(),staplesOn);
+  const weighOpt=inventoryWeighOpt();
+  const st=WeekdayFuelInventory.stock(inv,state.days,CAT,new Date(),staplesOn,weighOpt);
+  const res=WeekdayFuelInventory.gapSpareReserved(inv,state.days,CAT,today,gapWeekEnd(today),shopDays(),staplesOn,weighOpt);
   return WeekdayFuelInventory.free(st,res);
 }
 function gapSpreadRangeLabel(dates){
@@ -2183,7 +2200,8 @@ function renderWeighSheetBody(itemId,ml){
   const wg=S().weighG||{};
   const cur=WeekdayFuelWeigh.has(wg,itemId)?wg[itemId].g:"";
   const clearBtn=WeekdayFuelWeigh.has(wg,itemId)?`<button type="button" class="ghost" data-act="weighclear" data-v="${esc(itemId)}">Clear</button>`:"";
-  return `<div class="stack" style="gap:10px"><p class="small" style="margin:0">${esc(it.name)} · this portion is ${esc(String(mlNum))} mL. What did ${esc(String(mlNum))} mL weigh?</p><label class="f">Grams<input id="weigh-g" class="num" type="number" step="any" min="0" inputmode="decimal" value="${cur!==""?esc(String(cur)):""}"></label><div class="row" style="gap:8px"><button type="button" class="btn" data-act="weighsave" data-v="${esc(itemId)}" data-ml="${esc(String(mlNum))}">Save</button>${clearBtn}</div></div>`;
+  const weighHint=state.weighHint||(cur===""?"Weigh this portion on a scale and enter grams above zero.":"");
+  return `<div class="stack" style="gap:10px"><p class="small" style="margin:0">${esc(it.name)} · this portion is ${esc(String(mlNum))} mL. What did ${esc(String(mlNum))} mL weigh?</p><label class="f">Grams<input id="weigh-g" class="num" type="number" step="any" min="0" inputmode="decimal" value="${cur!==""?esc(String(cur)):""}"></label>${weighHint?`<span class="small muted">${esc(weighHint)}</span>`:""}<div class="row" style="gap:8px"><button type="button" class="btn" data-act="weighsave" data-v="${esc(itemId)}" data-ml="${esc(String(mlNum))}">Save</button>${clearBtn}</div></div>`;
 }
 function renderPackSheetBody(itemId){
   const st=store(),rows=shopRows(),row=rows.find(r=>r.id===itemId);
@@ -2836,14 +2854,14 @@ document.addEventListener("click",e=>{
     case "swap":{if(!dayEditable(date))break;const d=ensureDay(date);const m=d.meals[i];if(mealLocked(m,date))break;if(WeekdayFuelBought.isBought(m)&&dayUnlocked(date))state.dayNote={date,msg:"This meal's food was bought for the original meal."};swapMeal(date,i);closeMealSheetIfInvalid();break}
     case "mealshop":{if(!dayEditable(date))break;const d=ensureDay(date);const m=d.meals[i];if(mealLocked(m,date))break;if(m.shop===false)delete m.shop;else m.shop=false;saveDay(date);shopCtx=null;break}
     case "openday":state.tab="week";state.sheet=null;window.scrollTo(0,0);scrollWeekDay(v);break;
-    case "nextshop":if(trolleyBusy())break;if(state.armed!=="nextshop"){state.armed="nextshop";break}state.armed=null;{let saved;try{saved=trySaveOrder()}catch(e){saved=false}if(!saved){state.orderError={where:el.dataset.w,msg:"Couldn't save the order. Nothing was cleared."};break}if(saved!==true){const orderId=saved;try{const st=store(),haveIt=WeekdayFuelInventory.shopHaveIt(state.trolley,sentFor(st)),finishRows=shopFinishBuyRows(),sentW=(lsSent()||{}).lines||{},sentC=(lsColesSent()||{}).lines||{},stockCtx={sent:sentW,colesSent:sentC,colesId:WeekdayFuelCatalogue.colesId,cat:CAT},buys=WeekdayFuelInventory.buysFromRows(finishRows,st,lsTicks(),haveIt,stockCtx).concat(WeekdayFuelInventory.buysFromUnmatchedSent(st==="coles"?sentC:sentW,finishRows,CAT,st,WeekdayFuelCatalogue.colesId,stockCtx));if(buys.length){const events=buys.map(b=>({k:"buy",item:b.item,amount:b.amount,order:orderId})),inv=WeekdayFuelInventory.addEvents(lsInv(),events,new Date().toISOString());if(!lsSetInv(inv))state.orderError={where:"kitchen",msg:"Saved the order, but couldn't update the kitchen stock."}}}catch(e){state.orderError={where:"kitchen",msg:"Saved the order, but couldn't update the kitchen stock."}}try{const sentKeys=sentMealKeysUnion(),finishDays=legacyFinishShopDays();const mark=sentKeys.length?WeekdayFuelBought.markBoughtKeys(state.days,sentKeys,orderId):WeekdayFuelBought.markBought(state.days,finishDays||shopDays(),orderId);state.days=mark.days;mark.changed.forEach(d=>saveDay(d));applyBreadFallbackOnOrder(orderId,st)}catch(e){}}state.settings.trial={};state.settings.shopDays={};clearShopTopupSettings();saveSettings();lsSetTicks({});lsSetSent(null);lsSetColesSent(null);lsSetSpecials(null);state.trolley=null;state.checkout=null;state.coLast=null;state.shopViewStep=null;state.shopExpandDays={};runHeldMigratedIfNeeded();break}
+    case "nextshop":if(trolleyBusy())break;if(state.armed!=="nextshop"){state.armed="nextshop";break}state.armed=null;{let saved;try{saved=trySaveOrder()}catch(e){saved=false}if(!saved){state.orderError={where:el.dataset.w,msg:"Couldn't save the order. Nothing was cleared."};break}if(saved!==true){const orderId=saved;try{const st=store(),haveIt=WeekdayFuelInventory.shopHaveIt(state.trolley,sentFor(st)),finishRows=shopFinishBuyRows(),sentW=(lsSent()||{}).lines||{},sentC=(lsColesSent()||{}).lines||{},stockCtx={sent:sentW,colesSent:sentC,colesId:WeekdayFuelCatalogue.colesId,cat:CAT},buys=WeekdayFuelInventory.buysFromRows(finishRows,st,lsTicks(),haveIt,stockCtx).concat(WeekdayFuelInventory.buysFromUnmatchedSent(st==="coles"?sentC:sentW,finishRows,CAT,st,WeekdayFuelCatalogue.colesId,stockCtx));if(buys.length){const wOpt=inventoryWeighOpt();const events=buys.map(b=>{const it=CAT.item(b.item);return {k:"buy",item:b.item,amount:WeekdayFuelWeigh.convertBuyMlToStock(it,b.amount,wOpt),order:orderId}}),inv=WeekdayFuelInventory.addEvents(lsInv(),events,new Date().toISOString());if(!lsSetInv(inv))state.orderError={where:"kitchen",msg:"Saved the order, but couldn't update the kitchen stock."}}}catch(e){state.orderError={where:"kitchen",msg:"Saved the order, but couldn't update the kitchen stock."}}try{const sentKeys=sentMealKeysUnion(),finishDays=legacyFinishShopDays();const mark=sentKeys.length?WeekdayFuelBought.markBoughtKeys(state.days,sentKeys,orderId):WeekdayFuelBought.markBought(state.days,finishDays||shopDays(),orderId);state.days=mark.days;mark.changed.forEach(d=>saveDay(d));applyBreadFallbackOnOrder(orderId,st)}catch(e){}}state.settings.trial={};state.settings.shopDays={};clearShopTopupSettings();saveSettings();lsSetTicks({});lsSetSent(null);lsSetColesSent(null);lsSetSpecials(null);state.trolley=null;state.checkout=null;state.coLast=null;state.shopViewStep=null;state.shopExpandDays={};runHeldMigratedIfNeeded();break}
     case "openorder":state.openOrder=state.openOrder===v?null:v;break;
     case "delorder":{if(state.armed!=="order"+v){state.armed="order"+v;break}state.armed=null;if(!lsSetOrders(WeekdayFuelOrders.removeOrder(lsOrders(),v))){state.orderError={where:"del"+v,msg:"Couldn't delete the order."};break}const inv=lsInv();if(inv&&!lsSetInv(WeekdayFuelInventory.removeOrder(inv,v)))state.orderError={where:"kitchen",msg:"Deleted the order, but couldn't update the kitchen stock."};try{const un=WeekdayFuelBought.unmarkBought(state.days,v);state.days=un.days;un.changed.forEach(d=>saveDay(d))}catch(e){}if(state.openOrder===v)state.openOrder=null;break}
     case "rm":{if(!dayEditable(date))break;const d=ensureDay(date);const m=d.meals[i];if(mealLocked(m,date))break;const mid=v||m.id;const key=rmArmKey(date,mid);if(state.armed===key){d.meals.splice(i,1);saveDay(date);state.armed=null;state.sheet=null}else state.armed=key;break}
     case "rmx":{if(!dayEditable(date))break;const d=ensureDay(date);d.extras.splice(i,1);saveDay(date);break}
     case "recipe":state.sheet=v;state.sheetTier=TIERS.some(([k])=>k===el.dataset.t)?el.dataset.t:"S";break;
     case "weigh":state.sheet="weigh:"+v+":"+el.dataset.ml;break;
-    case "weighsave":{const inp=document.getElementById("weigh-g"),g=inp?parseFloat(inp.value):NaN,ml=+el.dataset.ml;if(!CAT.item(v)||!WeekdayFuelWeigh.parseSample(ml,g))break;state.settings.weighG=WeekdayFuelWeigh.apply(S().weighG||{},v,{ml,g});saveSettings();runWeighStockIfNeeded();state.sheet=null;break}
+    case "weighsave":{const inp=document.getElementById("weigh-g"),g=inp?parseFloat(inp.value):NaN,ml=+el.dataset.ml;if(!CAT.item(v)||!WeekdayFuelWeigh.parseSample(ml,g)){state.weighHint="Enter a weight above 0 g";break}state.weighHint=null;state.settings.weighG=WeekdayFuelWeigh.apply(S().weighG||{},v,{ml,g});saveSettings();runWeighStockIfNeeded();state.sheet=null;break}
     case "weighclear":{if(S().weighG){state.settings.weighG=WeekdayFuelWeigh.clear(S().weighG,v);if(!Object.keys(state.settings.weighG).length)delete state.settings.weighG;saveSettings()}state.sheet=null;break}
     case "sheettier":state.sheetTier=v;break;
     case "batch":state.sheet="batch:"+v;break;

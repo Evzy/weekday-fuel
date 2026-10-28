@@ -90,8 +90,35 @@ test("convertStockMlToG scales mL stock for one item only", () => {
   ]);
 });
 
-test("convertStockMlToG is idempotent for already-converted grams", () => {
-  const events = [{ k: "set", item: "soy", amount: 575 }];
+test("convertStockMlToG converts every stock event for the item", () => {
+  const events = [
+    { k: "buy", item: "soy", amount: 500, order: "o1" },
+    { k: "set", item: "soy", amount: 40 },
+  ];
   const out = W.convertStockMlToG(events, "soy", SOY_SAMPLE);
+  assert.deepEqual(out, [
+    { k: "buy", item: "soy", amount: 575, order: "o1" },
+    { k: "set", item: "soy", amount: 46 },
+  ]);
+});
+
+test("convertStockMlToG leaves other items unchanged", () => {
+  const events = [{ k: "set", item: "soy", amount: 500 }];
+  const out = W.convertStockMlToG(events, "rice", SOY_SAMPLE);
   assert.equal(out, events);
+});
+
+test("convertBuyMlToStock returns ml when not in gram stock mode", () => {
+  const item = { id: "soy", unit: "mL" };
+  const opt = { isStockInGrams: () => false, mlToGrams: () => 999 };
+  assert.equal(W.convertBuyMlToStock(item, 500, opt), 500);
+});
+
+test("convertBuyMlToStock converts bottle mL when stock is in grams", () => {
+  const item = { id: "soy", unit: "mL" };
+  const opt = {
+    isStockInGrams: (id) => id === "soy",
+    mlToGrams: (_id, ml) => W.gramsForMl(SOY_SAMPLE, ml),
+  };
+  assert.equal(W.convertBuyMlToStock(item, 500, opt), 575);
 });

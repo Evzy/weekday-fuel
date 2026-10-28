@@ -1180,6 +1180,69 @@ test("produceGramsMigratedDone uses device-local flag and legacy settings only t
   assert.equal(ls.getItem(I.PRODUCE_GRAMS_MIGRATED_KEY), "1");
 });
 
+const Weigh = require("../../main/assets/weekday_fuel/weigh.js");
+const realCat = require("../../main/assets/weekday_fuel/catalogue.js");
+const SOY_WEIGH = { ml: 40, g: 46 };
+
+function mockLs() {
+  return {
+    store: {},
+    getItem(k) {
+      return this.store[k] ?? null;
+    },
+    setItem(k, v) {
+      this.store[k] = v;
+    },
+  };
+}
+
+function soyWeighOpt(ls) {
+  I.setWeighGStockMigratedDone(ls, "soy");
+  return {
+    isStockInGrams(id) {
+      return id === "soy" && I.weighGStockMigratedDone(ls, id);
+    },
+    mlToGrams(_id, ml) {
+      return Weigh.gramsForMl(SOY_WEIGH, ml);
+    },
+  };
+}
+
+test("weighG stock: migrated mL events, meal use and buy in grams", () => {
+  const ls = mockLs();
+  const weighOpt = soyWeighOpt(ls);
+  const at = iso(new Date(2026, 9, 10, 10, 0, 0));
+  let events = [{ k: "set", item: "soy", amount: 500, why: "count", at }];
+  events = Weigh.convertStockMlToG(events, "soy", SOY_WEIGH);
+  assert.equal(events[0].amount, 575);
+  const base = I.addEvents(null, events, START);
+  const ateDay = "2026-10-15";
+  const days = {
+    [ateDay]: {
+      meals: [{ id: "friedrice", name: "Fried rice", t: "S", ate: iso(new Date(2026, 9, 15, 12, 0, 0)) }],
+    },
+  };
+  const when = new Date(2026, 9, 16, 12, 0, 0);
+  const st = I.stock(base, days, realCat, when, staplesNone, weighOpt);
+  assert.equal(st.soy.amount, 529, "575 g minus 46 g friedrice S soy");
+
+  const buyAt = iso(new Date(2026, 9, 17, 10, 0, 0));
+  const buyAmt = Weigh.convertBuyMlToStock(realCat.item("soy"), 500, weighOpt);
+  assert.equal(buyAmt, 575);
+  const withBuy = I.addEvents(base, [{ k: "buy", item: "soy", amount: buyAmt, order: "o2", at: buyAt }], buyAt);
+  const st2 = I.stock(withBuy, days, realCat, new Date(2026, 9, 18, 12, 0, 0), staplesNone, weighOpt);
+  assert.equal(st2.soy.amount, 529 + 575);
+});
+
+test("weighG clear does not change inventory events", () => {
+  const events = [{ k: "set", item: "soy", amount: 575, why: "count", at: START }];
+  const base = I.addEvents(null, events, START);
+  const cleared = Weigh.clear({ soy: SOY_WEIGH }, "soy");
+  assert.deepEqual(cleared, {});
+  const st = I.stock(base, {}, realCat, NOW, staplesNone);
+  assert.equal(st.soy.amount, 575);
+});
+
 test("prune keeps an event exactly at the cutoff and drops one millisecond before", () => {
   const when = new Date(2026, 9, 20, 12, 0, 0);
   const cutoff = new Date(when.getFullYear(), when.getMonth(), when.getDate());
