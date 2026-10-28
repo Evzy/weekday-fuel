@@ -259,6 +259,16 @@ test("approved swap ids and store links match the spec", () => {
 
 const EXTRA_IDS = ["spray", "butter", "lightmayo", "kewpie", "paprika", "olive", "fishsauce", "vegoil", "tomsauce", "sesameseed", "sourdough", "avocado", "tasty"];
 
+test("estimated extra prices are marked unconfirmed on store products", () => {
+  assert.equal(cat.item("paprika").coles.unconfirmed, true);
+  assert.equal(cat.item("paprika").woolies.unconfirmed, true);
+  assert.equal(cat.item("sesameseed").coles.unconfirmed, true);
+  assert.equal(cat.item("sesameseed").woolies.unconfirmed, undefined);
+  assert.equal(cat.item("tasty").coles.unconfirmed, true);
+  assert.equal(cat.item("tasty").woolies.unconfirmed, undefined);
+  assert.equal(cat.item("crumbfillet").woolies.unconfirmed, true);
+});
+
 test("former extras are catalogue items used by meals", () => {
   for (const id of EXTRA_IDS) {
     const it = cat.item(id);

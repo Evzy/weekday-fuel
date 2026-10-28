@@ -353,8 +353,8 @@
     },
     {
       id: "paprika", sec: 2, name: "Ground paprika", unit: "g", note: "Spice jars are NIP-exempt; macros use AFCD until a label is found. Coles $2.90 and Woolworths $3.50 are estimates (not in labels-c notes)", same: true,
-      coles: { name: "Masterfoods H&s Paprika Ground Jar 33g", url: "https://www.coles.com.au/product/masterfoods-hands-paprika-ground-jar-33g-1058083", size: 33, price: 2.9, checked: "2026-10-27" },
-      woolies: { name: "MasterFoods Paprika Ground 33g", url: "https://www.woolworths.com.au/shop/productdetails/6019596/masterfoods-paprika-ground", stockcode: 6019596, size: 33, price: 3.5, checked: "2026-10-27" },
+      coles: { name: "Masterfoods H&s Paprika Ground Jar 33g", url: "https://www.coles.com.au/product/masterfoods-hands-paprika-ground-jar-33g-1058083", size: 33, price: 2.9, checked: "2026-10-27", unconfirmed: true },
+      woolies: { name: "MasterFoods Paprika Ground 33g", url: "https://www.woolworths.com.au/shop/productdetails/6019596/masterfoods-paprika-ground", stockcode: 6019596, size: 33, price: 3.5, checked: "2026-10-27", unconfirmed: true },
     },
     {
       id: "olive", sec: 2, name: "Extra virgin olive oil", unit: "mL", note: "", same: false,
@@ -378,7 +378,7 @@
     },
     {
       id: "sesameseed", sec: 2, name: "Sesame seeds", unit: "g", note: "Coles $2.50 is an estimate (not in labels-c notes)", same: false,
-      coles: { name: "Coles Sesame Seeds 150g", url: "https://www.coles.com.au/product/coles-sesame-seeds-150g-3559523", size: 150, price: 2.5, checked: "2026-10-27" },
+      coles: { name: "Coles Sesame Seeds 150g", url: "https://www.coles.com.au/product/coles-sesame-seeds-150g-3559523", size: 150, price: 2.5, checked: "2026-10-27", unconfirmed: true },
       woolies: { name: "Woolworths Sesame Seeds 100g", url: "https://www.woolworths.com.au/shop/productdetails/501762/woolworths-sesame-seeds", stockcode: 501762, size: 100, price: 1.65, checked: "2026-10-27" },
     },
     {
@@ -393,7 +393,7 @@
     },
     {
       id: "tasty", sec: 1, keeps: 21, name: "Tasty shredded cheese", short: "Tasty", unit: "g", note: "Full-fat partner of the catalogue light tasty cheese. Coles price estimate (not in labels-c notes)", same: false,
-      coles: { name: "Coles Cheese Shredded Tasty 700g", url: "https://www.coles.com.au/product/coles-cheese-shredded-tasty-700g-8145335", size: 700, price: 9.5, checked: "2026-10-27" },
+      coles: { name: "Coles Cheese Shredded Tasty 700g", url: "https://www.coles.com.au/product/coles-cheese-shredded-tasty-700g-8145335", size: 700, price: 9.5, checked: "2026-10-27", unconfirmed: true },
       woolies: { name: "Woolworths Tasty Shredded Cheese 500g", url: "https://www.woolworths.com.au/shop/productdetails/729026/woolworths-tasty-shredded-cheese", stockcode: 729026, size: 500, price: 8.3, checked: "2026-10-27" },
     },
   ];
