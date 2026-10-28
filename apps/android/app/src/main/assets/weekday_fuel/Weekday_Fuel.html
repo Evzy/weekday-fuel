@@ -269,7 +269,6 @@ function renderLabelPhotosCard(ctx){
   if(!rows.length)return "";
   return `<div class="panel shopsec"><h3 style="margin-bottom:4px">Label photos</h3><p class="small muted" style="margin:0 0 8px">Snap these nutrition panels next time you have them, then send them over.</p><ul class="ing" style="margin:0">${rows.map(r=>`<li><b>${esc(r.product)}</b>: ${esc(r.photo)}</li>`).join("")}</ul></div>`;
 }
-initMealCalc();
 function refreshMealCalc(){initMealCalc()}
 const orderStoreCache=new Map();
 function orderStoreForMeal(m){if(!m||typeof m.bought!=="string"||!m.bought)return store();if(orderStoreCache.has(m.bought))return orderStoreCache.get(m.bought);const o=lsOrders().find(x=>x.id===m.bought);const st=o&&o.store==="coles"?"coles":"woolies";orderStoreCache.set(m.bought,st);return st}
@@ -2955,6 +2954,7 @@ function installHostListener(){
   h.addEventListener("message",onHostPageMessage);
 }
 installHostListener();
+initMealCalc();
 initStore();
 })();
 </script>
