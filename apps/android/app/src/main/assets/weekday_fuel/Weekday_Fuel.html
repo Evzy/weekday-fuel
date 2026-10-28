@@ -212,6 +212,7 @@ a.link{text-decoration:none;display:inline-block;color:var(--accent);border-colo
 <script src="label-photos.js"></script>
 <script src="extra-amounts.js"></script>
 <script src="meal-calc.js"></script>
+<script src="weigh.js"></script>
 <script src="staples.js"></script>
 <script src="plans.js"></script>
 <script src="specials.js"></script>
@@ -254,7 +255,7 @@ let PRICED=[];
 function buildCat(){const W=WeekdayFuelCatalogue,lp=livePrices(),cp=colesPrices();let items=W.ITEMS;if(lp)items=W.applyLivePrices(items,lp.prices);if(cp)items=W.applyColesPrices(items,cp.prices);items=WeekdayFuelSpecials.applySwapPrices(items,lp?lp.prices:null,cp?cp.prices:null,W.colesId);PRICED=items;return W.create(items,W.AMOUNTS)}
 let CAT=buildCat();
 let MEAL_CALC=null;
-function initMealCalc(){MEAL_CALC=WeekdayFuelMealCalc.create({panels:WeekdayFuelMacros.PANELS,amounts:WeekdayFuelCatalogue.AMOUNTS,extraAmounts:WeekdayFuelExtraAmounts.EXTRA_AMOUNTS,item:id=>CAT.item(id),defaultStore:store()})}
+function initMealCalc(){MEAL_CALC=WeekdayFuelMealCalc.create({panels:WeekdayFuelMacros.PANELS,amounts:WeekdayFuelCatalogue.AMOUNTS,extraAmounts:WeekdayFuelExtraAmounts.EXTRA_AMOUNTS,item:id=>CAT.item(id),defaultStore:store(),weighG:()=>S().weighG||null})}
 function labelPhotoItemIds(){const ids=CAT.ITEMS.map(i=>i.id);Object.keys(WeekdayFuelMacros.PANELS||{}).forEach(id=>{if(ids.indexOf(id)<0)ids.push(id)});return ids}
 function labelPhotoProductName(id,st,panelProduct){st=st||store();const it=CAT.item(id);if(it&&it[st]&&it[st].name)return it[st].name;if(id==="gr-cookie"){const gren=CAT.item("grenade");const sw=gren&&gren.swaps&&gren.swaps.find(s=>s.id==="gr-cookie");if(sw){const p=sw[st]||sw.woolies||sw.coles;if(p&&p.name)return p.name;if(sw.name)return sw.name}}if(it)return "";return panelProduct||""}
 function labelPhotoList(st){return WeekdayFuelLabelPhotos.listForStore(st||store(),WeekdayFuelMacros.PANELS,WeekdayFuelMacros.PHOTOS||[],labelPhotoItemIds(),labelPhotoProductName)}
@@ -352,6 +353,19 @@ function runProduceGramsMigratedIfNeeded(){
     if(next!==inv&&!lsSetInv(next))return;
   }
   WeekdayFuelInventory.setProduceGramsMigratedDone(localStorage);
+}
+function runWeighStockIfNeeded(){
+  const wg=S().weighG;if(!wg)return;
+  let inv=lsInv();if(!inv||!Array.isArray(inv.events))return;
+  let events=inv.events,changed=false;
+  Object.keys(wg).forEach(id=>{
+    if(!WeekdayFuelWeigh.has(wg,id))return;
+    if(WeekdayFuelInventory.weighGStockMigratedDone(localStorage,id))return;
+    const next=WeekdayFuelWeigh.convertStockMlToG(events,id,wg[id]);
+    if(next!==events){events=next;changed=true}
+    WeekdayFuelInventory.setWeighGStockMigratedDone(localStorage,id);
+  });
+  if(changed)lsSetInv(Object.assign({},inv,{events}));
 }
 function staplesActiveOn(date){return WeekdayFuelStaples.activeStaples(staplesList(),date)}
 function dayMealsAll(){return dayMealsFrom(null)}
@@ -901,12 +915,13 @@ function kitchenAgeLine(id,st,it){
 }
 function kitchenItemBlock(id,st,open,ageLine,photoMap){
   const it=CAT.item(id);if(!it)return "";
-  const qty=esc(kitchenAmountText(st.amount,it.unit));
+  const disp=WeekdayFuelWeigh.displayAmount(it,st.amount,S().weighG||{});
+  const qty=esc(kitchenAmountText(disp.amount,disp.unit));
   let h=`<div class="si"><div class="grow"><button class="itembtn" type="button" data-act="kitem" data-v="${esc(id)}" aria-expanded="${open}"><span class="grow">${esc(it.name)}${labelPhotoTag(id,photoMap)}</span><span class="p">${qty}</span></button>`;
   if(ageLine)h+=`<span class="small muted" style="display:block">${esc(ageLine)}</span>`;
   h+=`</div></div>`;
   if(open){
-    h+=`<div class="itemdetail stack" style="gap:6px"><button class="ghost" type="button" data-act="kused" data-v="${esc(id)}">Used it all</button><button class="ghost" type="button" data-act="ktoss" data-v="${esc(id)}">Threw it out</button><div class="row" style="gap:6px;align-items:flex-end"><label class="f grow">Set amount (${esc(it.unit)})<input id="kset-${esc(id)}" class="num" type="number" step="any" min="0" inputmode="decimal"></label><button class="btn alt" type="button" data-act="kset" data-v="${esc(id)}">Save</button></div>`;
+    h+=`<div class="itemdetail stack" style="gap:6px"><button class="ghost" type="button" data-act="kused" data-v="${esc(id)}">Used it all</button><button class="ghost" type="button" data-act="ktoss" data-v="${esc(id)}">Threw it out</button><div class="row" style="gap:6px;align-items:flex-end"><label class="f grow">Set amount (${esc(disp.unit)})<input id="kset-${esc(id)}" class="num" type="number" step="any" min="0" inputmode="decimal"></label><button class="btn alt" type="button" data-act="kset" data-v="${esc(id)}">Save</button></div>`;
     if(state.kitchenHint&&state.kitchenHintWhere===id)h+=`<span class="small muted">${esc(state.kitchenHint)}</span>`;
     h+=`</div>`;
   }
@@ -1005,6 +1020,7 @@ async function initStore(){
   runHeldMigratedIfNeeded();
   runStaplesFxMigrateIfNeeded();
   runProduceGramsMigratedIfNeeded();
+  runWeighStockIfNeeded();
   setSync(false,"Saved on this device");
   render();
   try{ if(window.claude&&window.claude.use) db=await window.claude.use("db"); }catch(e){db=null}
@@ -2109,6 +2125,21 @@ function kitchenAmountText(v,unit){
   const n=Math.round(v*10)/10;
   return (FRACTION[n]||String(n))+" "+(n<=1?oneUnit(unit):unit);
 }
+function recipeItemLine(v,it,st){
+  const p=it[st]||it[other(st)];
+  const weighG=S().weighG||{};
+  if(it.unit==="mL"){
+    const disp=WeekdayFuelWeigh.displayAmount(it,v,weighG);
+    let amtPart;
+    if(disp.unit==="g"){
+      amtPart=`<b>${esc(amountText(disp.amount,"g"))}</b>`;
+      if(disp.origMl!=null)amtPart+=` <span class="muted">(${esc(amountText(disp.origMl,"mL"))})</span>`;
+    }else amtPart=`<b>${esc(amountText(v,it.unit))}</b>`;
+    const namePart=`${esc(it.name)}${p?` <span class="muted">${esc(p.name)}</span>`:""}`;
+    return `<li><button type="button" class="itembtn" style="width:100%;text-align:left" data-act="weigh" data-v="${esc(it.id)}" data-ml="${esc(String(v))}"><span>${amtPart} ${namePart}</span></button></li>`;
+  }
+  return `<li><b>${esc(amountText(v,it.unit))}</b> ${esc(it.name)}${p?` <span class="muted">${esc(p.name)}</span>`:""}</li>`;
+}
 /* One line per item the portion uses (batch items show as the batch), then that portion's extras */
 function recipeLines(m,tier){
   const per=CAT.AMOUNTS[m.id]||{},st=store(),bs=(m.batch||[]).map(id=>BATCH[id]).filter(Boolean);
@@ -2122,8 +2153,7 @@ function recipeLines(m,tier){
       return `<li>${amt} ${esc(b.as)}</li>`;
     }
     if(batchSkip.has(id))return "";
-    const p=it[st]||it[other(st)];
-    return `<li><b>${esc(amountText(v,it.unit))}</b> ${esc(it.name)}${p?` <span class="muted">${esc(p.name)}</span>`:""}</li>`;
+    return recipeItemLine(v,it,st);
   }).join("");
   const ex=(m.extras||[]).filter(e=>typeof e==="string"||e.tiers.includes(tier)).map(e=>`<li>${esc(typeof e==="string"?e:e.text)}</li>`).join("");
   return items+ex;
@@ -2144,6 +2174,16 @@ function packAutoLine(itemId){
   const pickArg=Object.keys(pp).length?pp:undefined;
   const row=CAT.shopList(picks(),stapleNeedMap(),dayMeals(),shopHave(),pickArg).find(r=>r.id===itemId);
   return row&&row[st];
+}
+function renderWeighSheetBody(itemId,ml){
+  const it=CAT.item(itemId);
+  if(!it||it.unit!=="mL")return "";
+  const mlNum=+ml;
+  if(!(mlNum>0))return "";
+  const wg=S().weighG||{};
+  const cur=WeekdayFuelWeigh.has(wg,itemId)?wg[itemId].g:"";
+  const clearBtn=WeekdayFuelWeigh.has(wg,itemId)?`<button type="button" class="ghost" data-act="weighclear" data-v="${esc(itemId)}">Clear</button>`:"";
+  return `<div class="stack" style="gap:10px"><p class="small" style="margin:0">${esc(it.name)} · this portion is ${esc(String(mlNum))} mL. What did ${esc(String(mlNum))} mL weigh?</p><label class="f">Grams<input id="weigh-g" class="num" type="number" step="any" min="0" inputmode="decimal" value="${cur!==""?esc(String(cur)):""}"></label><div class="row" style="gap:8px"><button type="button" class="btn" data-act="weighsave" data-v="${esc(itemId)}" data-ml="${esc(String(mlNum))}">Save</button>${clearBtn}</div></div>`;
 }
 function renderPackSheetBody(itemId){
   const st=store(),rows=shopRows(),row=rows.find(r=>r.id===itemId);
@@ -2602,6 +2642,16 @@ function renderSheet(){
     root.dataset.sheet=state.sheet;
     return;
   }
+  if(state.sheet.startsWith("weigh:")){
+    const parts=state.sheet.split(":");
+    const itemId=parts[1],ml=parts[2];
+    const it=CAT.item(itemId);
+    const body=renderWeighSheetBody(itemId,ml);
+    if(!body){state.sheet=null;root.innerHTML="";return}
+    root.innerHTML=`<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="Weigh ${esc(it?it.name:itemId)}"><div class="row between" style="margin-bottom:10px"><span class="eyebrow">Weigh</span><button type="button" class="ghost" data-act="close">Close</button></div>${body}</div></div>`;
+    root.dataset.sheet=state.sheet;
+    return;
+  }
   if(state.sheet.startsWith("pack:")){
     const itemId=state.sheet.slice(5),it=CAT.item(itemId);
     const title=it?shopItemShortName(it):itemId;
@@ -2792,6 +2842,9 @@ document.addEventListener("click",e=>{
     case "rm":{if(!dayEditable(date))break;const d=ensureDay(date);const m=d.meals[i];if(mealLocked(m,date))break;const mid=v||m.id;const key=rmArmKey(date,mid);if(state.armed===key){d.meals.splice(i,1);saveDay(date);state.armed=null;state.sheet=null}else state.armed=key;break}
     case "rmx":{if(!dayEditable(date))break;const d=ensureDay(date);d.extras.splice(i,1);saveDay(date);break}
     case "recipe":state.sheet=v;state.sheetTier=TIERS.some(([k])=>k===el.dataset.t)?el.dataset.t:"S";break;
+    case "weigh":state.sheet="weigh:"+v+":"+el.dataset.ml;break;
+    case "weighsave":{const inp=document.getElementById("weigh-g"),g=inp?parseFloat(inp.value):NaN,ml=+el.dataset.ml;if(!CAT.item(v)||!WeekdayFuelWeigh.parseSample(ml,g))break;state.settings.weighG=WeekdayFuelWeigh.apply(S().weighG||{},v,{ml,g});saveSettings();runWeighStockIfNeeded();state.sheet=null;break}
+    case "weighclear":{if(S().weighG){state.settings.weighG=WeekdayFuelWeigh.clear(S().weighG,v);if(!Object.keys(state.settings.weighG).length)delete state.settings.weighG;saveSettings()}state.sheet=null;break}
     case "sheettier":state.sheetTier=v;break;
     case "batch":state.sheet="batch:"+v;break;
     case "addmeal":state.sheet="add:"+v;state.addPick=null;state.addDone=null;break;

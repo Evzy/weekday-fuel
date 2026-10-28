@@ -100,10 +100,34 @@
     return amount;
   }
 
-  function macrosFromPanel(panel, amount, item, spec) {
+  function currentWeighG(deps) {
+    var wg = deps.weighG;
+    if (typeof wg === "function") return wg() || null;
+    return wg || null;
+  }
+
+  function macroMass(panel, amount, item, spec, weighApi, weighG) {
+    if (spec && spec._ml) return amount;
+    if (!item || item.unit !== "mL") return massForAmount(amount, item, spec);
+    if (!weighApi || !weighG || !weighApi.has(weighG, item.id)) return amount;
+    var entry = weighG[item.id];
+    var sample = weighApi.parseSample(entry && entry.ml, entry && entry.g);
+    if (!sample) return amount;
+    if (panel && panel.per === "100g") return weighApi.gramsForMl(sample, amount);
+    if (panel && panel.per === "100mL") {
+      return weighApi.mlForGrams(sample, weighApi.gramsForMl(sample, amount));
+    }
+    return amount;
+  }
+
+  function macrosFromPanel(panel, amount, item, spec, weighApi, weighG) {
     if (!panel || !(amount > 0)) return { k: 0, p: 0, c: 0, f: 0, fib: 0 };
-    var useDirectMl = (spec && spec._ml) || (item && item.unit === "mL");
-    var mass = useDirectMl ? amount : massForAmount(amount, item, spec);
+    var mass =
+      item && item.unit === "mL" && weighApi && weighG
+        ? macroMass(panel, amount, item, spec, weighApi, weighG)
+        : (spec && spec._ml) || (item && item.unit === "mL")
+          ? amount
+          : massForAmount(amount, item, spec);
     var per = 100;
     var factor = mass / per;
     return {
@@ -139,6 +163,13 @@
     var extraAmounts = deps.extraAmounts || {};
     var itemFn = deps.item;
     var defaultStore = deps.defaultStore || "woolies";
+    var weighApi =
+      deps.weigh ||
+      (typeof WeekdayFuelWeigh !== "undefined" ? WeekdayFuelWeigh : null);
+
+    function weighGNow() {
+      return currentWeighG(deps);
+    }
 
     function servePer(mainItem, swap, store) {
       if (!mainItem) return null;
@@ -172,7 +203,10 @@
         if (!(amt > 0)) return;
         var item = resolveItem(itemId, itemFn);
         var panel = panelForItem(panels, itemId, store, item, { useFallback: opts.useFallback });
-        total = addMacros(total, macrosFromPanel(panel, amt, item, spec));
+        total = addMacros(
+          total,
+          macrosFromPanel(panel, amt, item, spec, weighApi, weighGNow()),
+        );
       });
       var extras = extraAmounts[mealId];
       if (extras) {
@@ -183,7 +217,10 @@
           if (!(amt > 0)) return;
           var item = resolveItem(itemId, itemFn);
           var panel = panelForItem(panels, itemId, store, item, {});
-          total = addMacros(total, macrosFromPanel(panel, amt, item, es));
+          total = addMacros(
+            total,
+            macrosFromPanel(panel, amt, item, es, weighApi, weighGNow()),
+          );
         });
       }
       total.k = round0(total.k);
@@ -205,7 +242,7 @@
         };
       }
       var panel = panelForItem(panels, id, store, item, {});
-      return macrosFromPanel(panel, amount, item, null);
+      return macrosFromPanel(panel, amount, item, null, weighApi, weighGNow());
     }
 
     return {

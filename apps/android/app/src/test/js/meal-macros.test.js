@@ -5,6 +5,7 @@ const { EXTRA_AMOUNTS } = require("../../main/assets/weekday_fuel/extra-amounts.
 const cat = require("../../main/assets/weekday_fuel/catalogue.js");
 const { MEALS } = require("../../main/assets/weekday_fuel/meals.js");
 const calc = require("../../main/assets/weekday_fuel/meal-calc.js");
+const W = require("../../main/assets/weekday_fuel/weigh.js");
 
 const MC = calc.create({
   panels: PANELS,
@@ -40,6 +41,42 @@ test("bread fallback panel differs from primary", () => {
   const primary = MC.portion("toasty", "S", "woolies");
   const fb = MC.portion("toasty", "S", "woolies", { useFallback: true });
   assert.notEqual(primary.k, fb.k);
+});
+
+test("soy weighG keeps kcal on per-100mL panel (friedrice S)", () => {
+  const base = MC.portion("friedrice", "S", "woolies");
+  const mcW = calc.create({
+    panels: PANELS,
+    amounts: cat.AMOUNTS,
+    extraAmounts: EXTRA_AMOUNTS,
+    item: (id) => cat.item(id),
+    weigh: W,
+    weighG: { soy: { ml: 40, g: 46 } },
+  });
+  assert.equal(mcW.portion("friedrice", "S", "woolies").k, base.k);
+});
+
+test("soy weighG uses grams on per-100g panel", () => {
+  const panels = structuredClone(PANELS);
+  panels.soy = { woolies: { ...PANELS.soy.woolies, per: "100g" } };
+  const mcBase = calc.create({
+    panels,
+    amounts: cat.AMOUNTS,
+    extraAmounts: EXTRA_AMOUNTS,
+    item: (id) => cat.item(id),
+  });
+  const mcW = calc.create({
+    panels,
+    amounts: cat.AMOUNTS,
+    extraAmounts: EXTRA_AMOUNTS,
+    item: (id) => cat.item(id),
+    weigh: W,
+    weighG: { soy: { ml: 40, g: 46 } },
+  });
+  const base = mcBase.portion("friedrice", "S", "woolies");
+  const weighed = mcW.portion("friedrice", "S", "woolies");
+  assert.notEqual(weighed.k, base.k);
+  assert.ok(weighed.k > base.k);
 });
 
 test("spray is counted once (AMOUNTS, not extra-amounts)", () => {

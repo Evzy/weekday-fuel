@@ -158,6 +158,26 @@
     }
   }
 
+  function weighGStockMigratedKey(id) {
+    return "weekdayfuel.inventory.weighG." + id;
+  }
+
+  function weighGStockMigratedDone(ls, id) {
+    try {
+      if (ls && ls.getItem && ls.getItem(weighGStockMigratedKey(id)) === "1") return true;
+    } catch (e) {}
+    return false;
+  }
+
+  function setWeighGStockMigratedDone(ls, id) {
+    try {
+      if (ls && ls.setItem) ls.setItem(weighGStockMigratedKey(id), "1");
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
   /* Before unit g: amounts were whole cucumbers/capsicums. After: grams (usually >= 80). */
   function migrateProduceCountsToGrams(inv) {
     if (!inv || !Array.isArray(inv.events)) return inv;
@@ -905,6 +925,8 @@
     PRODUCE_GRAMS_MIGRATED_KEY: PRODUCE_GRAMS_MIGRATED_KEY,
     produceGramsMigratedDone: produceGramsMigratedDone,
     setProduceGramsMigratedDone: setProduceGramsMigratedDone,
+    weighGStockMigratedDone: weighGStockMigratedDone,
+    setWeighGStockMigratedDone: setWeighGStockMigratedDone,
     impliedAte: impliedAte,
     endOfDay: endOfDay,
   };
