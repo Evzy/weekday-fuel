@@ -60,7 +60,8 @@ Evan, 30, Melbourne, 183 cm, ~83.5 kg. Push/pull/legs 5 days a week at lunch, pl
 ## Recipe standard
 
 - Every shop ingredient has an amount for each portion in `catalogue.js` `AMOUNTS[meal]`: a number when it's the same for every portion, otherwise `{L, S, X}` (0 = that portion doesn't use it). Amounts must match each portion's `what` and macros.
-- Non-shop ingredients go in the meal's `extras` with amounts: a string for every portion, or `{tiers: "SX", text}`.
+- Recipe extras that are real products (spray, butter, mayo, oils, sauces, spices, sourdough, avocado, full-fat tasty, etc.) are catalogue items with amounts in `AMOUNTS`, not only in `extras`.
+- Non-shop ingredients go in the meal's `extras` with amounts: a string for every portion, or `{tiers: "SX", text}` (e.g. salt and pepper, splash of water).
 - Steps are numbered, give heat and times, and say "the macaroni" rather than an amount that changes by portion.
 - A meal that uses a batch lists `batch: ["chicken"]` and buys the raw item (150 g cooked chicken = 200 g raw breast at ratio 0.75).
 - A batch in `BATCHES` has `id`, `name`, `item` (the catalogue item it's made from), `ratio` (cooked weight per raw weight, up to 1), `as` (how it reads in a recipe, e.g. `"Sunday chicken, cooked"`), optional `line` (fixed recipe line instead of a weighed amount, e.g. `"1 tub"`), optional `with` (other catalogue ids folded into that batch line in the recipe, still bought by the shop), `makes`, `keeps` (lowercase, reads after "Keeps") and `steps`.

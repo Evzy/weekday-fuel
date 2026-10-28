@@ -257,6 +257,25 @@ test("approved swap ids and store links match the spec", () => {
   });
 });
 
+const EXTRA_IDS = ["spray", "butter", "lightmayo", "kewpie", "paprika", "olive", "fishsauce", "vegoil", "tomsauce", "sesameseed", "sourdough", "avocado", "tasty"];
+
+test("former extras are catalogue items used by meals", () => {
+  for (const id of EXTRA_IDS) {
+    const it = cat.item(id);
+    assert.ok(it, id);
+    assert.ok(it.coles && it.woolies, id + " both stores");
+  }
+  assert.equal(cat.AMOUNTS.eggmuffin.spray.L, 1);
+  assert.equal(cat.AMOUNTS.toasty.butter.S, 5);
+  assert.equal(cat.AMOUNTS.tenderwrap.lightmayo.X, 15);
+  assert.equal(cat.AMOUNTS.buffalomac.paprika, 1);
+  assert.equal(cat.AMOUNTS.buffalomac.garlic, 5);
+  assert.equal(cat.AMOUNTS.redcurry.fishsauce, 5);
+  const rows = cat.shopList({}, 0, [{ day: "2026-10-28", meal: "eggmuffin", t: "S" }]);
+  assert.ok(rows.some((r) => r.id === "spray"), "spray on shop list");
+  assert.ok(!rows.some((r) => r.id === "water"));
+});
+
 test("RETIRED keys are not current product ids and every entry has a name and url", () => {
   const colesIds = new Set();
   const wooliesCodes = new Set();
