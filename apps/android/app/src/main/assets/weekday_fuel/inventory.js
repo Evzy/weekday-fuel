@@ -162,6 +162,27 @@
     return "weekdayfuel.inventory.weighG." + id;
   }
 
+  function weighGStockSampleKey(id) {
+    return "weekdayfuel.inventory.weighG.sample." + id;
+  }
+
+  function parseWeighGStockSample(raw) {
+    try {
+      var o = typeof raw === "string" ? JSON.parse(raw) : raw;
+      var m = o && +o.ml;
+      var g = o && +o.g;
+      if (isFinite(m) && isFinite(g) && m > 0 && g > 0) return { ml: m, g: g };
+    } catch (e) {}
+    return null;
+  }
+
+  function weighGStockSample(ls, id) {
+    try {
+      if (ls && ls.getItem) return parseWeighGStockSample(ls.getItem(weighGStockSampleKey(id)));
+    } catch (e) {}
+    return null;
+  }
+
   function weighGStockMigratedDone(ls, id) {
     try {
       if (ls && ls.getItem && ls.getItem(weighGStockMigratedKey(id)) === "1") return true;
@@ -169,11 +190,25 @@
     return false;
   }
 
-  function setWeighGStockMigratedDone(ls, id) {
+  function setWeighGStockMigratedDone(ls, id, sample) {
+    if (!ls || !ls.setItem) return false;
+    var sampleKey = weighGStockSampleKey(id);
+    var flagKey = weighGStockMigratedKey(id);
     try {
-      if (ls && ls.setItem) ls.setItem(weighGStockMigratedKey(id), "1");
+      if (sample) {
+        var parsed = parseWeighGStockSample(sample);
+        if (!parsed) return false;
+        ls.setItem(sampleKey, JSON.stringify(parsed));
+      }
+      ls.setItem(flagKey, "1");
       return true;
     } catch (e) {
+      try {
+        if (ls.removeItem) {
+          ls.removeItem(sampleKey);
+          ls.removeItem(flagKey);
+        }
+      } catch (e2) {}
       return false;
     }
   }
@@ -417,7 +452,8 @@
           dayStaples.forEach(function (s) {
             if (!s || !s.id || !(s.amount > 0) || s.out) return;
             if (validStapleSwapChoice(cat, s.id, dayRec)) return;
-            actions.push({ ts: midTs, at: mid, kind: "use", item: s.id, amount: s.amount });
+            var stapleUse = stockAmountFromRecipe(cat, s.id, s.amount, weighOpt);
+            actions.push({ ts: midTs, at: mid, kind: "use", item: s.id, amount: stapleUse });
           });
         }
       }
@@ -510,6 +546,29 @@
     return weighOpt.mlToGrams(itemId, recipeAmount);
   }
 
+  function recipeAmountFromStock(cat, itemId, stockAmount, weighOpt) {
+    if (!(stockAmount > 0)) return stockAmount;
+    if (!weighOpt || typeof weighOpt.isStockInGrams !== "function") return stockAmount;
+    if (!weighOpt.isStockInGrams(itemId)) return stockAmount;
+    var it = cat && typeof cat.item === "function" ? cat.item(itemId) : null;
+    if (!it || it.unit !== "mL") return stockAmount;
+    if (typeof weighOpt.gramsToMl !== "function") return stockAmount;
+    return weighOpt.gramsToMl(itemId, stockAmount);
+  }
+
+  function haveForShopList(freeMap, cat, weighOpt) {
+    var out = nullMap();
+    if (!freeMap || typeof freeMap !== "object") return out;
+    Object.keys(freeMap).forEach(function (item) {
+      if (item === "__proto__") return;
+      var amt = freeMap[item];
+      if (!(amt > 0)) return;
+      var recipeAmt = recipeAmountFromStock(cat, item, amt, weighOpt);
+      if (recipeAmt > 1e-9) out[item] = recipeAmt;
+    });
+    return out;
+  }
+
   function reserveMeal(out, cat, m, date, today, weighOpt) {
     if (!m || m.logged === true || m.ate === false) return;
     if (impliedAte(m, date, today)) return;
@@ -585,7 +644,7 @@
           dayStaples.forEach(function (s) {
             if (!s || !s.id || !(s.amount > 0) || s.out) return;
             if (validStapleSwapChoice(cat, s.id, dayRec)) return;
-            addReserve(out, s.id, s.amount);
+            addReserve(out, s.id, stockAmountFromRecipe(cat, s.id, s.amount, weighOpt));
           });
         }
       }
@@ -663,7 +722,7 @@
         if (Array.isArray(dayStaples)) dayStaples.forEach(function (s) {
           if (!s || !s.id || !(s.amount > 0) || s.out) return;
           if (validStapleSwapChoice(cat, s.id, dayRec)) return;
-          addReserve(out, s.id, s.amount);
+          addReserve(out, s.id, stockAmountFromRecipe(cat, s.id, s.amount, weighOpt));
         });
         fd = nextDate(fd);
       }
@@ -936,8 +995,11 @@
     produceGramsMigratedDone: produceGramsMigratedDone,
     setProduceGramsMigratedDone: setProduceGramsMigratedDone,
     weighGStockMigratedDone: weighGStockMigratedDone,
+    weighGStockSample: weighGStockSample,
     setWeighGStockMigratedDone: setWeighGStockMigratedDone,
     stockAmountFromRecipe: stockAmountFromRecipe,
+    recipeAmountFromStock: recipeAmountFromStock,
+    haveForShopList: haveForShopList,
     impliedAte: impliedAte,
     endOfDay: endOfDay,
   };

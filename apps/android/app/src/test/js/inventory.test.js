@@ -1196,15 +1196,23 @@ function mockLs() {
   };
 }
 
-function soyWeighOpt(ls) {
-  I.setWeighGStockMigratedDone(ls, "soy");
+function soyWeighOpt(ls, opts) {
+  const cleared = opts && opts.cleared;
+  I.setWeighGStockMigratedDone(ls, "soy", SOY_WEIGH);
+  function sample() {
+    return I.weighGStockSample(ls, "soy") || SOY_WEIGH;
+  }
   return {
     isStockInGrams(id) {
       return id === "soy" && I.weighGStockMigratedDone(ls, id);
     },
     mlToGrams(_id, ml) {
-      return Weigh.gramsForMl(SOY_WEIGH, ml);
+      return Weigh.gramsForMl(sample(), ml);
     },
+    gramsToMl(_id, g) {
+      return Weigh.mlForGrams(sample(), g);
+    },
+    weighGPresent: !cleared,
   };
 }
 
@@ -1241,6 +1249,78 @@ test("weighG clear does not change inventory events", () => {
   assert.deepEqual(cleared, {});
   const st = I.stock(base, {}, realCat, NOW, staplesNone);
   assert.equal(st.soy.amount, 575);
+});
+
+test("haveForShopList converts migrated gram stock to mL for shopList", () => {
+  const ls = mockLs();
+  const weighOpt = soyWeighOpt(ls);
+  const freeG = { soy: Weigh.gramsForMl(SOY_WEIGH, 180) };
+  const have = I.haveForShopList(freeG, realCat, weighOpt);
+  assert.equal(have.soy, 180);
+  const rows = realCat.shopList({ friedrice: 5 }, 0, [], have);
+  assert.ok(rows.some((r) => r.id === "soy"), "207 g (as mL) must not cover 200 mL week need");
+  assert.equal(rows.find((r) => r.id === "soy").need, 200);
+});
+
+test("weighG after clear: meal use and buy still use grams with persisted sample", () => {
+  const ls = mockLs();
+  const weighOpt = soyWeighOpt(ls, { cleared: true });
+  assert.equal(weighOpt.isStockInGrams("soy"), true);
+  const at = iso(new Date(2026, 9, 10, 10, 0, 0));
+  let events = [{ k: "set", item: "soy", amount: 575, why: "count", at }];
+  const base = I.addEvents(null, events, START);
+  const ateDay = "2026-10-15";
+  const days = {
+    [ateDay]: {
+      meals: [{ id: "friedrice", name: "Fried rice", t: "S", ate: iso(new Date(2026, 9, 15, 12, 0, 0)) }],
+    },
+  };
+  const when = new Date(2026, 9, 16, 12, 0, 0);
+  const st = I.stock(base, days, realCat, when, staplesNone, weighOpt);
+  assert.equal(st.soy.amount, 529);
+  const buyAmt = Weigh.convertBuyMlToStock(realCat.item("soy"), 500, weighOpt);
+  assert.equal(buyAmt, 575);
+  const buyAt = iso(new Date(2026, 9, 17, 10, 0, 0));
+  const withBuy = I.addEvents(base, [{ k: "buy", item: "soy", amount: buyAmt, order: "o2", at: buyAt }], buyAt);
+  const st2 = I.stock(withBuy, days, realCat, new Date(2026, 9, 18, 12, 0, 0), staplesNone, weighOpt);
+  assert.equal(st2.soy.amount, 529 + 575);
+});
+
+test("migrated soy staples debit grams not recipe mL", () => {
+  const ls = mockLs();
+  const weighOpt = soyWeighOpt(ls);
+  const at = iso(new Date(2026, 9, 10, 10, 0, 0));
+  const base = I.addEvents(null, [{ k: "set", item: "soy", amount: 575, why: "count", at }], START);
+  const stapleDay = "2026-10-11";
+  const staples = staplesOnDates(new Set([stapleDay]), [{ id: "soy", amount: 40 }]);
+  const when = new Date(2026, 9, 12, 12, 0, 0);
+  const st = I.stock(base, {}, realCat, when, staples, weighOpt);
+  assert.equal(st.soy.amount, 575 - 46);
+  const r = I.reserved(
+    base,
+    {},
+    realCat,
+    "2026-10-10",
+    ["2026-10-15"],
+    staplesOnDates(new Set(["2026-10-12"]), [{ id: "soy", amount: 40 }]),
+    weighOpt,
+  );
+  assert.equal(r.soy, 46);
+});
+
+test("setWeighGStockMigratedDone stores sample and returns false when storage fails", () => {
+  const ls = {
+    store: {},
+    getItem(k) {
+      return this.store[k] ?? null;
+    },
+    setItem(k, v) {
+      if (k.includes(".sample.")) throw new Error("quota");
+      this.store[k] = v;
+    },
+  };
+  assert.equal(I.setWeighGStockMigratedDone(ls, "soy", SOY_WEIGH), false);
+  assert.equal(I.weighGStockMigratedDone(ls, "soy"), false);
 });
 
 test("prune keeps an event exactly at the cutoff and drops one millisecond before", () => {

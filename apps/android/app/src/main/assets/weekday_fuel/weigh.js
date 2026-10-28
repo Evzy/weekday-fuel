@@ -95,6 +95,7 @@
     gramsForMl: gramsForMl,
     mlForGrams: mlForGrams,
     has: has,
+    sampleFor: sampleFor,
     displayAmount: displayAmount,
     apply: apply,
     clear: clear,
