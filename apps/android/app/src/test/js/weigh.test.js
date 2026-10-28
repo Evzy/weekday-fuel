@@ -114,6 +114,13 @@ test("convertBuyMlToStock returns ml when not in gram stock mode", () => {
   assert.equal(W.convertBuyMlToStock(item, 500, opt), 500);
 });
 
+test("stockEventsInGramsOnDisk distinguishes mL ledger from converted grams", () => {
+  const mlEvents = [{ k: "set", item: "soy", amount: 500 }];
+  const gEvents = [{ k: "set", item: "soy", amount: 575 }];
+  assert.equal(W.stockEventsInGramsOnDisk(mlEvents, "soy", SOY_SAMPLE), false);
+  assert.equal(W.stockEventsInGramsOnDisk(gEvents, "soy", SOY_SAMPLE), true);
+});
+
 test("convertBuyMlToStock converts bottle mL when stock is in grams", () => {
   const item = { id: "soy", unit: "mL" };
   const opt = {

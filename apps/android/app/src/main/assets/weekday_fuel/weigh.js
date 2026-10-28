@@ -82,6 +82,30 @@
     return changed ? out : events;
   }
 
+  function nearInt(x) {
+    var r = Math.round(+x);
+    return Math.abs(+x - r) < 0.05;
+  }
+
+  /** True when stock ledger amounts for id already look like weighed grams on disk. */
+  function stockEventsInGramsOnDisk(events, id, sample) {
+    var parsed = parseSample(sample && sample.ml, sample && sample.g);
+    if (!parsed || !id || !Array.isArray(events)) return false;
+    var saw = false;
+    for (var i = 0; i < events.length; i++) {
+      var e = events[i];
+      if (!e || e.item !== id) continue;
+      if (e.k !== "buy" && e.k !== "add" && e.k !== "set") continue;
+      if (!(e.amount > 0) || !isFinite(e.amount)) continue;
+      saw = true;
+      var impliedMl = mlForGrams(parsed, e.amount);
+      if (!nearInt(impliedMl)) return false;
+      var ml = Math.round(impliedMl);
+      if (Math.abs(gramsForMl(parsed, ml) - +e.amount) > 0.05) return false;
+    }
+    return saw;
+  }
+
   function convertBuyMlToStock(item, mlAmount, weighOpt) {
     if (!item || item.unit !== "mL" || !(mlAmount > 0)) return mlAmount;
     if (!weighOpt || typeof weighOpt.isStockInGrams !== "function") return mlAmount;
@@ -100,6 +124,7 @@
     apply: apply,
     clear: clear,
     convertStockMlToG: convertStockMlToG,
+    stockEventsInGramsOnDisk: stockEventsInGramsOnDisk,
     convertBuyMlToStock: convertBuyMlToStock,
   };
   if (typeof module === "object" && module.exports) module.exports = api;

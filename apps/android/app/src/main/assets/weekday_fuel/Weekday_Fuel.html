@@ -389,17 +389,20 @@ function runWeighStockIfNeeded(){
       WeekdayFuelInventory.persistWeighGStockSampleIfMigrated(localStorage,id,wg[id]);
       return;
     }
-    if(WeekdayFuelInventory.weighGStockMigrationFlagPending(localStorage,id)){
+    if(WeekdayFuelInventory.weighGStockMigrationFlagPending(localStorage,id)&&WeekdayFuelWeigh.stockEventsInGramsOnDisk(events,id,wg[id])){
       pending.push({id,flagOnly:true});
       return;
     }
-    if(!WeekdayFuelInventory.setWeighGStockSample(localStorage,id,wg[id]))return;
     const next=WeekdayFuelWeigh.convertStockMlToG(events,id,wg[id]);
     if(next!==events){events=next;changed=true}
-    pending.push({id,flagOnly:true});
+    pending.push({id,flagOnly:false});
   });
   if(changed&&!lsSetInv(Object.assign({},inv,{events})))return;
-  pending.forEach(p=>WeekdayFuelInventory.setWeighGStockMigrationFlag(localStorage,p.id));
+  pending.forEach(p=>{
+    if(p.flagOnly){WeekdayFuelInventory.setWeighGStockMigrationFlag(localStorage,p.id);return}
+    if(!WeekdayFuelInventory.setWeighGStockSample(localStorage,p.id,wg[p.id]))return;
+    WeekdayFuelInventory.setWeighGStockMigrationFlag(localStorage,p.id);
+  });
 }
 function staplesActiveOn(date){return WeekdayFuelStaples.activeStaples(staplesList(),date)}
 function dayMealsAll(){return dayMealsFrom(null)}
