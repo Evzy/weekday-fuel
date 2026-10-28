@@ -385,13 +385,21 @@ function runWeighStockIfNeeded(){
   const pending=[];
   Object.keys(wg).forEach(id=>{
     if(!WeekdayFuelWeigh.has(wg,id))return;
-    if(WeekdayFuelInventory.weighGStockMigratedDone(localStorage,id))return;
+    if(WeekdayFuelInventory.weighGStockMigratedDone(localStorage,id)){
+      WeekdayFuelInventory.persistWeighGStockSampleIfMigrated(localStorage,id,wg[id]);
+      return;
+    }
+    if(WeekdayFuelInventory.weighGStockMigrationFlagPending(localStorage,id)){
+      pending.push({id,flagOnly:true});
+      return;
+    }
+    if(!WeekdayFuelInventory.setWeighGStockSample(localStorage,id,wg[id]))return;
     const next=WeekdayFuelWeigh.convertStockMlToG(events,id,wg[id]);
     if(next!==events){events=next;changed=true}
-    pending.push({id,sample:wg[id]});
+    pending.push({id,flagOnly:true});
   });
   if(changed&&!lsSetInv(Object.assign({},inv,{events})))return;
-  pending.forEach(p=>WeekdayFuelInventory.setWeighGStockMigratedDone(localStorage,p.id,p.sample));
+  pending.forEach(p=>WeekdayFuelInventory.setWeighGStockMigrationFlag(localStorage,p.id));
 }
 function staplesActiveOn(date){return WeekdayFuelStaples.activeStaples(staplesList(),date)}
 function dayMealsAll(){return dayMealsFrom(null)}
@@ -2880,7 +2888,7 @@ document.addEventListener("click",e=>{
     case "recipe":state.sheet=v;state.sheetTier=TIERS.some(([k])=>k===el.dataset.t)?el.dataset.t:"S";break;
     case "weigh":state.weighHint=null;state.sheet="weigh:"+v+":"+el.dataset.ml;break;
     case "weighsave":{const inp=document.getElementById("weigh-g"),g=inp?parseFloat(inp.value):NaN,ml=+el.dataset.ml;if(!CAT.item(v)||!WeekdayFuelWeigh.parseSample(ml,g)){state.weighHint="Enter a weight above 0 g";break}state.weighHint=null;state.settings.weighG=WeekdayFuelWeigh.apply(S().weighG||{},v,{ml,g});saveSettings();if(WeekdayFuelInventory.weighGStockMigratedDone(localStorage,v))WeekdayFuelInventory.setWeighGStockMigratedDone(localStorage,v,{ml,g});runWeighStockIfNeeded();state.sheet=null;break}
-    case "weighclear":{if(S().weighG){state.settings.weighG=WeekdayFuelWeigh.clear(S().weighG,v);if(!Object.keys(state.settings.weighG).length)delete state.settings.weighG;saveSettings()}state.sheet=null;break}
+    case "weighclear":{const wg0=S().weighG;if(wg0&&WeekdayFuelWeigh.has(wg0,v))WeekdayFuelInventory.persistWeighGStockSampleIfMigrated(localStorage,v,WeekdayFuelWeigh.sampleFor(wg0,v));if(wg0){state.settings.weighG=WeekdayFuelWeigh.clear(wg0,v);if(!Object.keys(state.settings.weighG).length)delete state.settings.weighG;saveSettings()}state.sheet=null;break}
     case "sheettier":state.sheetTier=v;break;
     case "batch":state.sheet="batch:"+v;break;
     case "addmeal":state.sheet="add:"+v;state.addPick=null;state.addDone=null;break;

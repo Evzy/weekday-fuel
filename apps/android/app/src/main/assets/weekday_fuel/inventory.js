@@ -190,27 +190,49 @@
     return false;
   }
 
-  function setWeighGStockMigratedDone(ls, id, sample) {
+  function setWeighGStockSample(ls, id, sample) {
     if (!ls || !ls.setItem) return false;
+    var parsed = parseWeighGStockSample(sample);
+    if (!parsed) return false;
     var sampleKey = weighGStockSampleKey(id);
-    var flagKey = weighGStockMigratedKey(id);
+    var hadSample = weighGStockSample(ls, id) !== null;
     try {
-      if (sample) {
-        var parsed = parseWeighGStockSample(sample);
-        if (!parsed) return false;
-        ls.setItem(sampleKey, JSON.stringify(parsed));
-      }
-      ls.setItem(flagKey, "1");
+      ls.setItem(sampleKey, JSON.stringify(parsed));
       return true;
     } catch (e) {
-      try {
-        if (ls.removeItem) {
-          ls.removeItem(sampleKey);
-          ls.removeItem(flagKey);
-        }
-      } catch (e2) {}
+      if (!hadSample) {
+        try {
+          if (ls.removeItem) ls.removeItem(sampleKey);
+        } catch (e2) {}
+      }
       return false;
     }
+  }
+
+  function setWeighGStockMigrationFlag(ls, id) {
+    if (!ls || !ls.setItem) return false;
+    try {
+      ls.setItem(weighGStockMigratedKey(id), "1");
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function weighGStockMigrationFlagPending(ls, id) {
+    return weighGStockSample(ls, id) !== null && !weighGStockMigratedDone(ls, id);
+  }
+
+  function persistWeighGStockSampleIfMigrated(ls, id, liveSample) {
+    if (!weighGStockMigratedDone(ls, id)) return true;
+    if (weighGStockSample(ls, id)) return true;
+    return setWeighGStockSample(ls, id, liveSample);
+  }
+
+  function setWeighGStockMigratedDone(ls, id, sample) {
+    if (!ls || !ls.setItem) return false;
+    if (sample && !setWeighGStockSample(ls, id, sample)) return false;
+    return setWeighGStockMigrationFlag(ls, id);
   }
 
   /* Before unit g: amounts were whole cucumbers/capsicums. After: grams (usually >= 80). */
@@ -996,6 +1018,10 @@
     setProduceGramsMigratedDone: setProduceGramsMigratedDone,
     weighGStockMigratedDone: weighGStockMigratedDone,
     weighGStockSample: weighGStockSample,
+    setWeighGStockSample: setWeighGStockSample,
+    setWeighGStockMigrationFlag: setWeighGStockMigrationFlag,
+    weighGStockMigrationFlagPending: weighGStockMigrationFlagPending,
+    persistWeighGStockSampleIfMigrated: persistWeighGStockSampleIfMigrated,
     setWeighGStockMigratedDone: setWeighGStockMigratedDone,
     stockAmountFromRecipe: stockAmountFromRecipe,
     recipeAmountFromStock: recipeAmountFromStock,

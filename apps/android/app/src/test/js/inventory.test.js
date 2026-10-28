@@ -1193,24 +1193,33 @@ function mockLs() {
     setItem(k, v) {
       this.store[k] = v;
     },
+    removeItem(k) {
+      delete this.store[k];
+    },
   };
 }
 
+const WEIGH_G_SOY_FLAG = "weekdayfuel.inventory.weighG.soy";
+
 function soyWeighOpt(ls, opts) {
   const cleared = opts && opts.cleared;
-  I.setWeighGStockMigratedDone(ls, "soy", SOY_WEIGH);
-  function sample() {
-    return I.weighGStockSample(ls, "soy") || SOY_WEIGH;
+  if (cleared) {
+    ls.setItem(WEIGH_G_SOY_FLAG, "1");
+    assert.equal(I.persistWeighGStockSampleIfMigrated(ls, "soy", SOY_WEIGH), true);
+  } else {
+    I.setWeighGStockMigratedDone(ls, "soy", SOY_WEIGH);
   }
+  const stored = I.weighGStockSample(ls, "soy");
+  assert.ok(stored, "weighG tests require a persisted migration sample");
   return {
     isStockInGrams(id) {
       return id === "soy" && I.weighGStockMigratedDone(ls, id);
     },
     mlToGrams(_id, ml) {
-      return Weigh.gramsForMl(sample(), ml);
+      return Weigh.gramsForMl(stored, ml);
     },
     gramsToMl(_id, g) {
-      return Weigh.mlForGrams(sample(), g);
+      return Weigh.mlForGrams(stored, g);
     },
     weighGPresent: !cleared,
   };
@@ -1318,9 +1327,52 @@ test("setWeighGStockMigratedDone stores sample and returns false when storage fa
       if (k.includes(".sample.")) throw new Error("quota");
       this.store[k] = v;
     },
+    removeItem(k) {
+      delete this.store[k];
+    },
   };
   assert.equal(I.setWeighGStockMigratedDone(ls, "soy", SOY_WEIGH), false);
   assert.equal(I.weighGStockMigratedDone(ls, "soy"), false);
+});
+
+function weighStockEventsIfNeeded(ls, events, id, sample) {
+  if (I.weighGStockMigratedDone(ls, id)) return events;
+  if (I.weighGStockMigrationFlagPending(ls, id)) return events;
+  return Weigh.convertStockMlToG(events, id, sample);
+}
+
+test("persistWeighGStockSampleIfMigrated stores live sample when flag set and sample missing", () => {
+  const ls = mockLs();
+  ls.setItem(WEIGH_G_SOY_FLAG, "1");
+  const at = iso(new Date(2026, 9, 10, 10, 0, 0));
+  const events = [{ k: "set", item: "soy", amount: 575, why: "count", at }];
+  assert.equal(I.persistWeighGStockSampleIfMigrated(ls, "soy", SOY_WEIGH), true);
+  assert.deepEqual(I.weighGStockSample(ls, "soy"), SOY_WEIGH);
+  assert.deepEqual(weighStockEventsIfNeeded(ls, events, "soy", SOY_WEIGH), events);
+});
+
+test("setWeighGStockMigratedDone keeps existing flag and sample when flag write fails", () => {
+  const ls = mockLs();
+  ls.setItem(WEIGH_G_SOY_FLAG, "1");
+  const baseSet = ls.setItem.bind(ls);
+  ls.setItem = (k, v) => {
+    if (k === WEIGH_G_SOY_FLAG) throw new Error("quota");
+    return baseSet(k, v);
+  };
+  assert.equal(I.setWeighGStockMigratedDone(ls, "soy", SOY_WEIGH), false);
+  assert.equal(I.weighGStockMigratedDone(ls, "soy"), true);
+  assert.deepEqual(I.weighGStockSample(ls, "soy"), SOY_WEIGH);
+});
+
+test("weighGStockMigrationFlagPending: set flag only after sample persisted without reconverting", () => {
+  const ls = mockLs();
+  assert.equal(I.setWeighGStockSample(ls, "soy", SOY_WEIGH), true);
+  assert.equal(I.weighGStockMigrationFlagPending(ls, "soy"), true);
+  const at = iso(new Date(2026, 9, 10, 10, 0, 0));
+  const events = [{ k: "set", item: "soy", amount: 575, why: "count", at }];
+  assert.equal(I.setWeighGStockMigrationFlag(ls, "soy"), true);
+  assert.equal(I.weighGStockMigratedDone(ls, "soy"), true);
+  assert.deepEqual(weighStockEventsIfNeeded(ls, events, "soy", SOY_WEIGH), events);
 });
 
 test("prune keeps an event exactly at the cutoff and drops one millisecond before", () => {
