@@ -41,3 +41,10 @@ test("bread fallback panel differs from primary", () => {
   const fb = MC.portion("toasty", "S", "woolies", { useFallback: true });
   assert.notEqual(primary.k, fb.k);
 });
+
+test("spray is counted once (AMOUNTS, not extra-amounts)", () => {
+  assert.equal(EXTRA_AMOUNTS.eggmuffin && EXTRA_AMOUNTS.eggmuffin.spray, undefined);
+  const mc = calc.create({ panels: PANELS, amounts: cat.AMOUNTS, extraAmounts: EXTRA_AMOUNTS, item: (id) => cat.item(id) });
+  const p = mc.portion("eggmuffin", "S", "woolies");
+  assert.ok(p.k > 0);
+});

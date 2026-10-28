@@ -1,17 +1,13 @@
 #!/usr/bin/env node
 import fs from "fs";
 import path from "path";
+import { createRequire } from "module";
 
 const ROOT = path.resolve(import.meta.dirname, "..");
+const require = createRequire(import.meta.url);
+const { AMOUNTS } = require("../apps/android/app/src/main/assets/weekday_fuel/catalogue.js");
 const labelsC = JSON.parse(fs.readFileSync(path.join(ROOT, "docs/research/labels-c.json"), "utf8"));
 const OUT = path.join(ROOT, "apps/android/app/src/main/assets/weekday_fuel/extra-amounts.js");
-
-const OVERRIDES = {
-  buffalomac: {
-    garlic: { L: 5, S: 5, X: 5, _ml: false },
-    paprika: { L: 1, S: 1, X: 1, _ml: false },
-  },
-};
 
 function tierSpec(tiers, amount) {
   const o = { L: 0, S: 0, X: 0 };
@@ -26,6 +22,7 @@ function build() {
   for (const row of labelsC.extras || []) {
     if (!row.meal || String(row.meal).startsWith("batch:")) continue;
     if (row.zeroEnergy || !row.item || row.amount == null) continue;
+    if (AMOUNTS[row.meal] && AMOUNTS[row.meal][row.item] != null) continue;
     if (!out[row.meal]) out[row.meal] = {};
     const spec = tierSpec(row.tiers, row.amount);
     if (row.unit === "mL") spec._ml = true;
@@ -36,10 +33,9 @@ function build() {
     }
     out[row.meal][row.item] = spec;
   }
-  for (const [meal, items] of Object.entries(OVERRIDES)) {
-    if (!out[meal]) out[meal] = {};
-    Object.assign(out[meal], items);
-    delete out[meal].garlicpowder;
+  for (const [meal, items] of Object.entries(out)) {
+    if (items.garlicpowder && AMOUNTS[meal]?.garlic != null) delete items.garlicpowder;
+    if (Object.keys(items).length === 0) delete out[meal];
   }
   return out;
 }

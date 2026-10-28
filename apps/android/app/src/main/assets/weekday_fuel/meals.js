@@ -12,7 +12,7 @@
         S: { cost: 5.15, what: "2 cheese slices + thin butter outside" },
         X: { cost: 5.75, what: "Thick sourdough, 2 cheese slices, butter" },
       },
-      extras: [{ tiers: "X", text: "84 g sourdough (2 thick slices; buy separately)" }, { tiers: "L", text: "Oil spray, 2 sprays (1 g)" }, { tiers: "SX", text: "5 g butter, thinly on the outsides" }],
+      extras: [],
       steps: [
         "Heat a sandwich press, or a frying pan on medium.",
         "Layer the ham, cheese, spinach and halved tomatoes between the bread.",
@@ -28,7 +28,7 @@
         S: { cost: 6.1, what: "2 muffins + 20 g light cheese" },
         X: { cost: 6.95, what: "2 muffins, 40 g cheese, 5 g butter" },
       },
-      extras: ["Oil spray, 2 sprays (1 g)", "15 mL tomato sauce", { tiers: "X", text: "5 g butter, thinly over the muffins" }],
+      extras: [],
       steps: [
         "Heat a non-stick pan on medium with oil spray. Crack in the eggs and fry 3 min (break the yolks if you like them firm).",
         "Toast the muffins while the eggs cook, and butter them on Loaded.",
@@ -59,7 +59,7 @@
         S: { cost: 5.25, what: "+ 20g light grated cheese" },
         X: { cost: 6.55, what: "2 wraps, 30g cheese" },
       },
-      extras: ["Salt and pepper", "Oil spray, 2 sprays (1 g)"],
+      extras: ["Salt and pepper"],
       steps: [
         "Whisk the eggs with salt and pepper.",
         "Heat a non-stick pan on medium with oil spray. Scramble the eggs for 2 min, stirring, until just set.",
@@ -75,7 +75,7 @@
         S: { cost: 7.4, what: "2 wraps, 30g light cheese" },
         X: { cost: 8.1, what: "2 wraps, 50g cheese, light mayo" },
       },
-      extras: [{ tiers: "X", text: "1 tbsp (15 g) light mayo" }],
+      extras: [],
       steps: [
         "Take a portion of Sunday chicken and slice it.",
         "Warm it for 60–90 sec in the microwave, or 2 min in a hot pan for colour.",
@@ -92,7 +92,7 @@
         S: { cost: 7.85, what: "½ pouch + 30g light cheese" },
         X: { cost: 10.35, what: "¾ pouch, cheese, ½ avocado" },
       },
-      extras: ["Splash of water", { tiers: "X", text: "70 g avocado (about ½; buy separately)" }, RICE_REST],
+      extras: ["Splash of water", RICE_REST],
       steps: [
         "Toss a portion of Sunday chicken with the taco seasoning and a splash of water. Microwave for 90 sec.",
         "Microwave the rice pouch for 90 sec and the drained corn for 2 min.",
@@ -108,7 +108,7 @@
         S: { cost: 6.52, what: "½ pouch + sesame seeds" },
         X: { cost: 7.55, what: "¾ pouch + Kewpie drizzle" },
       },
-      extras: [{ tiers: "SX", text: "1 tsp (3 g) sesame seeds" }, { tiers: "X", text: "1 tbsp (15 g) Kewpie mayo" }, RICE_REST],
+      extras: [RICE_REST],
       steps: [
         "Tip the frozen stir-fry veg into a microwave-safe bowl. Cover and microwave on high for 3 min.",
         "Slice a portion of Sunday chicken and add it to the veg with the teriyaki. Stir, cover and microwave for 90 sec until hot and glossy.",
@@ -124,7 +124,7 @@
         S: { cost: 7.41, what: "Fettuccine, 40g light cheese" },
         X: { cost: 8.0, what: "Big serve, 50g full-fat tasty" },
       },
-      extras: ["Salt for the pasta water", "5g garlic paste", "1g paprika", { tiers: "X", text: "50g full-fat tasty cheese, grated, instead of the light cheese (buy separately)" }],
+      extras: ["Salt for the pasta water"],
       steps: [
         "Boil the kettle, pour it into a saucepan with a pinch of salt and bring it back to the boil on high. Microwave the broccoli, covered, for 3 min.",
         "Tear a portion of Sunday chicken into bite-size pieces and toss it with most of the Frank's, the garlic paste and the paprika.",
@@ -141,7 +141,7 @@
         S: { cost: 5.85, what: "300g mash + gravy" },
         X: { cost: 6.25, what: "400g buttery mash + gravy" },
       },
-      extras: ["Oil spray, 2 sprays (1 g)", "Salt and pepper", { tiers: "X", text: "10 g butter for the mash (buy separately)" }],
+      extras: ["Salt and pepper"],
       steps: [
         "Heat the air fryer to 180 °C. Spray the frozen fillet with oil and air-fry it for 18–20 min, turning halfway, until golden and piping hot in the middle (check the pack directions).",
         "Meanwhile prick the potato all over and microwave it on high until soft: about 3 min on Light, 6–8 min on Standard and Loaded.",
@@ -158,7 +158,7 @@
         S: { cost: 8.45, what: "+ fried egg on top" },
         X: { cost: 10.25, what: "¾ pouch + fried egg" },
       },
-      extras: ["Oil spray, 2 sprays (1 g) for the egg", RICE_REST],
+      extras: [RICE_REST],
       steps: [
         "Brown the mince in a hot pan for 5 min, breaking it up.",
         "Add the garlic and ginger paste, soy, honey and sesame oil. Cook for 2 min until glossy.",
@@ -175,7 +175,7 @@
         S: { cost: 8.01, what: "Fettuccine + 10g parmesan" },
         X: { cost: 8.95, what: "Big serve, 20g parmesan, olive oil" },
       },
-      extras: ["Salt for the pasta water", { tiers: "X", text: "5 mL extra virgin olive oil (1 tsp)" }],
+      extras: ["Salt for the pasta water"],
       steps: [
         "Boil the kettle, pour it into a saucepan with a pinch of salt and bring it back to the boil on high.",
         "Meanwhile microwave a tub of Sunday bolognese sauce, covered, for 3–4 min from the fridge (6–8 min from frozen), stirring halfway.",
@@ -192,7 +192,7 @@
         S: { cost: 7.06, what: "½ rice pouch" },
         X: { cost: 8.25, what: "¾ pouch, extra coconut milk" },
       },
-      extras: ["Water, the same amount as the coconut milk", "5 mL fish sauce (1 tsp)", RICE_REST],
+      extras: ["Water, the same amount as the coconut milk", RICE_REST],
       steps: [
         "In a large microwave-safe bowl, stir the curry paste into the coconut milk and the same amount of water until smooth.",
         "Add the frozen veg. Cover loosely and microwave on high for 4 min, stirring halfway.",
@@ -209,7 +209,7 @@
         S: { cost: 6.8, what: "½ pouch + sesame oil" },
         X: { cost: 7.6, what: "¾ pouch, 2 tsp oil + sesame oil" },
       },
-      extras: [{ tiers: "LS", text: "Oil spray, 2 sprays (1 g)" }, { tiers: "X", text: "10 mL vegetable oil (2 tsp)" }, RICE_REST],
+      extras: [RICE_REST],
       steps: [
         "Heat a large frying pan or wok on high with the oil. Scramble the eggs for 1 min and push them to the side.",
         "Add the frozen peas, and the drained corn if your portion has it, for 2 min.",
