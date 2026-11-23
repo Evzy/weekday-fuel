@@ -37,9 +37,10 @@
     return { settings: s, changed: true, note: custom ? NOTE : null };
   }
 
-  /* changed < 0 means the day has no meals to fit */
+  /* changed -1: the day has no meals; -2: it has meals but none the fitter may change */
   function refitNote(gym, k, changed) {
     var kind = gym ? "Gym day" : "Rest day";
+    if (changed === -2) return kind + ": target " + k + " kcal; meals are already set.";
     if (changed < 0) return kind + ": target " + k + " kcal.";
     if (changed === 0) return "Portions already fit " + k + " kcal.";
     return kind + ": portions re-fitted to " + k + " kcal.";

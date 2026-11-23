@@ -71,3 +71,8 @@ test("refit note wording", () => {
   assert.equal(T.refitNote(true, 2150, 0), "Portions already fit 2150 kcal.");
   assert.equal(T.refitNote(true, 2150, -1), "Gym day: target 2150 kcal.");
 });
+
+test("refit note when every meal is already set", () => {
+  assert.equal(T.refitNote(true, 2150, -2), "Gym day: target 2150 kcal; meals are already set.");
+  assert.equal(T.refitNote(false, 1900, -2), "Rest day: target 1900 kcal; meals are already set.");
+});

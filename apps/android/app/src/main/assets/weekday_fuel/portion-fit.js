@@ -31,7 +31,7 @@
         var fm = all[fi];
         if (fm && ctx.mealKnown(fm.id) && fixed(fm, fi)) fixedPicks.push({ index: fi, t: fm.t });
       }
-      return { picks: fixedPicks, lines: [] };
+      return { picks: fixedPicks, lines: [], free: 0 };
     }
     var base = ctx.dayBaseTotals(day, date, baseMeals);
     var tg = opts && opts.target ? opts.target : ctx.defaultTarget(date);
@@ -71,7 +71,7 @@
         });
       }
     }
-    return { picks: picks, lines: lines };
+    return { picks: picks, lines: lines, free: n };
   }
 
   function handPickedOnlyDates(fullLines, restLines) {

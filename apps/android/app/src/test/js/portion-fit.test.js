@@ -97,6 +97,45 @@ test("planDay leaves bought meals fixed when bought option is off", () => {
   assert.equal(plan.lines[0].index, 1);
 });
 
+test("gym then rest target re-fits only app-chosen, uneaten meals; hand picks stay", () => {
+  const ateCtx = Object.assign({}, ctx, { mealImpliedAte: (m) => m.ate === true });
+  const day = {
+    meals: [
+      { id: "bowl", slot: "breakfast", t: "L", ate: true },
+      { id: "wrap", slot: "lunch", t: "L", tierBy: "you" },
+      { id: "bowl", slot: "dinner", t: "L" },
+    ],
+  };
+  const apply = (plan) => plan.lines.forEach((ln) => { day.meals[ln.index].t = ln.toT; });
+  const opts = (k) => ({ bought: true, respectTierBy: true, target: { k, p: 0 } });
+  const rest = PF.planDay(day, 0, "2026-10-27", opts(1250), ateCtx);
+  apply(rest);
+  const restT = day.meals[2].t;
+  assert.equal(restT, "S");
+  const gym = PF.planDay(day, 0, "2026-10-27", opts(1400), ateCtx);
+  assert.deepEqual(gym.lines.map((l) => l.index), [2]);
+  apply(gym);
+  assert.equal(day.meals[2].t, "X");
+  assert.equal(day.meals[0].t, "L");
+  assert.equal(day.meals[1].t, "L");
+  apply(PF.planDay(day, 0, "2026-10-27", opts(1250), ateCtx));
+  assert.equal(day.meals[2].t, restT);
+  assert.equal(day.meals[1].t, "L");
+  assert.equal(day.meals[1].tierBy, "you");
+});
+
+test("planDay reports how many meals it was free to change", () => {
+  const day = {
+    meals: [
+      { id: "bowl", slot: "lunch", t: "X", tierBy: "you" },
+      { id: "wrap", slot: "dinner", t: "X" },
+    ],
+  };
+  assert.equal(PF.planDay(day, 0, "2026-10-27", { bought: true, respectTierBy: true }, ctx).free, 1);
+  assert.equal(PF.planDay(day, 2, "2026-10-27", { bought: true, respectTierBy: true }, ctx).free, 0);
+  assert.equal(PF.planDay(day, 0, "2026-10-27", { bought: true }, ctx).free, 2);
+});
+
 test("handPickedOnlyDates lists days with only tierBy you changes and no rest lines", () => {
   const full = [
     { date: "2026-10-20", tierByYou: false },
