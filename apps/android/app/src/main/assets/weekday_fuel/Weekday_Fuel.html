@@ -208,6 +208,7 @@ a.link{text-decoration:none;display:inline-block;color:var(--accent);border-colo
 <script src="gap.js"></script>
 <script src="portion-fit.js"></script>
 <script src="trend.js"></script>
+<script src="targets.js"></script>
 <script src="macros.js"></script>
 <script src="label-photos.js"></script>
 <script src="extra-amounts.js"></script>
@@ -404,6 +405,7 @@ function runWeighStockIfNeeded(){
     WeekdayFuelInventory.setWeighGStockMigrationFlag(localStorage,p.id);
   });
 }
+function runRestTargetsIfNeeded(){const r=WeekdayFuelTargets.migrate(state.settings);if(!r.changed)return;state.settings=deepMerge(DEFAULT_SETTINGS,r.settings);if(r.note)state.targetsNote=r.note;saveSettings()}
 function staplesActiveOn(date){return WeekdayFuelStaples.activeStaples(staplesList(),date)}
 function dayMealsAll(){return dayMealsFrom(null)}
 function dayMeals(){
@@ -869,7 +871,8 @@ const SECTIONS=[
 
 const DEFAULT_SETTINGS={
   mode:"recomp",
-  kcal:{cut:2150,recomp:2500,bulk:2800},
+  kcal:{cut:1900,recomp:2250,bulk:2550},
+  gymBonus:250,
   protein:170,
   adjust:0,
   readyMealPrice:13,
@@ -905,7 +908,7 @@ const clone=o=>JSON.parse(JSON.stringify(o));
 function deepMerge(base,over){const out=clone(base);if(!over)return out;for(const k in over){if(k==="trial"){out[k]=clone(over[k]);continue}if(over[k]&&typeof over[k]==="object"&&!Array.isArray(over[k])&&out[k]&&typeof out[k]==="object")out[k]=deepMerge(out[k],over[k]);else out[k]=over[k];}return out}
 
 /* ---------- state + storage ---------- */
-const state={tab:"today",tabBefore:null,tabStack:[],date:iso(new Date()),settings:clone(DEFAULT_SETTINGS),days:{},weights:{},mealFilter:"all",sheet:null,addPick:null,addDone:null,weekAddDate:null,armed:null,unlocked:{},dayNote:null,openItem:null,kOpen:null,kAddItem:null,kitchenError:null,kitchenHint:null,kitchenHintWhere:null,trolley:null,prices:null,colesPrices:null,pricesTried:0,checkout:null,coLast:null,openOrder:null,orderError:false,weekNote:null,mealNote:null,scrollMealNote:false,scrollWeekDay:null,todayExtrasOpen:false,shopViewStep:null,shopExpandDays:{},shopAtHomeOpen:false,backup:{busy:null,error:null,needNewFile:false,remembered:null,pending:null},gapOptions:null,gapUndo:null,suppressGapUndoClear:false,trendRefit:null,trendNote:null,logPick:null,logFilter:"all"};
+const state={tab:"today",tabBefore:null,tabStack:[],date:iso(new Date()),settings:clone(DEFAULT_SETTINGS),days:{},weights:{},mealFilter:"all",sheet:null,addPick:null,addDone:null,weekAddDate:null,armed:null,unlocked:{},dayNote:null,openItem:null,kOpen:null,kAddItem:null,kitchenError:null,kitchenHint:null,kitchenHintWhere:null,trolley:null,prices:null,colesPrices:null,pricesTried:0,checkout:null,coLast:null,openOrder:null,orderError:false,weekNote:null,mealNote:null,scrollMealNote:false,scrollWeekDay:null,todayExtrasOpen:false,shopViewStep:null,shopExpandDays:{},shopAtHomeOpen:false,backup:{busy:null,error:null,needNewFile:false,remembered:null,pending:null},gapOptions:null,gapUndo:null,suppressGapUndoClear:false,trendRefit:null,trendNote:null,targetsNote:null,logPick:null,logFilter:"all"};
 let db=null;
 let restoring=false;
 const BACKUP_KEY="weekdayfuel.backup",BEFORE_KEY="weekdayfuel.beforeRestore";
@@ -1066,6 +1069,7 @@ async function initStore(){
   runStaplesFxMigrateIfNeeded();
   runProduceGramsMigratedIfNeeded();
   runWeighStockIfNeeded();
+  runRestTargetsIfNeeded();
   setSync(false,"Saved on this device");
   render();
   try{ if(window.claude&&window.claude.use) db=await window.claude.use("db"); }catch(e){db=null}
@@ -1074,29 +1078,27 @@ async function initStore(){
   const onErr=e=>setSync(false,"Sync paused ("+(e&&e.code||"error")+")");
   db.collection("days").onSnapshot(snap=>{const m={};snap.docs.forEach(d=>{m[d.id]=d.data()});state.days=clone(m);lsSave();render()},onErr);
   db.collection("weights").onSnapshot(snap=>{const m={};snap.docs.forEach(d=>{m[d.id]=d.data()});state.weights=clone(m);lsSave();render()},onErr);
-  db.doc("config/settings").onSnapshot(s=>{if(s.exists){const localSetup=state.settings.setupDone===true;const incoming=s.data();state.settings=deepMerge(DEFAULT_SETTINGS,incoming);if(localSetup&&!Object.prototype.hasOwnProperty.call(incoming||{},"setupDone"))state.settings.setupDone=true;lsSave();render()}},onErr);
+  db.doc("config/settings").onSnapshot(s=>{if(s.exists){const localSetup=state.settings.setupDone===true;const incoming=s.data();state.settings=deepMerge(DEFAULT_SETTINGS,incoming);if(localSetup&&!Object.prototype.hasOwnProperty.call(incoming||{},"setupDone"))state.settings.setupDone=true;runRestTargetsIfNeeded();lsSave();render()}},onErr);
 }
 
 /* ---------- domain logic ---------- */
 const S=()=>state.settings;
 function target(date){
-  const base={k:S().kcal[S().mode]+S().adjust,p:S().protein};
-  if(!date)return base;
-  const adj=state.days[date]&&state.days[date].adj;
-  if(adj&&Number.isFinite(adj.k))return {k:base.k+adj.k,p:base.p};
-  return base;
+  if(!date)return WeekdayFuelTargets.forDay(S(),null);
+  return WeekdayFuelTargets.forDay(S(),state.days[date]);
 }
 function targetAdjLabel(date){
   const day=state.days[date];
+  const gym=WeekdayFuelTargets.gymLabel(S(),day);
   const adj=day&&day.adj;
-  if(!adj||!Number.isFinite(adj.k)||adj.k===0)return "";
+  if(!adj||!Number.isFinite(adj.k)||adj.k===0)return gym;
   if(adj.spreadTo){
     const sign=adj.k>0?"+":"\u2212";
-    return ` · ${sign}${Math.abs(Math.round(adj.k))} spread to ${esc(adj.spreadTo)}`;
+    return gym+` · ${sign}${Math.abs(Math.round(adj.k))} spread to ${esc(adj.spreadTo)}`;
   }
   const sign=adj.k>0?"+":"\u2212";
   const from=adj.from?dayShort(adj.from):"";
-  return ` · ${sign}${Math.abs(Math.round(adj.k))} from ${esc(from)}`;
+  return gym+` · ${sign}${Math.abs(Math.round(adj.k))} from ${esc(from)}`;
 }
 function dayOf(date){
   if(state.days[date])return state.days[date];
@@ -1320,11 +1322,8 @@ function renderShopFitPortionsHint(){
   return `<div class="hint stack" style="gap:6px;margin:8px 0"><span>Fit portions first</span>${list}${btns}</div>`;
 }
 function gapTargetOn(date,daysMap){
-  const base={k:S().kcal[S().mode]+S().adjust,p:S().protein};
   const dm=daysMap||state.days;
-  const adj=dm[date]&&dm[date].adj;
-  if(adj&&Number.isFinite(adj.k))return {k:base.k+adj.k,p:base.p};
-  return base;
+  return WeekdayFuelTargets.forDay(S(),dm[date]);
 }
 function gapScoreTotals(k,p,date,daysMap){
   const tg=gapTargetOn(date,daysMap);
@@ -1963,7 +1962,7 @@ function compactMacro(val,tgt,unit,cls){
 function tierLabel(t){const x=TIERS.find(([k])=>k===t);return x?x[1]:"Standard"}
 function renderSetupCard(){
   const s=S(),mode=s.mode,kKey=mode==="cut"?"cut":mode==="bulk"?"bulk":"recomp";
-  return `<div class="panel stack" style="gap:10px" id="setup-card"><div class="eyebrow">Welcome</div><h2>Your targets</h2><div class="chips">${Object.keys(MODES).map(k=>`<button type="button" class="chip" aria-pressed="${s.mode===k}" data-act="mode" data-v="${k}">${MODES[k].label}</button>`).join("")}</div><label class="f">${esc(MODES[mode].label)} kcal<input class="num" type="number" data-set="kcal.${kKey}" value="${s.kcal[kKey]}"></label><label class="f">Protein g (every day)<input class="num" type="number" data-set="protein" value="${s.protein}"></label><div class="row" style="gap:8px;flex-wrap:wrap"><button type="button" class="btn" data-act="setupdone">Save</button><button type="button" class="ghost" data-act="planweek">Plan my week →</button></div></div>`;
+  return `<div class="panel stack" style="gap:10px" id="setup-card"><div class="eyebrow">Welcome</div><h2>Your targets</h2><div class="chips">${Object.keys(MODES).map(k=>`<button type="button" class="chip" aria-pressed="${s.mode===k}" data-act="mode" data-v="${k}">${MODES[k].label}</button>`).join("")}</div><label class="f">${esc(MODES[mode].label)} kcal (rest day)<input class="num" type="number" data-set="kcal.${kKey}" value="${s.kcal[kKey]}"></label><label class="f">Protein g (every day)<input class="num" type="number" data-set="protein" value="${s.protein}"></label><div class="row" style="gap:8px;flex-wrap:wrap"><button type="button" class="btn" data-act="setupdone">Save</button><button type="button" class="ghost" data-act="planweek">Plan my week →</button></div></div>`;
 }
 function renderTodayWeighBox(today){
   const w=state.weights[today];
@@ -2002,6 +2001,7 @@ function renderToday(){
   }
   h+=renderTodayWeighBox(today);
   h+=renderTodayTrendPanel(today);
+  if(state.targetsNote)h+=`<div class="hint" id="targets-note"><span>${esc(state.targetsNote)}</span> <button type="button" class="ghost" data-act="targets">Targets</button> <button type="button" class="ghost" data-act="targetsnoteok">OK</button></div>`;
   if(we&&!on){
     h+=`<div class="panel stack" style="gap:8px"><p class="muted" style="margin:0">Weekend, eat how you like.</p><button type="button" class="ghost" data-act="plantoday">Plan today anyway →</button></div>`;
     h+=renderStapleChipsToday(today,day);
@@ -2622,8 +2622,8 @@ function renderTargets(){
   const s=S();
   let h=`<div class="row between" style="align-items:flex-start"><div><div class="eyebrow">Your numbers</div><h2>Targets</h2></div>${backBtn()}</div>`;
   h+=`<div class="panel stack"><div class="eyebrow">Phase</div><div class="chips">${Object.keys(MODES).map(k=>`<button class="chip" aria-pressed="${s.mode===k}" data-act="mode" data-v="${k}">${MODES[k].label}</button>`).join("")}</div>
-  <div class="grid2"><label class="f">Mini-cut kcal<input class="num" type="number" id="k-cut" data-set="kcal.cut" value="${s.kcal.cut}"></label><label class="f">Recomp kcal<input class="num" type="number" id="k-recomp" data-set="kcal.recomp" value="${s.kcal.recomp}"></label><label class="f">Lean bulk kcal<input class="num" type="number" id="k-bulk" data-set="kcal.bulk" value="${s.kcal.bulk}"></label><label class="f">Protein g (every day)<input class="num" type="number" id="prot" data-set="protein" value="${s.protein}"></label><label class="f">Weekday adjustment<input class="num" type="number" step="50" id="adj" data-set="adjust" value="${s.adjust}"></label></div>
-  <div class="small muted">Now: <b class="num">${target().k} kcal</b>, <b class="num">${s.protein}g</b> protein. Weigh-in can nudge weekdays ±150 kcal.</div></div>`;
+  <div class="grid2"><label class="f">Mini-cut kcal (rest day)<input class="num" type="number" id="k-cut" data-set="kcal.cut" value="${s.kcal.cut}"></label><label class="f">Recomp kcal (rest day)<input class="num" type="number" id="k-recomp" data-set="kcal.recomp" value="${s.kcal.recomp}"></label><label class="f">Lean bulk kcal (rest day)<input class="num" type="number" id="k-bulk" data-set="kcal.bulk" value="${s.kcal.bulk}"></label><label class="f">Gym day bonus<input class="num" type="number" step="50" id="gymbonus" data-set="gymBonus" value="${s.gymBonus}"></label><label class="f">Protein g (every day)<input class="num" type="number" id="prot" data-set="protein" value="${s.protein}"></label><label class="f">Weekday adjustment<input class="num" type="number" step="50" id="adj" data-set="adjust" value="${s.adjust}"></label></div>
+  <div class="small muted">Now: rest day <b class="num">${target().k} kcal</b>, gym day <b class="num">${WeekdayFuelTargets.forDay(s,{gym:true}).k} kcal</b>, <b class="num">${s.protein}g</b> protein. Weigh-in can nudge weekdays ±150 kcal.</div></div>`;
   h+=renderBackupPanel();
   return h;
 }
@@ -2850,7 +2850,8 @@ document.addEventListener("click",e=>{
     case "plantoday":{const t=iso(new Date());const d=ensureDay(t);if(isWeekend(t))d.track=true;saveDay(t);state.tab="week";state.sheet=null;window.scrollTo(0,0);scrollWeekDay(t);break}
     case "view":openView(v);break;
     case "back":closeView();break;
-    case "targets":state.sheet=null;openView("targets");break;
+    case "targets":state.sheet=null;state.targetsNote=null;openView("targets");break;
+    case "targetsnoteok":state.targetsNote=null;break;
     case "targetback":closeView();break;
     case "kitem":state.kOpen=state.kOpen===v?null:v;state.kitchenHint=null;state.kitchenHintWhere=null;break;
     case "kused":if(CAT.item(v)&&kitchenSave({k:"set",item:v,amount:0,why:"used"})){state.kitchenHint=null;state.kitchenHintWhere=null}break;

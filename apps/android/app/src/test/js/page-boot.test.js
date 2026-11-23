@@ -23,3 +23,11 @@ test("initMealCalc() runs only after store() and S() exist (cold start must leav
   assert.ok(call > store, "initMealCalc() after store()");
   assert.ok(call > settings, "initMealCalc() after S()");
 });
+
+test("targets.js loads before the main script and initStore runs the rest-target update", () => {
+  const html = fs.readFileSync(HTML, "utf8");
+  assert.ok(html.indexOf('<script src="targets.js"></script>') > -1);
+  assert.ok(html.indexOf('<script src="targets.js"></script>') < html.lastIndexOf("<script>"));
+  const init = html.slice(html.indexOf("async function initStore(){"));
+  assert.ok(init.indexOf("runRestTargetsIfNeeded();") > -1);
+});
