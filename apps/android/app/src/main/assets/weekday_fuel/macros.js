@@ -707,16 +707,32 @@
   },
   "crumbfillet": {
     "woolies": {
-      "k": 135.5,
-      "p": 19.5,
-      "c": 6.9,
-      "f": 3.2,
+      "k": 146,
+      "p": 18.8,
+      "c": 11,
+      "f": 2.4,
+      "fib": 2,
       "per": "100g",
       "src": "label",
-      "product": "Woolworths Chicken Breast Fillets Garlic & Crumb 350g",
-      "id": "130108",
+      "product": "Woolworths Oven Baked Chicken Breast Schnitzels 350g",
+      "id": "433238",
       "checked": "2026-11-23",
-      "note": "Woolworths product page (text NIP). 567 kJ per 100g. Fibre not listed. Per 175g fillet: 992 kJ (237.1 kcal), 34.1g P, 5.6g F, sat '<1.8g', 12.1g C, sugars '<1.8g', 513mg Na. Woolworths only. as sold (frozen, uncooked)"
+      "note": "Woolworths product page (structured NIP). 611 kJ per 100g. Per 175g fillet: 1070 kJ (255.7 kcal), 32.9g P, 4.2g F, sat '<1.8g', 19.2g C, 3.5g fibre. 63% RSPCA breast fillet. Woolworths only. as sold (chilled, uncooked)"
+    }
+  },
+  "crumbfillet-fallback": {
+    "woolies": {
+      "k": 184.3,
+      "p": 13.5,
+      "c": 17.7,
+      "f": 6.6,
+      "per": "100g",
+      "src": "label",
+      "unitG": 190,
+      "product": "Chicken Schnitzel Crumbed From The Deli each",
+      "id": "351196",
+      "checked": "2026-11-23",
+      "note": "Woolworths product page (structured NIP). 771 kJ per 100g; per 190g schnitzel: 1460 kJ (349 kcal), 25.6g P, 12.5g F, 927mg Na. The label's carbs read '<0.1g', impossible for a crumbed schnitzel; 17.7g is the energy left after protein and fat (the deli parmi lists 18.6g). 46% breast, formed. as sold (chilled, uncooked)"
     }
   },
   "freshpasta": {

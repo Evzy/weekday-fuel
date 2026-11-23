@@ -264,7 +264,7 @@ test("estimated extra prices are marked unconfirmed on store products", () => {
   assert.equal(cat.item("paprika").woolies.unconfirmed, true);
   assert.equal(cat.item("sesameseed").coles.unconfirmed, true);
   assert.equal(cat.item("sesameseed").woolies.unconfirmed, undefined);
-  assert.equal(cat.item("crumbfillet").woolies.unconfirmed, true);
+  assert.equal(cat.item("crumbfillet").woolies.unconfirmed, undefined);
 });
 
 test("former extras are catalogue items used by meals", () => {
@@ -319,11 +319,30 @@ test("buffalomac uses cheese slices, not shredded cheese", () => {
   assert.ok(cat.RETIRED.coles["8145335"]);
 });
 
-test("schnitzel fillets are the Woolworths Garlic & Crumb pack; Italian style is retired", () => {
+test("schnitzels: Oven Baked 2-pack first, the 190g deli schnitzel when it's out", () => {
   const w = cat.item("crumbfillet").woolies;
-  assert.equal(w.stockcode, 130108);
+  assert.equal(w.stockcode, 433238);
   assert.equal(w.size, 2);
+  assert.equal(w.fallback.stockcode, 351196);
+  assert.equal(w.fallback.size, 1);
   assert.ok(cat.RETIRED.woolies["130110"]);
-  assert.equal(PANELS.crumbfillet.woolies.id, "130108");
-  assert.equal(MC.portion("schnitzel", "S", "woolies").p > 0, true);
+  assert.ok(cat.RETIRED.woolies["130108"]);
+  assert.equal(PANELS.crumbfillet.woolies.id, "433238");
+  assert.equal(PANELS["crumbfillet-fallback"].woolies.id, "351196");
+  assert.equal(PANELS["crumbfillet-fallback"].woolies.unitG, 190);
+  const main = MC.portion("schnitzel", "L", "woolies");
+  const fb = MC.portion("schnitzel", "L", "woolies", { useFallback: true });
+  assert.ok(fb.k - main.k > 80, `deli adds ~93 kcal, got ${fb.k - main.k}`);
+  assert.ok(main.p - fb.p > 6, `deli has ~7g less protein, got ${main.p - fb.p}`);
+});
+
+test("live prices switch to the deli schnitzel only when the Oven Baked pack is out", () => {
+  const items = [cat.item("crumbfillet")];
+  const out = cat.applyLivePrices(items, { 433238: { available: false }, 351196: { available: true, price: 3 } })[0];
+  assert.equal(out.woolies.stockcode, 351196);
+  const both = cat.applyLivePrices(items, { 433238: { available: false }, 351196: { available: false } })[0];
+  assert.equal(both.woolies, null);
+  assert.equal(both.wooliesUnavailable.stockcode, 433238);
+  const ok = cat.applyLivePrices(items, { 433238: { available: true, price: 10 } })[0];
+  assert.equal(ok.woolies.stockcode, 433238);
 });

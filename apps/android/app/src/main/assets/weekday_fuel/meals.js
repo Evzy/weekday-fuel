@@ -135,20 +135,20 @@
     },
     {
       id: "schnitzel", name: "Chicken schnitzel, mash & peas", slots: ["main"], cuisine: "Pub classic", mins: 6, prep: "cook", remake: "YES-style chicken schnitzel",
-      core: "1 frozen crumbed chicken breast fillet (175g)",
+      core: "1 crumbed chicken breast schnitzel (175g)",
       t: {
-        L: { cost: 5.5, what: "50g mash, no gravy" },
-        S: { cost: 5.85, what: "300g mash + gravy" },
-        X: { cost: 6.25, what: "400g buttery mash + gravy" },
+        L: { cost: 6, what: "50g mash, no gravy" },
+        S: { cost: 6.35, what: "300g mash + gravy" },
+        X: { cost: 6.75, what: "400g buttery mash + gravy" },
       },
       extras: ["Salt and pepper"],
       steps: [
-        "Heat the air fryer to 180 °C. Spray the frozen fillet with oil and air-fry it for 18–20 min, turning halfway, until golden and piping hot in the middle (check the pack directions).",
+        "Heat the air fryer to 180 °C. Spray the schnitzel with oil and air-fry it, turning halfway, until golden and piping hot in the middle: about 15 min from the fridge, 20 min from frozen (check the pack directions).",
         "Meanwhile prick the potato all over and microwave it on high until soft: about 3 min on Light, 6–8 min on Standard and Loaded.",
         "Mash the potato with a fork, the evaporated milk, salt and pepper (and the butter on Loaded).",
         "Microwave the peas, covered, for 2–3 min. On Standard and Loaded, whisk the gravy powder with boiling water from the kettle.",
       ],
-      note: "About 20 min start to finish, 6 of them hands-on. Woolworths only: Coles has no frozen crumbed breast this lean.",
+      note: "About 20 min start to finish, 6 of them hands-on. Woolworths only: Coles has no crumbed breast this lean.",
     },
     {
       id: "koreanbeef", name: "Korean beef mince bowl", slots: ["main"], cuisine: "Korean", mins: 10, prep: "quick",
