@@ -86,12 +86,12 @@
     return null;
   }
 
-  function massForAmount(amount, item, spec) {
+  function massForAmount(amount, item, spec, panel) {
     if (!(amount > 0)) return 0;
     if (spec && spec._ml) return amount;
     if (!item) return amount;
     var unit = item.unit;
-    var unitSize = item.unitSize;
+    var unitSize = panel && panel.unitG > 0 ? panel.unitG : item.unitSize;
     if (unit === "eggs" || unit === "slices" || unit === "wraps" || unit === "muffins" || unit === "fillets" || unit === "bars" || unit === "bottles") {
       return amount * (unitSize || 1);
     }
@@ -108,7 +108,7 @@
 
   function macroMass(panel, amount, item, spec, weighApi, weighG) {
     if (spec && spec._ml) return amount;
-    if (!item || item.unit !== "mL") return massForAmount(amount, item, spec);
+    if (!item || item.unit !== "mL") return massForAmount(amount, item, spec, panel);
     if (!weighApi || !weighG || !weighApi.has(weighG, item.id)) return amount;
     var entry = weighG[item.id];
     var sample = weighApi.parseSample(entry && entry.ml, entry && entry.g);
@@ -125,7 +125,7 @@
         ? macroMass(panel, amount, item, spec, weighApi, weighG)
         : (spec && spec._ml) || (item && item.unit === "mL")
           ? amount
-          : massForAmount(amount, item, spec);
+          : massForAmount(amount, item, spec, panel);
     var per = 100;
     var factor = mass / per;
     return {

@@ -96,3 +96,16 @@ test("spray is counted once (AMOUNTS, not extra-amounts)", () => {
   const pDup = mcDup.portion("eggmuffin", "S", "woolies");
   assert.ok(pDup.k > p.k, "extra-amount spray would double-count macros on top of AMOUNTS");
 });
+
+test("panel unitG overrides item unitSize for count units, per store", () => {
+  const panels = {
+    sl: {
+      woolies: { k: 100, p: 10, c: 0, f: 0, per: "100g" },
+      coles: { k: 100, p: 10, c: 0, f: 0, per: "100g", unitG: 20 },
+    },
+  };
+  const items = { sl: { id: "sl", unit: "slices", unitSize: 10 } };
+  const mc = calc.create({ panels, amounts: { m: { sl: 3 } }, item: (id) => items[id] });
+  assert.equal(mc.portion("m", "S", "woolies").k, 30);
+  assert.equal(mc.portion("m", "S", "coles").k, 60);
+});
