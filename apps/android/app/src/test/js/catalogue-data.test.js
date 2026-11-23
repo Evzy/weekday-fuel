@@ -318,3 +318,12 @@ test("buffalomac uses cheese slices, not shredded cheese", () => {
   assert.ok(cat.RETIRED.woolies["729026"]);
   assert.ok(cat.RETIRED.coles["8145335"]);
 });
+
+test("schnitzel fillets are the Woolworths Garlic & Crumb pack; Italian style is retired", () => {
+  const w = cat.item("crumbfillet").woolies;
+  assert.equal(w.stockcode, 130108);
+  assert.equal(w.size, 2);
+  assert.ok(cat.RETIRED.woolies["130110"]);
+  assert.equal(PANELS.crumbfillet.woolies.id, "130108");
+  assert.equal(MC.portion("schnitzel", "S", "woolies").p > 0, true);
+});

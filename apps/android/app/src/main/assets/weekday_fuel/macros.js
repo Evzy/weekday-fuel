@@ -707,16 +707,16 @@
   },
   "crumbfillet": {
     "woolies": {
-      "k": 139.3,
-      "p": 18.7,
-      "c": 8.2,
-      "f": 3.4,
+      "k": 135.5,
+      "p": 19.5,
+      "c": 6.9,
+      "f": 3.2,
       "per": "100g",
       "src": "label",
-      "product": "Woolworths Italian Style Crumb Chicken Fillets 350g",
-      "id": "130110",
-      "checked": "2026-10-27",
-      "note": "Woolworths product page (text NIP). Fibre not listed. Per 175g fillet: 1020 kJ (243.8 kcal), 32.7g P, 6.0g F, sat '<1.8g', 14.4g C, 3.5g sugars, 467mg Na. Woolworths only. as sold (frozen, uncooked)"
+      "product": "Woolworths Chicken Breast Fillets Garlic & Crumb 350g",
+      "id": "130108",
+      "checked": "2026-11-23",
+      "note": "Woolworths product page (text NIP). 567 kJ per 100g. Fibre not listed. Per 175g fillet: 992 kJ (237.1 kcal), 34.1g P, 5.6g F, sat '<1.8g', 12.1g C, sugars '<1.8g', 513mg Na. Woolworths only. as sold (frozen, uncooked)"
     }
   },
   "freshpasta": {

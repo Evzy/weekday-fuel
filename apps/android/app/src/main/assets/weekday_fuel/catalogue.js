@@ -19,6 +19,7 @@
       "6078660": { name: "Woolworths RSPCA Approved Chicken Thigh Fillets 550g", url: "https://www.woolworths.com.au/shop/productdetails/6078660/woolworths-rspca-approved-chicken-thigh-fillets" },
       "727622": { name: "Woolworths RSPCA Approved Chicken Thigh Fillets Skinless 1.2kg - 1.8kg", url: "https://www.woolworths.com.au/shop/productdetails/727622/woolworths-rspca-approved-chicken-thigh-fillets-skinless" },
       "43974": { name: "San Remo Spaghetti Pasta No 5 500g", url: "https://www.woolworths.com.au/shop/productdetails/43974/san-remo-spaghetti-pasta-no-5" },
+      "130110": { name: "Woolworths Italian Style Crumb Chicken Fillets 350g", url: "https://www.woolworths.com.au/shop/productdetails/130110/woolworths-italian-style-crumb-chicken-fillets" },
       "44025": { name: "San Remo Macaroni Pasta No 38 500g", url: "https://www.woolworths.com.au/shop/productdetails/44025/san-remo-macaroni-pasta-no-38" },
       "83295": { name: "Woolworths Panko Bread Crumbs 220g", url: "https://www.woolworths.com.au/shop/productdetails/83295/woolworths-panko-bread-crumbs" },
       "729026": { name: "Woolworths Tasty Shredded Cheese 500g", url: "https://www.woolworths.com.au/shop/productdetails/729026/woolworths-tasty-shredded-cheese" },
@@ -274,9 +275,9 @@
       },
     },
     {
-      id: "crumbfillet", sec: 2, name: "Frozen crumbed chicken breast fillets", short: "Crumbed fillets", unit: "fillets", unitSize: 175, note: "Woolworths only: 77% chicken breast. Coles has no lean equivalent", same: false,
+      id: "crumbfillet", sec: 2, name: "Frozen crumbed chicken breast fillets", short: "Crumbed fillets", unit: "fillets", unitSize: 175, note: "Woolworths only: 82% chicken breast. Coles has no lean equivalent. Replaces the Italian Style fillets (130110), unavailable online 2026-11-23", same: false,
       coles: null,
-      woolies: { name: "Woolworths Italian Style Crumb Chicken Fillets 350g", url: "https://www.woolworths.com.au/shop/productdetails/130110/woolworths-italian-style-crumb-chicken-fillets", stockcode: 130110, size: 2, price: 9, checked: "2026-10-26", unconfirmed: true },
+      woolies: { name: "Woolworths Chicken Breast Fillets Garlic & Crumb 350g", url: "https://www.woolworths.com.au/shop/productdetails/130108/woolworths-chicken-breast-fillets-garlic-crumb", stockcode: 130108, size: 2, price: 9, checked: "2026-11-23", unconfirmed: true },
     },
     {
       id: "teriyaki_sauce", sec: 2, name: "Teriyaki sauce", unit: "g", note: "Coles lists a 240 g bottle; recipe weighs 50 g teriyaki per portion", same: false,
