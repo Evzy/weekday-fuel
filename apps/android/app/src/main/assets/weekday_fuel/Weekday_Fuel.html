@@ -2134,7 +2134,7 @@ function weekTable(){
 }
 function renderWeigh(){
   const today=iso(new Date());const w=state.weights[today];const v=verdict();
-  const stepsAvg=WeekdayFuelSteps.avg7(stepsCache(),today);
+  const stepsAvg=WeekdayFuelSteps.avg7(stepsCache(),WeekdayFuelSteps.addDays(today,-1));
   let h=`<div class="row between" style="align-items:flex-start"><div><div class="eyebrow">Daily weigh-in</div><h2>Morning, before the Dare</h2></div>${backBtn()}</div>`;
   h+=`<form class="panel row" id="wform" style="align-items:flex-end"><label class="f grow">Weight (kg)<input id="wkg" class="num" type="number" step="0.1" min="30" max="250" inputmode="decimal" placeholder="83.5" value="${w?w.kg:""}"></label><label class="f" style="width:160px">Date<input id="wdate" type="date" value="${today}" max="${today}"></label><button class="btn" type="submit">${w?"Update":"Save"}</button></form>`;
   h+=`<div class="panel verdict"><div class="eyebrow">7-day trend</div><div class="head">${esc(v.head)}${stepsAvg!=null?`<span class="small muted" style="font-family:var(--f-body);font-weight:400"> · 7-day steps avg ${esc(WeekdayFuelSteps.format(stepsAvg))}</span>`:""}</div><div class="small">${esc(v.body)}</div>${state.trendRefit?renderTrendRefitPrompt():v.hold?"":v.adj?`<div class="row" style="margin-top:6px"><button class="btn" data-act="applyadj" data-v="${v.adj}">Apply ${v.adj>0?"+":""}${v.adj} kcal to weekdays</button><span class="small muted">Current adjustment: ${S().adjust>0?"+":""}${S().adjust}</span></div>`:""}</div>`;
@@ -2647,7 +2647,7 @@ function renderStepsPanel(){
   const today=iso(new Date()),c=stepsCache(),n=WeekdayFuelSteps.countFor(c,today),st=c&&c.status;
   let body;
   if(st==="ok")body=`<p class="small muted" style="margin:0">Connected${n!=null?` · ${esc(WeekdayFuelSteps.format(n))} today`:""}</p>`;
-  else if(!c||st==="noPermission")body=`<div><button type="button" class="ghost" data-act="stepsconnect">Connect steps</button></div>`;
+  else if(!c||st==="noPermission")body=`<div><button type="button" class="ghost" data-act="stepsconnect">Connect steps</button></div>${st==="noPermission"?`<p class="small muted" style="margin:0">If no permission screen appears, open Settings › Health Connect › App permissions › Weekday Fuel and allow Steps.</p>`:""}`;
   else if(st==="unavailable"||st==="updateRequired")body=`<p class="small muted" style="margin:0">Steps need Health Connect</p>`;
   else body=`<p class="small muted" style="margin:0">${n!=null?`${esc(WeekdayFuelSteps.format(n))} today · `:""}Couldn't read steps.</p><div><button type="button" class="ghost" data-act="stepsconnect">Connect steps</button></div>`;
   if(c&&c.status==="ok"&&n===0&&new Date().getHours()>=18)body+=`<div class="hint"><span>No steps? In Samsung Health › Settings › Health Connect, allow Steps.</span></div>`;
@@ -3072,7 +3072,7 @@ document.addEventListener("keydown",e=>{if(e.key==="Escape"&&state.sheet){if(sta
 function onHostPageMessage(e){
   let m;try{m=JSON.parse(e.data)}catch(_){return}
   if(!m)return;
-  if(m.type==="steps"){setStepsCache(WeekdayFuelSteps.mergeReply(stepsCache(),m,new Date().toISOString()));if(state.tab==="today"||state.tab==="week"||state.tab==="weigh"||state.tab==="targets")render();return}
+  if(m.type==="steps"){setStepsCache(WeekdayFuelSteps.mergeReply(stepsCache(),m,new Date().toISOString()));const ae=document.activeElement;if(ae&&/^(INPUT|SELECT|TEXTAREA)$/.test(ae.tagName))return;if(state.tab==="today"||state.tab==="week"||state.tab==="weigh"||state.tab==="targets")render();return}
   if(m.type==="backupInfo"||m.type==="backupSaved"||m.type==="backupError"||m.type==="backupOpened"){onBackupHostMessage(m);if(state.tab==="targets")render();return}
   if(m.type==="pricesDone"||m.type==="pricesError"){onPrices(m);if(state.tab==="shop")render();return}
   if(m.type==="colesPricesDone"||m.type==="colesPricesError"){onColesPrices(m);if(state.tab==="shop")render();return}

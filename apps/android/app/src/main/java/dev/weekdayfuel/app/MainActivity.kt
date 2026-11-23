@@ -79,11 +79,10 @@ class MainActivity : ComponentActivity() {
     private val backupFiles by lazy { BackupFiles(this) }
 
     private val healthSteps by lazy { HealthSteps(this) }
-    private var lastStepsRange: StepsMessages.ReadRange? = null
 
     private val requestSteps =
         registerForActivityResult(PermissionController.createRequestPermissionResultContract()) { _ ->
-            val range = lastStepsRange ?: StepsMessages.ReadRange(LocalDate.now().minusDays(7), LocalDate.now())
+            val range = StepsMessages.ReadRange(LocalDate.now().minusDays(7), LocalDate.now())
             lifecycleScope.launch { replyToPage(readStepsSafely(range)) }
         }
 
@@ -343,7 +342,6 @@ class MainActivity : ComponentActivity() {
                         replyToPage(StepsMessages.status(StepsMessages.Status.ERROR))
                         return
                     }
-                lastStepsRange = range
                 lifecycleScope.launch { replyToPage(readStepsSafely(range)) }
             }
             "stepsConnect" -> handleStepsConnect()

@@ -38,8 +38,14 @@ class HealthSteps(private val context: Context) {
                     timeRangeSlicer = Period.ofDays(1),
                 ),
             )
+        val today = LocalDate.now()
         val counts = LinkedHashMap<LocalDate, Long>()
-        groups.forEach { g -> counts[g.startTime.toLocalDate()] = g.result[StepsRecord.COUNT_TOTAL] ?: 0L }
+        groups.forEach { g ->
+            val day = g.startTime.toLocalDate()
+            val total = g.result[StepsRecord.COUNT_TOTAL]
+            // Past days with no data stay unknown; today reads 0 so the page can hint at missing permission.
+            if (total != null) counts[day] = total else if (day == today) counts[day] = 0L
+        }
         return StepsMessages.days(counts)
     }
 
