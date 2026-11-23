@@ -31,3 +31,12 @@ test("targets.js loads before the main script and initStore runs the rest-target
   const init = html.slice(html.indexOf("async function initStore(){"));
   assert.ok(init.indexOf("runRestTargetsIfNeeded();") > -1);
 });
+
+test("steps.js loads and steps are only requested when the host exists", () => {
+  const html = fs.readFileSync(HTML, "utf8");
+  assert.ok(html.indexOf('<script src="steps.js"></script>') > -1);
+  const fn = html.slice(html.indexOf("function requestSteps("));
+  assert.ok(fn.indexOf("window.WeekdayFuelHost") > -1);
+  const onMsg = html.slice(html.indexOf("function onHostPageMessage("));
+  assert.ok(onMsg.indexOf('m.type==="steps"') > -1);
+});

@@ -209,6 +209,7 @@ a.link{text-decoration:none;display:inline-block;color:var(--accent);border-colo
 <script src="portion-fit.js"></script>
 <script src="trend.js"></script>
 <script src="targets.js"></script>
+<script src="steps.js"></script>
 <script src="macros.js"></script>
 <script src="label-photos.js"></script>
 <script src="extra-amounts.js"></script>
@@ -923,6 +924,11 @@ function lsGet(){try{return JSON.parse(localStorage.getItem(LS)||"null")}catch(e
 function lsSave(){if(restoring)return;try{localStorage.setItem(LS,JSON.stringify({settings:state.settings,days:state.days,weights:state.weights}))}catch(e){}}
 function lsTicks(){try{return JSON.parse(localStorage.getItem(LS+".shop")||"{}")}catch(e){return {}}}
 function lsSetTicks(t){if(restoring)return;try{localStorage.setItem(LS+".shop",JSON.stringify(t))}catch(e){}}
+function stepsCache(){try{return JSON.parse(localStorage.getItem("weekdayfuel.steps"))||null}catch(e){return null}}
+function setStepsCache(c){try{localStorage.setItem("weekdayfuel.steps",JSON.stringify(c))}catch(e){}}
+function requestSteps(){if(!window.WeekdayFuelHost)return;const r=WeekdayFuelSteps.rangeToRead(iso(new Date()));WeekdayFuelHost.postMessage(JSON.stringify({type:"stepsRead",from:r.from,to:r.to}))}
+function stepsLine(date){const c=stepsCache();const n=WeekdayFuelSteps.countFor(c,date);if(n!=null)return `${WeekdayFuelSteps.format(n)} steps`;if(!window.WeekdayFuelHost)return "";if(!c||c.status==="noPermission")return "connect";if(c.status==="unavailable"||c.status==="updateRequired")return "unavailable";return ""}
+function renderTodaySteps(date){const l=stepsLine(date);if(!l)return "";if(l==="connect")return `<div class="small muted"><button type="button" class="ghost" data-act="stepsconnect">Connect steps</button></div>`;if(l==="unavailable")return `<div class="small muted">Steps need Health Connect</div>`;return `<div class="small muted">${esc(l)} today</div>`}
 /* Last trolley send: {at, fingerprint, lines: {stockcode: quantity now in the trolley}} */
 const SENT=LS+".sent";
 function lsSent(){try{const s=JSON.parse(localStorage.getItem(SENT)||"null");return s&&typeof s.fingerprint==="string"&&s.lines&&typeof s.lines==="object"?s:null}catch(e){return null}}
@@ -1072,6 +1078,7 @@ async function initStore(){
   runRestTargetsIfNeeded();
   setSync(false,"Saved on this device");
   render();
+  requestSteps();
   try{ if(window.claude&&window.claude.use) db=await window.claude.use("db"); }catch(e){db=null}
   if(!db){setSync(false,"Saved on this device only");return}
   setSync(true,"Synced");
@@ -2023,7 +2030,7 @@ function renderToday(){
   const gymBtn=dayEditable(today)?`<button type="button" class="chip" aria-pressed="${day.gym===true}" data-act="gym" data-d="${esc(today)}" data-v="${day.gym===true?"0":"1"}">Gym today</button>`:"";
   if(!meals.length){
     const gymLab=WeekdayFuelTargets.gymLabel(S(),day).replace(/^ · /,"");
-    h+=`<div class="panel stack" style="gap:8px"><p class="muted" style="margin:0">Nothing planned. <button type="button" class="ghost" data-act="planweek">Plan my week →</button></p><div class="small muted">Target <b class="num">${tg.k}</b> kcal${gymLab?` · ${esc(gymLab)}`:""}</div><div class="chips">${gymBtn}</div></div>`;
+    h+=`<div class="panel stack" style="gap:8px"><p class="muted" style="margin:0">Nothing planned. <button type="button" class="ghost" data-act="planweek">Plan my week →</button></p><div class="small muted">Target <b class="num">${tg.k}</b> kcal${gymLab?` · ${esc(gymLab)}`:""}</div>${renderTodaySteps(today)}<div class="chips">${gymBtn}</div></div>`;
     if(state.todayNote)h+=`<div class="hint" id="today-note"><span>${esc(state.todayNote)}</span></div>`;
     h+=renderStapleChipsToday(today,day);
   }else{
@@ -2031,7 +2038,7 @@ function renderToday(){
     const fitBtn=canFit?`<button type="button" class="ghost" data-act="todayfit" data-d="${esc(today)}">Fit portions</button>`:"";
     const spreadAdj=renderTodaySpreadAdj(today);
     const gymLab=spreadAdj?"":WeekdayFuelTargets.gymLabel(S(),day).replace(/^ · /,"");
-    h+=`<div class="panel stack" style="gap:10px">${compactMacro(t.k,tg.k," kcal","")}${gymLab?`<div class="small muted">${esc(gymLab)}</div>`:""}${compactMacro(t.p,tg.p," g protein","p")}<div class="chips">${gymBtn}</div>${fitBtn}${spreadAdj}</div>`;
+    h+=`<div class="panel stack" style="gap:10px">${compactMacro(t.k,tg.k," kcal","")}${gymLab?`<div class="small muted">${esc(gymLab)}</div>`:""}${renderTodaySteps(today)}${compactMacro(t.p,tg.p," g protein","p")}<div class="chips">${gymBtn}</div>${fitBtn}${spreadAdj}</div>`;
     const gapMeta=todayGapMeta(today,day,t,tg);
     if(gapMeta)h+=`<div class="special"><span>${esc(gapMeta.text)} · </span><button type="button" class="ghost" data-act="gapopen">Close the gap</button></div>`;
     if(state.todayNote)h+=`<div class="hint" id="today-note"><span>${esc(state.todayNote)}</span>${state.gapUndo?` <button type="button" class="ghost" data-act="gapundo">Undo</button>`:""}</div>`;
@@ -2072,6 +2079,7 @@ function renderWeek(){
     h+=`<div class="panel stack" style="gap:12px;text-align:center"><button type="button" class="btn" data-act="suggestweek">Plan my week</button><button type="button" class="ghost" data-act="plan" data-v="fewest">or use a plan: ${esc(fewest?fewest.name:"Fewest items")}</button></div>`;
   }
   h+=`<div class="stack" style="gap:16px;margin-top:8px">`;
+  const stepsC=stepsCache();
   dates.forEach(d=>{
     if(isWeekend(d)&&!tracked(d)){
       h+=`<div class="small muted" id="week-off-${esc(d)}"><span>${esc(dayShort(d))} · off · </span><button type="button" class="ghost" data-act="track" data-d="${esc(d)}">Plan it</button></div>`;
@@ -2079,11 +2087,12 @@ function renderWeek(){
     }
     if(!tracked(d))return;
     const day=dayOf(d),t=totals(day,d),pip=dayPip(day,d),dayTg=target(d);
+    const dayStepsN=WeekdayFuelSteps.countFor(stepsC,d);
     const fit=dayShowFit(d,day);
     const meals=day.meals||[];
     const boughtLine=dayHasBoughtMeals(d)?`<div class="small"><b>${esc(boughtShopLabel(meals))}</b></div>`:"";
     const dayHint=state.dayNote&&state.dayNote.date===d?`<div class="hint"><span>${esc(dayShort(d))}: ${esc(state.dayNote.msg)}</span></div>`:"";
-    h+=`<div class="panel stack" id="week-day-${esc(d)}" style="gap:8px"><div class="row between" style="align-items:flex-start;gap:8px"><div class="grow"><div class="row between" style="gap:6px"><h2 style="margin:0">${esc(dayShort(d))}</h2><button type="button" class="ghost" data-act="daymenu" data-d="${esc(d)}" aria-label="Day menu">⋯</button></div><div class="small muted"><span class="num">${r0(t.k)}</span> / ${dayTg.k} kcal${targetAdjLabel(d)} · <span class="num">${r0(t.p)}</span>g protein${fit?` · <button type="button" class="ghost" data-act="fit" data-d="${esc(d)}">Fit portions</button>`:""}</div>${boughtLine}</div><span class="pip ${pip}" style="width:36px;height:6px;border-radius:3px;margin-top:6px"></span></div>${dayHint}`;
+    h+=`<div class="panel stack" id="week-day-${esc(d)}" style="gap:8px"><div class="row between" style="align-items:flex-start;gap:8px"><div class="grow"><div class="row between" style="gap:6px"><h2 style="margin:0">${esc(dayShort(d))}</h2><button type="button" class="ghost" data-act="daymenu" data-d="${esc(d)}" aria-label="Day menu">⋯</button></div><div class="small muted"><span class="num">${r0(t.k)}</span> / ${dayTg.k} kcal${targetAdjLabel(d)} · <span class="num">${r0(t.p)}</span>g protein${dayStepsN!=null?` · ${esc(WeekdayFuelSteps.format(dayStepsN))} steps`:""}${fit?` · <button type="button" class="ghost" data-act="fit" data-d="${esc(d)}">Fit portions</button>`:""}</div>${boughtLine}</div><span class="pip ${pip}" style="width:36px;height:6px;border-radius:3px;margin-top:6px"></span></div>${dayHint}`;
     if(meals.length)h+=`<div class="stack" style="gap:4px">`+meals.map((m,i)=>renderWeekMealLine(m,i,d)).join("")+`</div>`;
     if(day.extras&&day.extras.length){
       h+=`<div class="stack" style="gap:4px">`+day.extras.map((x,i)=>`<div class="wli"><span class="grow small">${esc(x.n||"Extra")}</span><span class="num small">${r0(x.k)} kcal · ${r0(x.p)}g P</span><button class="ghost" data-act="rmx" data-i="${i}" data-d="${esc(d)}">Remove</button></div>`).join("")+`</div>`;
@@ -2125,9 +2134,10 @@ function weekTable(){
 }
 function renderWeigh(){
   const today=iso(new Date());const w=state.weights[today];const v=verdict();
+  const stepsAvg=WeekdayFuelSteps.avg7(stepsCache(),today);
   let h=`<div class="row between" style="align-items:flex-start"><div><div class="eyebrow">Daily weigh-in</div><h2>Morning, before the Dare</h2></div>${backBtn()}</div>`;
   h+=`<form class="panel row" id="wform" style="align-items:flex-end"><label class="f grow">Weight (kg)<input id="wkg" class="num" type="number" step="0.1" min="30" max="250" inputmode="decimal" placeholder="83.5" value="${w?w.kg:""}"></label><label class="f" style="width:160px">Date<input id="wdate" type="date" value="${today}" max="${today}"></label><button class="btn" type="submit">${w?"Update":"Save"}</button></form>`;
-  h+=`<div class="panel verdict"><div class="eyebrow">7-day trend</div><div class="head">${esc(v.head)}</div><div class="small">${esc(v.body)}</div>${state.trendRefit?renderTrendRefitPrompt():v.hold?"":v.adj?`<div class="row" style="margin-top:6px"><button class="btn" data-act="applyadj" data-v="${v.adj}">Apply ${v.adj>0?"+":""}${v.adj} kcal to weekdays</button><span class="small muted">Current adjustment: ${S().adjust>0?"+":""}${S().adjust}</span></div>`:""}</div>`;
+  h+=`<div class="panel verdict"><div class="eyebrow">7-day trend</div><div class="head">${esc(v.head)}${stepsAvg!=null?`<span class="small muted" style="font-family:var(--f-body);font-weight:400"> · 7-day steps avg ${esc(WeekdayFuelSteps.format(stepsAvg))}</span>`:""}</div><div class="small">${esc(v.body)}</div>${state.trendRefit?renderTrendRefitPrompt():v.hold?"":v.adj?`<div class="row" style="margin-top:6px"><button class="btn" data-act="applyadj" data-v="${v.adj}">Apply ${v.adj>0?"+":""}${v.adj} kcal to weekdays</button><span class="small muted">Current adjustment: ${S().adjust>0?"+":""}${S().adjust}</span></div>`:""}</div>`;
   h+=renderTrendNoteHtml();
   const chart=chartSVG();
   h+=`<div class="panel stack"><div class="row between"><h3>Last 5 weeks</h3><span class="small muted">Line is the 7-day average</span></div>${chart||`<div class="empty">Chart appears after two weigh-ins — watch the average, not daily noise.</div>`}</div>`;
@@ -2632,12 +2642,24 @@ function renderBackupPanel(){
   try{if(localStorage.getItem(BEFORE_KEY))h+=`<button class="ghost${state.armed==="undorestore"?" warn":""}" data-act="undorestore"${busy?" disabled":""}>${state.armed==="undorestore"?"Tap again to undo restore":"Undo restore"}</button>`}catch(e){}
   return h+`</div>`;
 }
+function renderStepsPanel(){
+  if(!window.WeekdayFuelHost)return "";
+  const today=iso(new Date()),c=stepsCache(),n=WeekdayFuelSteps.countFor(c,today),st=c&&c.status;
+  let body;
+  if(st==="ok")body=`<p class="small muted" style="margin:0">Connected${n!=null?` · ${esc(WeekdayFuelSteps.format(n))} today`:""}</p>`;
+  else if(!c||st==="noPermission")body=`<div><button type="button" class="ghost" data-act="stepsconnect">Connect steps</button></div>`;
+  else if(st==="unavailable"||st==="updateRequired")body=`<p class="small muted" style="margin:0">Steps need Health Connect</p>`;
+  else body=`<p class="small muted" style="margin:0">${n!=null?`${esc(WeekdayFuelSteps.format(n))} today · `:""}Couldn't read steps.</p><div><button type="button" class="ghost" data-act="stepsconnect">Connect steps</button></div>`;
+  if(c&&c.status==="ok"&&n===0&&new Date().getHours()>=18)body+=`<div class="hint"><span>No steps? In Samsung Health › Settings › Health Connect, allow Steps.</span></div>`;
+  return `<div class="panel stack" style="gap:6px"><div class="eyebrow">Steps</div>${body}</div>`;
+}
 function renderTargets(){
   const s=S();
   let h=`<div class="row between" style="align-items:flex-start"><div><div class="eyebrow">Your numbers</div><h2>Targets</h2></div>${backBtn()}</div>`;
   h+=`<div class="panel stack"><div class="eyebrow">Phase</div><div class="chips">${Object.keys(MODES).map(k=>`<button class="chip" aria-pressed="${s.mode===k}" data-act="mode" data-v="${k}">${MODES[k].label}</button>`).join("")}</div>
   <div class="grid2"><label class="f">Mini-cut kcal (rest day)<input class="num" type="number" id="k-cut" data-set="kcal.cut" value="${s.kcal.cut}"></label><label class="f">Recomp kcal (rest day)<input class="num" type="number" id="k-recomp" data-set="kcal.recomp" value="${s.kcal.recomp}"></label><label class="f">Lean bulk kcal (rest day)<input class="num" type="number" id="k-bulk" data-set="kcal.bulk" value="${s.kcal.bulk}"></label><label class="f">Gym day bonus<input class="num" type="number" step="50" id="gymbonus" data-set="gymBonus" value="${s.gymBonus}"></label><label class="f">Protein g (every day)<input class="num" type="number" id="prot" data-set="protein" value="${s.protein}"></label><label class="f">Weekday adjustment<input class="num" type="number" step="50" id="adj" data-set="adjust" value="${s.adjust}"></label></div>
   <div class="small muted">Now: rest day <b class="num">${target().k} kcal</b>, gym day <b class="num">${WeekdayFuelTargets.forDay(s,{gym:true}).k} kcal</b>, <b class="num">${s.protein}g</b> protein. Weigh-in can nudge weekdays ±150 kcal.</div></div>`;
+  h+=renderStepsPanel();
   h+=renderBackupPanel();
   return h;
 }
@@ -2866,6 +2888,7 @@ document.addEventListener("click",e=>{
     case "view":openView(v);break;
     case "back":closeView();break;
     case "targets":state.sheet=null;state.targetsNote=null;openView("targets");break;
+    case "stepsconnect":if(window.WeekdayFuelHost)WeekdayFuelHost.postMessage(JSON.stringify({type:"stepsConnect"}));break;
     case "targetsnoteok":state.targetsNote=null;break;
     case "targetback":closeView();break;
     case "kitem":state.kOpen=state.kOpen===v?null:v;state.kitchenHint=null;state.kitchenHintWhere=null;break;
@@ -3043,11 +3066,13 @@ document.addEventListener("input",e=>{
   c.optSaved=false;const b=document.querySelector('[data-act="cooptsave"]');if(b&&!coBusy())b.disabled=false;
   const ok=document.getElementById("co-optsaved");if(ok)ok.remove();
 });
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")requestSteps()});
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&state.sheet){if(state.sheet.startsWith("log:")){state.sheet=null;state.logPick=null}else if(state.sheet.startsWith("add:")&&!state.weekAddDate)closeAddSheet();else{state.sheet=null;state.addPick=null;state.weekAddDate=null;state.addDone=null}render()}});
 
 function onHostPageMessage(e){
   let m;try{m=JSON.parse(e.data)}catch(_){return}
   if(!m)return;
+  if(m.type==="steps"){setStepsCache(WeekdayFuelSteps.mergeReply(stepsCache(),m,new Date().toISOString()));if(state.tab==="today"||state.tab==="week"||state.tab==="weigh"||state.tab==="targets")render();return}
   if(m.type==="backupInfo"||m.type==="backupSaved"||m.type==="backupError"||m.type==="backupOpened"){onBackupHostMessage(m);if(state.tab==="targets")render();return}
   if(m.type==="pricesDone"||m.type==="pricesError"){onPrices(m);if(state.tab==="shop")render();return}
   if(m.type==="colesPricesDone"||m.type==="colesPricesError"){onColesPrices(m);if(state.tab==="shop")render();return}
