@@ -191,9 +191,8 @@
     "panelBasisNote": "Per 100g as frozen, from the Woolworths product data.",
     "fsanzId": null, "fsanzName": null,
     "sourceUrl": "https://www.woolworths.com.au/apis/ui/product/detail/768559",
-    "checked": "2026-10-27",
-    "photo": "Are fat/protein printed as <1g?",
-    "notes": "Fat and saturated fat both exactly 1.0g, probably '<1g' stored as 1.0; confirm on pack."
+    "checked": "2026-11-23",
+    "notes": "Pack photo 2026-11-23: fat and saturated fat printed as <1.0g; stored as 1.0g, the printed upper limit. Protein, carbs, sugars, fibre and sodium match the pack."
   },
   {
     "item": "fzbroc", "store": "coles", "src": "label",

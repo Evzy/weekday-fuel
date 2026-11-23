@@ -991,10 +991,8 @@
       "fib": 2.5,
       "product": "Woolworths Frozen Australian Broccoli Florets 500g",
       "id": "768559",
-      "checked": "2026-10-27",
-      "note": "Fat and saturated fat both exactly 1.0g, probably '<1g' stored as 1.0; confirm on pack. Per 100g as frozen, from the Woolworths product data.",
-      "photo": "Are fat/protein printed as <1g?",
-      "confirm": "Fat/protein may be printed as <1g — check the pack."
+      "checked": "2026-11-23",
+      "note": "Pack prints fat and saturated fat as <1.0g; stored as 1.0g, the printed upper limit. Sugars 1.1g, sodium 13mg. Per 100g as frozen, from the pack label."
     },
     "coles": {
       "k": 46.4,
