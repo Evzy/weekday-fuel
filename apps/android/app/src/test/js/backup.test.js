@@ -199,6 +199,25 @@ test("restorePlan removes stale keys; excluded storage keys untouched", () => {
   assert.equal(st.get(BACKUP_META), "keep");
 });
 
+const STEPS = "weekdayfuel.steps";
+
+test("build omits the steps cache", () => {
+  const st = fakeStorage({ [MAIN]: "{}", [STEPS]: '{"days":{"2026-11-23":8000}}' });
+  const parsed = B.parse(B.build(st, new Date("2026-11-23T00:00:00.000Z"), "0.1.0"));
+  assert.deepEqual(Object.keys(parsed.backup.data), [MAIN]);
+});
+
+test("restore leaves the steps cache untouched", () => {
+  const st = fakeStorage({ [MAIN]: "old", [STEPS]: "device" });
+  const parsed = B.parse(JSON.stringify({ app: "weekdayfuel", v: 1, data: { [MAIN]: "new", [STEPS]: "fromFile" } }));
+  assert.equal(parsed.ok, true);
+  const plan = B.restorePlan(st, parsed.backup);
+  assert.deepEqual(plan.remove, []);
+  assert.deepEqual(plan.set, { [MAIN]: "new" });
+  B.applyPlan(st, plan);
+  assert.equal(st.get(STEPS), "device");
+});
+
 test("applyPlan throws on first failure", () => {
   const st = {
     keys() {

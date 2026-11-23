@@ -8,6 +8,7 @@
     "weekdayfuel.v1.colesPrices",
     "weekdayfuel.backup",
     "weekdayfuel.beforeRestore",
+    "weekdayfuel.steps",
   ];
 
   function isExcluded(k) {
