@@ -64,3 +64,10 @@ test("migrate does not mutate its input", () => {
   assert.equal(s.kcal.cut, 2150);
   assert.equal(s.restTargets, undefined);
 });
+
+test("refit note wording", () => {
+  assert.equal(T.refitNote(true, 2150, 2), "Gym day: portions re-fitted to 2150 kcal.");
+  assert.equal(T.refitNote(false, 1900, 1), "Rest day: portions re-fitted to 1900 kcal.");
+  assert.equal(T.refitNote(true, 2150, 0), "Portions already fit 2150 kcal.");
+  assert.equal(T.refitNote(true, 2150, -1), "Gym day: target 2150 kcal.");
+});

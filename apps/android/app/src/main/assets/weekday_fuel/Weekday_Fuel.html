@@ -1256,6 +1256,15 @@ function todayFit(date,quiet){
   if(changed.length)state.todayNote="Portions refit: "+changed.join(", ");
   else if(!quiet)state.todayNote="Already the closest fit";
 }
+function setGymDay(date,on){
+  if(!dayEditable(date))return null;
+  const d=ensureDay(date);
+  if(on)d.gym=true;else delete d.gym;
+  let changed=-1;
+  if(dayHasMeals(d))changed=fitTiers(d,0,date,date===iso(new Date())?{bought:true,respectTierBy:false,clearTierBy:true}:{clearTierBy:true,respectTierBy:false}).length;
+  saveDay(date);
+  return WeekdayFuelTargets.refitNote(!!on,target(date).k,changed);
+}
 function shopMealsChangedSinceSend(){
   const sent=sentFor(store());if(!sent)return false;
   const buyKeysNow=WeekdayFuelBought.toBuyKeys(state.days,shopDays(),WeekdayFuelBought.isBought);
@@ -2011,13 +2020,18 @@ function renderToday(){
   const meals=day.meals||[];
   const tg=target(today);
   const t=totals(day,today);
+  const gymBtn=dayEditable(today)?`<button type="button" class="chip" aria-pressed="${day.gym===true}" data-act="gym" data-d="${esc(today)}" data-v="${day.gym===true?"0":"1"}">Gym today</button>`:"";
   if(!meals.length){
-    h+=`<div class="panel"><p class="muted" style="margin:0">Nothing planned. <button type="button" class="ghost" data-act="planweek">Plan my week →</button></p></div>`;
+    const gymLab=WeekdayFuelTargets.gymLabel(S(),day).replace(/^ · /,"");
+    h+=`<div class="panel stack" style="gap:8px"><p class="muted" style="margin:0">Nothing planned. <button type="button" class="ghost" data-act="planweek">Plan my week →</button></p><div class="small muted">Target <b class="num">${tg.k}</b> kcal${gymLab?` · ${esc(gymLab)}`:""}</div><div class="chips">${gymBtn}</div></div>`;
+    if(state.todayNote)h+=`<div class="hint" id="today-note"><span>${esc(state.todayNote)}</span></div>`;
     h+=renderStapleChipsToday(today,day);
   }else{
     const canFit=dayPip(day,today)!=="good"&&meals.some(m=>MEAL[m.id]&&!mealImpliedAte(m,today));
     const fitBtn=canFit?`<button type="button" class="ghost" data-act="todayfit" data-d="${esc(today)}">Fit portions</button>`:"";
-    h+=`<div class="panel stack" style="gap:10px">${compactMacro(t.k,tg.k," kcal","")}${compactMacro(t.p,tg.p," g protein","p")}${fitBtn}${renderTodaySpreadAdj(today)}</div>`;
+    const spreadAdj=renderTodaySpreadAdj(today);
+    const gymLab=spreadAdj?"":WeekdayFuelTargets.gymLabel(S(),day).replace(/^ · /,"");
+    h+=`<div class="panel stack" style="gap:10px">${compactMacro(t.k,tg.k," kcal","")}${gymLab?`<div class="small muted">${esc(gymLab)}</div>`:""}${compactMacro(t.p,tg.p," g protein","p")}<div class="chips">${gymBtn}</div>${fitBtn}${spreadAdj}</div>`;
     const gapMeta=todayGapMeta(today,day,t,tg);
     if(gapMeta)h+=`<div class="special"><span>${esc(gapMeta.text)} · </span><button type="button" class="ghost" data-act="gapopen">Close the gap</button></div>`;
     if(state.todayNote)h+=`<div class="hint" id="today-note"><span>${esc(state.todayNote)}</span>${state.gapUndo?` <button type="button" class="ghost" data-act="gapundo">Undo</button>`:""}</div>`;
@@ -2672,7 +2686,8 @@ function renderSheet(){
     const hasBought=dayHasBoughtMeals(date);
     const unlock=hasBought&&dayEditable(date)?`<button type="button" class="pick" data-act="unlockday" data-d="${esc(date)}">${dayUnlocked(date)?"Lock bought meals":"Unlock bought meals"}</button>`:"";
     const untrack=isWeekend(date)&&tracked(date)&&!hasBought&&dayEditable(date)?`<button type="button" class="pick" data-act="untrack" data-d="${esc(date)}">Stop planning this day</button>`:"";
-    root.innerHTML=`<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(dayShort(date))}"><div class="row between" style="margin-bottom:10px"><span class="eyebrow">${esc(dayShort(date))}</span><button type="button" class="ghost" data-act="close">Close</button></div><div class="stack" style="gap:8px"><button type="button" class="pick" data-act="suggest" data-d="${esc(date)}">Re-suggest this day</button>${staples?`<div class="stack" style="gap:6px"><div class="eyebrow">Skip a staple</div><div class="chips">${staples}</div></div>`:""}<button type="button" class="pick" data-act="dayextra" data-d="${esc(date)}">Something else</button>${leave}${unlock}${untrack}</div></div></div>`;
+    const gym=dayEditable(date)?`<button type="button" class="pick" data-act="gym" data-d="${esc(date)}" data-v="${day.gym===true?"0":"1"}">${day.gym===true?"Not a gym day":"Gym day"}</button>`:"";
+    root.innerHTML=`<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(dayShort(date))}"><div class="row between" style="margin-bottom:10px"><span class="eyebrow">${esc(dayShort(date))}</span><button type="button" class="ghost" data-act="close">Close</button></div><div class="stack" style="gap:8px">${gym}<button type="button" class="pick" data-act="suggest" data-d="${esc(date)}">Re-suggest this day</button>${staples?`<div class="stack" style="gap:6px"><div class="eyebrow">Skip a staple</div><div class="chips">${staples}</div></div>`:""}<button type="button" class="pick" data-act="dayextra" data-d="${esc(date)}">Something else</button>${leave}${unlock}${untrack}</div></div></div>`;
     root.dataset.sheet=state.sheet;
     return;
   }
@@ -2862,6 +2877,7 @@ document.addEventListener("click",e=>{
     case "untrack":{if(!dayEditable(date)||dayHasBoughtMeals(date))break;const d=ensureDay(date);d.track=false;saveDay(date);state.sheet=null;break}
     case "stapletog":{const sd=el.dataset.d||date;if(!dayEditable(sd))break;toggleStapleDay(v,sd);if(el.dataset.fit)todayFit(sd,true);break}
     case "todayfit":todayFit(date,false);break;
+    case "gym":{const note=setGymDay(date,v==="1");if(note==null)break;if(date===iso(new Date())&&state.tab==="today")state.todayNote=note;else{state.dayNote={date,msg:note};state.scrollWeekDay=date}if(state.sheet&&state.sheet.startsWith("daymenu:"))state.sheet=null;break}
     case "gapopen":state.sheet="gap";break;
     case "gapapply":{const today=iso(new Date());applyGapOption(+v,today);break}
     case "gapundo":undoGap();break;

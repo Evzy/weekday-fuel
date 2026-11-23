@@ -37,7 +37,15 @@
     return { settings: s, changed: true, note: custom ? NOTE : null };
   }
 
-  var api = { OLD_DEFAULTS: OLD_DEFAULTS, NEW_DEFAULTS: NEW_DEFAULTS, GYM_BONUS: GYM_BONUS, forDay: forDay, gymLabel: gymLabel, migrate: migrate };
+  /* changed < 0 means the day has no meals to fit */
+  function refitNote(gym, k, changed) {
+    var kind = gym ? "Gym day" : "Rest day";
+    if (changed < 0) return kind + ": target " + k + " kcal.";
+    if (changed === 0) return "Portions already fit " + k + " kcal.";
+    return kind + ": portions re-fitted to " + k + " kcal.";
+  }
+
+  var api = { OLD_DEFAULTS: OLD_DEFAULTS, NEW_DEFAULTS: NEW_DEFAULTS, GYM_BONUS: GYM_BONUS, forDay: forDay, gymLabel: gymLabel, migrate: migrate, refitNote: refitNote };
   if (typeof module === "object" && module.exports) module.exports = api;
   else root.WeekdayFuelTargets = api;
 })(typeof globalThis !== "undefined" ? globalThis : this);
