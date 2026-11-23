@@ -109,3 +109,24 @@ test("panel unitG overrides item unitSize for count units, per store", () => {
   assert.equal(mc.portion("m", "S", "woolies").k, 30);
   assert.equal(mc.portion("m", "S", "coles").k, 60);
 });
+
+test("buffalomac Standard cheese slices: 3 Kraft slices at Woolworths", () => {
+  const slice = PANELS.cheeseslice.woolies;
+  assert.equal(slice.unitG, undefined);
+  const only = calc.create({
+    panels: PANELS,
+    amounts: { m: { cheeseslice: 3 } },
+    item: (id) => cat.item(id),
+  });
+  assert.equal(only.portion("m", "S", "woolies").p, Math.round(19.1 * 0.54 * 10) / 10);
+});
+
+test("buffalomac cheese slices at Coles count 20.8 g a slice", () => {
+  assert.equal(PANELS.cheeseslice.coles.unitG, 20.8);
+  const only = calc.create({
+    panels: PANELS,
+    amounts: { m: { cheeseslice: 3 } },
+    item: (id) => cat.item(id),
+  });
+  assert.equal(only.portion("m", "S", "coles").p, Math.round(18.9 * 0.624 * 10) / 10);
+});

@@ -12,7 +12,6 @@
     avocado: { unit: "g" },
     sesameseed: { unit: "g" },
     kewpie: { unit: "g" },
-    tasty: { unit: "g" },
     paprika: { unit: "g" },
     olive: { unit: "mL" },
     fishsauce: { unit: "mL" },

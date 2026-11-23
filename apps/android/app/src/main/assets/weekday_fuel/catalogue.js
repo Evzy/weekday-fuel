@@ -13,6 +13,7 @@
       "206196": { name: "San Remo Spaghetti No 5 500g", url: "https://www.coles.com.au/product/san-remo-spaghetti-no-5-500g-206196" },
       "3329137": { name: "Coles Durum Wheat Pasta Macaroni 500g", url: "https://www.coles.com.au/product/coles-durum-wheat-pasta-macaroni-500g-3329137" },
       "4324875": { name: "Coles Australian Panko Crumb 220g", url: "https://www.coles.com.au/product/coles-australian-panko-crumb-220g-4324875" },
+      "8145335": { name: "Coles Cheese Shredded Tasty 700g", url: "https://www.coles.com.au/product/coles-cheese-shredded-tasty-700g-8145335" },
     },
     woolies: {
       "6078660": { name: "Woolworths RSPCA Approved Chicken Thigh Fillets 550g", url: "https://www.woolworths.com.au/shop/productdetails/6078660/woolworths-rspca-approved-chicken-thigh-fillets" },
@@ -20,6 +21,7 @@
       "43974": { name: "San Remo Spaghetti Pasta No 5 500g", url: "https://www.woolworths.com.au/shop/productdetails/43974/san-remo-spaghetti-pasta-no-5" },
       "44025": { name: "San Remo Macaroni Pasta No 38 500g", url: "https://www.woolworths.com.au/shop/productdetails/44025/san-remo-macaroni-pasta-no-38" },
       "83295": { name: "Woolworths Panko Bread Crumbs 220g", url: "https://www.woolworths.com.au/shop/productdetails/83295/woolworths-panko-bread-crumbs" },
+      "729026": { name: "Woolworths Tasty Shredded Cheese 500g", url: "https://www.woolworths.com.au/shop/productdetails/729026/woolworths-tasty-shredded-cheese" },
     },
   };
 
@@ -125,6 +127,11 @@
         name: "Woolworths Light Tasty Shredded Cheese 500g", url: "https://www.woolworths.com.au/shop/productdetails/729008/woolworths-light-tasty-shredded-cheese", stockcode: 729008, size: 500, price: 8.3, checked: "2026-10-15",
         packs: [{ name: "Woolworths Light Tasty Cheese Shredded 250g", url: "https://www.woolworths.com.au/shop/productdetails/728984/woolworths-light-tasty-cheese-shredded", stockcode: 728984, size: 250, price: 5, checked: "2026-10-20" }],
       },
+    },
+    {
+      id: "cheeseslice", sec: 1, keeps: 28, name: "Cheese slices", short: "Slices", unit: "slices", unitSize: 18, note: "Individually wrapped processed slices. They melt smoothly into a sauce and don't go stringy", same: false,
+      coles: { name: "Coles Simply Sandwich Slices 24 Pack 500g", url: "https://www.coles.com.au/product/coles-simply-sandwich-slices-24-pack-500g-1708600", size: 24, price: 4.25, checked: "2026-11-23", unconfirmed: true },
+      woolies: { name: "Kraft Singles Original 432g", url: "https://www.woolworths.com.au/shop/productdetails/791364/kraft-singles-original-original", stockcode: 791364, size: 24, price: 9.6, checked: "2026-11-23" },
     },
     {
       id: "wraps", sec: 1, keeps: 14, name: "Mission Carb Balance wraps", short: "Wrap", unit: "wraps", unitSize: 48, note: "Coles lists the 6 pack (8566038) but as unavailable with no price. Woolworths special (usually $6.60). Freeze half", same: false,
@@ -391,11 +398,6 @@
       coles: { name: "Coles Hass Avocados 1 Each", url: "https://www.coles.com.au/product/coles-hass-avocados-1-each-5900530", size: 150, price: 2.7, checked: "2026-10-27" },
       woolies: { name: "Hass Avocado each", url: "https://www.woolworths.com.au/shop/productdetails/120080/hass-avocado", stockcode: 120080, size: 150, price: 2.7, checked: "2026-10-27" },
     },
-    {
-      id: "tasty", sec: 1, keeps: 21, name: "Tasty shredded cheese", short: "Tasty", unit: "g", note: "Full-fat partner of the catalogue light tasty cheese. Coles price estimate (not in labels-c notes)", same: false,
-      coles: { name: "Coles Cheese Shredded Tasty 700g", url: "https://www.coles.com.au/product/coles-cheese-shredded-tasty-700g-8145335", size: 700, price: 9.5, checked: "2026-10-27", unconfirmed: true },
-      woolies: { name: "Woolworths Tasty Shredded Cheese 500g", url: "https://www.woolworths.com.au/shop/productdetails/729026/woolworths-tasty-shredded-cheese", stockcode: 729026, size: 500, price: 8.3, checked: "2026-10-27" },
-    },
   ];
   var AMOUNTS = {
     toasty: { bread: { L: 2, S: 2, X: 0 }, ham: 100, cheese: { L: 20, S: 40, X: 40 }, spinach: 20, toms: 50, sourdough: { L: 0, S: 0, X: 84 }, spray: { L: 1, S: 0, X: 0 }, butter: { L: 0, S: 5, X: 5 } },
@@ -405,7 +407,7 @@
     tenderwrap: { breast: 200, wraps: { L: 1, S: 2, X: 2 }, cheese: { L: 20, S: 30, X: 50 }, salsa: 30, spinach: 20, cucumber: 80, toms: 50, lightmayo: { L: 0, S: 0, X: 15 } },
     burritobowl: { rice: { L: 1 / 3, S: 0.5, X: 0.75 }, breast: 200, corn: 80, capsicum: 110, salsa: 30, taco: 4, yog: 50, cheese: { L: 0, S: 30, X: 30 }, avocado: { L: 0, S: 0, X: 70 } },
     teriyaki: { breast: 200, teriyaki_sauce: 50, rice: { L: 1 / 3, S: 0.5, X: 0.75 }, fzasian: 150, sesameseed: { L: 0, S: 3, X: 3 }, kewpie: { L: 0, S: 0, X: 15 } },
-    buffalomac: { breast: 200, freshpasta: { L: 50, S: 80, X: 110 }, evap: 80, cheese: { L: 25, S: 40, X: 0 }, franks: 50, fzbroc: 100, paprika: 1, tasty: { L: 0, S: 0, X: 50 }, garlic: 5 },
+    buffalomac: { breast: 200, freshpasta: { L: 50, S: 80, X: 110 }, evap: 80, cheeseslice: { L: 2, S: 3, X: 4 }, franks: 50, fzbroc: 100, paprika: 1, garlic: 5 },
     schnitzel: { crumbfillet: 1, potato: { L: 50, S: 300, X: 400 }, evap: 30, fzpeas: 100, gravy: { L: 0, S: 10, X: 10 }, spray: { L: 1, S: 1, X: 1 }, butter: { L: 0, S: 0, X: 10 } },
     koreanbeef: { mince: 200, soy: 40, honey: { L: 14, S: 21, X: 21 }, sesame: 5, garlic: 5, ginger: 5, rice: { L: 1 / 3, S: 0.5, X: 0.75 }, eggs: { L: 0, S: 1, X: 1 }, fzbroc: 150, spray: { L: 0, S: 1, X: 1 } },
     bolognese: { mince: 200, passata: 280, fzmix: 100, garlic: 5, freshpasta: { L: 50, S: 80, X: 110 }, parm: { L: 0, S: 10, X: 20 }, olive: { L: 0, S: 0, X: 5 } },

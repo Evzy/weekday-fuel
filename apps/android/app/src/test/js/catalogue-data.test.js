@@ -257,15 +257,13 @@ test("approved swap ids and store links match the spec", () => {
   });
 });
 
-const EXTRA_IDS = ["spray", "butter", "lightmayo", "kewpie", "paprika", "olive", "fishsauce", "vegoil", "tomsauce", "sesameseed", "sourdough", "avocado", "tasty"];
+const EXTRA_IDS = ["spray", "butter", "lightmayo", "kewpie", "paprika", "olive", "fishsauce", "vegoil", "tomsauce", "sesameseed", "sourdough", "avocado"];
 
 test("estimated extra prices are marked unconfirmed on store products", () => {
   assert.equal(cat.item("paprika").coles.unconfirmed, true);
   assert.equal(cat.item("paprika").woolies.unconfirmed, true);
   assert.equal(cat.item("sesameseed").coles.unconfirmed, true);
   assert.equal(cat.item("sesameseed").woolies.unconfirmed, undefined);
-  assert.equal(cat.item("tasty").coles.unconfirmed, true);
-  assert.equal(cat.item("tasty").woolies.unconfirmed, undefined);
   assert.equal(cat.item("crumbfillet").woolies.unconfirmed, true);
 });
 
@@ -305,4 +303,18 @@ test("RETIRED keys are not current product ids and every entry has a name and ur
     assert.ok(!wooliesCodes.has(code), "retired Woolworths code still in catalogue: " + code);
     assert.ok(entry.name && entry.url, "retired Woolworths " + code);
   }
+});
+
+test("buffalomac uses cheese slices, not shredded cheese", () => {
+  const a = cat.AMOUNTS.buffalomac;
+  assert.deepEqual(a.cheeseslice, { L: 2, S: 3, X: 4 });
+  assert.equal(a.cheese, undefined);
+  assert.equal(a.tasty, undefined);
+  assert.ok(!cat.item("tasty"));
+  const it = cat.item("cheeseslice");
+  assert.equal(it.unit, "slices");
+  assert.equal(it.unitSize, 18);
+  assert.equal(it.woolies.stockcode, 791364);
+  assert.ok(cat.RETIRED.woolies["729026"]);
+  assert.ok(cat.RETIRED.coles["8145335"]);
 });

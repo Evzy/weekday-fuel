@@ -1744,30 +1744,33 @@
       "note": "Coles live page/data route blocked by Incapsula when fetched (2026-10-27). Panel reproduced by Shop & Dispatch (a reseller of this exact Coles SKU), which omits carbohydrate. Grocerize corroborates 188 Cal per 30 g serve (= 2617 kJ/100 g). Carbohydrate MISSING: do not fill; read the pack. Protein 26.2 vs 18.0 g at Woolworths."
     }
   },
-  "tasty": {
+  "cheeseslice": {
     "woolies": {
-      "k": 394.4,
-      "p": 25.5,
-      "c": 0.5,
-      "f": 32.7,
+      "k": 272.5,
+      "p": 19.1,
+      "c": 3.5,
+      "f": 20.8,
       "per": "100g",
       "src": "label",
-      "product": "Woolworths Tasty Shredded Cheese 500g",
-      "id": "729026",
-      "checked": "2026-10-27",
-      "note": "Full-fat partner of the catalogue's Woolworths Light Tasty Shredded 500g. $8.30."
+      "product": "Kraft Singles Original 432g",
+      "id": "791364",
+      "checked": "2026-11-23",
+      "note": "Woolworths product page (text NIP). 1140 kJ per 100g. Per 18g slice: 205 kJ, 3.4g P, 3.7g F, sodium 234mg. as sold"
     },
     "coles": {
-      "k": 413.5,
-      "p": 24.6,
-      "c": 0.1,
-      "f": 35.4,
+      "k": 293,
+      "p": 18.9,
+      "c": 3.9,
+      "f": 22.6,
       "per": "100g",
       "src": "label",
-      "product": "Coles Cheese Shredded Tasty 700g",
-      "id": "8145335",
-      "checked": "2026-10-27",
-      "note": "Coles data route blocked by Incapsula when fetched (2026-10-27). Values are the Coles-feed figures reproduced by cals.com.au (GTIN 9300601464807): energy, protein, fat, sat, sodium '2 sources agree'; carbs/sugars 0.1 g are Coles' figure (Open Food Facts says 1 g). CalorieKing per-serve 433 kJ/25 g agrees. cals also lists 0.4 g fibre 'reported' (single source), not recorded. Full-fat partner of the catalogue's Coles Light 700g."
+      "unitG": 20.8,
+      "product": "Coles Simply Sandwich Slices 24 Pack 500g",
+      "id": "1708600",
+      "checked": "2026-11-23",
+      "note": "1226 kJ per 100g; serving 20.8g (one slice), sodium 1190mg. Two versions of this label circulate (the other: 289 kcal, 18.2g P, 22.5g F, 4.1g C); confirm on pack.",
+      "photo": "Which label is on the pack: 293 or 289 kcal per 100g?",
+      "confirm": "Two label versions exist; check the pack."
     }
   },
   "sourdough": {
