@@ -111,6 +111,7 @@ dependencies {
     implementation(libs.activity.ktx)
     implementation(libs.lifecycle.runtime.ktx)
     implementation(libs.webkit)
+    implementation(libs.health.connect)
     testImplementation(libs.junit)
     testImplementation(libs.org.json)
 }

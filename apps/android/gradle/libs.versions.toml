@@ -7,6 +7,8 @@ lifecycle = "2.8.7"
 webkit = "1.12.1"
 junit = "4.13.2"
 orgJson = "20240303"
+# 1.1.0-beta02 and later (incl. 1.1.0 stable) need compileSdk 36 and AGP 8.9.1.
+healthConnect = "1.1.0-beta01"
 
 [libraries]
 core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -15,6 +17,7 @@ lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtim
 webkit = { group = "androidx.webkit", name = "webkit", version.ref = "webkit" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 org-json = { group = "org.json", name = "json", version.ref = "orgJson" }
+health-connect = { group = "androidx.health.connect", name = "connect-client", version.ref = "healthConnect" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

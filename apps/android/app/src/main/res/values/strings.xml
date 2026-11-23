@@ -30,4 +30,5 @@
     <string name="backup_save_failed">Couldn\'t save the backup. Try again.</string>
     <string name="backup_read_failed">Couldn\'t read that file.</string>
     <string name="backup_update_failed">Couldn\'t update %1$s. Save as a new file instead.</string>
+    <string name="steps_rationale">Weekday Fuel reads your daily step count from Health Connect to show it next to your meals and weigh-ins. It only reads steps, never writes anything, and the counts stay on this phone.</string>
 </resources>

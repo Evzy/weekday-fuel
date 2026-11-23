@@ -24,6 +24,7 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updatePadding
+import androidx.health.connect.client.PermissionController
 import androidx.lifecycle.lifecycleScope
 import androidx.webkit.JavaScriptReplyProxy
 import androidx.webkit.WebViewAssetLoader
@@ -36,6 +37,8 @@ import dev.weekdayfuel.app.coles.ColesSession
 import dev.weekdayfuel.app.coles.ColesTrolleyJson
 import dev.weekdayfuel.app.coles.ColesTrolleyState
 import dev.weekdayfuel.app.coles.ColesUrls
+import dev.weekdayfuel.app.steps.HealthSteps
+import dev.weekdayfuel.app.steps.StepsMessages
 import dev.weekdayfuel.app.update.GithubApkReleaseInfo
 import dev.weekdayfuel.app.update.GithubApkReleaseUpdater
 import dev.weekdayfuel.app.update.ReleaseVersionCompare
@@ -48,6 +51,7 @@ import dev.weekdayfuel.app.woolworths.TrolleyScriptState
 import dev.weekdayfuel.app.woolworths.WoolworthsSession
 import dev.weekdayfuel.app.woolworths.WoolworthsUrls
 import java.time.Instant
+import java.time.LocalDate
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -73,6 +77,15 @@ class MainActivity : ComponentActivity() {
 
     private var pendingBackupJson: String? = null
     private val backupFiles by lazy { BackupFiles(this) }
+
+    private val healthSteps by lazy { HealthSteps(this) }
+    private var lastStepsRange: StepsMessages.ReadRange? = null
+
+    private val requestSteps =
+        registerForActivityResult(PermissionController.createRequestPermissionResultContract()) { _ ->
+            val range = lastStepsRange ?: StepsMessages.ReadRange(LocalDate.now().minusDays(7), LocalDate.now())
+            lifecycleScope.launch { replyToPage(readStepsSafely(range)) }
+        }
 
     private val createBackup =
         registerForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
@@ -316,8 +329,45 @@ class MainActivity : ComponentActivity() {
                         }
                     replyToPage(BackupMessages.info(name))
                 }
+            "stepsStatus" ->
+                lifecycleScope.launch {
+                    val reply =
+                        withContext(Dispatchers.IO) {
+                            runCatching { healthSteps.status() }.getOrElse { StepsMessages.status(StepsMessages.Status.ERROR) }
+                        }
+                    replyToPage(reply)
+                }
+            "stepsRead" -> {
+                val range =
+                    StepsMessages.parseRead(msg) ?: run {
+                        replyToPage(StepsMessages.status(StepsMessages.Status.ERROR))
+                        return
+                    }
+                lastStepsRange = range
+                lifecycleScope.launch { replyToPage(readStepsSafely(range)) }
+            }
+            "stepsConnect" -> handleStepsConnect()
         }
     }
+
+    private fun handleStepsConnect() {
+        when (val avail = healthSteps.availability()) {
+            StepsMessages.Status.OK -> requestSteps.launch(healthSteps.permissions)
+            StepsMessages.Status.UPDATE_REQUIRED -> {
+                replyToPage(StepsMessages.status(avail))
+                openExternally(Uri.parse(HEALTH_CONNECT_STORE_URL))
+            }
+            else -> replyToPage(StepsMessages.status(avail))
+        }
+    }
+
+    private suspend fun readStepsSafely(range: StepsMessages.ReadRange): String =
+        withContext(Dispatchers.IO) {
+            runCatching { healthSteps.read(range) }.getOrElse {
+                Log.i(TAG, "Steps read failed: ${it.message}")
+                StepsMessages.status(StepsMessages.Status.ERROR)
+            }
+        }
 
     private fun handleBackupSave(msg: JSONObject) {
         val json = msg.optString("json")
@@ -542,5 +592,7 @@ class MainActivity : ComponentActivity() {
         const val HOST_OBJECT = "WeekdayFuelHost"
         val APP_ORIGIN = "https://${WebViewAssetLoader.DEFAULT_DOMAIN}"
         val APP_URL = "$APP_ORIGIN/assets/weekday_fuel/Weekday_Fuel.html"
+        const val HEALTH_CONNECT_STORE_URL =
+            "market://details?id=com.google.android.apps.healthdata&url=healthconnect%3A%2F%2Fonboarding"
     }
 }
